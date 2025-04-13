@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:saobracaj/db/dependencies.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/state_management/quest_bloc.dart';
@@ -143,7 +144,7 @@ class QuestionContent extends StatelessWidget {
 
     return BlocProvider(
       key: ValueKey(question.id),
-      create: (context) => QuestContentBloc(question.choices.toSet(), answers ?? {}),
+      create: (context) => QuestContentBloc(question.choices.toSet(), answers ?? {}, question.id),
       child: BlocBuilder<QuestContentBloc, QuesContentState>(
         builder: (context, state) {
           final bloc = context.read<QuestContentBloc>();
@@ -151,6 +152,25 @@ class QuestionContent extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text('Предыдущие попытки', style: Theme.of(context).textTheme.labelSmall),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Wrap(
+                  children: [
+                    if (state.previousTries.isNotEmpty)
+                      for (var s in state.previousTries)
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(color: s ? Colors.red : Colors.green, borderRadius: BorderRadius.circular(20)),
+                        ),
+                  ],
+                ),
+              ),
+              SizedBox(height: 16),
               // Text('${question.id}, ${question.hasImage}, ${question.imageId}, '),
               ListTile(title: Text(question.text.trim())),
               if (question.hasImage)
@@ -191,6 +211,7 @@ class QuestionContent extends StatelessWidget {
                       },
                     ),
                   ),
+
               SizedBox(height: 16),
               Container(
                 width: double.infinity,
@@ -257,9 +278,14 @@ class QuestionContent extends StatelessWidget {
 }
 
 class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
-  QuestContentBloc(Set<Choice> choices, Set<Choice> currentAnswers) : super(QuesContentState(choices: choices, selectedChoices: currentAnswers)) {
+  final int questionId;
+
+  QuestContentBloc(Set<Choice> choices, Set<Choice> currentAnswers, this.questionId)
+    : super(QuesContentState(choices: choices, selectedChoices: currentAnswers)) {
     on<AddChoice>(_onAddChoise);
     on<ShowCorrectAnswers>(_onShowCorrectAnswers);
+    on<GetHistory>(_onGetHistory);
+    add(GetHistory());
   }
 
   void _onAddChoise(AddChoice event, Emitter<QuesContentState> emit) {
@@ -277,6 +303,15 @@ class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
   void _onShowCorrectAnswers(ShowCorrectAnswers event, Emitter<QuesContentState> emit) {
     emit(state.copyWith(showCorrectAnswers: true));
   }
+
+  void _onGetHistory(GetHistory event, Emitter<QuesContentState> emit) async {
+    final res = await repository.getAnswersByQuestionId(questionId);
+    final arr = <bool>[];
+    for (var r in res) {
+      arr.add(r.isWrong);
+    }
+    emit(state.copyWith(previousTries: arr));
+  }
 }
 
 sealed class QuestContentEvent {}
@@ -289,12 +324,15 @@ class AddChoice extends QuestContentEvent {
 
 class ShowCorrectAnswers extends QuestContentEvent {}
 
+class GetHistory extends QuestContentEvent {}
+
 @freezed
 sealed class QuesContentState with _$QuesContentState {
   const factory QuesContentState({
     @Default({}) Set<Choice> choices,
     @Default({}) Set<Choice> selectedChoices,
     @Default(false) bool showCorrectAnswers,
+    @Default([]) List<bool> previousTries,
   }) = _QuesContentState;
 }
 

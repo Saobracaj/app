@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:saobracaj/db/dependencies.dart';
 import 'package:saobracaj/models/models.dart';
 
 part 'quest_bloc.freezed.dart';
@@ -33,6 +34,11 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
     final answers = {...state.answers};
     answers[event.qid] = event.answer;
     _recalculateState(answers, emit);
+
+    final question = data.questions.firstWhere((element) => element.id == event.qid);
+    final correctAnswers = question.choices.where((element) => element.isCorrect).toSet();
+
+    repository.addAnswer(event.qid, !setEquals(correctAnswers, event.answer));
   }
 
   void _recalculateState(Map<int, Set<Choice>> answers, Emitter<QuestState> emit) {

@@ -11,6 +11,7 @@
 .history
 .svn/
 .swiftpm/
+*.g.dart
 .metadata
 migrate_working_dir/
 
