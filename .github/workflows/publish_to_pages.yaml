@@ -37,13 +37,13 @@ jobs:
       - run: flutter build web
       - run: scp build/web/index.html build/web/404.html #create a copy of index.html
       - name: Archive Production Artifact
-        uses: actions/upload-artifact@master
+        uses: actions/upload-artifact@v4
         with:
           name: web-build
           path: build/web
 
       - name: Setup Pages
-        uses: actions/configure-pages@v2
+        uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
