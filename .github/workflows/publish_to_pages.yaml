@@ -34,6 +34,7 @@ jobs:
           channel: stable
           flutter-version: 3.29.2
       - run: flutter pub get
+      - run: dart run build_runner build --delete-conflicting-outputs
       - run: flutter config --enable-web
       - run: flutter build web --base-href "/saobracajSimple/"
       - run: scp build/web/index.html build/web/404.html #create a copy of index.html
