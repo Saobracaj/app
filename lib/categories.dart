@@ -34,7 +34,7 @@ class _CategoriesState extends State<Categories> {
                     var subCategoriesIds = category.subcategories.map((e) => e.id);
                     return subCategoriesIds.any((element) => (state.subCategoriesCount[element] ?? 0) > 0);
                   })) ...[
-                    SizedBox(height: 16),
+                    SizedBox(height: 17),
                     ListTile(title: Text(category.name, style: Theme.of(context).textTheme.titleMedium!)),
                     for (var subCategory in category.subcategories.where((element) => (state.subCategoriesCount[element.id] ?? 0) > 0))
                       InkWell(
