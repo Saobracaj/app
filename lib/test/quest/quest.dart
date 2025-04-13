@@ -9,6 +9,8 @@ import 'package:saobracaj/state_management/start_test_bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'finalize_test.dart';
+
 part 'quest.freezed.dart';
 
 class Quest extends StatelessWidget {
@@ -27,6 +29,9 @@ class Quest extends StatelessWidget {
           child: BlocBuilder<QuestBloc, QuestState>(
             builder: (context, state) {
               final questBloc = context.read<QuestBloc>();
+              if (state.finalizeTest) {
+                return FinalizeTestWidget();
+              }
               return Scaffold(
                 appBar: AppBar(
                   title: ListTile(
@@ -190,37 +195,25 @@ class QuestionContent extends StatelessWidget {
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.all(16),
-                child: ElevatedButton(
-                  onPressed:
-                      last
-                          ? null
-                          : () async {
-                            var correctAnswer = question.choices.where((element) => element.isCorrect).toSet();
-                            if (correctAnswer.length != state.selectedChoices.length) {
-                              const snackBar = SnackBar(content: Text('Нисте означили потребан број одговора'));
-                              ScaffoldMessenger.of(context).showSnackBar(snackBar);
-                              return;
-                            }
-                            questBloc.add(AddAnswer(question.id, state.selectedChoices));
-                            if (!setEquals(state.selectedChoices, correctAnswer)) {
-                              if (state.showCorrectAnswers) {
-                                questBloc.add(NextQuestion());
-                                return;
-                              }
-
-                              bloc.add(ShowCorrectAnswers());
-                              await Future.delayed(Duration(seconds: 1));
-                              if (context.mounted) {
-                                questBloc.add(NextQuestion());
-                              }
-                            } else {
-                              questBloc.add(NextQuestion());
-                            }
-                          },
-                  child: Text('Следеће питање'),
-                ),
+                child: ElevatedButton(onPressed: last ? null : () => _closeTest(context, state), child: Text('Следеће питање')),
               ),
-              if (last) Padding(padding: const EdgeInsets.all(16.0), child: OutlinedButton(onPressed: () {}, child: Text('Завершить тест'))),
+              if (last)
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      await _closeTest(context, state);
+                      if (questBloc.state.answers.length != questBloc.state.questions.length) {
+                        final res = await _showMyDialog(context);
+                        if (res != true) {
+                          return;
+                        }
+                      }
+                      questBloc.add(FinalizeTest());
+                    },
+                    child: Text('Завершить тест'),
+                  ),
+                ),
               SizedBox(height: 16),
               TextButton(
                 onPressed:
@@ -236,6 +229,30 @@ class QuestionContent extends StatelessWidget {
         },
       ),
     );
+  }
+
+  Future<void> _closeTest(BuildContext context, QuesContentState state) async {
+    final questBloc = context.read<QuestBloc>();
+    final bloc = context.read<QuestContentBloc>();
+    if (state.selectedChoices.isNotEmpty) {
+      var correctAnswer = question.choices.where((element) => element.isCorrect).toSet();
+      if (correctAnswer.length != state.selectedChoices.length) {
+        const snackBar = SnackBar(content: Text('Нисте означили потребан број одговора'));
+        ScaffoldMessenger.of(context).showSnackBar(snackBar);
+        return;
+      }
+      questBloc.add(AddAnswer(question.id, state.selectedChoices));
+      if (!setEquals(state.selectedChoices, correctAnswer)) {
+        if (state.showCorrectAnswers) {
+          questBloc.add(NextQuestion());
+          return;
+        }
+
+        bloc.add(ShowCorrectAnswers());
+        await Future.delayed(Duration(seconds: 1));
+      }
+    }
+    questBloc.add(NextQuestion());
   }
 }
 
@@ -279,4 +296,33 @@ sealed class QuesContentState with _$QuesContentState {
     @Default({}) Set<Choice> selectedChoices,
     @Default(false) bool showCorrectAnswers,
   }) = _QuesContentState;
+}
+
+Future<bool?> _showMyDialog(BuildContext context) async {
+  return showDialog<bool>(
+    context: context,
+    barrierDismissible: false, // user must tap button!
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Завершить тест'),
+        content: const SingleChildScrollView(
+          child: ListBody(children: <Widget>[Text('Вы не дали ответ на некоторые вопросы. Вы точно хотите завершить тест?')]),
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Отмена'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+          TextButton(
+            child: const Text('Завершить'),
+            onPressed: () {
+              Navigator.of(context).pop(true);
+            },
+          ),
+        ],
+      );
+    },
+  );
 }

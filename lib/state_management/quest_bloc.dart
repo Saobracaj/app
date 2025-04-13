@@ -14,6 +14,7 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
     on<AddAnswer>(_onAddAnswer);
     on<Init>(_onInit);
     on<MoveToQuestion>(_onMoveToQuestiont);
+    on<FinalizeTest>(_onFinalizeTest);
   }
 
   void _onNextQuestion(NextQuestion event, Emitter<QuestState> emit) {
@@ -69,6 +70,10 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
     final ind = state.questions.indexOf(event.qid);
     emit(state.copyWith(currentQuestionIndex: ind));
   }
+
+  void _onFinalizeTest(FinalizeTest event, Emitter<QuestState> emit) {
+    emit(state.copyWith(finalizeTest: true));
+  }
 }
 
 sealed class QuestEvent {}
@@ -78,6 +83,7 @@ class NextQuestion extends QuestEvent {}
 class Init extends QuestEvent {}
 
 class PrevQuestion extends QuestEvent {}
+class FinalizeTest extends QuestEvent {}
 
 class MoveToQuestion extends QuestEvent {
   int qid;
@@ -102,5 +108,6 @@ sealed class QuestState with _$QuestState {
     @Default(0) int rightAnswers,
     @Default(0) int score,
     @Default(0) int possibleScore,
+    @Default(false) bool finalizeTest,
   }) = _QuestState;
 }
