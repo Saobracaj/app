@@ -1,3 +1,4 @@
+/*
 class AnswerRecord {
   final int? id;
   final int questionId;
@@ -29,3 +30,4 @@ class AnswerRecord {
     );
   }
 }
+*/

@@ -18,8 +18,8 @@ class _HomePageState extends State<HomePage> {
         child: NavigationBar(
           backgroundColor: Colors.transparent,
           destinations: [
-            NavigationDestination(label: 'Questions', icon: const Icon(Icons.question_answer)),
-            NavigationDestination(label: 'Statistics', icon: const Icon(Icons.graphic_eq)),
+            NavigationDestination(label: 'Вопросы', icon: const Icon(Icons.question_answer)),
+            NavigationDestination(label: 'История', icon: const Icon(Icons.graphic_eq)),
           ],
           selectedIndex: pageState.index,
           onDestinationSelected: (index) {

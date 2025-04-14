@@ -37,17 +37,28 @@ class _CategoriesState extends State<Categories> {
                   })) ...[
                     SizedBox(height: 16),
                     ListTile(title: Text(category.name, style: Theme.of(context).textTheme.titleMedium!)),
-                    for (var subCategory in category.subcategories.where((element) => (state.subCategoriesCount[element.id] ?? 0) > 0))
+                    for (var subCategory in category.subcategories.where((element) => (state.subCategoriesCount[element.id] ?? 0) > 0)) ...[
                       InkWell(
                         onTap: () {
                           final ids = data.questions.where((element) => element.subcategoryId == subCategory.id).map((e) => e.id).toList();
-                          Routemaster.of(context).push('/start?q=${ids.join(',')}');
+                          Routemaster.of(context).push('/start?q=${ids.join(',')}&subcategory=${subCategory.id}');
                         },
                         child: ListTile(
-                          title: Text(subCategory.description, style: Theme.of(context).textTheme.bodyMedium),
+                          title: Text(
+                            subCategory.description,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                           subtitle: Text('Вопросов: ${state.subCategoriesCount[subCategory.id]} '),
                         ),
                       ),
+                      if (qState.subStats[subCategory.id.toString()] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 16.0, left: 16, bottom: 16),
+                          child: _MiniChart(stats: qState.subStats[subCategory.id.toString()]!),
+                        ),
+                    ],
                   ],
                 ],
               );
@@ -55,6 +66,39 @@ class _CategoriesState extends State<Categories> {
           ),
         );
       },
+    );
+  }
+}
+
+class _MiniChart extends StatelessWidget {
+  const _MiniChart({required this.stats});
+
+  final SubStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    const minHeight = 20.0;
+    const maxHeight = 40.0;
+    const space = 2.0;
+    const w = 16.0;
+
+    final answers = stats.answers;
+    final maxValue = answers.isNotEmpty ? answers.reduce((a, b) => a > b ? a : b) : 1;
+
+    return Row(
+      // mainAxisAlignment: MainAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (var value in answers) ...[
+          Container(
+            width: w,
+            height: minHeight + (value / maxValue) * (maxHeight - minHeight),
+            color: value == stats.allAnswers ? Colors.green : Colors.blue,
+            child: Center(child: FittedBox(child: Text(value.toString(),  maxLines: 1, style: Theme.of(context).textTheme.labelSmall!.copyWith(color: Colors.white)))),
+          ),
+          SizedBox(width: space),
+        ],
+      ],
     );
   }
 }

@@ -12,16 +12,26 @@ final routes = RouteMap(
     '/': (_) => IndexedPage(child: HomePage(), paths: ['/questions', '/statistics']),
     '/questions': (_) => MaterialPage(child: QuestionsPage()),
     '/statistics': (_) => MaterialPage(child: StatisticsPage()),
-    '/start': (data) => MaterialPage(child: StartTest(questionIds: data.queryParameters['q']!.split(',').map(int.parse).toList())),
-    '/quest':
+    '/start':
         (data) => MaterialPage(
-          child: Quest(
-            options: StartTestState(
-              random: data.queryParameters['random']?.isNotEmpty ?? false,
-              randomOptionsOrder: data.queryParameters['randomOptionsOrder']?.isNotEmpty ?? false,
-            ),
-            questions: data.queryParameters['q']!.split(',').map(int.parse).toList(),
+          child: StartTest(
+            questionIds: data.queryParameters['q']!.split(',').map(int.parse).toList(),
+            subcategory: data.queryParameters['subcategory'],
           ),
         ),
+    '/quest': questPage,
+    '/quest/q': questPage,
   },
 );
+
+var questPage =
+    (data) => MaterialPage(
+      child: Quest(
+        options: StartTestState(
+          random: data.queryParameters['random']?.isNotEmpty ?? false,
+          randomOptionsOrder: data.queryParameters['randomOptionsOrder']?.isNotEmpty ?? false,
+        ),
+        questions: data.queryParameters['q']!.split(',').map<int>(int.parse).toList(),
+        subcategory: data.queryParameters['subcategory'],
+      ),
+    );

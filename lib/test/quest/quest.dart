@@ -15,22 +15,34 @@ import 'finalize_test.dart';
 part 'quest.freezed.dart';
 
 class Quest extends StatelessWidget {
-  const Quest({super.key, required this.questions, required this.options});
+  const Quest({super.key, required this.questions, required this.options, this.subcategory});
 
   final List<int> questions;
   final StartTestState options;
+  final String? subcategory;
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AllQuestionsBloc, AllQuestionsBlocState>(
       builder: (context, state) {
-        final qs = state.questionsData!.questions;
+        // final qs = [...state.questionsData!.questions];
+        final qqs = [...state.questionsData!.questions];
+        final qs = <Question>[];
+        for (var q in qqs) {
+          if (options.randomOptionsOrder) {
+            qs.add(q.copyWith(choices: [...q.choices]..shuffle()));
+          } else {
+            qs.add(q.copyWith());
+          }
+        }
+
         return BlocProvider(
-          create: (context) => QuestBloc(state.questionsData!, options.random ? ([...questions]..shuffle()) : questions),
+          create: (context) => QuestBloc(state.questionsData!, options.random ? ([...questions]..shuffle()) : questions, subcategory),
           child: BlocBuilder<QuestBloc, QuestState>(
             builder: (context, state) {
               final questBloc = context.read<QuestBloc>();
               if (state.finalizeTest) {
+                context.read<AllQuestionsBloc>().add(LoadStatistics());
                 return FinalizeTestWidget();
               }
               return Scaffold(
@@ -38,7 +50,10 @@ class Quest extends StatelessWidget {
                   title: ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text('Питање: ${state.currentQuestionIndex + 1} / ${questions.length}'),
-                    subtitle: Text('Број поена: 1', style: TextStyle(color: Color(0xff2c6aa0), fontStyle: FontStyle.italic)),
+                    subtitle: Text(
+                      'Број поена: ${qs.firstWhere((element) => element.id == state.questions[state.currentQuestionIndex]).points}',
+                      style: TextStyle(color: Color(0xff2c6aa0), fontStyle: FontStyle.italic),
+                    ),
                   ),
                 ),
                 body: ListView(
@@ -85,6 +100,7 @@ class Quest extends StatelessWidget {
                     ),*/
                     SizedBox(height: 16),
                     QuestionContent(
+                      key: ValueKey(state.questions[state.currentQuestionIndex]),
                       randomOptions: options.randomOptionsOrder,
                       question: qs.firstWhere((element) => state.questions[state.currentQuestionIndex] == element.id),
                       answers: state.answers[state.questions[state.currentQuestionIndex]],
@@ -141,10 +157,14 @@ class QuestionContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final rightAnswers = question.choices.where((element) => element.isCorrect).length;
     final questBloc = context.read<QuestBloc>();
+    var choices = [...question.choices];
+    /* if (randomOptions) {
+      choices.shuffle();
+    }*/
 
     return BlocProvider(
       key: ValueKey(question.id),
-      create: (context) => QuestContentBloc(question.choices.toSet(), answers ?? {}, question.id),
+      create: (context) => QuestContentBloc(choices.toSet(), answers ?? {}, question.id),
       child: BlocBuilder<QuestContentBloc, QuesContentState>(
         builder: (context, state) {
           final bloc = context.read<QuestContentBloc>();
@@ -154,7 +174,10 @@ class QuestionContent extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text('Предыдущие попытки', style: Theme.of(context).textTheme.labelSmall),
+                child: Text(
+                  state.previousTries.isEmpty ? 'Вы ранее не отвечали на этот вопрос' : 'Предыдущие попытки',
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -186,7 +209,7 @@ class QuestionContent extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Text('Број потребних одговора: $rightAnswers', style: TextStyle(color: Color(0xff2c6aa0), fontStyle: FontStyle.italic)),
                 ),
-              for (var c in question.choices)
+              for (var c in choices)
                 if (rightAnswers > 1)
                   AnimatedContainer(
                     duration: Duration(milliseconds: 200),
@@ -262,7 +285,12 @@ class QuestionContent extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(snackBar);
         return;
       }
-      questBloc.add(AddAnswer(question.id, state.selectedChoices));
+      if (!state.showCorrectAnswers) {
+        questBloc.add(AddAnswer(question.id, state.selectedChoices));
+      } else {
+        questBloc.add(AddAnswer(question.id, {}));
+      }
+
       if (!setEquals(state.selectedChoices, correctAnswer)) {
         if (state.showCorrectAnswers) {
           questBloc.add(NextQuestion());
@@ -270,7 +298,8 @@ class QuestionContent extends StatelessWidget {
         }
 
         bloc.add(ShowCorrectAnswers());
-        await Future.delayed(Duration(seconds: 1));
+        return;
+        //await Future.delayed(Duration(seconds: 1));
       }
     }
     questBloc.add(NextQuestion());

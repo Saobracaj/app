@@ -54,7 +54,9 @@ class FinalizeTestWidget extends StatelessWidget {
                         state.answers[a.key],
                       ))
                         ListTile(
-                          onTap: () {},
+                          onTap: () {
+                            Routemaster.of(context).push('q?q=${a.key}&randomOptionsOrder=true');
+                          },
                           title: Text(qs.firstWhere((element) => element.id == a.key).text, maxLines: 2, overflow: TextOverflow.ellipsis),
                         ),
                     Padding(

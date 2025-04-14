@@ -8,8 +8,9 @@ part 'quest_bloc.freezed.dart';
 
 class QuestBloc extends Bloc<QuestEvent, QuestState> {
   final QuestionsData data;
+  final String? subcategory;
 
-  QuestBloc(this.data, List<int> questions) : super(QuestState(questions: questions)) {
+  QuestBloc(this.data, List<int> questions, this.subcategory) : super(QuestState(questions: questions)) {
     on<NextQuestion>(_onNextQuestion);
     on<PrevQuestion>(_onPrevQuestion);
     on<AddAnswer>(_onAddAnswer);
@@ -77,7 +78,12 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
     emit(state.copyWith(currentQuestionIndex: ind));
   }
 
-  void _onFinalizeTest(FinalizeTest event, Emitter<QuestState> emit) {
+  void _onFinalizeTest(FinalizeTest event, Emitter<QuestState> emit) async {
+
+    if (subcategory != null) {
+      await repository.addRecord(subcategory!, state.rightAnswers, state.questions.length);
+
+    }
     emit(state.copyWith(finalizeTest: true));
   }
 }
@@ -89,6 +95,7 @@ class NextQuestion extends QuestEvent {}
 class Init extends QuestEvent {}
 
 class PrevQuestion extends QuestEvent {}
+
 class FinalizeTest extends QuestEvent {}
 
 class MoveToQuestion extends QuestEvent {

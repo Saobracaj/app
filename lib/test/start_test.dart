@@ -4,9 +4,10 @@ import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/state_management/start_test_bloc.dart';
 
 class StartTest extends StatelessWidget {
-  const StartTest({super.key, required this.questionIds});
+  const StartTest({super.key, required this.questionIds, this.subcategory});
 
   final List<int> questionIds;
+  final String? subcategory;
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +37,9 @@ class StartTest extends StatelessWidget {
                   padding: const EdgeInsets.all(16.0),
                   child: ElevatedButton(
                     onPressed: () {
-                      Routemaster.of(
-                        context,
-                      ).push('/quest?q=${questionIds.join(',')}&randomOptionsOrder=${state.randomOptionsOrder}&random=${state.random}');
+                      Routemaster.of(context).push(
+                        '/quest?q=${questionIds.join(',')}&randomOptionsOrder=${state.randomOptionsOrder}&random=${state.random}&subcategory=$subcategory',
+                      );
                     },
                     child: Text('Начать тест'),
                   ),
