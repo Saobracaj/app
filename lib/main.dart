@@ -19,6 +19,7 @@ class MyApp extends StatelessWidget {
     return MultiBlocProvider(
       providers: [BlocProvider(create: (context) => AllQuestionsBloc()..add(Load()))],
       child: MaterialApp.router(
+        debugShowCheckedModeBanner: false,
         routerDelegate: RoutemasterDelegate(routesBuilder: (context) => routes),
         routeInformationParser: RoutemasterParser(),
         title: 'Saobraćaj',

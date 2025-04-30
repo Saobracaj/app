@@ -47,5 +47,6 @@ sealed class Choice with _$Choice {
 
 @freezed
 sealed class QuestionsData with _$QuestionsData {
-  const factory QuestionsData({required List<Category> categories, required List<Question> questions}) = _QuestionsData;
+  const factory QuestionsData({required List<Category> categories, required List<Question> questions, required List<List<int>> practice}) =
+      _QuestionsData;
 }

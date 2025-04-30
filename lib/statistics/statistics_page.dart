@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -34,11 +33,14 @@ class StatisticsPage extends StatelessWidget {
                       ),
                       SizedBox(height: 16),
                       ListTile(title: Text('Последние ошибки:', style: Theme.of(context).textTheme.titleMedium)),
-                      ...state.questions.map((e) => ListTile(onTap: () {
-                        Routemaster.of(
-                          context,
-                        ).push('/quest?q=${e.id}&randomOptionsOrder=true');
-                      }, title: Text(e.text, maxLines: 2, overflow: TextOverflow.ellipsis))),
+                      ...state.questions.map(
+                        (e) => ListTile(
+                          onTap: () {
+                            Routemaster.of(context).push('/quest?q=${e.id}&randomOptionsOrder=true');
+                          },
+                          title: Text(e.text, maxLines: 2, overflow: TextOverflow.ellipsis),
+                        ),
+                      ),
                     ],
                   ),
                 );

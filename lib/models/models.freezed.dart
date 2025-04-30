@@ -643,7 +643,7 @@ as bool,
 /// @nodoc
 mixin _$QuestionsData implements DiagnosticableTreeMixin {
 
- List<Category> get categories; List<Question> get questions;
+ List<Category> get categories; List<Question> get questions; List<List<int>> get practice;
 /// Create a copy of QuestionsData
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -655,21 +655,21 @@ $QuestionsDataCopyWith<QuestionsData> get copyWith => _$QuestionsDataCopyWithImp
 void debugFillProperties(DiagnosticPropertiesBuilder properties) {
   properties
     ..add(DiagnosticsProperty('type', 'QuestionsData'))
-    ..add(DiagnosticsProperty('categories', categories))..add(DiagnosticsProperty('questions', questions));
+    ..add(DiagnosticsProperty('categories', categories))..add(DiagnosticsProperty('questions', questions))..add(DiagnosticsProperty('practice', practice));
 }
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is QuestionsData&&const DeepCollectionEquality().equals(other.categories, categories)&&const DeepCollectionEquality().equals(other.questions, questions));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is QuestionsData&&const DeepCollectionEquality().equals(other.categories, categories)&&const DeepCollectionEquality().equals(other.questions, questions)&&const DeepCollectionEquality().equals(other.practice, practice));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(categories),const DeepCollectionEquality().hash(questions));
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(categories),const DeepCollectionEquality().hash(questions),const DeepCollectionEquality().hash(practice));
 
 @override
 String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
-  return 'QuestionsData(categories: $categories, questions: $questions)';
+  return 'QuestionsData(categories: $categories, questions: $questions, practice: $practice)';
 }
 
 
@@ -680,7 +680,7 @@ abstract mixin class $QuestionsDataCopyWith<$Res>  {
   factory $QuestionsDataCopyWith(QuestionsData value, $Res Function(QuestionsData) _then) = _$QuestionsDataCopyWithImpl;
 @useResult
 $Res call({
- List<Category> categories, List<Question> questions
+ List<Category> categories, List<Question> questions, List<List<int>> practice
 });
 
 
@@ -697,11 +697,12 @@ class _$QuestionsDataCopyWithImpl<$Res>
 
 /// Create a copy of QuestionsData
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? categories = null,Object? questions = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? categories = null,Object? questions = null,Object? practice = null,}) {
   return _then(_self.copyWith(
 categories: null == categories ? _self.categories : categories // ignore: cast_nullable_to_non_nullable
 as List<Category>,questions: null == questions ? _self.questions : questions // ignore: cast_nullable_to_non_nullable
-as List<Question>,
+as List<Question>,practice: null == practice ? _self.practice : practice // ignore: cast_nullable_to_non_nullable
+as List<List<int>>,
   ));
 }
 
@@ -712,7 +713,7 @@ as List<Question>,
 
 
 class _QuestionsData with DiagnosticableTreeMixin implements QuestionsData {
-  const _QuestionsData({required final  List<Category> categories, required final  List<Question> questions}): _categories = categories,_questions = questions;
+  const _QuestionsData({required final  List<Category> categories, required final  List<Question> questions, required final  List<List<int>> practice}): _categories = categories,_questions = questions,_practice = practice;
   
 
  final  List<Category> _categories;
@@ -729,6 +730,13 @@ class _QuestionsData with DiagnosticableTreeMixin implements QuestionsData {
   return EqualUnmodifiableListView(_questions);
 }
 
+ final  List<List<int>> _practice;
+@override List<List<int>> get practice {
+  if (_practice is EqualUnmodifiableListView) return _practice;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_practice);
+}
+
 
 /// Create a copy of QuestionsData
 /// with the given fields replaced by the non-null parameter values.
@@ -741,21 +749,21 @@ _$QuestionsDataCopyWith<_QuestionsData> get copyWith => __$QuestionsDataCopyWith
 void debugFillProperties(DiagnosticPropertiesBuilder properties) {
   properties
     ..add(DiagnosticsProperty('type', 'QuestionsData'))
-    ..add(DiagnosticsProperty('categories', categories))..add(DiagnosticsProperty('questions', questions));
+    ..add(DiagnosticsProperty('categories', categories))..add(DiagnosticsProperty('questions', questions))..add(DiagnosticsProperty('practice', practice));
 }
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _QuestionsData&&const DeepCollectionEquality().equals(other._categories, _categories)&&const DeepCollectionEquality().equals(other._questions, _questions));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _QuestionsData&&const DeepCollectionEquality().equals(other._categories, _categories)&&const DeepCollectionEquality().equals(other._questions, _questions)&&const DeepCollectionEquality().equals(other._practice, _practice));
 }
 
 
 @override
-int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_categories),const DeepCollectionEquality().hash(_questions));
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(_categories),const DeepCollectionEquality().hash(_questions),const DeepCollectionEquality().hash(_practice));
 
 @override
 String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
-  return 'QuestionsData(categories: $categories, questions: $questions)';
+  return 'QuestionsData(categories: $categories, questions: $questions, practice: $practice)';
 }
 
 
@@ -766,7 +774,7 @@ abstract mixin class _$QuestionsDataCopyWith<$Res> implements $QuestionsDataCopy
   factory _$QuestionsDataCopyWith(_QuestionsData value, $Res Function(_QuestionsData) _then) = __$QuestionsDataCopyWithImpl;
 @override @useResult
 $Res call({
- List<Category> categories, List<Question> questions
+ List<Category> categories, List<Question> questions, List<List<int>> practice
 });
 
 
@@ -783,11 +791,12 @@ class __$QuestionsDataCopyWithImpl<$Res>
 
 /// Create a copy of QuestionsData
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? categories = null,Object? questions = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? categories = null,Object? questions = null,Object? practice = null,}) {
   return _then(_QuestionsData(
 categories: null == categories ? _self._categories : categories // ignore: cast_nullable_to_non_nullable
 as List<Category>,questions: null == questions ? _self._questions : questions // ignore: cast_nullable_to_non_nullable
-as List<Question>,
+as List<Question>,practice: null == practice ? _self._practice : practice // ignore: cast_nullable_to_non_nullable
+as List<List<int>>,
   ));
 }
 

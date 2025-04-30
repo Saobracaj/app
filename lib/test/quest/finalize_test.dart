@@ -58,6 +58,22 @@ class FinalizeTestWidget extends StatelessWidget {
                             Routemaster.of(context).push('q?q=${a.key}&randomOptionsOrder=true');
                           },
                           title: Text(qs.firstWhere((element) => element.id == a.key).text, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          trailing: SizedBox(
+                            width: 60,
+                            height: 48,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.asset(
+                                'assets/img/${qs.firstWhere((element) => element.id == a.key).id}.jpeg',
+                                // fit: BoxFit.cover,
+                                width: 48,
+                                height: 48,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(Icons.car_crash, size: 48, color: Theme.of(context).colorScheme.secondary.withAlpha(50));
+                                },
+                              ),
+                            ),
+                          ),
                         ),
                     Padding(
                       padding: const EdgeInsets.all(16.0),

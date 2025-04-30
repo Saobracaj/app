@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/state_management/categories_bloc.dart';
 
@@ -37,10 +38,18 @@ class _CategoriesState extends State<Categories> {
                   })) ...[
                     SizedBox(height: 16),
                     ListTile(title: Text(category.name, style: Theme.of(context).textTheme.titleMedium!)),
-                    for (var subCategory in category.subcategories.where((element) => (state.subCategoriesCount[element.id] ?? 0) > 0)) ...[
+                    for (final subCategory in category.subcategories.where((element) => (state.subCategoriesCount[element.id] ?? 0) > 0)) ...[
                       InkWell(
                         onTap: () {
-                          final ids = data.questions.where((element) => element.subcategoryId == subCategory.id).map((e) => e.id).toList();
+                          final interestedQuestions = <Question>[];
+                          for (final q in data.questions) {
+                            if (q.subcategoryId == subCategory.id) {
+                              interestedQuestions.add(q);
+                            }
+                          }
+                          // var interestedQuestions = data.questions.where((element) => element.subcategoryId == subCategory.id);
+                          debugPrint(interestedQuestions.toString());
+                          final ids = interestedQuestions.map((e) => e.id).toList();
                           Routemaster.of(context).push('/start?q=${ids.join(',')}&subcategory=${subCategory.id}');
                         },
                         child: ListTile(
@@ -51,6 +60,22 @@ class _CategoriesState extends State<Categories> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text('Вопросов: ${state.subCategoriesCount[subCategory.id]} '),
+                          leading: SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(48),
+                              child: Image.asset(
+                                'assets/img/${data.questions.where((q) => q.subcategoryId == subCategory.id && q.hasImage).firstOrNull?.id}.jpeg',
+                                fit: BoxFit.cover,
+                                width: 48,
+                                height: 48,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(Icons.car_crash, size: 48, color: Theme.of(context).colorScheme.secondary.withAlpha(50));
+                                },
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                       if (qState.subStats[subCategory.id.toString()] != null)
@@ -77,7 +102,7 @@ class _MiniChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const minHeight = 20.0;
+    const minHeight = 5.0;
     const maxHeight = 40.0;
     const space = 2.0;
     const w = 16.0;
@@ -93,8 +118,15 @@ class _MiniChart extends StatelessWidget {
           Container(
             width: w,
             height: minHeight + (value / maxValue) * (maxHeight - minHeight),
-            color: value == stats.allAnswers ? Colors.green : Colors.blue,
-            child: Center(child: FittedBox(child: Text(value.toString(),  maxLines: 1, style: Theme.of(context).textTheme.labelSmall!.copyWith(color: Colors.white)))),
+            color:
+                value >= stats.allAnswers
+                    ? Colors.green
+                    : (value / stats.allAnswers > 0.9 ? Color(0xff8a8200) : (value / stats.allAnswers < 0.5 ? Colors.red : Colors.blue)),
+            child: Center(
+              child: FittedBox(
+                child: Text(value.toString(), maxLines: 1, style: Theme.of(context).textTheme.labelSmall!.copyWith(color: Colors.white)),
+              ),
+            ),
           ),
           SizedBox(width: space),
         ],

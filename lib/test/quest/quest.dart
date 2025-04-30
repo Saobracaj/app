@@ -25,6 +25,7 @@ class Quest extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AllQuestionsBloc, AllQuestionsBlocState>(
       builder: (context, state) {
+        debugPrint(questions.toString());
         // final qs = [...state.questionsData!.questions];
         final qqs = [...state.questionsData!.questions];
         final qs = <Question>[];
@@ -35,9 +36,10 @@ class Quest extends StatelessWidget {
             qs.add(q.copyWith());
           }
         }
-
         return BlocProvider(
-          create: (context) => QuestBloc(state.questionsData!, options.random ? ([...questions]..shuffle()) : questions, subcategory),
+          create:
+              (context) =>
+                  QuestBloc(state.questionsData!.copyWith(questions: qs), options.random ? ([...questions]..shuffle()) : [...questions], subcategory),
           child: BlocBuilder<QuestBloc, QuestState>(
             builder: (context, state) {
               final questBloc = context.read<QuestBloc>();
@@ -201,7 +203,7 @@ class QuestionContent extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(minHeight: 200, maxHeight: 600, maxWidth: 600),
-                    child: Image.network('https://klgleb.github.io/saobracajData/img/${question.imageId}.jpeg'),
+                    child: Image.asset('assets/img/${question.imageId}.jpeg'),
                   ),
                 ),
               if (rightAnswers > 1)

@@ -24,14 +24,15 @@ final routes = RouteMap(
   },
 );
 
-var questPage =
-    (data) => MaterialPage(
-      child: Quest(
-        options: StartTestState(
-          random: data.queryParameters['random']?.isNotEmpty ?? false,
-          randomOptionsOrder: data.queryParameters['randomOptionsOrder']?.isNotEmpty ?? false,
-        ),
-        questions: data.queryParameters['q']!.split(',').map<int>(int.parse).toList(),
-        subcategory: data.queryParameters['subcategory'],
+var questPage = (data) {
+  return MaterialPage(
+    child: Quest(
+      options: StartTestState(
+        random: data.queryParameters['random'] == 'true',
+        randomOptionsOrder: data.queryParameters['randomOptionsOrder'] == 'true',
       ),
-    );
+      questions: data.queryParameters['q']!.split(',').map<int>(int.parse).toList(),
+      subcategory: data.queryParameters['subcategory'],
+    ),
+  );
+};
