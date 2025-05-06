@@ -7,6 +7,14 @@ class AnswerRepository {
 
   AnswerRepository(this.db);
 
+  Future<List<PracticeRecord>> getPracticeRecords() {
+    return db.getPracticeRecords();
+  }
+
+  Future<int> insertPracticeRecord(PracticeRecordsCompanion entity) async {
+    return await db.insertPractice(entity);
+  }
+
   /// 1) Получить все записи по questionId в хронологическом порядке
   Future<List<AnswerRecord>> getAnswersByQuestionId(int questionId) {
     return (db.select(db.answerRecords)

@@ -43,6 +43,11 @@ dependencies:
   drift: ^2.26.0
   drift_flutter: ^0.2.4
   path: ^1.9.1
+  confetti: ^0.8.0
+  get_time_ago: ^2.3.0
+  package_info_plus: ^8.3.0
+  flutter_markdown: ^0.7.7
+  url_launcher: ^6.3.1
 
 dev_dependencies:
   flutter_test:

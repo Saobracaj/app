@@ -9,6 +9,7 @@ import 'package:saobracaj/state_management/quest_bloc.dart';
 import 'package:saobracaj/state_management/start_test_bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:saobracaj/test/practice/widgets/question_tries.dart';
 
 import 'finalize_test.dart';
 
@@ -174,27 +175,7 @@ class QuestionContent extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text(
-                  state.previousTries.isEmpty ? 'Вы ранее не отвечали на этот вопрос' : 'Предыдущие попытки',
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Wrap(
-                  children: [
-                    if (state.previousTries.isNotEmpty)
-                      for (var s in state.previousTries)
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(color: s ? Colors.red : Colors.green, borderRadius: BorderRadius.circular(20)),
-                        ),
-                  ],
-                ),
-              ),
+              QuestionTries(question.id),
               SizedBox(height: 16),
               // Text('${question.id}, ${question.hasImage}, ${question.imageId}, '),
               ListTile(title: Text(question.text.trim())),

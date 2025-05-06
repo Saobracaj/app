@@ -19,7 +19,9 @@ class _HomePageState extends State<HomePage> {
           backgroundColor: Colors.transparent,
           destinations: [
             NavigationDestination(label: 'Вопросы', icon: const Icon(Icons.question_answer)),
+            NavigationDestination(label: 'Симуляция', icon: const Icon(Icons.car_crash_outlined)),
             NavigationDestination(label: 'История', icon: const Icon(Icons.graphic_eq)),
+            NavigationDestination(label: 'Инфо', icon: const Icon(Icons.info_outline_rounded)),
           ],
           selectedIndex: pageState.index,
           onDestinationSelected: (index) {

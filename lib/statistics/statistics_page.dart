@@ -19,6 +19,7 @@ class StatisticsPage extends StatelessWidget {
             create: (context) => HistoryBloc(allQuestionsState.questionsData!.questions),
             child: BlocBuilder<HistoryBloc, HistoryState>(
               builder: (context, state) {
+                final qs = allQuestionsState.questionsData!.questions;
                 return Scaffold(
                   body: ListView(
                     children: [
@@ -36,9 +37,31 @@ class StatisticsPage extends StatelessWidget {
                       ...state.questions.map(
                         (e) => ListTile(
                           onTap: () {
-                            Routemaster.of(context).push('/quest?q=${e.id}&randomOptionsOrder=true');
+                            Routemaster.of(context).push('q?q=${e.id}&randomOptionsOrder=true');
                           },
-                          title: Text(e.text, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          title: Container(
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface.withAlpha(220),
+                              borderRadius: BorderRadius.circular(8), // Закруглённые углы
+                            ),
+                            child: Text(qs.firstWhere((element) => element.id == e.id).text, maxLines: 2, overflow: TextOverflow.ellipsis),
+                          ),
+                          trailing: SizedBox(
+                            width: 60,
+                            height: 48,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.asset(
+                                'assets/img/${qs.firstWhere((element) => element.id == e.id).id}.jpeg',
+                                // fit: BoxFit.cover,
+                                width: 48,
+                                height: 48,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(Icons.car_crash, size: 48, color: Theme.of(context).colorScheme.secondary.withAlpha(50));
+                                },
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     ],

@@ -80,7 +80,7 @@ class _CategoriesState extends State<Categories> {
                       ),
                       if (qState.subStats[subCategory.id.toString()] != null)
                         Padding(
-                          padding: const EdgeInsets.only(right: 16.0, left: 16, bottom: 16),
+                          padding: const EdgeInsets.only(right: 16.0, left: 45+36, bottom: 16),
                           child: _MiniChart(stats: qState.subStats[subCategory.id.toString()]!),
                         ),
                     ],
