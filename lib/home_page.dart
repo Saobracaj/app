@@ -15,10 +15,10 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final pageState = IndexedPage.of(context);
     return Scaffold(
-      appBar: AppBar(
+      /*appBar: AppBar(
         title: TextFormField(decoration: const InputDecoration(border: UnderlineInputBorder(), labelText: 'Enter your username')),
         actions: [IconButton(onPressed: () {}, icon: Icon(Icons.person))],
-      ),
+      ),*/
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         child: NavigationBar(
