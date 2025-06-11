@@ -1,5 +1,7 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/about/about_info.dart';
 
 class AboutPage extends StatelessWidget {
@@ -13,7 +15,7 @@ class AboutPage extends StatelessWidget {
         children: [
           AboutInfo(),
           SizedBox(height: 16),
-          ListTile(title: Text('Политика конфиденциальности'), onTap: () {
+          ListTile(title: Text(LocaleKeys.info_privacyPolicy.tr()), onTap: () {
             Routemaster.of(context).push('privacyPolicy');
           },),
         ],

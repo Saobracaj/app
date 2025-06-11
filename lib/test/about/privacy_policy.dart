@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:saobracaj/util/nav_to_url.dart';
 
 class PrivacyPolicyWidget extends StatefulWidget {
   @override
@@ -128,7 +129,10 @@ Email: [info@gleb.at](mailto:info@gleb.at), Telegram: [GlebKl](https://t.me/Gleb
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
-              child: Markdown(shrinkWrap: true, selectable: false, data: _privacyTexts[_language] ?? ''),
+              child: Markdown(shrinkWrap: true,
+                selectable: false,
+                data: _privacyTexts[_language] ?? '',
+                onTapLink: (text, href, title) => navigateToUri(context, Uri.parse(href!)),),
             ),
           ),
         ],

@@ -1,6 +1,8 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/state_management/start_test_bloc.dart';
 
 class StartTest extends StatelessWidget {
@@ -12,7 +14,7 @@ class StartTest extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Начать тест')),
+      appBar: AppBar(title: Text(LocaleKeys.quest_start.tr())),
       body: BlocProvider(
         create: (context) => StartTestBloc(),
         child: BlocBuilder<StartTestBloc, StartTestState>(
@@ -20,9 +22,9 @@ class StartTest extends StatelessWidget {
             final bloc = context.read<StartTestBloc>();
             return ListView(
               children: [
-                CheckboxListTile(title: Text('Вопросы в случайном порядке'), value: state.random, onChanged: (value) => bloc.add(ToggleRandom())),
+                CheckboxListTile(title: Text(LocaleKeys.quest_options_shuffleQuestions.tr()), value: state.random, onChanged: (value) => bloc.add(ToggleRandom())),
                 CheckboxListTile(
-                  title: Text('Перемешивать варианты ответов'),
+                  title: Text(LocaleKeys.quest_options_shuffleOptions.tr()),
                   value: state.randomOptionsOrder,
                   onChanged: (value) => bloc.add(ToggleRandomOptionsOrder()),
                 ),
@@ -31,7 +33,7 @@ class StartTest extends StatelessWidget {
                   value: state.randomOptionsOrder,
                   onChanged: (value) => bloc.add(ToggleRandomOptionsOrder()),
                 ),*/
-                ListTile(title: Text('Вопросов: ${questionIds.length}', style: TextStyle(fontStyle: FontStyle.italic))),
+                ListTile(title: Text(LocaleKeys.quest_questions.tr(args: ['${questionIds.length}']), style: TextStyle(fontStyle: FontStyle.italic))),
                 // SizedBox(height: 16),
                 Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -41,7 +43,7 @@ class StartTest extends StatelessWidget {
                         '/quest?q=${questionIds.join(',')}&randomOptionsOrder=${state.randomOptionsOrder}&random=${state.random}&subcategory=$subcategory',
                       );
                     },
-                    child: Text('Начать тест'),
+                    child: Text(LocaleKeys.quest_start.tr()),
                   ),
                 ),
               ],

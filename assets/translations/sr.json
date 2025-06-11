@@ -1,0 +1,46 @@
+{
+  "home": {
+    "questions": "Питања",
+    "simulation": "Симулација",
+    "history": "Историја",
+    "info": "О апликацији"
+  },
+  "simulation": {
+    "title": "Симулација испита",
+    "options": {
+      "showErrorsImmediately": "Прикажи грешке одмах",
+      "showStatistics": "Прикажи статистику претходних покушаја",
+      "buttonsLikeInExam": "Дугмад као на испиту"
+    },
+    "start": "Почни симулацију",
+    "previousTries": "Претходни покушаји ({}):",
+    "previousTriesItem": "Поена: {}, грешака: {}, време: {}",
+    "success": "Тест успешно положен",
+    "fail": "Симулација није успела",
+    "points": "Освојено поена: {}",
+    "errors": "Број грешака: {}",
+    "close": "Затвори",
+    "passErrors": "Понови питања са грешкама"
+  },
+  "info": {
+    "contactsMarkdown": "#### Контакт информације:\nЕмаил: [info@gleb.at](mailto:info@gleb.at)\n\nТелеграм: [GlebKl](https://t.me/GlebKl)",
+    "privacyPolicy": "Политика приватности"
+  },
+  "quest": {
+    "start": "Почни тест",
+    "options": {
+      "shuffleQuestions": "Питања насумичним редом",
+      "shuffleOptions": "Мешај одговоре"
+    },
+    "questions": "Број питања: {}",
+    "random": "Почни тест",
+    "finalDialog": {
+      "title": "Заврши тест",
+      "content": "Нисте одговорили на сва питања. Да ли сте сигурни да желите да завршите тест?",
+      "cancelButton": "Откажи",
+      "okButton": "Заврши"
+    },
+    "previousTries": "Претходни покушаји",
+    "noPreviousTries": "Раније нисте одговарали на ово питање"
+  }
+}

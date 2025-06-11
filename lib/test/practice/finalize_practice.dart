@@ -1,7 +1,9 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/state_management/practice_bloc.dart';
 import 'package:saobracaj/test/practice/widgets/confetti.dart';
@@ -36,13 +38,13 @@ class FinalizePracticeWidget extends StatelessWidget {
 
               return Scaffold(
                 bottomNavigationBar: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                  child: Container(
+                    // padding: const EdgeInsets.all(16.0),
                     child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(context).pop();
                       },
-                      child: Text('Закрыть'),
+                      child: Text(LocaleKeys.simulation_close.tr()),
                     ),
                   ),
                 ),
@@ -62,7 +64,7 @@ class FinalizePracticeWidget extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(16), // Закруглённые углы
                                 ),
                                 child: Text(
-                                  'Тест успешно пройден',
+                                  LocaleKeys.simulation_success.tr(),
                                   style: Theme.of(context).textTheme.headlineLarge!.copyWith(color: Colors.white),
                                   textAlign: TextAlign.center,
                                 ),
@@ -77,14 +79,21 @@ class FinalizePracticeWidget extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(16), // Закруглённые углы
                                 ),
                                 child: Text(
-                                  'Симуляция провалена',
+                                  LocaleKeys.simulation_fail.tr(),
                                   style: Theme.of(context).textTheme.headlineLarge!.copyWith(color: Colors.white),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
                             ),
-                          ListTile(title: Text('Набрано балов: $pointsSummary', style: Theme.of(context).textTheme.headlineMedium)),
-                          ListTile(title: Text('Ошибок: ${wrongAnswers.length}', style: Theme.of(context).textTheme.headlineMedium)),
+                          ListTile(
+                            title: Text(LocaleKeys.simulation_points.tr(args: ['$pointsSummary']), style: Theme.of(context).textTheme.headlineMedium),
+                          ),
+                          ListTile(
+                            title: Text(
+                              LocaleKeys.simulation_errors.tr(args: ['${wrongAnswers.length}']),
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
+                          ),
                           if (wrongAnswers.isNotEmpty) ...[
                             for (var q in wrongAnswers)
                               ListTile(
@@ -121,7 +130,7 @@ class FinalizePracticeWidget extends StatelessWidget {
                                 onPressed: () {
                                   Routemaster.of(context).push('/start?q=${wrongAnswers.join(',')}');
                                 },
-                                child: Text('Пройти вопросы с ошибками'),
+                                child: Text(LocaleKeys.simulation_passErrors.tr()),
                               ),
                             ),
                           ],

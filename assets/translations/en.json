@@ -1,0 +1,47 @@
+{
+  "home": {
+    "questions": "Questions",
+    "simulation": "Simulation",
+    "history": "History",
+    "info": "About"
+  },
+  "simulation": {
+    "title": "Exam Simulation",
+    "options": {
+      "showErrorsImmediately": "Show errors immediately",
+      "showStatistics": "Show statistics from previous attempts",
+      "buttonsLikeInExam": "Buttons like in the exam"
+    },
+    "start": "Start Simulation",
+    "previousTries": "Previous attempts ({}):",
+    "previousTriesItem": "Points: {}, errors: {}, time: {}",
+    "success": "Test passed successfully",
+    "fail": "Simulation failed",
+    "points": "Points scored: {}",
+    "errors": "Errors: {}",
+    "close": "Close",
+    "passErrors": "Go through the error questions"
+  },
+  "info": {
+    "contactsMarkdown": "#### Contact Information:\nEmail: [info@gleb.at](mailto:info@gleb.at)\n\nTelegram: [GlebKl](https://t.me/GlebKl)",
+    "privacyPolicy": "Privacy Policy"
+  },
+  "quest": {
+    "start": "Start Test",
+    "options": {
+      "shuffleQuestions": "Shuffle questions",
+      "shuffleOptions": "Shuffle answer options"
+    },
+    "questions": "Questions: {}",
+    "random": "Start Test",
+    "finalDialog": {
+      "title": "Finish Test",
+      "content": "You haven’t answered some questions. Are you sure you want to finish the test?",
+      "cancelButton": "Cancel",
+      "okButton": "Finish"
+    },
+    "previousTries": "Previous Attempts",
+    "noPreviousTries": "You haven't answered this question before"
+
+  }
+}

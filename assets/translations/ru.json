@@ -1,0 +1,46 @@
+{
+  "home": {
+    "questions": "Вопросы",
+    "simulation": "Симуляция",
+    "history": "История",
+    "info": "О приложении"
+  },
+  "simulation": {
+    "title": "Симуляция экзамена",
+    "options": {
+      "showErrorsImmediately": "Показывать ошибки сразу",
+      "showStatistics": "Показывать статистику по предыдущим попыткам",
+      "buttonsLikeInExam": "Кнопки как на экзамене"
+    },
+    "start": "Начать симуляцию",
+    "previousTries": "Предыдущие попытки ({}):",
+    "previousTriesItem": "Балов: {}, ошибок: {}, время: {}",
+    "success": "Тест успешно пройден",
+    "fail": "Симуляция провалена",
+    "points": "Набрано балов: {}",
+    "errors": "Ошибок: {}",
+    "close": "Закрыть",
+    "passErrors": "Пройти вопросы с ошибками"
+  },
+  "info": {
+    "contactsMarkdown": "#### Контакты для связи:\nEmail: [info@gleb.at](mailto:info@gleb.at)\n\nTelegram: [GlebKl](https://t.me/GlebKl)",
+    "privacyPolicy": "Политика конфиденциальности"
+  },
+  "quest": {
+    "start": "Начать тест",
+    "options": {
+      "shuffleQuestions": "Вопросы в случайном порядке",
+      "shuffleOptions": "Перемешивать варианты ответов"
+    },
+    "questions": "Вопросов: {}",
+    "random": "Начать тест",
+    "finalDialog": {
+      "title": "Завершить тест",
+      "content": "Вы не дали ответ на некоторые вопросы. Вы точно хотите завершить тест?",
+      "cancelButton": "Отмена",
+      "okButton": "Завершить"
+    },
+    "previousTries": "Предыдущие попытки",
+    "noPreviousTries": "Вы ранее не отвечали на этот вопрос"
+  }
+}

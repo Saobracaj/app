@@ -31,7 +31,7 @@ class CustomIconButton extends StatelessWidget {
     return ElevatedButton(
       onPressed: onPressed,
       style: ElevatedButton.styleFrom(backgroundColor: color, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4))),
-      child: Row(mainAxisSize: MainAxisSize.min, children: children),
+      child: FittedBox(child: Row(mainAxisSize: MainAxisSize.min, children: children)),
     );
   }
 }

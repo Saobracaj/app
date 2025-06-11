@@ -1,6 +1,8 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saobracaj/db/dependencies.dart';
+import 'package:saobracaj/generated/locale_keys.g.dart';
 
 class QuestionTries extends StatelessWidget {
   const QuestionTries(this.qid, {super.key});
@@ -19,7 +21,7 @@ class QuestionTries extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Text(
-                  state.isEmpty ? 'Вы ранее не отвечали на этот вопрос' : 'Предыдущие попытки',
+                  state.isEmpty ? LocaleKeys.quest_noPreviousTries.tr():  LocaleKeys.quest_previousTries.tr(),
                   style: Theme
                       .of(context)
                       .textTheme
