@@ -33,6 +33,7 @@ sealed class Question with _$Question {
     @JsonKey(name: 'Choices') required List<Choice> choices,
     required String categoryId,
     required int subcategoryId,
+    String? translation,
   }) = _Question;
 
   factory Question.fromJson(Map<String, dynamic> json) => _$QuestionFromJson(json);
@@ -40,7 +41,7 @@ sealed class Question with _$Question {
 
 @freezed
 sealed class Choice with _$Choice {
-  const factory Choice({@JsonKey(name: 'Text') required String text, @JsonKey(name: 'isCorrect') required bool isCorrect}) = _Choice;
+  const factory Choice({@JsonKey(name: 'Text') required String text, @JsonKey(name: 'isCorrect') required bool isCorrect, String? translationRu}) = _Choice;
 
   factory Choice.fromJson(Map<String, dynamic> json) => _$ChoiceFromJson(json);
 }
@@ -48,5 +49,28 @@ sealed class Choice with _$Choice {
 @freezed
 sealed class QuestionsData with _$QuestionsData {
   const factory QuestionsData({required List<Category> categories, required List<Question> questions, required List<List<int>> practice}) =
-      _QuestionsData;
+  _QuestionsData;
+}
+
+@freezed
+abstract class Translation with _$Translation {
+  const factory Translation({
+    @JsonKey(name: 'qcId') required int id,
+    @JsonKey(name: 'qId') required int imageId,
+    @JsonKey(name: 'Text') required String text,
+    @JsonKey(name: 'Choices') required List<ChoiceTranslation> choices,
+  }) = _Translation;
+
+  factory Translation.fromJson(Map<String, dynamic> json) => _$TranslationFromJson(json);
+}
+
+@freezed
+abstract  class ChoiceTranslation with _$ChoiceTranslation {
+  const factory ChoiceTranslation({
+    @JsonKey(name: 'Text') required String text,
+  }) = _ChoiceTranslation;
+
+
+  factory ChoiceTranslation.fromJson(Map<String, dynamic> json) =>
+      _$ChoiceTranslationFromJson(json);
 }

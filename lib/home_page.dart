@@ -15,10 +15,14 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final pageState = IndexedPage.of(context);
     return Scaffold(
-      /*appBar: AppBar(
+      appBar: AppBar(
         title: TextFormField(decoration: const InputDecoration(border: UnderlineInputBorder(), labelText: 'Enter your username')),
-        actions: [IconButton(onPressed: () {}, icon: Icon(Icons.person))],
-      ),*/
+        actions: [IconButton(onPressed: () {
+          Routemaster.of(context).push('/zakon');
+        }, icon: Icon(Icons.person)),IconButton(onPressed: () {
+          Routemaster.of(context).push('/zakon?chapter=IV&chlan=50&paragraph=2');
+        }, icon: Icon(Icons.ac_unit))],
+      ),
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         child: NavigationBar(

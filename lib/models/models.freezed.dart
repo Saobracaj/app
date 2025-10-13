@@ -321,7 +321,7 @@ as String,
 /// @nodoc
 mixin _$Question implements DiagnosticableTreeMixin {
 
-@JsonKey(name: 'qcId') int get id;@JsonKey(name: 'qId') int get imageId;@JsonKey(name: 'Text') String get text;@JsonKey(name: 'ChoicesReq') int get choicesReq;@JsonKey(name: 'HasImage') bool get hasImage;@JsonKey(name: 'Points') int get points;@JsonKey(name: 'Choices') List<Choice> get choices; String get categoryId; int get subcategoryId;
+@JsonKey(name: 'qcId') int get id;@JsonKey(name: 'qId') int get imageId;@JsonKey(name: 'Text') String get text;@JsonKey(name: 'ChoicesReq') int get choicesReq;@JsonKey(name: 'HasImage') bool get hasImage;@JsonKey(name: 'Points') int get points;@JsonKey(name: 'Choices') List<Choice> get choices; String get categoryId; int get subcategoryId; String? get translation;
 /// Create a copy of Question
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -335,21 +335,21 @@ $QuestionCopyWith<Question> get copyWith => _$QuestionCopyWithImpl<Question>(thi
 void debugFillProperties(DiagnosticPropertiesBuilder properties) {
   properties
     ..add(DiagnosticsProperty('type', 'Question'))
-    ..add(DiagnosticsProperty('id', id))..add(DiagnosticsProperty('imageId', imageId))..add(DiagnosticsProperty('text', text))..add(DiagnosticsProperty('choicesReq', choicesReq))..add(DiagnosticsProperty('hasImage', hasImage))..add(DiagnosticsProperty('points', points))..add(DiagnosticsProperty('choices', choices))..add(DiagnosticsProperty('categoryId', categoryId))..add(DiagnosticsProperty('subcategoryId', subcategoryId));
+    ..add(DiagnosticsProperty('id', id))..add(DiagnosticsProperty('imageId', imageId))..add(DiagnosticsProperty('text', text))..add(DiagnosticsProperty('choicesReq', choicesReq))..add(DiagnosticsProperty('hasImage', hasImage))..add(DiagnosticsProperty('points', points))..add(DiagnosticsProperty('choices', choices))..add(DiagnosticsProperty('categoryId', categoryId))..add(DiagnosticsProperty('subcategoryId', subcategoryId))..add(DiagnosticsProperty('translation', translation));
 }
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Question&&(identical(other.id, id) || other.id == id)&&(identical(other.imageId, imageId) || other.imageId == imageId)&&(identical(other.text, text) || other.text == text)&&(identical(other.choicesReq, choicesReq) || other.choicesReq == choicesReq)&&(identical(other.hasImage, hasImage) || other.hasImage == hasImage)&&(identical(other.points, points) || other.points == points)&&const DeepCollectionEquality().equals(other.choices, choices)&&(identical(other.categoryId, categoryId) || other.categoryId == categoryId)&&(identical(other.subcategoryId, subcategoryId) || other.subcategoryId == subcategoryId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Question&&(identical(other.id, id) || other.id == id)&&(identical(other.imageId, imageId) || other.imageId == imageId)&&(identical(other.text, text) || other.text == text)&&(identical(other.choicesReq, choicesReq) || other.choicesReq == choicesReq)&&(identical(other.hasImage, hasImage) || other.hasImage == hasImage)&&(identical(other.points, points) || other.points == points)&&const DeepCollectionEquality().equals(other.choices, choices)&&(identical(other.categoryId, categoryId) || other.categoryId == categoryId)&&(identical(other.subcategoryId, subcategoryId) || other.subcategoryId == subcategoryId)&&(identical(other.translation, translation) || other.translation == translation));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,imageId,text,choicesReq,hasImage,points,const DeepCollectionEquality().hash(choices),categoryId,subcategoryId);
+int get hashCode => Object.hash(runtimeType,id,imageId,text,choicesReq,hasImage,points,const DeepCollectionEquality().hash(choices),categoryId,subcategoryId,translation);
 
 @override
 String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
-  return 'Question(id: $id, imageId: $imageId, text: $text, choicesReq: $choicesReq, hasImage: $hasImage, points: $points, choices: $choices, categoryId: $categoryId, subcategoryId: $subcategoryId)';
+  return 'Question(id: $id, imageId: $imageId, text: $text, choicesReq: $choicesReq, hasImage: $hasImage, points: $points, choices: $choices, categoryId: $categoryId, subcategoryId: $subcategoryId, translation: $translation)';
 }
 
 
@@ -360,7 +360,7 @@ abstract mixin class $QuestionCopyWith<$Res>  {
   factory $QuestionCopyWith(Question value, $Res Function(Question) _then) = _$QuestionCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'qcId') int id,@JsonKey(name: 'qId') int imageId,@JsonKey(name: 'Text') String text,@JsonKey(name: 'ChoicesReq') int choicesReq,@JsonKey(name: 'HasImage') bool hasImage,@JsonKey(name: 'Points') int points,@JsonKey(name: 'Choices') List<Choice> choices, String categoryId, int subcategoryId
+@JsonKey(name: 'qcId') int id,@JsonKey(name: 'qId') int imageId,@JsonKey(name: 'Text') String text,@JsonKey(name: 'ChoicesReq') int choicesReq,@JsonKey(name: 'HasImage') bool hasImage,@JsonKey(name: 'Points') int points,@JsonKey(name: 'Choices') List<Choice> choices, String categoryId, int subcategoryId, String? translation
 });
 
 
@@ -377,7 +377,7 @@ class _$QuestionCopyWithImpl<$Res>
 
 /// Create a copy of Question
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? imageId = null,Object? text = null,Object? choicesReq = null,Object? hasImage = null,Object? points = null,Object? choices = null,Object? categoryId = null,Object? subcategoryId = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? imageId = null,Object? text = null,Object? choicesReq = null,Object? hasImage = null,Object? points = null,Object? choices = null,Object? categoryId = null,Object? subcategoryId = null,Object? translation = freezed,}) {
   return _then(_self.copyWith(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,imageId: null == imageId ? _self.imageId : imageId // ignore: cast_nullable_to_non_nullable
@@ -388,7 +388,8 @@ as bool,points: null == points ? _self.points : points // ignore: cast_nullable_
 as int,choices: null == choices ? _self.choices : choices // ignore: cast_nullable_to_non_nullable
 as List<Choice>,categoryId: null == categoryId ? _self.categoryId : categoryId // ignore: cast_nullable_to_non_nullable
 as String,subcategoryId: null == subcategoryId ? _self.subcategoryId : subcategoryId // ignore: cast_nullable_to_non_nullable
-as int,
+as int,translation: freezed == translation ? _self.translation : translation // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -399,7 +400,7 @@ as int,
 @JsonSerializable()
 
 class _Question with DiagnosticableTreeMixin implements Question {
-  const _Question({@JsonKey(name: 'qcId') required this.id, @JsonKey(name: 'qId') required this.imageId, @JsonKey(name: 'Text') required this.text, @JsonKey(name: 'ChoicesReq') required this.choicesReq, @JsonKey(name: 'HasImage') required this.hasImage, @JsonKey(name: 'Points') required this.points, @JsonKey(name: 'Choices') required final  List<Choice> choices, required this.categoryId, required this.subcategoryId}): _choices = choices;
+  const _Question({@JsonKey(name: 'qcId') required this.id, @JsonKey(name: 'qId') required this.imageId, @JsonKey(name: 'Text') required this.text, @JsonKey(name: 'ChoicesReq') required this.choicesReq, @JsonKey(name: 'HasImage') required this.hasImage, @JsonKey(name: 'Points') required this.points, @JsonKey(name: 'Choices') required final  List<Choice> choices, required this.categoryId, required this.subcategoryId, this.translation}): _choices = choices;
   factory _Question.fromJson(Map<String, dynamic> json) => _$QuestionFromJson(json);
 
 @override@JsonKey(name: 'qcId') final  int id;
@@ -417,6 +418,7 @@ class _Question with DiagnosticableTreeMixin implements Question {
 
 @override final  String categoryId;
 @override final  int subcategoryId;
+@override final  String? translation;
 
 /// Create a copy of Question
 /// with the given fields replaced by the non-null parameter values.
@@ -432,21 +434,21 @@ Map<String, dynamic> toJson() {
 void debugFillProperties(DiagnosticPropertiesBuilder properties) {
   properties
     ..add(DiagnosticsProperty('type', 'Question'))
-    ..add(DiagnosticsProperty('id', id))..add(DiagnosticsProperty('imageId', imageId))..add(DiagnosticsProperty('text', text))..add(DiagnosticsProperty('choicesReq', choicesReq))..add(DiagnosticsProperty('hasImage', hasImage))..add(DiagnosticsProperty('points', points))..add(DiagnosticsProperty('choices', choices))..add(DiagnosticsProperty('categoryId', categoryId))..add(DiagnosticsProperty('subcategoryId', subcategoryId));
+    ..add(DiagnosticsProperty('id', id))..add(DiagnosticsProperty('imageId', imageId))..add(DiagnosticsProperty('text', text))..add(DiagnosticsProperty('choicesReq', choicesReq))..add(DiagnosticsProperty('hasImage', hasImage))..add(DiagnosticsProperty('points', points))..add(DiagnosticsProperty('choices', choices))..add(DiagnosticsProperty('categoryId', categoryId))..add(DiagnosticsProperty('subcategoryId', subcategoryId))..add(DiagnosticsProperty('translation', translation));
 }
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Question&&(identical(other.id, id) || other.id == id)&&(identical(other.imageId, imageId) || other.imageId == imageId)&&(identical(other.text, text) || other.text == text)&&(identical(other.choicesReq, choicesReq) || other.choicesReq == choicesReq)&&(identical(other.hasImage, hasImage) || other.hasImage == hasImage)&&(identical(other.points, points) || other.points == points)&&const DeepCollectionEquality().equals(other._choices, _choices)&&(identical(other.categoryId, categoryId) || other.categoryId == categoryId)&&(identical(other.subcategoryId, subcategoryId) || other.subcategoryId == subcategoryId));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Question&&(identical(other.id, id) || other.id == id)&&(identical(other.imageId, imageId) || other.imageId == imageId)&&(identical(other.text, text) || other.text == text)&&(identical(other.choicesReq, choicesReq) || other.choicesReq == choicesReq)&&(identical(other.hasImage, hasImage) || other.hasImage == hasImage)&&(identical(other.points, points) || other.points == points)&&const DeepCollectionEquality().equals(other._choices, _choices)&&(identical(other.categoryId, categoryId) || other.categoryId == categoryId)&&(identical(other.subcategoryId, subcategoryId) || other.subcategoryId == subcategoryId)&&(identical(other.translation, translation) || other.translation == translation));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,id,imageId,text,choicesReq,hasImage,points,const DeepCollectionEquality().hash(_choices),categoryId,subcategoryId);
+int get hashCode => Object.hash(runtimeType,id,imageId,text,choicesReq,hasImage,points,const DeepCollectionEquality().hash(_choices),categoryId,subcategoryId,translation);
 
 @override
 String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
-  return 'Question(id: $id, imageId: $imageId, text: $text, choicesReq: $choicesReq, hasImage: $hasImage, points: $points, choices: $choices, categoryId: $categoryId, subcategoryId: $subcategoryId)';
+  return 'Question(id: $id, imageId: $imageId, text: $text, choicesReq: $choicesReq, hasImage: $hasImage, points: $points, choices: $choices, categoryId: $categoryId, subcategoryId: $subcategoryId, translation: $translation)';
 }
 
 
@@ -457,7 +459,7 @@ abstract mixin class _$QuestionCopyWith<$Res> implements $QuestionCopyWith<$Res>
   factory _$QuestionCopyWith(_Question value, $Res Function(_Question) _then) = __$QuestionCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'qcId') int id,@JsonKey(name: 'qId') int imageId,@JsonKey(name: 'Text') String text,@JsonKey(name: 'ChoicesReq') int choicesReq,@JsonKey(name: 'HasImage') bool hasImage,@JsonKey(name: 'Points') int points,@JsonKey(name: 'Choices') List<Choice> choices, String categoryId, int subcategoryId
+@JsonKey(name: 'qcId') int id,@JsonKey(name: 'qId') int imageId,@JsonKey(name: 'Text') String text,@JsonKey(name: 'ChoicesReq') int choicesReq,@JsonKey(name: 'HasImage') bool hasImage,@JsonKey(name: 'Points') int points,@JsonKey(name: 'Choices') List<Choice> choices, String categoryId, int subcategoryId, String? translation
 });
 
 
@@ -474,7 +476,7 @@ class __$QuestionCopyWithImpl<$Res>
 
 /// Create a copy of Question
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? imageId = null,Object? text = null,Object? choicesReq = null,Object? hasImage = null,Object? points = null,Object? choices = null,Object? categoryId = null,Object? subcategoryId = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? imageId = null,Object? text = null,Object? choicesReq = null,Object? hasImage = null,Object? points = null,Object? choices = null,Object? categoryId = null,Object? subcategoryId = null,Object? translation = freezed,}) {
   return _then(_Question(
 id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
 as int,imageId: null == imageId ? _self.imageId : imageId // ignore: cast_nullable_to_non_nullable
@@ -485,7 +487,8 @@ as bool,points: null == points ? _self.points : points // ignore: cast_nullable_
 as int,choices: null == choices ? _self._choices : choices // ignore: cast_nullable_to_non_nullable
 as List<Choice>,categoryId: null == categoryId ? _self.categoryId : categoryId // ignore: cast_nullable_to_non_nullable
 as String,subcategoryId: null == subcategoryId ? _self.subcategoryId : subcategoryId // ignore: cast_nullable_to_non_nullable
-as int,
+as int,translation: freezed == translation ? _self.translation : translation // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -496,7 +499,7 @@ as int,
 /// @nodoc
 mixin _$Choice implements DiagnosticableTreeMixin {
 
-@JsonKey(name: 'Text') String get text;@JsonKey(name: 'isCorrect') bool get isCorrect;
+@JsonKey(name: 'Text') String get text;@JsonKey(name: 'isCorrect') bool get isCorrect; String? get translationRu;
 /// Create a copy of Choice
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -510,21 +513,21 @@ $ChoiceCopyWith<Choice> get copyWith => _$ChoiceCopyWithImpl<Choice>(this as Cho
 void debugFillProperties(DiagnosticPropertiesBuilder properties) {
   properties
     ..add(DiagnosticsProperty('type', 'Choice'))
-    ..add(DiagnosticsProperty('text', text))..add(DiagnosticsProperty('isCorrect', isCorrect));
+    ..add(DiagnosticsProperty('text', text))..add(DiagnosticsProperty('isCorrect', isCorrect))..add(DiagnosticsProperty('translationRu', translationRu));
 }
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is Choice&&(identical(other.text, text) || other.text == text)&&(identical(other.isCorrect, isCorrect) || other.isCorrect == isCorrect));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Choice&&(identical(other.text, text) || other.text == text)&&(identical(other.isCorrect, isCorrect) || other.isCorrect == isCorrect)&&(identical(other.translationRu, translationRu) || other.translationRu == translationRu));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,text,isCorrect);
+int get hashCode => Object.hash(runtimeType,text,isCorrect,translationRu);
 
 @override
 String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
-  return 'Choice(text: $text, isCorrect: $isCorrect)';
+  return 'Choice(text: $text, isCorrect: $isCorrect, translationRu: $translationRu)';
 }
 
 
@@ -535,7 +538,7 @@ abstract mixin class $ChoiceCopyWith<$Res>  {
   factory $ChoiceCopyWith(Choice value, $Res Function(Choice) _then) = _$ChoiceCopyWithImpl;
 @useResult
 $Res call({
-@JsonKey(name: 'Text') String text,@JsonKey(name: 'isCorrect') bool isCorrect
+@JsonKey(name: 'Text') String text,@JsonKey(name: 'isCorrect') bool isCorrect, String? translationRu
 });
 
 
@@ -552,11 +555,12 @@ class _$ChoiceCopyWithImpl<$Res>
 
 /// Create a copy of Choice
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? text = null,Object? isCorrect = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? text = null,Object? isCorrect = null,Object? translationRu = freezed,}) {
   return _then(_self.copyWith(
 text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
 as String,isCorrect: null == isCorrect ? _self.isCorrect : isCorrect // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,translationRu: freezed == translationRu ? _self.translationRu : translationRu // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -567,11 +571,12 @@ as bool,
 @JsonSerializable()
 
 class _Choice with DiagnosticableTreeMixin implements Choice {
-  const _Choice({@JsonKey(name: 'Text') required this.text, @JsonKey(name: 'isCorrect') required this.isCorrect});
+  const _Choice({@JsonKey(name: 'Text') required this.text, @JsonKey(name: 'isCorrect') required this.isCorrect, this.translationRu});
   factory _Choice.fromJson(Map<String, dynamic> json) => _$ChoiceFromJson(json);
 
 @override@JsonKey(name: 'Text') final  String text;
 @override@JsonKey(name: 'isCorrect') final  bool isCorrect;
+@override final  String? translationRu;
 
 /// Create a copy of Choice
 /// with the given fields replaced by the non-null parameter values.
@@ -587,21 +592,21 @@ Map<String, dynamic> toJson() {
 void debugFillProperties(DiagnosticPropertiesBuilder properties) {
   properties
     ..add(DiagnosticsProperty('type', 'Choice'))
-    ..add(DiagnosticsProperty('text', text))..add(DiagnosticsProperty('isCorrect', isCorrect));
+    ..add(DiagnosticsProperty('text', text))..add(DiagnosticsProperty('isCorrect', isCorrect))..add(DiagnosticsProperty('translationRu', translationRu));
 }
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Choice&&(identical(other.text, text) || other.text == text)&&(identical(other.isCorrect, isCorrect) || other.isCorrect == isCorrect));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Choice&&(identical(other.text, text) || other.text == text)&&(identical(other.isCorrect, isCorrect) || other.isCorrect == isCorrect)&&(identical(other.translationRu, translationRu) || other.translationRu == translationRu));
 }
 
 @JsonKey(includeFromJson: false, includeToJson: false)
 @override
-int get hashCode => Object.hash(runtimeType,text,isCorrect);
+int get hashCode => Object.hash(runtimeType,text,isCorrect,translationRu);
 
 @override
 String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
-  return 'Choice(text: $text, isCorrect: $isCorrect)';
+  return 'Choice(text: $text, isCorrect: $isCorrect, translationRu: $translationRu)';
 }
 
 
@@ -612,7 +617,7 @@ abstract mixin class _$ChoiceCopyWith<$Res> implements $ChoiceCopyWith<$Res> {
   factory _$ChoiceCopyWith(_Choice value, $Res Function(_Choice) _then) = __$ChoiceCopyWithImpl;
 @override @useResult
 $Res call({
-@JsonKey(name: 'Text') String text,@JsonKey(name: 'isCorrect') bool isCorrect
+@JsonKey(name: 'Text') String text,@JsonKey(name: 'isCorrect') bool isCorrect, String? translationRu
 });
 
 
@@ -629,11 +634,12 @@ class __$ChoiceCopyWithImpl<$Res>
 
 /// Create a copy of Choice
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? text = null,Object? isCorrect = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? text = null,Object? isCorrect = null,Object? translationRu = freezed,}) {
   return _then(_Choice(
 text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
 as String,isCorrect: null == isCorrect ? _self.isCorrect : isCorrect // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,translationRu: freezed == translationRu ? _self.translationRu : translationRu // ignore: cast_nullable_to_non_nullable
+as String?,
   ));
 }
 
@@ -797,6 +803,311 @@ categories: null == categories ? _self._categories : categories // ignore: cast_
 as List<Category>,questions: null == questions ? _self._questions : questions // ignore: cast_nullable_to_non_nullable
 as List<Question>,practice: null == practice ? _self._practice : practice // ignore: cast_nullable_to_non_nullable
 as List<List<int>>,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$Translation implements DiagnosticableTreeMixin {
+
+@JsonKey(name: 'qcId') int get id;@JsonKey(name: 'qId') int get imageId;@JsonKey(name: 'Text') String get text;@JsonKey(name: 'Choices') List<ChoiceTranslation> get choices;
+/// Create a copy of Translation
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$TranslationCopyWith<Translation> get copyWith => _$TranslationCopyWithImpl<Translation>(this as Translation, _$identity);
+
+  /// Serializes this Translation to a JSON map.
+  Map<String, dynamic> toJson();
+
+@override
+void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+  properties
+    ..add(DiagnosticsProperty('type', 'Translation'))
+    ..add(DiagnosticsProperty('id', id))..add(DiagnosticsProperty('imageId', imageId))..add(DiagnosticsProperty('text', text))..add(DiagnosticsProperty('choices', choices));
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is Translation&&(identical(other.id, id) || other.id == id)&&(identical(other.imageId, imageId) || other.imageId == imageId)&&(identical(other.text, text) || other.text == text)&&const DeepCollectionEquality().equals(other.choices, choices));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,imageId,text,const DeepCollectionEquality().hash(choices));
+
+@override
+String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
+  return 'Translation(id: $id, imageId: $imageId, text: $text, choices: $choices)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $TranslationCopyWith<$Res>  {
+  factory $TranslationCopyWith(Translation value, $Res Function(Translation) _then) = _$TranslationCopyWithImpl;
+@useResult
+$Res call({
+@JsonKey(name: 'qcId') int id,@JsonKey(name: 'qId') int imageId,@JsonKey(name: 'Text') String text,@JsonKey(name: 'Choices') List<ChoiceTranslation> choices
+});
+
+
+
+
+}
+/// @nodoc
+class _$TranslationCopyWithImpl<$Res>
+    implements $TranslationCopyWith<$Res> {
+  _$TranslationCopyWithImpl(this._self, this._then);
+
+  final Translation _self;
+  final $Res Function(Translation) _then;
+
+/// Create a copy of Translation
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? id = null,Object? imageId = null,Object? text = null,Object? choices = null,}) {
+  return _then(_self.copyWith(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,imageId: null == imageId ? _self.imageId : imageId // ignore: cast_nullable_to_non_nullable
+as int,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String,choices: null == choices ? _self.choices : choices // ignore: cast_nullable_to_non_nullable
+as List<ChoiceTranslation>,
+  ));
+}
+
+}
+
+
+/// @nodoc
+@JsonSerializable()
+
+class _Translation with DiagnosticableTreeMixin implements Translation {
+  const _Translation({@JsonKey(name: 'qcId') required this.id, @JsonKey(name: 'qId') required this.imageId, @JsonKey(name: 'Text') required this.text, @JsonKey(name: 'Choices') required final  List<ChoiceTranslation> choices}): _choices = choices;
+  factory _Translation.fromJson(Map<String, dynamic> json) => _$TranslationFromJson(json);
+
+@override@JsonKey(name: 'qcId') final  int id;
+@override@JsonKey(name: 'qId') final  int imageId;
+@override@JsonKey(name: 'Text') final  String text;
+ final  List<ChoiceTranslation> _choices;
+@override@JsonKey(name: 'Choices') List<ChoiceTranslation> get choices {
+  if (_choices is EqualUnmodifiableListView) return _choices;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_choices);
+}
+
+
+/// Create a copy of Translation
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$TranslationCopyWith<_Translation> get copyWith => __$TranslationCopyWithImpl<_Translation>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$TranslationToJson(this, );
+}
+@override
+void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+  properties
+    ..add(DiagnosticsProperty('type', 'Translation'))
+    ..add(DiagnosticsProperty('id', id))..add(DiagnosticsProperty('imageId', imageId))..add(DiagnosticsProperty('text', text))..add(DiagnosticsProperty('choices', choices));
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _Translation&&(identical(other.id, id) || other.id == id)&&(identical(other.imageId, imageId) || other.imageId == imageId)&&(identical(other.text, text) || other.text == text)&&const DeepCollectionEquality().equals(other._choices, _choices));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,id,imageId,text,const DeepCollectionEquality().hash(_choices));
+
+@override
+String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
+  return 'Translation(id: $id, imageId: $imageId, text: $text, choices: $choices)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$TranslationCopyWith<$Res> implements $TranslationCopyWith<$Res> {
+  factory _$TranslationCopyWith(_Translation value, $Res Function(_Translation) _then) = __$TranslationCopyWithImpl;
+@override @useResult
+$Res call({
+@JsonKey(name: 'qcId') int id,@JsonKey(name: 'qId') int imageId,@JsonKey(name: 'Text') String text,@JsonKey(name: 'Choices') List<ChoiceTranslation> choices
+});
+
+
+
+
+}
+/// @nodoc
+class __$TranslationCopyWithImpl<$Res>
+    implements _$TranslationCopyWith<$Res> {
+  __$TranslationCopyWithImpl(this._self, this._then);
+
+  final _Translation _self;
+  final $Res Function(_Translation) _then;
+
+/// Create a copy of Translation
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? id = null,Object? imageId = null,Object? text = null,Object? choices = null,}) {
+  return _then(_Translation(
+id: null == id ? _self.id : id // ignore: cast_nullable_to_non_nullable
+as int,imageId: null == imageId ? _self.imageId : imageId // ignore: cast_nullable_to_non_nullable
+as int,text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String,choices: null == choices ? _self._choices : choices // ignore: cast_nullable_to_non_nullable
+as List<ChoiceTranslation>,
+  ));
+}
+
+
+}
+
+
+/// @nodoc
+mixin _$ChoiceTranslation implements DiagnosticableTreeMixin {
+
+@JsonKey(name: 'Text') String get text;
+/// Create a copy of ChoiceTranslation
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$ChoiceTranslationCopyWith<ChoiceTranslation> get copyWith => _$ChoiceTranslationCopyWithImpl<ChoiceTranslation>(this as ChoiceTranslation, _$identity);
+
+  /// Serializes this ChoiceTranslation to a JSON map.
+  Map<String, dynamic> toJson();
+
+@override
+void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+  properties
+    ..add(DiagnosticsProperty('type', 'ChoiceTranslation'))
+    ..add(DiagnosticsProperty('text', text));
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ChoiceTranslation&&(identical(other.text, text) || other.text == text));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,text);
+
+@override
+String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
+  return 'ChoiceTranslation(text: $text)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $ChoiceTranslationCopyWith<$Res>  {
+  factory $ChoiceTranslationCopyWith(ChoiceTranslation value, $Res Function(ChoiceTranslation) _then) = _$ChoiceTranslationCopyWithImpl;
+@useResult
+$Res call({
+@JsonKey(name: 'Text') String text
+});
+
+
+
+
+}
+/// @nodoc
+class _$ChoiceTranslationCopyWithImpl<$Res>
+    implements $ChoiceTranslationCopyWith<$Res> {
+  _$ChoiceTranslationCopyWithImpl(this._self, this._then);
+
+  final ChoiceTranslation _self;
+  final $Res Function(ChoiceTranslation) _then;
+
+/// Create a copy of ChoiceTranslation
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? text = null,}) {
+  return _then(_self.copyWith(
+text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+}
+
+
+/// @nodoc
+@JsonSerializable()
+
+class _ChoiceTranslation with DiagnosticableTreeMixin implements ChoiceTranslation {
+  const _ChoiceTranslation({@JsonKey(name: 'Text') required this.text});
+  factory _ChoiceTranslation.fromJson(Map<String, dynamic> json) => _$ChoiceTranslationFromJson(json);
+
+@override@JsonKey(name: 'Text') final  String text;
+
+/// Create a copy of ChoiceTranslation
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$ChoiceTranslationCopyWith<_ChoiceTranslation> get copyWith => __$ChoiceTranslationCopyWithImpl<_ChoiceTranslation>(this, _$identity);
+
+@override
+Map<String, dynamic> toJson() {
+  return _$ChoiceTranslationToJson(this, );
+}
+@override
+void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+  properties
+    ..add(DiagnosticsProperty('type', 'ChoiceTranslation'))
+    ..add(DiagnosticsProperty('text', text));
+}
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is _ChoiceTranslation&&(identical(other.text, text) || other.text == text));
+}
+
+@JsonKey(includeFromJson: false, includeToJson: false)
+@override
+int get hashCode => Object.hash(runtimeType,text);
+
+@override
+String toString({ DiagnosticLevel minLevel = DiagnosticLevel.info }) {
+  return 'ChoiceTranslation(text: $text)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$ChoiceTranslationCopyWith<$Res> implements $ChoiceTranslationCopyWith<$Res> {
+  factory _$ChoiceTranslationCopyWith(_ChoiceTranslation value, $Res Function(_ChoiceTranslation) _then) = __$ChoiceTranslationCopyWithImpl;
+@override @useResult
+$Res call({
+@JsonKey(name: 'Text') String text
+});
+
+
+
+
+}
+/// @nodoc
+class __$ChoiceTranslationCopyWithImpl<$Res>
+    implements _$ChoiceTranslationCopyWith<$Res> {
+  __$ChoiceTranslationCopyWithImpl(this._self, this._then);
+
+  final _ChoiceTranslation _self;
+  final $Res Function(_ChoiceTranslation) _then;
+
+/// Create a copy of ChoiceTranslation
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? text = null,}) {
+  return _then(_ChoiceTranslation(
+text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

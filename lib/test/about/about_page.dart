@@ -15,9 +15,18 @@ class AboutPage extends StatelessWidget {
         children: [
           AboutInfo(),
           SizedBox(height: 16),
-          ListTile(title: Text(LocaleKeys.info_privacyPolicy.tr()), onTap: () {
-            Routemaster.of(context).push('privacyPolicy');
-          },),
+          ListTile(
+            title: Text(LocaleKeys.info_privacyPolicy.tr()),
+            onTap: () {
+              Routemaster.of(context).push('privacyPolicy');
+            },
+          ),
+          ListTile(
+            title: Text('ЗАКОН О БЕЗБЕДНОСТИ САОБРАЋАЈА НА ПУТЕВИМА'),
+            onTap: () {
+              Routemaster.of(context).push('/zakon');
+            },
+          ),
         ],
       ),
     );

@@ -1,14 +1,17 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:saobracaj/data/translations_data_source.dart';
 import 'package:saobracaj/db/dependencies.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'dart:convert';
+import 'package:collection/collection.dart';
 
 part 'all_questions_bloc.freezed.dart';
 
@@ -37,10 +40,24 @@ class AllQuestionsBloc extends Bloc<AllQuestionsBlocEvent, AllQuestionsBlocState
 
       var categories = categoriesJson.map((e) => Category.fromJson(e)).toList();
       var questions = questionsJson.map((e) => Question.fromJson(e)).map((e) => e.copyWith(id: e.imageId)).toList();
-      var practice = (practiceJson)
-          .map((e) => (e as List).map((i) => i as int).toList())
-          .toList();
+      var practice = (practiceJson).map((e) => (e as List).map((i) => i as int).toList()).toList();
 
+      var translations = await translationsDataSource.translations;
+
+      for (var i = 0; i < questions.length; i++) {
+        final q = questions[i];
+        final translation = translations.firstWhereOrNull((element) => element.id == q.id);
+        if (translation != null) {
+          final choicesTranslation = translation.choices;
+          if (choicesTranslation.length != q.choices.length) {
+            break;
+          }
+          questions[i] = questions[i].copyWith(
+            translation: translation.text,
+            choices: q.choices.mapIndexed((index, element) => element.copyWith(translationRu: choicesTranslation[index].text)).toList(),
+          );
+        }
+      }
 
       final data = QuestionsData(categories: categories, questions: questions, practice: practice);
 

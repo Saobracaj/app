@@ -7,6 +7,8 @@ import 'package:saobracaj/state_management/all_questions_bloc.dart';
 
 // ignore: depend_on_referenced_packages
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:saobracaj/state_management/purchase_bloc.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'generated/codegen_loader.g.dart';
 
@@ -32,7 +34,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiBlocProvider(
-      providers: [BlocProvider(create: (context) => AllQuestionsBloc()..add(Load()))],
+      providers: [BlocProvider(create: (context) => AllQuestionsBloc()..add(Load())), BlocProvider(create: (context) => PurchaseBloc())],
       child: MaterialApp.router(
         locale: context.locale,
         supportedLocales: context.supportedLocales,
@@ -41,7 +43,7 @@ class MyApp extends StatelessWidget {
         routerDelegate: RoutemasterDelegate(routesBuilder: (context) => routes),
         routeInformationParser: RoutemasterParser(),
         title: 'Saobraćaj',
-        theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent)),
+        theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.blueAccent), textTheme: GoogleFonts.interTextTheme()),
       ),
     );
   }

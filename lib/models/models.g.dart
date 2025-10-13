@@ -42,6 +42,7 @@ _Question _$QuestionFromJson(Map<String, dynamic> json) => _Question(
           .toList(),
   categoryId: json['categoryId'] as String,
   subcategoryId: (json['subcategoryId'] as num).toInt(),
+  translation: json['translation'] as String?,
 );
 
 Map<String, dynamic> _$QuestionToJson(_Question instance) => <String, dynamic>{
@@ -54,12 +55,41 @@ Map<String, dynamic> _$QuestionToJson(_Question instance) => <String, dynamic>{
   'Choices': instance.choices,
   'categoryId': instance.categoryId,
   'subcategoryId': instance.subcategoryId,
+  'translation': instance.translation,
 };
 
-_Choice _$ChoiceFromJson(Map<String, dynamic> json) =>
-    _Choice(text: json['Text'] as String, isCorrect: json['isCorrect'] as bool);
+_Choice _$ChoiceFromJson(Map<String, dynamic> json) => _Choice(
+  text: json['Text'] as String,
+  isCorrect: json['isCorrect'] as bool,
+  translationRu: json['translationRu'] as String?,
+);
 
 Map<String, dynamic> _$ChoiceToJson(_Choice instance) => <String, dynamic>{
   'Text': instance.text,
   'isCorrect': instance.isCorrect,
+  'translationRu': instance.translationRu,
 };
+
+_Translation _$TranslationFromJson(Map<String, dynamic> json) => _Translation(
+  id: (json['qcId'] as num).toInt(),
+  imageId: (json['qId'] as num).toInt(),
+  text: json['Text'] as String,
+  choices:
+      (json['Choices'] as List<dynamic>)
+          .map((e) => ChoiceTranslation.fromJson(e as Map<String, dynamic>))
+          .toList(),
+);
+
+Map<String, dynamic> _$TranslationToJson(_Translation instance) =>
+    <String, dynamic>{
+      'qcId': instance.id,
+      'qId': instance.imageId,
+      'Text': instance.text,
+      'Choices': instance.choices,
+    };
+
+_ChoiceTranslation _$ChoiceTranslationFromJson(Map<String, dynamic> json) =>
+    _ChoiceTranslation(text: json['Text'] as String);
+
+Map<String, dynamic> _$ChoiceTranslationToJson(_ChoiceTranslation instance) =>
+    <String, dynamic>{'Text': instance.text};

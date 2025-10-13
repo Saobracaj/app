@@ -10,10 +10,11 @@ import 'package:saobracaj/test/practice/practice.dart';
 import 'package:saobracaj/test/practice/practice_page.dart';
 import 'package:saobracaj/test/quest/quest.dart';
 import 'package:saobracaj/test/start_test.dart';
+import 'package:saobracaj/zakon/zakon.dart';
 
 final routes = RouteMap(
   routes: {
-    '/': (_) => IndexedPage(child: HomePage(), paths: ['/questions', '/practice',  '/statistics', '/about']),
+    '/': (_) => IndexedPage(child: HomePage(), paths: ['/questions', '/practice', '/statistics', '/about']),
     '/questions': (_) => MaterialPage(child: QuestionsPage()),
     '/statistics': (_) => MaterialPage(child: StatisticsPage()),
     '/practice': (_) => MaterialPage(child: PracticePage()),
@@ -25,9 +26,12 @@ final routes = RouteMap(
           ),
         ),
     '/quest': questPage,
+    '/quest/zakon': zakonPage,
     '/quest/q': questPage,
+    '/quest/q/zakon': zakonPage,
     '/statistics/q': questPage,
     '/questPractice/q': questPage,
+    '/questPractice/q/zakon': zakonPage,
     '/questPractice':
         (data) => MaterialPage(
           child: Practice(
@@ -40,6 +44,7 @@ final routes = RouteMap(
         ),
     '/about': (_) => MaterialPage(child: AboutPage()),
     '/about/privacyPolicy': (_) => MaterialPage(child: PrivacyPolicyWidget()),
+    '/zakon': zakonPage,
   },
 );
 
@@ -55,3 +60,12 @@ var questPage = (data) {
     ),
   );
 };
+
+final MaterialPage Function(dynamic params) zakonPage =
+    (params) => MaterialPage(
+      child: Zakon(
+        paragraph: params.queryParameters['paragraph'],
+        chapter: params.queryParameters['chapter'],
+        chlan: params.queryParameters['chlan'],
+      ),
+    );

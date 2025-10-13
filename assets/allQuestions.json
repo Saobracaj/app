@@ -21,7 +21,8 @@
       }
     ],
     "categoryId": "25",
-    "subcategoryId": 91
+    "subcategoryId": 91,
+    "zakon": "Из [статьей 2](zakon?chapter=I&chlan=2&paragraph=0)"
   },
   {
     "qcId": 7922,
@@ -559,6 +560,7 @@
     "categoryId": "25",
     "subcategoryId": 94
   },
+
   {
     "qcId": 7942,
     "qId": 7942,
