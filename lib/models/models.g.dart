@@ -9,10 +9,9 @@ part of 'models.dart';
 _Category _$CategoryFromJson(Map<String, dynamic> json) => _Category(
   id: json['id'] as String,
   name: json['name'] as String,
-  subcategories:
-      (json['subcategories'] as List<dynamic>)
-          .map((e) => Subcategory.fromJson(e as Map<String, dynamic>))
-          .toList(),
+  subcategories: (json['subcategories'] as List<dynamic>)
+      .map((e) => Subcategory.fromJson(e as Map<String, dynamic>))
+      .toList(),
 );
 
 Map<String, dynamic> _$CategoryToJson(_Category instance) => <String, dynamic>{
@@ -36,10 +35,9 @@ _Question _$QuestionFromJson(Map<String, dynamic> json) => _Question(
   choicesReq: (json['ChoicesReq'] as num).toInt(),
   hasImage: json['HasImage'] as bool,
   points: (json['Points'] as num).toInt(),
-  choices:
-      (json['Choices'] as List<dynamic>)
-          .map((e) => Choice.fromJson(e as Map<String, dynamic>))
-          .toList(),
+  choices: (json['Choices'] as List<dynamic>)
+      .map((e) => Choice.fromJson(e as Map<String, dynamic>))
+      .toList(),
   categoryId: json['categoryId'] as String,
   subcategoryId: (json['subcategoryId'] as num).toInt(),
   translation: json['translation'] as String?,
@@ -74,10 +72,9 @@ _Translation _$TranslationFromJson(Map<String, dynamic> json) => _Translation(
   id: (json['qcId'] as num).toInt(),
   imageId: (json['qId'] as num).toInt(),
   text: json['Text'] as String,
-  choices:
-      (json['Choices'] as List<dynamic>)
-          .map((e) => ChoiceTranslation.fromJson(e as Map<String, dynamic>))
-          .toList(),
+  choices: (json['Choices'] as List<dynamic>)
+      .map((e) => ChoiceTranslation.fromJson(e as Map<String, dynamic>))
+      .toList(),
 );
 
 Map<String, dynamic> _$TranslationToJson(_Translation instance) =>
