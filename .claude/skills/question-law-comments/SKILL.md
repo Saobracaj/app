@@ -8,9 +8,11 @@ description: Use when asked to write, review, or batch-generate RU comments (exp
 Generates Russian-language explanations (with links into the Serbian traffic
 law) for driving-exam questions, in the same style as the ~35 already
 human-approved comments, and saves them to the server as **drafts** (status
-`DRAFT` — pending human review). This skill never publishes/applies a
-comment; a human always reviews drafts in the Angular admin panel before
-they go live.
+`DRAFT`, shown as "Черновик" in the Angular panel). This skill never calls
+`applyDraft`; a human always reviews the draft in the Angular admin panel
+and applies/publishes it themselves. See `reference/api.md` for the exact
+`CommentStatus` state machine — `DRAFT` is *not* the same thing as the
+literal `PENDING` enum value (those are two different, unrelated states).
 
 There are ~1701 questions and only a few dozen already have an approved
 comment — most of the work is a large, repetitive backlog. Process it in
@@ -77,9 +79,14 @@ entries) directly with the Read tool, that burns context for nothing.
    python3 scripts/comments_cli.py submit 7973 --file /tmp/7973.md
    ```
    or pipe text via `--stdin`. This calls the `draft` mutation only (never
-   `applyDraft`), so the result lands in status `DRAFT` — exactly the
-   "pending" state the review flow expects. It refuses to overwrite a
-   `READY`/`MODERATION` comment unless you pass `--force`.
+   `applyDraft`), so the comment lands in status `DRAFT` ("Черновик" in the
+   Angular panel) — unpublished, waiting for a human to read it. Calling
+   `applyDraft` instead would immediately copy the draft into the live
+   `text` field (the field the Angular panel treats as the officially
+   published comment), i.e. publish it unreviewed — the opposite of what we
+   want. A human applies the draft themselves from the Angular panel once
+   they've reviewed it. It refuses to overwrite a `READY`/`MODERATION`
+   comment unless you pass `--force`.
 
 6. **Spot-check.**
    ```

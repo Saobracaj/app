@@ -45,20 +45,43 @@ the first time; later calls just overwrite the draft text in place.
 
 ## `CommentStatus` state machine
 
+Ground truth: `CommentsRepository.saveDraft`/`applyDraft` in
+`saobracaj/saobracaj/src/main/kotlin/domain/entities/CommentsRepository.kt`
+(lines ~31-96), enum in `domain/entities/Comment.kt`. The Angular panel's
+Russian labels for each status are in
+`saobracaj_panel_angular/src/app/components/markdown-editor/markdown-editor.component.ts`
+(`getStatusText()`).
+
 ```
-PENDING  -- draft() --> DRAFT -- applyDraft() --> MODERATION -- (human, in the Angular panel) --> READY
+PENDING  -- draft() --> DRAFT -- applyDraft() --> DRAFT or MODERATION -- (human, in the Angular panel) --> READY
+"Ожидает"          "Черновик"                  see note below     "На модерации"          "Готово"
 ```
 
-- `PENDING`: no draft/text yet.
-- `DRAFT`: someone saved draft text, not yet applied. **This is where
-  `submit` leaves everything — it never calls `applyDraft`.** A human
-  reviews drafts in the Angular admin panel (`markdown-editor` /
-  `question-preview` components) and applies them from there.
-- `MODERATION`: draft was applied over an existing published text and is
-  awaiting re-review.
-- `READY`: approved, live in the app-facing `text` field.
+- `PENDING` ("Ожидает"): no draft saved yet — the empty initial state.
+  **This is a different, unrelated status from "pending" used loosely in
+  English to mean "awaiting review."** Don't conflate the two.
+- `DRAFT` ("Черновик"): someone saved draft text, not yet applied. **This
+  is where `submit` leaves everything — it never calls `applyDraft`.** A
+  human reviews drafts in the Angular admin panel (`markdown-editor` /
+  `question-preview` components) and applies them from there. This is the
+  correct "awaiting human review" state for content this skill writes.
+- `MODERATION` ("На модерации"): set by `applyDraft` **only when a `text`
+  was already published before** (i.e. this is a re-edit of a
+  previously-live comment, now needing re-review) — see
+  `CommentsRepository.kt:82-89`. On the *first* `applyDraft` for a comment
+  (no prior `text`), the draft still gets copied into `text` (so it goes
+  live) but status is left as `DRAFT`, not bumped to `MODERATION` — a
+  quirk of the current server code, not something this skill controls.
+- `READY` ("Готово"): approved/done. **No GraphQL mutation in the
+  codebase ever sets this** — the only place `CommentStatus.READY` is
+  assigned is the one-time seed import in `data/CommentCols.kt:72`
+  (bundled markdown files loaded straight to DB). So today there appears
+  to be no API path that marks a comment fully approved; that must happen
+  out-of-band (direct DB edit) if it happens at all. Not this skill's
+  concern, just worth knowing.
 
-Never call `applyDraft` from this skill — publishing is a human decision.
+Never call `applyDraft` from this skill — it publishes the draft into the
+live `text` field, which is a human decision, not something to automate.
 If you're asked to review/fix an existing draft rather than write a new
 one, that's still just another `submit` call (overwrites the draft in
 place); status stays `DRAFT`.
