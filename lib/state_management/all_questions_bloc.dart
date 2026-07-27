@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' hide Category;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:saobracaj/data/translations_data_source.dart';
 import 'package:saobracaj/db/dependencies.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:flutter/services.dart' show rootBundle;
@@ -28,38 +26,27 @@ class AllQuestionsBloc extends Bloc<AllQuestionsBlocEvent, AllQuestionsBlocState
     emit(state.copyWith(errorMessage: null, questionsData: null));
 
     try {
+      // Load raw asset strings on the main isolate (I/O, cheap), then do all
+      // the CPU-heavy JSON decoding + join on a background isolate via
+      // `compute` so the UI thread never blocks. On web `compute` runs inline,
+      // but the work below is now linear (Map index instead of an O(n^2) join),
+      // so it stays fast there too.
       final results = await Future.wait([
         rootBundle.loadString('assets/categories.json'),
         rootBundle.loadString('assets/allQuestions.json'),
         rootBundle.loadString('assets/practice.json'),
+        rootBundle.loadString('assets/allQuestions_ru.json'),
       ]);
 
-      final categoriesJson = jsonDecode(results[0]) as List;
-      final questionsJson = jsonDecode(results[1]) as List;
-      final practiceJson = jsonDecode(results[2]) as List;
-
-      var categories = categoriesJson.map((e) => Category.fromJson(e)).toList();
-      var questions = questionsJson.map((e) => Question.fromJson(e)).map((e) => e.copyWith(id: e.imageId)).toList();
-      var practice = (practiceJson).map((e) => (e as List).map((i) => i as int).toList()).toList();
-
-      var translations = await translationsDataSource.translations;
-
-      for (var i = 0; i < questions.length; i++) {
-        final q = questions[i];
-        final translation = translations.firstWhereOrNull((element) => element.id == q.id);
-        if (translation != null) {
-          final choicesTranslation = translation.choices;
-          if (choicesTranslation.length != q.choices.length) {
-            break;
-          }
-          questions[i] = questions[i].copyWith(
-            translation: translation.text,
-            choices: q.choices.mapIndexed((index, element) => element.copyWith(translationRu: choicesTranslation[index].text)).toList(),
-          );
-        }
-      }
-
-      final data = QuestionsData(categories: categories, questions: questions, practice: practice);
+      final data = await compute(
+        _parseQuestionsData,
+        _RawAssets(
+          categories: results[0],
+          questions: results[1],
+          practice: results[2],
+          translations: results[3],
+        ),
+      );
 
       emit(state.copyWith(questionsData: data));
     } on Exception catch (e) {
@@ -77,6 +64,55 @@ class AllQuestionsBloc extends Bloc<AllQuestionsBlocEvent, AllQuestionsBlocState
 
     emit(state.copyWith(subStats: res));
   }
+}
+
+/// Raw asset payload passed to the background isolate.
+class _RawAssets {
+  const _RawAssets({required this.categories, required this.questions, required this.practice, required this.translations});
+
+  final String categories;
+  final String questions;
+  final String practice;
+  final String translations;
+}
+
+/// Runs on a background isolate (`compute`). Decodes all JSON and joins each
+/// question with its Russian translation via a `Map` index (O(n) instead of the
+/// previous O(n^2) `firstWhereOrNull` scan) so this stays fast on web too.
+QuestionsData _parseQuestionsData(_RawAssets raw) {
+  final categoriesJson = jsonDecode(raw.categories) as List;
+  final questionsJson = jsonDecode(raw.questions) as List;
+  final practiceJson = jsonDecode(raw.practice) as List;
+  final translationsJson = jsonDecode(raw.translations) as List;
+
+  final categories = categoriesJson.map((e) => Category.fromJson(e)).toList();
+  final questions = questionsJson.map((e) => Question.fromJson(e)).map((e) => e.copyWith(id: e.imageId)).toList();
+  final practice = practiceJson.map((e) => (e as List).map((i) => i as int).toList()).toList();
+
+  // Index translations by question id for O(1) lookup.
+  final translationsById = <int, Translation>{};
+  for (final e in translationsJson) {
+    final t = Translation.fromJson(e);
+    translationsById[t.imageId] = t;
+  }
+
+  for (var i = 0; i < questions.length; i++) {
+    final q = questions[i];
+    final translation = translationsById[q.id];
+    if (translation == null) continue;
+
+    final choicesTranslation = translation.choices;
+    // Skip questions whose choice counts don't line up rather than abandoning
+    // the whole join (the old `break` stopped translating every later question).
+    if (choicesTranslation.length != q.choices.length) continue;
+
+    questions[i] = q.copyWith(
+      translation: translation.text,
+      choices: q.choices.mapIndexed((index, element) => element.copyWith(translationRu: choicesTranslation[index].text)).toList(),
+    );
+  }
+
+  return QuestionsData(categories: categories, questions: questions, practice: practice);
 }
 
 sealed class AllQuestionsBlocEvent {}
