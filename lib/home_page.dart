@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:routemaster/routemaster.dart';
+import 'auth/presentation/auth_button.dart';
 import 'generated/locale_keys.g.dart';
 
 class HomePage extends StatefulWidget {
@@ -16,12 +17,8 @@ class _HomePageState extends State<HomePage> {
     final pageState = IndexedPage.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: TextFormField(decoration: const InputDecoration(border: UnderlineInputBorder(), labelText: 'Enter your username')),
-        actions: [IconButton(onPressed: () {
-          Routemaster.of(context).push('/zakon');
-        }, icon: Icon(Icons.person)),IconButton(onPressed: () {
-          Routemaster.of(context).push('/zakon?chapter=IV&chlan=50&paragraph=2');
-        }, icon: Icon(Icons.ac_unit))],
+        title: const Text('Saobraćaj'),
+        actions: const [AuthButton()],
       ),
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),

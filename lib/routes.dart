@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/auth/presentation/confirm_code_page.dart';
+import 'package:saobracaj/auth/presentation/login_page.dart';
+import 'package:saobracaj/auth/presentation/profile_page.dart';
+import 'package:saobracaj/auth/presentation/register_page.dart';
+import 'package:saobracaj/auth/presentation/reset_password_page.dart';
 import 'package:saobracaj/home_page.dart';
 import 'package:saobracaj/questions/questions_page.dart';
 import 'package:saobracaj/state_management/start_test_bloc.dart';
@@ -45,6 +50,16 @@ final routes = RouteMap(
     '/about': (_) => MaterialPage(child: AboutPage()),
     '/about/privacyPolicy': (_) => MaterialPage(child: PrivacyPolicyWidget()),
     '/zakon': zakonPage,
+    '/login': (_) => const MaterialPage(child: LoginPage()),
+    '/register': (_) => const MaterialPage(child: RegisterPage()),
+    '/resetPassword': (_) => const MaterialPage(child: ResetPasswordPage()),
+    '/confirmCode':
+        (data) => MaterialPage(
+          child: ConfirmCodePage(
+            email: data.queryParameters['email'] ?? '',
+          ),
+        ),
+    '/profile': (_) => const MaterialPage(child: ProfilePage()),
   },
 );
 
