@@ -1,5 +1,6 @@
 {
     "home": {
+        "home": "Home",
         "questions": "Questions",
         "simulation": "Simulation",
         "history": "History",

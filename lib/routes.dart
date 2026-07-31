@@ -5,6 +5,7 @@ import 'package:saobracaj/auth/presentation/login_page.dart';
 import 'package:saobracaj/auth/presentation/profile_page.dart';
 import 'package:saobracaj/auth/presentation/register_page.dart';
 import 'package:saobracaj/auth/presentation/reset_password_page.dart';
+import 'package:saobracaj/home/home_content_page.dart';
 import 'package:saobracaj/home_page.dart';
 import 'package:saobracaj/questions/questions_page.dart';
 import 'package:saobracaj/state_management/start_test_bloc.dart';
@@ -19,7 +20,8 @@ import 'package:saobracaj/zakon/zakon.dart';
 
 final routes = RouteMap(
   routes: {
-    '/': (_) => IndexedPage(child: HomePage(), paths: ['/questions', '/practice', '/statistics', '/about']),
+    '/': (_) => IndexedPage(child: HomePage(), paths: ['/home', '/questions', '/practice', '/statistics', '/about']),
+    '/home': (_) => MaterialPage(child: HomeContentPage()),
     '/questions': (_) => MaterialPage(child: QuestionsPage()),
     '/statistics': (_) => MaterialPage(child: StatisticsPage()),
     '/practice': (_) => MaterialPage(child: PracticePage()),

@@ -25,6 +25,7 @@ class _HomePageState extends State<HomePage> {
         child: NavigationBar(
           backgroundColor: Colors.transparent,
           destinations: [
+            NavigationDestination(label: LocaleKeys.home_home.tr(), icon: const Icon(Icons.home_outlined)),
             NavigationDestination(label: LocaleKeys.home_questions.tr(), icon: const Icon(Icons.question_answer)),
             NavigationDestination(label: LocaleKeys.home_simulation.tr(), icon: const Icon(Icons.car_crash_outlined)),
             NavigationDestination(label: LocaleKeys.home_history.tr(), icon: const Icon(Icons.graphic_eq)),
