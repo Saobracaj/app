@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// A [GraphqlClient] stub that records the variables it was asked to send and
 /// returns a canned `syncStatistics` payload.
 class _FakeClient extends GraphqlClient {
-  _FakeClient(TokenStorage storage) : super(storage);
+  _FakeClient(super.storage);
 
   Map<String, dynamic>? lastVariables;
   Map<String, dynamic> response = {

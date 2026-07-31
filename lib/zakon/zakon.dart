@@ -142,6 +142,7 @@ class _Paragraph extends StatelessWidget {
     final uri = Uri.https('saobracaj.app', '/zakon', queryParameters);
 
     Clipboard.setData(ClipboardData(text: uri.toString())).then((_) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Link is copied to clipboard')));
     });
   }

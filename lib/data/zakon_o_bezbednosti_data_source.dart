@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'package:collection/collection.dart';
 
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'zakon_o_bezbednosti_data_source.freezed.dart';

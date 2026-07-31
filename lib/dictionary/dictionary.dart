@@ -2,7 +2,7 @@ import 'package:collection/collection.dart';
 
 extension MdExt on String {
   String get dict {
-   return this.replaceWithZakonLinks(_zakonDictionary);
+   return replaceWithZakonLinks(_zakonDictionary);
   }
 }
 

@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 import 'dart:convert';
 import 'dart:io';
 
@@ -21,7 +22,7 @@ Future<void> main() async {
   final List<dynamic> questionsData = jsonDecode(questionsJson);
 
   // Оставляем только вопросы, у которых categoryId != "38"
-  final filteredQuestions = questionsData.where((e) => e['categoryId'] != "38");
+  final filteredQuestions = questionsData.where((e) => e['categoryId'] != '38');
 
   // Список qId из отфильтрованных вопросов
   final List<int> filteredQIds = filteredQuestions

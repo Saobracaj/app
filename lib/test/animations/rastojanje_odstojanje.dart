@@ -8,7 +8,7 @@ class RastojanjeOndsojanje extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: 180,
       // padding: EdgeInsets.all(16),
       child: ClipRRect(

@@ -37,7 +37,7 @@ class _MimoilazenjeState extends State<Mimoilazenje>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: 200,
       // padding: EdgeInsets.all(16),
       child: ClipRRect(

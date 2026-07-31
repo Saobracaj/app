@@ -32,7 +32,7 @@ class _RoadViewState extends State<RoadView> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _controller,
-      builder: (_, __) {
+      builder: (_, _) {
         return CustomPaint(
           painter: RoadPainter(
             offset: widget.moving ? _controller.value : 0,

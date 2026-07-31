@@ -3,8 +3,10 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:saobracaj/util/nav_to_url.dart';
 
 class PrivacyPolicyWidget extends StatefulWidget {
+  const PrivacyPolicyWidget({super.key});
+
   @override
-  _PrivacyPolicyWidgetState createState() => _PrivacyPolicyWidgetState();
+  State<PrivacyPolicyWidget> createState() => _PrivacyPolicyWidgetState();
 }
 
 class _PrivacyPolicyWidgetState extends State<PrivacyPolicyWidget> {

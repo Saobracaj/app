@@ -10,7 +10,7 @@ class AnimatedAutoWidget extends StatefulWidget {
 
   final bool rightIndicatorOn;
 
-  const AnimatedAutoWidget({Key? key, required this.color, this.leftIndicatorOn = false, this.rightIndicatorOn = false}) : super(key: key);
+  const AnimatedAutoWidget({super.key, required this.color, this.leftIndicatorOn = false, this.rightIndicatorOn = false});
 
   @override
   State<AnimatedAutoWidget> createState() => _AnimatedAutoWidgetState();
@@ -143,7 +143,7 @@ class _AutoPainter extends CustomPainter {
 
     final headlightPaint =
         Paint()
-          ..color = Colors.yellowAccent.withOpacity(0.8)
+          ..color = Colors.yellowAccent.withValues(alpha: 0.8)
           ..style = PaintingStyle.fill;
 
     canvas.drawPath(headlightPath, headlightPaint);

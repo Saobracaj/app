@@ -38,16 +38,13 @@ class FinalizePracticeWidget extends StatelessWidget {
 
               return Scaffold(
                 bottomNavigationBar: SafeArea(
-                  child: Container(
-                    // padding: const EdgeInsets.all(16.0),
-                    child: ElevatedButton(
+                  child: ElevatedButton(
                       onPressed: () {
                         Navigator.of(context).pop();
                       },
                       child: Text(LocaleKeys.simulation_close.tr()),
                     ),
                   ),
-                ),
                 body: Stack(
                   children: [
                     if (isSuccess) ConfettiDemo(),

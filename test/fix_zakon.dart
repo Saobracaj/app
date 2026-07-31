@@ -11,8 +11,8 @@ void main() async {
   final paragraphs = translationsJson.map((e) => BezbParagraph.fromJson(e)).toList();
 
   final newParagraphs = <BezbParagraph>[];
-  int? pNumber = null;
-  String? cNumber = null;
+  int? pNumber;
+  String? cNumber;
   final intInStr = RegExp(r'\d+');
   final chapterRegex = RegExp(r'^([IVXLCDM]+)\.\s+.+$');
 

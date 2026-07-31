@@ -188,7 +188,12 @@ class QuestionContent extends StatelessWidget {
 
           return BlocBuilder<TranslationsBloc, TranslationsState>(
             builder: (context, translationState) {
-              return Column(
+              return RadioGroup<Choice>(
+                groupValue: state.selectedChoices.firstOrNull,
+                onChanged: (value) {
+                  if (value != null) bloc.add(AddChoice(value));
+                },
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   QuestionTries(question.id),
@@ -237,11 +242,7 @@ class QuestionContent extends StatelessWidget {
                         child: RadioListTile<Choice>(
                           title: QuestMarkdown(text: c.text.trim().dict),
                           value: c,
-                          groupValue: state.selectedChoices.firstOrNull,
                           subtitle: (c.translationRu == null || !translationState.showTranslation) ? null : Text(c.translationRu!),
-                          onChanged: (value) {
-                            context.read<QuestContentBloc>().add(AddChoice(c));
-                          },
                         ),
                       ),
 
@@ -258,6 +259,7 @@ class QuestionContent extends StatelessWidget {
                         onPressed: () async {
                           await _closeTest(context, state);
                           if (questBloc.state.answers.length != questBloc.state.questions.length) {
+                            if (!context.mounted) return;
                             final res = await _showMyDialog(context);
                             if (res != true) {
                               return;
@@ -291,6 +293,7 @@ class QuestionContent extends StatelessWidget {
                   // BlockedRoadScene(),
                   CommentWidget(questionId: question.id),
                 ],
+                ),
               );
             },
           );
@@ -510,6 +513,6 @@ extension _FixChlan on String {
 
 extension StringExtension on String {
   String capitalize() {
-    return "${this[0].toUpperCase()}${substring(1).toLowerCase()}";
+    return '${this[0].toUpperCase()}${substring(1).toLowerCase()}';
   }
 }

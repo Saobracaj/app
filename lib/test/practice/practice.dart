@@ -200,7 +200,12 @@ class _QuestionContent extends StatelessWidget {
             builder: (context, state) {
               final bloc = context.read<PracticeContentBloc>();
 
-              return Column(
+              return RadioGroup<Choice>(
+                groupValue: state.selectedChoices.firstOrNull,
+                onChanged: (value) {
+                  if (value != null) bloc.add(AddChoice(value));
+                },
+                child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (showPreviousTries) ...[QuestionTries(question.id), SizedBox(height: 16)],
@@ -237,10 +242,6 @@ class _QuestionContent extends StatelessWidget {
                         child: RadioListTile<Choice>(
                           title: Text(c.text),
                           value: c,
-                          groupValue: state.selectedChoices.firstOrNull,
-                          onChanged: (value) {
-                            context.read<PracticeContentBloc>().add(AddChoice(c));
-                          },
                         ),
                       ),
 
@@ -333,6 +334,7 @@ class _QuestionContent extends StatelessWidget {
                       child: Text('Прикажи одговор'),
                     ),
                 ],
+                ),
               );
             },
           );
@@ -370,6 +372,7 @@ class _QuestionContent extends StatelessWidget {
       return;
     }
     if (params.buttonsLikeInExam || questBloc.state.answers.length != questBloc.state.questions.length) {
+      if (!context.mounted) return;
       final res = await _showMyDialog(context);
       if (res != true) {
         return;

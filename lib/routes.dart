@@ -79,11 +79,10 @@ var questPage = (data) {
   );
 };
 
-final MaterialPage Function(dynamic params) zakonPage =
-    (params) => MaterialPage(
-      child: Zakon(
-        paragraph: params.queryParameters['paragraph'],
-        chapter: params.queryParameters['chapter'],
-        chlan: params.queryParameters['chlan'],
-      ),
-    );
+MaterialPage zakonPage(dynamic params) => MaterialPage(
+  child: Zakon(
+    paragraph: params.queryParameters['paragraph'],
+    chapter: params.queryParameters['chapter'],
+    chlan: params.queryParameters['chlan'],
+  ),
+);

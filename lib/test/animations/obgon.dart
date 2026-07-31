@@ -40,7 +40,7 @@ class _ObgonState extends State<Obgon> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
 
-    return Container(
+    return SizedBox(
       height: 200,
       // padding: const EdgeInsets.all(16),
       child: ClipRect(
