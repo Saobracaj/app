@@ -12,8 +12,9 @@ import 'error_field.dart';
 import 'social_login.dart';
 import 'validators.dart';
 
-/// Email + password login screen. On success it hands the session to the
-/// [AuthCubit] (via [LoginBloc]) and returns to where the user came from.
+/// Email + password login screen. On success the repository publishes the
+/// session (picked up by the app-wide `AuthBloc`) and the page returns to where
+/// the user came from.
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
 

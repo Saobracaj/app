@@ -59,6 +59,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '1039935330316',
     projectId: 'saobracaj-7fd5e',
     storageBucket: 'saobracaj-7fd5e.firebasestorage.app',
+    androidClientId: '1039935330316-aumo8t1508mnhsdgbv59ej99p87hue38.apps.googleusercontent.com',
     iosClientId: '1039935330316-rnhorhr3nqrmpoi7cpfrppdfcbichn2b.apps.googleusercontent.com',
     iosBundleId: 'at.gleb.saobracaj.saobracaj',
   );

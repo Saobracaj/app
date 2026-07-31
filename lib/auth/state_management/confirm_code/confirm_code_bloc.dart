@@ -3,18 +3,17 @@ import 'package:injectable/injectable.dart';
 
 import '../../data/auth_repository.dart';
 import '../../data/graphql_client.dart';
-import '../auth_cubit.dart';
 import 'confirm_code_events.dart';
 import 'confirm_code_state.dart';
 
 /// Confirms the 6-digit email code sent after registration. Auto-submits as soon
-/// as the full code is entered, and can resend the code. On success the session
-/// is handed to the app-wide [AuthCubit].
+/// as the full code is entered, and can resend the code. On success the
+/// repository publishes the authenticated session on its stream (picked up by
+/// the app-wide `AuthBloc`).
 @injectable
 class ConfirmCodeBloc extends Bloc<ConfirmCodeEvent, ConfirmCodeState> {
   ConfirmCodeBloc(
     this._repository,
-    this._authCubit,
     @factoryParam this.email,
   ) : super(const ConfirmCodeState()) {
     on<CodeChanged>(_onCodeChanged);
@@ -23,7 +22,6 @@ class ConfirmCodeBloc extends Bloc<ConfirmCodeEvent, ConfirmCodeState> {
   }
 
   final AuthRepository _repository;
-  final AuthCubit _authCubit;
   final String email;
 
   void _onCodeChanged(CodeChanged event, Emitter<ConfirmCodeState> emit) {
@@ -43,7 +41,6 @@ class ConfirmCodeBloc extends Bloc<ConfirmCodeEvent, ConfirmCodeState> {
     emit(state.copyWith(inProgress: true, errorMessage: null));
     try {
       await _repository.confirmEmail(email, state.code.trim());
-      await _authCubit.onAuthenticated();
       emit(state.copyWith(inProgress: false, loggedIn: true));
     } on GraphqlException catch (e) {
       emit(state.copyWith(inProgress: false, errorMessage: e.message));

@@ -3,16 +3,16 @@ import 'package:injectable/injectable.dart';
 
 import '../../data/auth_repository.dart';
 import '../../data/graphql_client.dart';
-import '../auth_cubit.dart';
 import 'login_events.dart';
 import 'login_state.dart';
 
-/// Drives the email + password login screen. On success it hands the session to
-/// the app-wide [AuthCubit]; when the account isn't confirmed yet it signals the
-/// page to route to the confirmation screen.
+/// Drives the email + password login screen. On success the repository publishes
+/// the authenticated session on its stream (picked up by the app-wide
+/// `AuthBloc`); when the account isn't confirmed yet it signals the page to
+/// route to the confirmation screen.
 @injectable
 class LoginBloc extends Bloc<LoginEvent, LoginState> {
-  LoginBloc(this._repository, this._authCubit) : super(const LoginState()) {
+  LoginBloc(this._repository) : super(const LoginState()) {
     on<EmailChanged>((e, emit) => emit(state.copyWith(email: e.email)));
     on<PasswordChanged>((e, emit) => emit(state.copyWith(password: e.password)));
     on<TogglePasswordVisibility>(
@@ -22,7 +22,6 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
   }
 
   final AuthRepository _repository;
-  final AuthCubit _authCubit;
 
   Future<void> _onSubmit(SubmitPressed event, Emitter<LoginState> emit) async {
     emit(state.copyWith(inProgress: true, errorMessage: null));
@@ -38,7 +37,6 @@ class LoginBloc extends Bloc<LoginEvent, LoginState> {
         ));
         return;
       }
-      await _authCubit.onAuthenticated();
       emit(state.copyWith(inProgress: false, loggedIn: true));
     } on GraphqlException catch (e) {
       emit(state.copyWith(inProgress: false, errorMessage: e.message));

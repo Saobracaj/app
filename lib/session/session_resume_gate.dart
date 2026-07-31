@@ -3,7 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
-import '../auth/state_management/auth_cubit.dart';
+import '../auth/state_management/auth/auth_bloc.dart';
+import '../auth/state_management/auth/auth_state.dart';
 import '../db/dependencies.dart';
 import '../generated/locale_keys.g.dart';
 
@@ -37,7 +38,7 @@ class _SessionResumeGateState extends State<SessionResumeGate> {
   void initState() {
     super.initState();
     // Already signed in at startup: the BlocListener won't see a transition.
-    if (context.read<AuthCubit>().state.isAuthenticated) {
+    if (context.read<AuthBloc>().state.isAuthenticated) {
       _checked = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _offerResume());
     }
@@ -67,7 +68,7 @@ class _SessionResumeGateState extends State<SessionResumeGate> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<AuthCubit, AuthState>(
+    return BlocListener<AuthBloc, AuthState>(
       listenWhen: (prev, next) => prev.status != next.status,
       listener: (context, state) {
         if (state.isAuthenticated) {

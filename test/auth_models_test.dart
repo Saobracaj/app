@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/models/auth_tokens.dart';
 import 'package:saobracaj/auth/models/viewer.dart';
-import 'package:saobracaj/auth/state_management/auth_cubit.dart';
-import 'package:saobracaj/theme/state_management/theme_cubit.dart';
+import 'package:saobracaj/auth/state_management/auth/auth_state.dart';
+import 'package:saobracaj/theme/state_management/theme_state.dart';
 
 void main() {
   group('AuthTokens.fromJson', () {

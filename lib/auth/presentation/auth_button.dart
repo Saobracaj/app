@@ -4,7 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
 import '../../generated/locale_keys.g.dart';
-import '../state_management/auth_cubit.dart';
+import '../state_management/auth/auth_bloc.dart';
+import '../state_management/auth/auth_state.dart';
 
 /// App-bar action that shows a "Log in" button while signed out and a round
 /// profile avatar once authenticated. Both route to the settings/profile screen
@@ -14,7 +15,7 @@ class AuthButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<AuthCubit, AuthState>(
+    return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
         if (state.status == AuthStatus.unknown) {
           return const Padding(

@@ -4,8 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
 import '../../generated/locale_keys.g.dart';
-import '../../theme/state_management/theme_cubit.dart';
-import '../state_management/auth_cubit.dart';
+import '../../theme/state_management/theme_bloc.dart';
+import '../../theme/state_management/theme_events.dart';
+import '../state_management/auth/auth_bloc.dart';
+import '../state_management/auth/auth_events.dart';
+import '../state_management/auth/auth_state.dart';
 
 /// Settings screen reachable from the profile icon: account (login / logout),
 /// appearance (accent color + light/dark mode) and notification preferences.
@@ -17,7 +20,7 @@ class ProfilePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(LocaleKeys.settings_title.tr())),
       body: SafeArea(
-        child: BlocBuilder<AuthCubit, AuthState>(
+        child: BlocBuilder<AuthBloc, AuthState>(
           builder: (context, auth) {
             return ListView(
               children: [
@@ -57,14 +60,16 @@ class ProfilePage extends StatelessWidget {
                 SwitchListTile(
                   title: Text(LocaleKeys.settings_emailNotifications.tr()),
                   value: auth.emailNotifications,
-                  onChanged: (v) =>
-                      context.read<AuthCubit>().setEmailNotifications(v),
+                  onChanged: (v) => context
+                      .read<AuthBloc>()
+                      .add(EmailNotificationsToggled(v)),
                 ),
                 SwitchListTile(
                   title: Text(LocaleKeys.settings_pushNotifications.tr()),
                   value: auth.pushNotifications,
-                  onChanged: (v) =>
-                      context.read<AuthCubit>().setPushNotifications(v),
+                  onChanged: (v) => context
+                      .read<AuthBloc>()
+                      .add(PushNotificationsToggled(v)),
                 ),
                 const SizedBox(height: 24),
               ],
@@ -76,7 +81,7 @@ class ProfilePage extends StatelessWidget {
   }
 
   Future<void> _confirmLogout(BuildContext context) async {
-    final cubit = context.read<AuthCubit>();
+    final authBloc = context.read<AuthBloc>();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -93,7 +98,7 @@ class ProfilePage extends StatelessWidget {
         ],
       ),
     );
-    if (confirmed == true) await cubit.logout();
+    if (confirmed == true) authBloc.add(LogoutRequested());
   }
 }
 
@@ -121,7 +126,7 @@ class _AccentPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
+    return BlocBuilder<ThemeBloc, ThemeState>(
       builder: (context, theme) {
         return ListTile(
           title: Text(LocaleKeys.settings_accentColor.tr()),
@@ -132,7 +137,8 @@ class _AccentPicker extends StatelessWidget {
               children: [
                 for (var i = 0; i < kAppAccents.length; i++)
                   GestureDetector(
-                    onTap: () => context.read<ThemeCubit>().setAccent(i),
+                    onTap: () =>
+                        context.read<ThemeBloc>().add(AccentChanged(i)),
                     child: CircleAvatar(
                       backgroundColor: kAppAccents[i].color,
                       radius: 18,
@@ -155,7 +161,7 @@ class _ThemeModePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ThemeCubit, ThemeState>(
+    return BlocBuilder<ThemeBloc, ThemeState>(
       builder: (context, theme) {
         return ListTile(
           title: Text(LocaleKeys.settings_themeMode.tr()),
@@ -178,7 +184,7 @@ class _ThemeModePicker extends StatelessWidget {
               ],
               selected: {theme.mode},
               onSelectionChanged: (s) =>
-                  context.read<ThemeCubit>().setMode(s.first),
+                  context.read<ThemeBloc>().add(ModeChanged(s.first)),
             ),
           ),
         );

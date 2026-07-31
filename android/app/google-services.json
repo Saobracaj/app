@@ -14,6 +14,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "1039935330316-aumo8t1508mnhsdgbv59ej99p87hue38.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "at.gleb.saobracaj",
+            "certificate_hash": "8e6ed06f34a11168c17ae39ff6472e5967649bf4"
+          }
+        },
+        {
+          "client_id": "1039935330316-smg6lu7nmcp5ek8dtvj7cf7mbhl70ci0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "at.gleb.saobracaj",
+            "certificate_hash": "640cc8d0e7775d6441ef977cd3cee2620d614f15"
+          }
+        },
+        {
           "client_id": "1039935330316-bhscbcvraua9v2hdjf3ha3p5eorco4fa.apps.googleusercontent.com",
           "client_type": 3
         }

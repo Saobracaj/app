@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 
 import '../models/auth_tokens.dart';
 import '../models/viewer.dart';
+import 'auth_status.dart';
 import 'graphql_client.dart';
 import 'token_storage.dart';
 
@@ -9,6 +12,12 @@ import 'token_storage.dart';
 ///
 /// Wraps the raw [GraphqlClient] calls in typed methods and keeps the persisted
 /// tokens in sync with the returned [AuthTokens].
+///
+/// It is also the source of truth for the session: every auth flow that ends up
+/// signed in emits [AuthStatus.authenticated] on [sessionStatus], and [logout]
+/// emits [AuthStatus.unauthenticated]. The app-wide `AuthBloc` subscribes to
+/// this stream (mirroring owncup's `UserAuthRepository`/`AuthBloc` split), so no
+/// caller has to hand the session to a holder manually.
 @lazySingleton
 class AuthRepository {
   AuthRepository(this._client, this._storage);
@@ -18,10 +27,27 @@ class AuthRepository {
 
   static const _tokenFields = 'accessToken refreshToken authenticated';
 
+  final StreamController<AuthStatus> _sessionController =
+      StreamController<AuthStatus>.broadcast();
+  AuthStatus _sessionStatus = AuthStatus.unknown;
+
+  /// The current session status, replayed to each new listener followed by any
+  /// subsequent transitions. Consumed by the app-wide `AuthBloc`.
+  Stream<AuthStatus> get sessionStatus async* {
+    yield _sessionStatus;
+    yield* _sessionController.stream;
+  }
+
+  void _emitSession(AuthStatus status) {
+    _sessionStatus = status;
+    _sessionController.add(status);
+  }
+
   Future<AuthTokens> _persist(Map<String, dynamic> tokensJson) async {
     final tokens = AuthTokens.fromJson(tokensJson);
     if (tokens.authenticated && tokens.accessToken.isNotEmpty) {
       await _storage.saveTokens(tokens.accessToken, tokens.refreshToken);
+      _emitSession(AuthStatus.authenticated);
     }
     return tokens;
   }
@@ -148,7 +174,21 @@ class AuthRepository {
     return data['setDevicePushEnabled'] as bool? ?? enabled;
   }
 
-  Future<void> logout() => _storage.clear();
+  Future<void> logout() async {
+    await _storage.clear();
+    _emitSession(AuthStatus.unauthenticated);
+  }
+
+  /// Publish the persisted session on startup: [AuthStatus.authenticated] if a
+  /// token is stored (the `AuthBloc` then validates it via [me]), otherwise
+  /// [AuthStatus.unauthenticated].
+  Future<void> bootstrap() async {
+    _emitSession(
+      await hasStoredSession()
+          ? AuthStatus.authenticated
+          : AuthStatus.unauthenticated,
+    );
+  }
 
   Future<bool> hasStoredSession() async {
     final token = await _storage.accessToken;

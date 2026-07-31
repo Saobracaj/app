@@ -11,12 +11,13 @@ import 'package:saobracaj/purchase/state_management/purchase_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'auth/data/firebase_init.dart';
-import 'auth/state_management/auth_cubit.dart';
+import 'auth/state_management/auth/auth_bloc.dart';
+import 'auth/state_management/auth/auth_events.dart';
 import 'core/di.dart';
 import 'generated/codegen_loader.g.dart';
 import 'session/session_resume_gate.dart';
 import 'session/session_route_observer.dart';
-import 'theme/state_management/theme_cubit.dart';
+import 'theme/state_management/theme_bloc.dart';
 
 void main() async {
   usePathUrlStrategy();
@@ -63,10 +64,12 @@ class _MyAppState extends State<MyApp> {
       providers: [
         BlocProvider(create: (context) => AllQuestionsBloc()..add(Load())),
         BlocProvider(create: (context) => PurchaseBloc()),
-        BlocProvider(create: (context) => ThemeCubit()),
-        BlocProvider(create: (context) => getIt<AuthCubit>()..bootstrap()),
+        BlocProvider(create: (context) => ThemeBloc()),
+        BlocProvider(
+          create: (context) => getIt<AuthBloc>()..add(AuthBootstrapRequested()),
+        ),
       ],
-      child: BlocBuilder<ThemeCubit, ThemeState>(
+      child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, themeState) {
           return MaterialApp.router(
             locale: context.locale,
