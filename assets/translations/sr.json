@@ -1,108 +1,112 @@
 {
-  "home": {
-    "questions": "Питања",
-    "simulation": "Симулација",
-    "history": "Историја",
-    "info": "О апликацији"
-  },
-  "simulation": {
-    "title": "Симулација испита",
-    "options": {
-      "showErrorsImmediately": "Прикажи грешке одмах",
-      "showStatistics": "Прикажи статистику претходних покушаја",
-      "buttonsLikeInExam": "Дугмад као на испиту"
+    "home": {
+        "questions": "Питања",
+        "simulation": "Симулација",
+        "history": "Историја",
+        "info": "О апликацији"
     },
-    "start": "Почни симулацију",
-    "previousTries": "Претходни покушаји ({}):",
-    "previousTriesItem": "Поена: {}, грешака: {}, време: {}",
-    "success": "Тест успешно положен",
-    "fail": "Симулација није успела",
-    "points": "Освојено поена: {}",
-    "errors": "Број грешака: {}",
-    "close": "Затвори",
-    "passErrors": "Понови питања са грешкама"
-  },
-  "info": {
-    "contactsMarkdown": "#### Контакт информације:\nЕмаил: [info@gleb.at](mailto:info@gleb.at)\n\nТелеграм: [GlebKl](https://t.me/GlebKl)",
-    "privacyPolicy": "Политика приватности"
-  },
-  "quest": {
-    "start": "Почни тест",
-    "options": {
-      "shuffleQuestions": "Питања насумичним редом",
-      "shuffleOptions": "Мешај одговоре"
+    "simulation": {
+        "title": "Симулација испита",
+        "options": {
+            "showErrorsImmediately": "Прикажи грешке одмах",
+            "showStatistics": "Прикажи статистику претходних покушаја",
+            "buttonsLikeInExam": "Дугмад као на испиту"
+        },
+        "start": "Почни симулацију",
+        "previousTries": "Претходни покушаји ({}):",
+        "previousTriesItem": "Поена: {}, грешака: {}, време: {}",
+        "success": "Тест успешно положен",
+        "fail": "Симулација није успела",
+        "points": "Освојено поена: {}",
+        "errors": "Број грешака: {}",
+        "close": "Затвори",
+        "passErrors": "Понови питања са грешкама"
     },
-    "questions": "Број питања: {}",
-    "random": "Почни тест",
-    "finalDialog": {
-      "title": "Заврши тест",
-      "content": "Нисте одговорили на сва питања. Да ли сте сигурни да желите да завршите тест?",
-      "cancelButton": "Откажи",
-      "okButton": "Заврши"
+    "info": {
+        "contactsMarkdown": "#### Контакт информације:\nЕмаил: [info@gleb.at](mailto:info@gleb.at)\n\nТелеграм: [GlebKl](https://t.me/GlebKl)",
+        "privacyPolicy": "Политика приватности"
     },
-    "previousTries": "Претходни покушаји",
-    "noPreviousTries": "Раније нисте одговарали на ово питање"
-  },
-  "auth": {
-    "loginNav": "Пријава",
-    "profileTooltip": "Профил",
-    "loginTitle": "Пријава",
-    "registerTitle": "Регистрација",
-    "email": "Имејл",
-    "password": "Лозинка",
-    "passwordRepeat": "Поновите лозинку",
-    "loginSubmit": "Пријави се",
-    "registerSubmit": "Региструј се",
-    "noAccount": "Немате налог?",
-    "haveAccount": "Већ имате налог?",
-    "toRegister": "Направите",
-    "toLogin": "Пријавите се",
-    "forgotPassword": "Заборавили сте лозинку?",
-    "resetPassword": "Ресетуј",
-    "or": "или",
-    "continueWithGoogle": "Настави са Google",
-    "continueWithApple": "Настави са Apple",
-    "socialComingSoon": "Пријава преко Google и Apple ускоро",
-    "confirmTitle": "Потврда имејла",
-    "confirmSubtitle": "Послали смо 6-цифрени код на {}",
-    "code": "Код из имејла",
-    "confirmSubmit": "Потврди",
-    "resendCode": "Пошаљи код поново",
-    "codeResent": "Код је поново послат",
-    "resetTitle": "Ресетовање лозинке",
-    "resetSubtitle": "Унесите имејл и послаћемо вам код за ресетовање",
-    "sendCode": "Пошаљи код",
-    "newPassword": "Нова лозинка",
-    "resetSubmit": "Сачувај нову лозинку",
-    "loggedIn": "Пријављени сте",
-    "errors": {
-      "emptyEmail": "Унесите имејл",
-      "invalidEmail": "Неисправна имејл адреса",
-      "emptyPassword": "Унесите лозинку",
-      "shortPassword": "Лозинка мора имати најмање 6 знакова",
-      "passwordMismatch": "Лозинке се не подударају",
-      "emptyCode": "Унесите код"
+    "quest": {
+        "start": "Почни тест",
+        "options": {
+            "shuffleQuestions": "Питања насумичним редом",
+            "shuffleOptions": "Мешај одговоре"
+        },
+        "questions": "Број питања: {}",
+        "random": "Почни тест",
+        "finalDialog": {
+            "title": "Заврши тест",
+            "content": "Нисте одговорили на сва питања. Да ли сте сигурни да желите да завршите тест?",
+            "cancelButton": "Откажи",
+            "okButton": "Заврши"
+        },
+        "previousTries": "Претходни покушаји",
+        "noPreviousTries": "Раније нисте одговарали на ово питање"
+    },
+    "auth": {
+        "loginNav": "Пријава",
+        "profileTooltip": "Профил",
+        "loginTitle": "Пријава",
+        "registerTitle": "Регистрација",
+        "email": "Имејл",
+        "password": "Лозинка",
+        "passwordRepeat": "Поновите лозинку",
+        "loginSubmit": "Пријави се",
+        "registerSubmit": "Региструј се",
+        "noAccount": "Немате налог?",
+        "haveAccount": "Већ имате налог?",
+        "toRegister": "Направите",
+        "toLogin": "Пријавите се",
+        "forgotPassword": "Заборавили сте лозинку?",
+        "resetPassword": "Ресетуј",
+        "or": "или",
+        "continueWithGoogle": "Настави са Google",
+        "continueWithApple": "Настави са Apple",
+        "socialComingSoon": "Пријава преко Google и Apple ускоро",
+        "confirmTitle": "Потврда имејла",
+        "confirmSubtitle": "Послали смо 6-цифрени код на {}",
+        "code": "Код из имејла",
+        "confirmSubmit": "Потврди",
+        "resendCode": "Пошаљи код поново",
+        "codeResent": "Код је поново послат",
+        "resetTitle": "Ресетовање лозинке",
+        "resetSubtitle": "Унесите имејл и послаћемо вам код за ресетовање",
+        "sendCode": "Пошаљи код",
+        "newPassword": "Нова лозинка",
+        "resetSubmit": "Сачувај нову лозинку",
+        "loggedIn": "Пријављени сте",
+        "errors": {
+            "emptyEmail": "Унесите имејл",
+            "invalidEmail": "Неисправна имејл адреса",
+            "emptyPassword": "Унесите лозинку",
+            "shortPassword": "Лозинка мора имати најмање 6 знакова",
+            "passwordMismatch": "Лозинке се не подударају",
+            "emptyCode": "Унесите код"
+        }
+    },
+    "settings": {
+        "title": "Подешавања",
+        "account": "Налог",
+        "notAuthorized": "Нисте пријављени",
+        "loginPrompt": "Пријавите се да синхронизујете напредак и обавештења",
+        "loginButton": "Пријава",
+        "signedInAs": "Пријављени као {}",
+        "logout": "Одјава",
+        "logoutConfirmTitle": "Одјавити се?",
+        "logoutConfirmCancel": "Откажи",
+        "logoutConfirmOk": "Одјави се",
+        "appearance": "Изглед",
+        "accentColor": "Боја акцента",
+        "themeMode": "Тема",
+        "themeSystem": "Системска",
+        "themeLight": "Светла",
+        "themeDark": "Тамна",
+        "notifications": "Обавештења",
+        "emailNotifications": "Обавештења на имејл",
+        "pushNotifications": "Push обавештења"
+    },
+    "session": {
+        "resume_prompt": "Наставите тамо где сте стали на другом уређају?",
+        "resume_action": "Настави"
     }
-  },
-  "settings": {
-    "title": "Подешавања",
-    "account": "Налог",
-    "notAuthorized": "Нисте пријављени",
-    "loginPrompt": "Пријавите се да синхронизујете напредак и обавештења",
-    "loginButton": "Пријава",
-    "signedInAs": "Пријављени као {}",
-    "logout": "Одјава",
-    "logoutConfirmTitle": "Одјавити се?",
-    "logoutConfirmCancel": "Откажи",
-    "logoutConfirmOk": "Одјави се",
-    "appearance": "Изглед",
-    "accentColor": "Боја акцента",
-    "themeMode": "Тема",
-    "themeSystem": "Системска",
-    "themeLight": "Светла",
-    "themeDark": "Тамна",
-    "notifications": "Обавештења",
-    "emailNotifications": "Обавештења на имејл",
-    "pushNotifications": "Push обавештења"
-  }
 }

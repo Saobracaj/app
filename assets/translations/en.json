@@ -1,108 +1,112 @@
 {
-  "home": {
-    "questions": "Questions",
-    "simulation": "Simulation",
-    "history": "History",
-    "info": "About"
-  },
-  "simulation": {
-    "title": "Exam Simulation",
-    "options": {
-      "showErrorsImmediately": "Show errors immediately",
-      "showStatistics": "Show statistics from previous attempts",
-      "buttonsLikeInExam": "Buttons like in the exam"
+    "home": {
+        "questions": "Questions",
+        "simulation": "Simulation",
+        "history": "History",
+        "info": "About"
     },
-    "start": "Start Simulation",
-    "previousTries": "Previous attempts ({}):",
-    "previousTriesItem": "Points: {}, errors: {}, time: {}",
-    "success": "Test passed successfully",
-    "fail": "Simulation failed",
-    "points": "Points scored: {}",
-    "errors": "Errors: {}",
-    "close": "Close",
-    "passErrors": "Go through the error questions"
-  },
-  "info": {
-    "contactsMarkdown": "#### Contact Information:\nEmail: [info@gleb.at](mailto:info@gleb.at)\n\nTelegram: [GlebKl](https://t.me/GlebKl)",
-    "privacyPolicy": "Privacy Policy"
-  },
-  "quest": {
-    "start": "Start Test",
-    "options": {
-      "shuffleQuestions": "Shuffle questions",
-      "shuffleOptions": "Shuffle answer options"
+    "simulation": {
+        "title": "Exam Simulation",
+        "options": {
+            "showErrorsImmediately": "Show errors immediately",
+            "showStatistics": "Show statistics from previous attempts",
+            "buttonsLikeInExam": "Buttons like in the exam"
+        },
+        "start": "Start Simulation",
+        "previousTries": "Previous attempts ({}):",
+        "previousTriesItem": "Points: {}, errors: {}, time: {}",
+        "success": "Test passed successfully",
+        "fail": "Simulation failed",
+        "points": "Points scored: {}",
+        "errors": "Errors: {}",
+        "close": "Close",
+        "passErrors": "Go through the error questions"
     },
-    "questions": "Questions: {}",
-    "random": "Start Test",
-    "finalDialog": {
-      "title": "Finish Test",
-      "content": "You haven’t answered some questions. Are you sure you want to finish the test?",
-      "cancelButton": "Cancel",
-      "okButton": "Finish"
+    "info": {
+        "contactsMarkdown": "#### Contact Information:\nEmail: [info@gleb.at](mailto:info@gleb.at)\n\nTelegram: [GlebKl](https://t.me/GlebKl)",
+        "privacyPolicy": "Privacy Policy"
     },
-    "previousTries": "Previous Attempts",
-    "noPreviousTries": "You haven't answered this question before"
-  },
-  "auth": {
-    "loginNav": "Log in",
-    "profileTooltip": "Profile",
-    "loginTitle": "Log in",
-    "registerTitle": "Sign up",
-    "email": "Email",
-    "password": "Password",
-    "passwordRepeat": "Repeat password",
-    "loginSubmit": "Log in",
-    "registerSubmit": "Sign up",
-    "noAccount": "No account?",
-    "haveAccount": "Already have an account?",
-    "toRegister": "Create one",
-    "toLogin": "Log in",
-    "forgotPassword": "Forgot password?",
-    "resetPassword": "Reset",
-    "or": "or",
-    "continueWithGoogle": "Continue with Google",
-    "continueWithApple": "Continue with Apple",
-    "socialComingSoon": "Google and Apple sign-in is coming soon",
-    "confirmTitle": "Confirm your email",
-    "confirmSubtitle": "We sent a 6-digit code to {}",
-    "code": "Code from the email",
-    "confirmSubmit": "Confirm",
-    "resendCode": "Resend the code",
-    "codeResent": "The code has been resent",
-    "resetTitle": "Reset password",
-    "resetSubtitle": "Enter your email and we will send a reset code",
-    "sendCode": "Send code",
-    "newPassword": "New password",
-    "resetSubmit": "Save new password",
-    "loggedIn": "You are logged in",
-    "errors": {
-      "emptyEmail": "Enter your email",
-      "invalidEmail": "Invalid email address",
-      "emptyPassword": "Enter your password",
-      "shortPassword": "Password must be at least 6 characters",
-      "passwordMismatch": "Passwords do not match",
-      "emptyCode": "Enter the code"
+    "quest": {
+        "start": "Start Test",
+        "options": {
+            "shuffleQuestions": "Shuffle questions",
+            "shuffleOptions": "Shuffle answer options"
+        },
+        "questions": "Questions: {}",
+        "random": "Start Test",
+        "finalDialog": {
+            "title": "Finish Test",
+            "content": "You haven’t answered some questions. Are you sure you want to finish the test?",
+            "cancelButton": "Cancel",
+            "okButton": "Finish"
+        },
+        "previousTries": "Previous Attempts",
+        "noPreviousTries": "You haven't answered this question before"
+    },
+    "auth": {
+        "loginNav": "Log in",
+        "profileTooltip": "Profile",
+        "loginTitle": "Log in",
+        "registerTitle": "Sign up",
+        "email": "Email",
+        "password": "Password",
+        "passwordRepeat": "Repeat password",
+        "loginSubmit": "Log in",
+        "registerSubmit": "Sign up",
+        "noAccount": "No account?",
+        "haveAccount": "Already have an account?",
+        "toRegister": "Create one",
+        "toLogin": "Log in",
+        "forgotPassword": "Forgot password?",
+        "resetPassword": "Reset",
+        "or": "or",
+        "continueWithGoogle": "Continue with Google",
+        "continueWithApple": "Continue with Apple",
+        "socialComingSoon": "Google and Apple sign-in is coming soon",
+        "confirmTitle": "Confirm your email",
+        "confirmSubtitle": "We sent a 6-digit code to {}",
+        "code": "Code from the email",
+        "confirmSubmit": "Confirm",
+        "resendCode": "Resend the code",
+        "codeResent": "The code has been resent",
+        "resetTitle": "Reset password",
+        "resetSubtitle": "Enter your email and we will send a reset code",
+        "sendCode": "Send code",
+        "newPassword": "New password",
+        "resetSubmit": "Save new password",
+        "loggedIn": "You are logged in",
+        "errors": {
+            "emptyEmail": "Enter your email",
+            "invalidEmail": "Invalid email address",
+            "emptyPassword": "Enter your password",
+            "shortPassword": "Password must be at least 6 characters",
+            "passwordMismatch": "Passwords do not match",
+            "emptyCode": "Enter the code"
+        }
+    },
+    "settings": {
+        "title": "Settings",
+        "account": "Account",
+        "notAuthorized": "You are not signed in",
+        "loginPrompt": "Sign in to sync your progress and notifications",
+        "loginButton": "Log in",
+        "signedInAs": "Signed in as {}",
+        "logout": "Log out",
+        "logoutConfirmTitle": "Log out?",
+        "logoutConfirmCancel": "Cancel",
+        "logoutConfirmOk": "Log out",
+        "appearance": "Appearance",
+        "accentColor": "Accent color",
+        "themeMode": "Theme",
+        "themeSystem": "System",
+        "themeLight": "Light",
+        "themeDark": "Dark",
+        "notifications": "Notifications",
+        "emailNotifications": "Email notifications",
+        "pushNotifications": "Push notifications"
+    },
+    "session": {
+        "resume_prompt": "Continue where you left off on your other device?",
+        "resume_action": "Continue"
     }
-  },
-  "settings": {
-    "title": "Settings",
-    "account": "Account",
-    "notAuthorized": "You are not signed in",
-    "loginPrompt": "Sign in to sync your progress and notifications",
-    "loginButton": "Log in",
-    "signedInAs": "Signed in as {}",
-    "logout": "Log out",
-    "logoutConfirmTitle": "Log out?",
-    "logoutConfirmCancel": "Cancel",
-    "logoutConfirmOk": "Log out",
-    "appearance": "Appearance",
-    "accentColor": "Accent color",
-    "themeMode": "Theme",
-    "themeSystem": "System",
-    "themeLight": "Light",
-    "themeDark": "Dark",
-    "notifications": "Notifications",
-    "emailNotifications": "Email notifications",
-    "pushNotifications": "Push notifications"
-  }
 }
