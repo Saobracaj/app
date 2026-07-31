@@ -1,14 +1,18 @@
+import '../auth/data/graphql_client.dart';
+import '../auth/data/token_storage.dart';
+import '../statistics/statistics_sync_service.dart';
 import 'answer_repository.dart';
 import 'db.dart';
 
 final db = AppDatabase();
 final repository = AnswerRepository(db);
-/*
-// Добавить ответ
-await repository.addAnswer(42, true);
 
-// Получить все ответы по questionId = 42
-final answers = await repository.getAnswersByQuestionId(42);
-
-// Получить все вопросы с ошибками
-final wrongQuestions = await repository.getQuestionsWithErrors();*/
+// Statistics sync uses its own TokenStorage (shared_preferences-backed, so it
+// sees the same tokens the auth layer stores) and a GraphQL client. Triggered
+// automatically after login/startup (AuthCubit) and after each finished test.
+final TokenStorage _syncTokenStorage = TokenStorage();
+final StatisticsSyncService statisticsSync = StatisticsSyncService(
+  db,
+  GraphqlClient(_syncTokenStorage),
+  _syncTokenStorage,
+);

@@ -131,7 +131,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
       }
     }
 
-    repository.insertPracticeRecord(
+    await repository.insertPracticeRecord(
       PracticeRecordsCompanion(
         points: Value(pointsSummary),
         time: Value(DateTime.now()),
@@ -140,6 +140,8 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
         wrongAnswers: Value(wrongAnswers),
       ),
     );
+    // Push the new result to the back-end (no-op when signed out).
+    statisticsSync.sync();
   }
 
   @override
