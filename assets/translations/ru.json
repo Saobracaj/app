@@ -1,108 +1,112 @@
 {
-  "home": {
-    "questions": "Вопросы",
-    "simulation": "Симуляция",
-    "history": "История",
-    "info": "О приложении"
-  },
-  "simulation": {
-    "title": "Симуляция экзамена",
-    "options": {
-      "showErrorsImmediately": "Показывать ошибки сразу",
-      "showStatistics": "Показывать статистику по предыдущим попыткам",
-      "buttonsLikeInExam": "Кнопки как на экзамене"
+    "home": {
+        "questions": "Вопросы",
+        "simulation": "Симуляция",
+        "history": "История",
+        "info": "О приложении"
     },
-    "start": "Начать симуляцию",
-    "previousTries": "Предыдущие попытки ({}):",
-    "previousTriesItem": "Балов: {}, ошибок: {}, время: {}",
-    "success": "Тест успешно пройден",
-    "fail": "Симуляция провалена",
-    "points": "Набрано балов: {}",
-    "errors": "Ошибок: {}",
-    "close": "Закрыть",
-    "passErrors": "Пройти вопросы с ошибками"
-  },
-  "info": {
-    "contactsMarkdown": "#### Контакты для связи:\nEmail: [info@gleb.at](mailto:info@gleb.at)\n\nTelegram: [GlebKl](https://t.me/GlebKl)",
-    "privacyPolicy": "Политика конфиденциальности"
-  },
-  "quest": {
-    "start": "Начать тест",
-    "options": {
-      "shuffleQuestions": "Вопросы в случайном порядке",
-      "shuffleOptions": "Перемешивать варианты ответов"
+    "simulation": {
+        "title": "Симуляция экзамена",
+        "options": {
+            "showErrorsImmediately": "Показывать ошибки сразу",
+            "showStatistics": "Показывать статистику по предыдущим попыткам",
+            "buttonsLikeInExam": "Кнопки как на экзамене"
+        },
+        "start": "Начать симуляцию",
+        "previousTries": "Предыдущие попытки ({}):",
+        "previousTriesItem": "Балов: {}, ошибок: {}, время: {}",
+        "success": "Тест успешно пройден",
+        "fail": "Симуляция провалена",
+        "points": "Набрано балов: {}",
+        "errors": "Ошибок: {}",
+        "close": "Закрыть",
+        "passErrors": "Пройти вопросы с ошибками"
     },
-    "questions": "Вопросов: {}",
-    "random": "Начать тест",
-    "finalDialog": {
-      "title": "Завершить тест",
-      "content": "Вы не дали ответ на некоторые вопросы. Вы точно хотите завершить тест?",
-      "cancelButton": "Отмена",
-      "okButton": "Завершить"
+    "info": {
+        "contactsMarkdown": "#### Контакты для связи:\nEmail: [info@gleb.at](mailto:info@gleb.at)\n\nTelegram: [GlebKl](https://t.me/GlebKl)",
+        "privacyPolicy": "Политика конфиденциальности"
     },
-    "previousTries": "Предыдущие попытки",
-    "noPreviousTries": "Вы ранее не отвечали на этот вопрос"
-  },
-  "auth": {
-    "loginNav": "Войти",
-    "profileTooltip": "Профиль",
-    "loginTitle": "Вход",
-    "registerTitle": "Регистрация",
-    "email": "Эл. почта",
-    "password": "Пароль",
-    "passwordRepeat": "Повторите пароль",
-    "loginSubmit": "Войти",
-    "registerSubmit": "Зарегистрироваться",
-    "noAccount": "Нет аккаунта?",
-    "haveAccount": "Уже есть аккаунт?",
-    "toRegister": "Создать",
-    "toLogin": "Войти",
-    "forgotPassword": "Забыли пароль?",
-    "resetPassword": "Восстановить",
-    "or": "или",
-    "continueWithGoogle": "Продолжить с Google",
-    "continueWithApple": "Продолжить с Apple",
-    "socialComingSoon": "Вход через Google и Apple скоро будет доступен",
-    "confirmTitle": "Подтверждение почты",
-    "confirmSubtitle": "Мы отправили 6-значный код на {}",
-    "code": "Код из письма",
-    "confirmSubmit": "Подтвердить",
-    "resendCode": "Отправить код повторно",
-    "codeResent": "Код отправлен повторно",
-    "resetTitle": "Сброс пароля",
-    "resetSubtitle": "Введите почту — мы отправим код для сброса пароля",
-    "sendCode": "Отправить код",
-    "newPassword": "Новый пароль",
-    "resetSubmit": "Сохранить новый пароль",
-    "loggedIn": "Вы вошли в аккаунт",
-    "errors": {
-      "emptyEmail": "Введите эл. почту",
-      "invalidEmail": "Некорректный адрес эл. почты",
-      "emptyPassword": "Введите пароль",
-      "shortPassword": "Пароль должен быть не короче 6 символов",
-      "passwordMismatch": "Пароли не совпадают",
-      "emptyCode": "Введите код"
+    "quest": {
+        "start": "Начать тест",
+        "options": {
+            "shuffleQuestions": "Вопросы в случайном порядке",
+            "shuffleOptions": "Перемешивать варианты ответов"
+        },
+        "questions": "Вопросов: {}",
+        "random": "Начать тест",
+        "finalDialog": {
+            "title": "Завершить тест",
+            "content": "Вы не дали ответ на некоторые вопросы. Вы точно хотите завершить тест?",
+            "cancelButton": "Отмена",
+            "okButton": "Завершить"
+        },
+        "previousTries": "Предыдущие попытки",
+        "noPreviousTries": "Вы ранее не отвечали на этот вопрос"
+    },
+    "auth": {
+        "loginNav": "Войти",
+        "profileTooltip": "Профиль",
+        "loginTitle": "Вход",
+        "registerTitle": "Регистрация",
+        "email": "Эл. почта",
+        "password": "Пароль",
+        "passwordRepeat": "Повторите пароль",
+        "loginSubmit": "Войти",
+        "registerSubmit": "Зарегистрироваться",
+        "noAccount": "Нет аккаунта?",
+        "haveAccount": "Уже есть аккаунт?",
+        "toRegister": "Создать",
+        "toLogin": "Войти",
+        "forgotPassword": "Забыли пароль?",
+        "resetPassword": "Восстановить",
+        "or": "или",
+        "continueWithGoogle": "Продолжить с Google",
+        "continueWithApple": "Продолжить с Apple",
+        "socialComingSoon": "Вход через Google и Apple скоро будет доступен",
+        "confirmTitle": "Подтверждение почты",
+        "confirmSubtitle": "Мы отправили 6-значный код на {}",
+        "code": "Код из письма",
+        "confirmSubmit": "Подтвердить",
+        "resendCode": "Отправить код повторно",
+        "codeResent": "Код отправлен повторно",
+        "resetTitle": "Сброс пароля",
+        "resetSubtitle": "Введите почту — мы отправим код для сброса пароля",
+        "sendCode": "Отправить код",
+        "newPassword": "Новый пароль",
+        "resetSubmit": "Сохранить новый пароль",
+        "loggedIn": "Вы вошли в аккаунт",
+        "errors": {
+            "emptyEmail": "Введите эл. почту",
+            "invalidEmail": "Некорректный адрес эл. почты",
+            "emptyPassword": "Введите пароль",
+            "shortPassword": "Пароль должен быть не короче 6 символов",
+            "passwordMismatch": "Пароли не совпадают",
+            "emptyCode": "Введите код"
+        }
+    },
+    "settings": {
+        "title": "Настройки",
+        "account": "Аккаунт",
+        "notAuthorized": "Вы не авторизованы",
+        "loginPrompt": "Войдите, чтобы синхронизировать прогресс и уведомления",
+        "loginButton": "Войти",
+        "signedInAs": "Вы вошли как {}",
+        "logout": "Выйти",
+        "logoutConfirmTitle": "Выйти из аккаунта?",
+        "logoutConfirmCancel": "Отмена",
+        "logoutConfirmOk": "Выйти",
+        "appearance": "Оформление",
+        "accentColor": "Цвет акцента",
+        "themeMode": "Тема",
+        "themeSystem": "Системная",
+        "themeLight": "Светлая",
+        "themeDark": "Тёмная",
+        "notifications": "Уведомления",
+        "emailNotifications": "Уведомления на почту",
+        "pushNotifications": "Push-уведомления"
+    },
+    "session": {
+        "resume_prompt": "Продолжить с того места, где вы остановились на другом устройстве?",
+        "resume_action": "Продолжить"
     }
-  },
-  "settings": {
-    "title": "Настройки",
-    "account": "Аккаунт",
-    "notAuthorized": "Вы не авторизованы",
-    "loginPrompt": "Войдите, чтобы синхронизировать прогресс и уведомления",
-    "loginButton": "Войти",
-    "signedInAs": "Вы вошли как {}",
-    "logout": "Выйти",
-    "logoutConfirmTitle": "Выйти из аккаунта?",
-    "logoutConfirmCancel": "Отмена",
-    "logoutConfirmOk": "Выйти",
-    "appearance": "Оформление",
-    "accentColor": "Цвет акцента",
-    "themeMode": "Тема",
-    "themeSystem": "Системная",
-    "themeLight": "Светлая",
-    "themeDark": "Тёмная",
-    "notifications": "Уведомления",
-    "emailNotifications": "Уведомления на почту",
-    "pushNotifications": "Push-уведомления"
-  }
 }

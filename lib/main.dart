@@ -15,6 +15,8 @@ import 'auth/data/graphql_client.dart';
 import 'auth/data/token_storage.dart';
 import 'auth/state_management/auth_cubit.dart';
 import 'generated/codegen_loader.g.dart';
+import 'session/session_resume_gate.dart';
+import 'session/session_route_observer.dart';
 import 'theme/theme_cubit.dart';
 
 void main() async {
@@ -33,8 +35,26 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  // Hoisted so the same delegate drives the router and the resume gate's
+  // navigation. The observer mirrors every route change to the back-end.
+  final RoutemasterDelegate _routerDelegate = RoutemasterDelegate(
+    routesBuilder: (context) => routes,
+    observers: [SessionRouteObserver()],
+  );
+
+  @override
+  void dispose() {
+    _routerDelegate.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,8 +76,11 @@ class MyApp extends StatelessWidget {
             supportedLocales: context.supportedLocales,
             localizationsDelegates: context.localizationDelegates,
             debugShowCheckedModeBanner: false,
-            routerDelegate:
-                RoutemasterDelegate(routesBuilder: (context) => routes),
+            builder: (context, child) => SessionResumeGate(
+              delegate: _routerDelegate,
+              child: child ?? const SizedBox.shrink(),
+            ),
+            routerDelegate: _routerDelegate,
             routeInformationParser: RoutemasterParser(),
             title: 'Saobraćaj',
             themeMode: themeState.mode,
