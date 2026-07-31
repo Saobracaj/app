@@ -55,6 +55,7 @@ dependencies:
   scrollable_positioned_list: ^0.3.8
   collection: ^1.19.0
   http: ^1.2.2
+  flutter_svg: ^2.0.0
 
   # Firebase social sign-in (Google / Apple). Requires a Firebase project bound
   # to this app: run `flutterfire configure` to (re)generate lib/firebase_options.dart
@@ -62,6 +63,7 @@ dependencies:
   firebase_core: ^4.2.0
   firebase_auth: ^6.1.1
   firebase_ui_auth: ^3.0.0
+  firebase_ui_oauth: ^2.0.0
   firebase_ui_oauth_google: ^2.0.0
   firebase_ui_oauth_apple: ^2.0.0
   google_sign_in: ^6.3.0
