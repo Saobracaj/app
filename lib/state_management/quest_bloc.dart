@@ -82,7 +82,8 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
 
     if (subcategory != null) {
       await repository.addRecord(subcategory!, state.rightAnswers, state.questions.length);
-
+      // Push the new result to the back-end (no-op when signed out).
+      statisticsSync.sync();
     }
     emit(state.copyWith(finalizeTest: true));
   }

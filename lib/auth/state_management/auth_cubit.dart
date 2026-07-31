@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../db/dependencies.dart';
 import '../data/auth_repository.dart';
 import '../models/viewer.dart';
 
@@ -77,6 +78,8 @@ class AuthCubit extends Cubit<AuthState> {
             pushNotifications: pushNotif,
           ),
         );
+        // Pull the latest statistics from the back-end on startup.
+        statisticsSync.sync();
         return;
       }
     } catch (_) {
@@ -96,6 +99,9 @@ class AuthCubit extends Cubit<AuthState> {
   /// the profile.
   Future<void> onAuthenticated() async {
     emit(state.copyWith(status: AuthStatus.authenticated));
+    // Merge any statistics gathered before login with the back-end, and pull
+    // down anything stored from other devices.
+    statisticsSync.sync();
     try {
       final viewer = await repository.me();
       if (viewer != null) emit(state.copyWith(viewer: viewer));
