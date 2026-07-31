@@ -4,7 +4,6 @@ import 'package:saobracaj/test/animations/auto.dart';
 import 'package:saobracaj/test/animations/road.dart';
 import 'package:saobracaj/test/animations/road_obstacle.dart';
 import 'package:saobracaj/test/animations/trafic_cone.dart';
-import 'emergency_triangle.dart';
 
 class BlockedRoadScene extends StatefulWidget {
   const BlockedRoadScene({super.key});

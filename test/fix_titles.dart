@@ -11,15 +11,10 @@ void main() async {
   final paragraphs = translationsJson.map((e) => BezbParagraph.fromJson(e)).toList();
 
   final newParagraphs = <BezbParagraph>[];
-  int? pNumber = null;
-  String? cNumber = null;
-  final intInStr = RegExp(r'\d+');
-  final chapterRegex = RegExp(r'^([IVXLCDM]+)\.\s+.+$');
 
   for (var i = 0; i < paragraphs.length; i++) {
     final p = paragraphs[i];
     final text = p.sr ?? '';
-    final chapterMatch = chapterRegex.firstMatch(text.trim());
 
     if (p.isTitle) {
       final newTextSr = text.replaceAll('*', '').replaceAll('\\', '').replaceAll('#', '');

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:saobracaj/test/animations/auto.dart';
-import 'package:saobracaj/test/animations/road.dart';
 
 class RastojanjeOndsojanje extends StatelessWidget {
   const RastojanjeOndsojanje({super.key});

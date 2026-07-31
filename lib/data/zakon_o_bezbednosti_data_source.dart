@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:collection/collection.dart';
 
 import 'package:flutter/services.dart';
-import 'package:saobracaj/models/models.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 

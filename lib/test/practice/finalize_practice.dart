@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
-import 'package:saobracaj/state_management/all_questions_bloc.dart';
-import 'package:saobracaj/state_management/practice_bloc.dart';
+import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
+import 'package:saobracaj/test/practice/state_management/practice_bloc.dart';
 import 'package:saobracaj/test/practice/widgets/confetti.dart';
 
 const kMinPoints = 85;

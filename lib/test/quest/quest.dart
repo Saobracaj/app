@@ -4,33 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:routemaster/routemaster.dart';
-import 'package:saobracaj/data/dictianory_data_source.dart';
-import 'package:saobracaj/db/dependencies.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
 import 'package:saobracaj/models/models.dart';
-import 'package:saobracaj/state_management/all_questions_bloc.dart';
-import 'package:saobracaj/state_management/quest_bloc.dart';
-import 'package:saobracaj/state_management/start_test_bloc.dart';
+import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
+import 'package:saobracaj/test/quest/state_management/quest_bloc.dart';
+import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 import 'package:flutter/foundation.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:saobracaj/test/animations/animations_map.dart';
-import 'package:saobracaj/test/animations/auto.dart';
-import 'package:saobracaj/test/animations/mimoilazenje.dart';
-import 'package:saobracaj/test/animations/obgon.dart';
-import 'package:saobracaj/test/animations/obilazenje1.dart';
-import 'package:saobracaj/test/animations/obilazenje2.dart';
-import 'package:saobracaj/test/animations/preticanje.dart';
-import 'package:saobracaj/test/animations/propustanje.dart';
-import 'package:saobracaj/test/animations/road.dart';
 import 'package:saobracaj/test/practice/widgets/question_tries.dart';
-import 'package:saobracaj/test/quest/translations_bloc.dart';
+import 'package:saobracaj/test/quest/state_management/quest_content_bloc.dart';
+import 'package:saobracaj/test/quest/state_management/translations_bloc.dart';
 import 'package:saobracaj/util/nav_to_url.dart';
 import 'package:collection/collection.dart';
 
 import 'comment/comment_widget/comment_widget.dart';
 import 'finalize_test.dart';
-
-part 'quest.freezed.dart';
 
 class Quest extends StatelessWidget {
   const Quest({super.key, required this.questions, required this.options, this.subcategory});
@@ -301,7 +289,7 @@ class QuestionContent extends StatelessWidget {
                   // ObyezdAnimacija(),
                   // ObyezdAnimacija2(),
                   // BlockedRoadScene(),
-                  if (true || state.showCorrectAnswers) CommentWidget(questionId: question.id),
+                  CommentWidget(questionId: question.id),
                 ],
               );
             },
@@ -340,65 +328,6 @@ class QuestionContent extends StatelessWidget {
     }
     questBloc.add(NextQuestion());
   }
-}
-
-class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
-  final int questionId;
-
-  QuestContentBloc(Set<Choice> choices, Set<Choice> currentAnswers, this.questionId)
-    : super(QuesContentState(choices: choices, selectedChoices: currentAnswers)) {
-    on<AddChoice>(_onAddChoise);
-    on<ShowCorrectAnswers>(_onShowCorrectAnswers);
-    on<GetHistory>(_onGetHistory);
-    add(GetHistory());
-  }
-
-  void _onAddChoise(AddChoice event, Emitter<QuesContentState> emit) {
-    if (state.choices.where((element) => element.isCorrect).length > 1) {
-      if (state.selectedChoices.contains(event.choice)) {
-        emit(state.copyWith(selectedChoices: {...state.selectedChoices}..remove(event.choice)));
-      } else {
-        emit(state.copyWith(selectedChoices: {...state.selectedChoices, event.choice}));
-      }
-    } else {
-      emit(state.copyWith(selectedChoices: {event.choice}));
-    }
-  }
-
-  void _onShowCorrectAnswers(ShowCorrectAnswers event, Emitter<QuesContentState> emit) {
-    emit(state.copyWith(showCorrectAnswers: true));
-  }
-
-  void _onGetHistory(GetHistory event, Emitter<QuesContentState> emit) async {
-    final res = await repository.getAnswersByQuestionId(questionId);
-    final arr = <bool>[];
-    for (var r in res) {
-      arr.add(r.isWrong);
-    }
-    emit(state.copyWith(previousTries: arr));
-  }
-}
-
-sealed class QuestContentEvent {}
-
-class AddChoice extends QuestContentEvent {
-  final Choice choice;
-
-  AddChoice(this.choice);
-}
-
-class ShowCorrectAnswers extends QuestContentEvent {}
-
-class GetHistory extends QuestContentEvent {}
-
-@freezed
-sealed class QuesContentState with _$QuesContentState {
-  const factory QuesContentState({
-    @Default({}) Set<Choice> choices,
-    @Default({}) Set<Choice> selectedChoices,
-    @Default(false) bool showCorrectAnswers,
-    @Default([]) List<bool> previousTries,
-  }) = _QuesContentState;
 }
 
 Future<bool?> _showMyDialog(BuildContext context) async {
@@ -508,7 +437,7 @@ Future showMarkdown(BuildContext context, String link) async {
   final chlan = o['chlan'];
   final chapter = o['chapter'];
 
-  final queryParameters = {'paragraph': o['paragraph'], 'chlan': o['chlan'], 'chapter': o['chapter']};
+  final _ = {'paragraph': o['paragraph'], 'chlan': o['chlan'], 'chapter': o['chapter']};
 
   final uriPath = 'zakon?paragraph=$paragraph&chlan=$chlan&chapter=$chapter';
   // final uri = Uri.https('saobracaj.app', '/zakon', queryParameters).path;

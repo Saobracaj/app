@@ -1,10 +1,12 @@
 import 'dart:math';
 
+import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Persists the auth tokens and a stable per-install device id in
 /// [SharedPreferences]. The device id is sent as the `X-Device-Id` header so the
 /// back-end can register push devices per install.
+@lazySingleton
 class TokenStorage {
   static const _accessKey = 'auth_access_token';
   static const _refreshKey = 'auth_refresh_token';

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
-import 'package:saobracaj/state_management/start_test_bloc.dart';
+import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 
 class StartTest extends StatelessWidget {
   const StartTest({super.key, required this.questionIds, this.subcategory});

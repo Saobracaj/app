@@ -1,8 +1,8 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:saobracaj/db/dependencies.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
+import 'package:saobracaj/test/practice/state_management/question_tries_bloc.dart';
 
 class QuestionTries extends StatelessWidget {
   const QuestionTries(this.qid, {super.key});
@@ -49,24 +49,3 @@ class QuestionTries extends StatelessWidget {
     );
   }
 }
-
-class QuestionTriesBloc extends Bloc<QuestionTriesEvent, List<bool>> {
-  final int _questionId;
-  QuestionTriesBloc(this._questionId) : super([]) {
-    on<Init>(_init);
-    add(Init());
-  }
-
-  void _init(Init event, Emitter<List<bool>> emit) async {
-    final res = await repository.getAnswersByQuestionId(_questionId);
-    final arr = <bool>[];
-    for (var r in res) {
-      arr.add(r.isWrong);
-    }
-    emit(arr);
-  }
-}
-
-sealed class QuestionTriesEvent {}
-
-class Init extends QuestionTriesEvent {}

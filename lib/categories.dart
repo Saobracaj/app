@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/models/models.dart';
-import 'package:saobracaj/state_management/all_questions_bloc.dart';
-import 'package:saobracaj/state_management/categories_bloc.dart';
+import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
+import 'package:saobracaj/questions/state_management/categories_bloc.dart';
 
 class Categories extends StatefulWidget {
   const Categories({super.key});

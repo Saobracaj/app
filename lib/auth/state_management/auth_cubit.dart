@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../db/dependencies.dart';
@@ -43,6 +44,7 @@ class AuthState {
 /// Holds the current session and exposes the notification toggles used by the
 /// settings screen. Auth *flows* (login/register/reset) are driven directly from
 /// their pages through [repository]; this cubit owns the resulting session.
+@lazySingleton
 class AuthCubit extends Cubit<AuthState> {
   AuthCubit(this.repository) : super(const AuthState());
 

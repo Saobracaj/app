@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:saobracaj/data/zakon_o_bezbednosti_data_source.dart';
-import 'package:saobracaj/zakon/zakon_bloc.dart';
+import 'package:saobracaj/zakon/state_management/zakon_bloc.dart';
 import 'package:flutter/services.dart';
 
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
@@ -84,7 +84,7 @@ class _ZakonState extends State<Zakon> {
 }
 
 class _Paragraph extends StatelessWidget {
-  const _Paragraph({super.key, required this.paragraph, required this.isSerbian});
+  const _Paragraph({required this.paragraph, required this.isSerbian});
 
   final BezbParagraph paragraph;
   final bool isSerbian;
@@ -220,7 +220,7 @@ extension _ParagraphExt on BezbParagraph {
 }
 
 class _TableOfContentsItem extends StatelessWidget {
-  const _TableOfContentsItem({super.key, required this.paragraphs, required this.isSerbian});
+  const _TableOfContentsItem({required this.paragraphs, required this.isSerbian});
 
   final List<BezbParagraph> paragraphs;
   final bool isSerbian;

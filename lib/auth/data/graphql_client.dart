@@ -16,6 +16,10 @@ class GraphqlException implements Exception {
 ///
 /// Attaches the `Authorization`, `X-Device-Id` and `Accept-Language` headers and
 /// transparently refreshes the access token once on an auth failure.
+///
+/// Registered for DI via `RegisterModule` in `lib/core/di.dart` (the optional
+/// `languageProvider` / `dio` params keep injectable from introspecting the
+/// constructor directly).
 class GraphqlClient {
   GraphqlClient(this._storage, {Dio? dio, this.languageProvider})
     : _dio =

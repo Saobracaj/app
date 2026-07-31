@@ -1,3 +1,5 @@
+import 'package:injectable/injectable.dart';
+
 import '../models/auth_tokens.dart';
 import '../models/viewer.dart';
 import 'graphql_client.dart';
@@ -7,6 +9,7 @@ import 'token_storage.dart';
 ///
 /// Wraps the raw [GraphqlClient] calls in typed methods and keeps the persisted
 /// tokens in sync with the returned [AuthTokens].
+@lazySingleton
 class AuthRepository {
   AuthRepository(this._client, this._storage);
 

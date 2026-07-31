@@ -8,7 +8,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:saobracaj/db/db.dart';
 import 'package:saobracaj/db/dependencies.dart';
 import 'package:saobracaj/models/models.dart';
-import 'package:saobracaj/test/practice/practice_page.dart';
+import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
 
 part 'practice_bloc.freezed.dart';
 

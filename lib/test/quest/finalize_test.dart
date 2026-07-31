@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
-import 'package:saobracaj/state_management/all_questions_bloc.dart';
-import 'package:saobracaj/state_management/quest_bloc.dart';
+import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
+import 'package:saobracaj/test/quest/state_management/quest_bloc.dart';
 
 class FinalizeTestWidget extends StatelessWidget {
   const FinalizeTestWidget({super.key});

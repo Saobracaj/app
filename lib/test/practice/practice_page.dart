@@ -4,16 +4,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_time_ago/get_time_ago.dart';
 import 'package:routemaster/routemaster.dart';
 
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/practice/finalize_practice.dart';
 import 'package:saobracaj/test/practice/practice.dart' show formatDuration;
+import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
 import 'package:saobracaj/test/practice/widgets/quest_button.dart';
-
-import '../../db/db.dart' show PracticeRecord;
-import '../../db/dependencies.dart' show repository;
-
-part 'practice_page.freezed.dart';
 
 class PracticePage extends StatelessWidget {
   const PracticePage({super.key});
@@ -102,77 +97,4 @@ class PracticePage extends StatelessWidget {
       context.read<PracticePageBloc>().add(LoadPrevTries());
     }
   }
-}
-
-@freezed
-sealed class PracticeParams with _$PracticeParams {
-  const factory PracticeParams({
-    @Default(false) bool showRightAnswers,
-    @Default(false) bool showStats,
-    @Default(false) bool buttonsLikeInExam,
-    @Default([]) List<PracticeResult> records,
-  }) = _PracticeParams;
-}
-
-class PracticePageBloc extends Bloc<PracticePageEvent, PracticeParams> {
-  PracticePageBloc() : super(PracticeParams()) {
-    on<ToggleRightAnswers>(_onToggleRightAnswers);
-    on<ToggleShowStats>(_onToggleShowStats);
-    on<ToggleButtonsLikeInExam>(_onToggleButtonsLikeInExam);
-    on<LoadPrevTries>(_onLoadPrevTries);
-    add(LoadPrevTries());
-  }
-
-  void _onToggleRightAnswers(ToggleRightAnswers event, Emitter<PracticeParams> emit) {
-    emit(state.copyWith(showRightAnswers: !state.showRightAnswers));
-  }
-
-  void _onToggleShowStats(ToggleShowStats event, Emitter<PracticeParams> emit) {
-    emit(state.copyWith(showStats: !state.showStats));
-  }
-
-  void _onToggleButtonsLikeInExam(ToggleButtonsLikeInExam event, Emitter<PracticeParams> emit) {
-    emit(state.copyWith(buttonsLikeInExam: !state.buttonsLikeInExam));
-  }
-
-  void _onLoadPrevTries(LoadPrevTries event, Emitter<PracticeParams> emit) async {
-    final List<PracticeRecord> records = await repository.getPracticeRecords();
-    emit(
-      state.copyWith(
-        records:
-            records
-                .map(
-                  (e) => PracticeResult(
-                    points: e.points,
-                    time: e.time,
-                    mistakes: e.mistakes,
-                    durationSeconds: e.durationSeconds,
-                    wrongAnswers: e.wrongAnswers ?? [],
-                  ),
-                )
-                .toList(),
-      ),
-    );
-  }
-}
-
-sealed class PracticePageEvent {}
-
-class ToggleRightAnswers extends PracticePageEvent {}
-
-class ToggleShowStats extends PracticePageEvent {}
-
-class ToggleButtonsLikeInExam extends PracticePageEvent {}
-
-class LoadPrevTries extends PracticePageEvent {}
-
-@freezed
-sealed class PracticeResult with _$PracticeResult {
-  const factory PracticeResult({
-    required int points,
-    required DateTime time,
-    required int mistakes,
-    required int durationSeconds,
-    @Default([]) List<int> wrongAnswers,
-  }) = _PracticeResult;
 }

@@ -42,6 +42,7 @@ dependencies:
   routemaster: ^1.1.1
   drift: ^2.34.2
   drift_flutter: ^0.3.1
+  path_provider: ^2.1.5
   path: ^1.9.1
   confetti: ^0.8.0
   get_time_ago: ^2.4.0
@@ -52,6 +53,18 @@ dependencies:
   easy_localization_loader: ^2.0.2
   google_fonts: ^8.2.0
   scrollable_positioned_list: ^0.3.8
+
+  # Firebase social sign-in (Google / Apple). Requires a Firebase project bound
+  # to this app: run `flutterfire configure` to (re)generate lib/firebase_options.dart
+  # and the platform config (google-services.json / GoogleService-Info.plist).
+  firebase_core: ^4.2.0
+  firebase_auth: ^6.1.1
+  firebase_ui_auth: ^3.0.0
+  firebase_ui_oauth_google: ^2.0.0
+  firebase_ui_oauth_apple: ^2.0.0
+  google_sign_in: ^6.3.0
+  get_it: ^9.2.1
+  injectable: ^3.0.0
 
 dev_dependencies:
   flutter_test:
@@ -67,6 +80,7 @@ dev_dependencies:
   freezed: ^3.2.5
   json_serializable: ^6.14.0
   drift_dev: ^2.34.0
+  injectable_generator: ^3.0.2
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

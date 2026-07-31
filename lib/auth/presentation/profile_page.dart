@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
 import '../../generated/locale_keys.g.dart';
-import '../../theme/theme_cubit.dart';
+import '../../theme/state_management/theme_cubit.dart';
 import '../state_management/auth_cubit.dart';
 
 /// Settings screen reachable from the profile icon: account (login / logout),

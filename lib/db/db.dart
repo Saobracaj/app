@@ -1,6 +1,5 @@
-import 'dart:io';
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
+import 'package:drift_flutter/drift_flutter.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
@@ -83,10 +82,25 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dir.path, 'app.db'));
-    return NativeDatabase(file);
-  });
+// Cross-platform executor via drift_flutter: NativeDatabase (sqlite3 FFI) on
+// mobile/desktop, WASM (sqlite3.wasm + drift_worker.js served from web/) on the
+// web — the native FFI path is what broke the web build previously.
+//
+// The native database path is pinned to the historical `app.db` in the app
+// documents directory so existing installs keep their saved progress; without
+// this, drift_flutter would default to `saobracaj.sqlite` and orphan old data.
+QueryExecutor _openConnection() {
+  return driftDatabase(
+    name: 'saobracaj',
+    native: DriftNativeOptions(
+      databasePath: () async {
+        final dir = await getApplicationDocumentsDirectory();
+        return p.join(dir.path, 'app.db');
+      },
+    ),
+    web: DriftWebOptions(
+      sqlite3Wasm: Uri.parse('sqlite3.wasm'),
+      driftWorker: Uri.parse('drift_worker.js'),
+    ),
+  );
 }

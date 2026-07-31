@@ -3,19 +3,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saobracaj/models/models.dart';
-import 'package:saobracaj/state_management/all_questions_bloc.dart';
-import 'package:saobracaj/state_management/practice_bloc.dart';
+import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
+import 'package:saobracaj/test/practice/state_management/practice_bloc.dart';
 import 'package:flutter/foundation.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:saobracaj/test/practice/practice_page.dart';
+import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
+import 'package:saobracaj/test/practice/state_management/practice_content_bloc.dart';
 import 'package:saobracaj/test/practice/widgets/custom_checkbox.dart';
 import 'package:saobracaj/test/practice/widgets/quest_button.dart';
-import 'package:saobracaj/test/practice/widgets/question_tries.dart' hide Init;
+import 'package:saobracaj/test/practice/widgets/question_tries.dart';
 
 import 'finalize_practice.dart';
 import 'izvestai.dart';
-
-part 'practice.freezed.dart';
 
 class Practice extends StatelessWidget {
   Practice({super.key, required this.params});
@@ -195,12 +193,12 @@ class _QuestionContent extends StatelessWidget {
 
     return BlocProvider(
       key: ValueKey(question.id),
-      create: (context) => QuestContentBloc(choices.toSet(), answers ?? {}, question.id),
+      create: (context) => PracticeContentBloc(choices.toSet(), answers ?? {}, question.id),
       child: BlocBuilder<PracticeBloc, PracticeState>(
         builder: (context, practiceState) {
-          return BlocBuilder<QuestContentBloc, QuesContentState>(
+          return BlocBuilder<PracticeContentBloc, PracticeContentState>(
             builder: (context, state) {
-              final bloc = context.read<QuestContentBloc>();
+              final bloc = context.read<PracticeContentBloc>();
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -228,7 +226,7 @@ class _QuestionContent extends StatelessWidget {
                         child: CheckboxListTile(
                           title: Text(c.text),
                           value: state.selectedChoices.contains(c),
-                          onChanged: (value) => context.read<QuestContentBloc>().add(AddChoice(c)),
+                          onChanged: (value) => context.read<PracticeContentBloc>().add(AddChoice(c)),
                           controlAffinity: ListTileControlAffinity.leading,
                         ),
                       )
@@ -241,7 +239,7 @@ class _QuestionContent extends StatelessWidget {
                           value: c,
                           groupValue: state.selectedChoices.firstOrNull,
                           onChanged: (value) {
-                            context.read<QuestContentBloc>().add(AddChoice(c));
+                            context.read<PracticeContentBloc>().add(AddChoice(c));
                           },
                         ),
                       ),
@@ -343,7 +341,7 @@ class _QuestionContent extends StatelessWidget {
     );
   }
 
-  Future<SavedAnswer> _saveAnswer(BuildContext context, QuesContentState state, PracticeParams params) async {
+  Future<SavedAnswer> _saveAnswer(BuildContext context, PracticeContentState state, PracticeParams params) async {
     final questBloc = context.read<PracticeBloc>();
 
     if (state.selectedChoices.isNotEmpty) {
@@ -361,9 +359,9 @@ class _QuestionContent extends StatelessWidget {
     }
   }
 
-  Future<void> _finalizeTest(BuildContext context, QuesContentState state, PracticeParams params) async {
+  Future<void> _finalizeTest(BuildContext context, PracticeContentState state, PracticeParams params) async {
     final questBloc = context.read<PracticeBloc>();
-    final bloc = context.read<QuestContentBloc>();
+    final bloc = context.read<PracticeContentBloc>();
     final saved = await _saveAnswer(context, state, params);
     // if (saved == null) return;
     if (saved == SavedAnswer.incorrect && params.showRightAnswers && !state.showCorrectAnswers) {
@@ -380,9 +378,9 @@ class _QuestionContent extends StatelessWidget {
     questBloc.add(FinalizeTest());
   }
 
-  Future<void> _saveAndLoadNext(bool isNext, BuildContext context, QuesContentState state, PracticeParams params) async {
+  Future<void> _saveAndLoadNext(bool isNext, BuildContext context, PracticeContentState state, PracticeParams params) async {
     final practiceBloc = context.read<PracticeBloc>();
-    final bloc = context.read<QuestContentBloc>();
+    final bloc = context.read<PracticeContentBloc>();
     final saved = await _saveAnswer(context, state, params);
 
     if (saved == SavedAnswer.incorrect && params.showRightAnswers && !state.showCorrectAnswers) {
@@ -431,55 +429,6 @@ Future<int?> _showTable(BuildContext context, PracticeState state) async {
         ),
   );
   return res;
-}
-
-class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
-  final int questionId;
-
-  QuestContentBloc(Set<Choice> choices, Set<Choice> currentAnswers, this.questionId)
-    : super(QuesContentState(choices: choices, selectedChoices: currentAnswers)) {
-    on<AddChoice>(_onAddChoise);
-    on<ShowCorrectAnswers>(_onShowCorrectAnswers);
-    // on<GetHistory>(_onGetHistory);
-    // add(GetHistory());
-  }
-
-  void _onAddChoise(AddChoice event, Emitter<QuesContentState> emit) {
-    var correctChoices = state.choices.where((element) => element.isCorrect);
-    if (correctChoices.length > 1) {
-      if (state.selectedChoices.contains(event.choice)) {
-        emit(state.copyWith(selectedChoices: {...state.selectedChoices}..remove(event.choice)));
-      } else if (correctChoices.length > state.selectedChoices.length) {
-        emit(state.copyWith(selectedChoices: {...state.selectedChoices, event.choice}));
-      }
-    } else {
-      emit(state.copyWith(selectedChoices: {event.choice}));
-    }
-  }
-
-  void _onShowCorrectAnswers(ShowCorrectAnswers event, Emitter<QuesContentState> emit) {
-    emit(state.copyWith(showCorrectAnswers: true));
-  }
-}
-
-sealed class QuestContentEvent {}
-
-class AddChoice extends QuestContentEvent {
-  final Choice choice;
-
-  AddChoice(this.choice);
-}
-
-class ShowCorrectAnswers extends QuestContentEvent {}
-
-@freezed
-sealed class QuesContentState with _$QuesContentState {
-  const factory QuesContentState({
-    @Default({}) Set<Choice> choices,
-    @Default({}) Set<Choice> selectedChoices,
-    @Default(false) bool showCorrectAnswers,
-    @Default([]) List<bool> previousTries,
-  }) = _QuesContentState;
 }
 
 Future<bool?> _showMyDialog(BuildContext context) async {

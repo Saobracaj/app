@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:routemaster/routemaster.dart';
-import 'package:saobracaj/db/dependencies.dart';
-import 'package:saobracaj/models/models.dart';
-import 'package:saobracaj/state_management/all_questions_bloc.dart';
-
-part 'statistics_page.freezed.dart';
+import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
+import 'package:saobracaj/statistics/state_management/history_bloc.dart';
 
 class StatisticsPage extends StatelessWidget {
   const StatisticsPage({super.key});
@@ -72,32 +68,4 @@ class StatisticsPage extends StatelessWidget {
           ),
     );
   }
-}
-
-class HistoryBloc extends Bloc<HistoryEvent, HistoryState> {
-  final List<Question> allQuestions;
-
-  HistoryBloc(this.allQuestions) : super(HistoryState()) {
-    on<Init>(_init);
-    add(Init());
-  }
-
-  void _init(Init event, Emitter<dynamic> emit) async {
-    final res = await repository.getQuestionsWhereLastAnswerWasWrong();
-    final arr = <Question>[];
-    for (int qid in res) {
-      arr.add(allQuestions.firstWhere((element) => element.id == qid));
-    }
-
-    emit(state.copyWith(questions: arr));
-  }
-}
-
-sealed class HistoryEvent {}
-
-class Init extends HistoryEvent {}
-
-@freezed
-sealed class HistoryState with _$HistoryState {
-  const factory HistoryState({@Default([]) List<Question> questions}) = _HistoryState;
 }
