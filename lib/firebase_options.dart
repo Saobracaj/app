@@ -37,28 +37,29 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    appId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    messagingSenderId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    projectId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    authDomain: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    storageBucket: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
+    apiKey: 'AIzaSyDyEU8ZO-H7Kf4Ftxc-uUEh91j302tFQZE',
+    appId: '1:1039935330316:web:7433eec5b687bbc5bcf629',
+    messagingSenderId: '1039935330316',
+    projectId: 'saobracaj-7fd5e',
+    authDomain: 'saobracaj-7fd5e.firebaseapp.com',
+    storageBucket: 'saobracaj-7fd5e.firebasestorage.app',
+    measurementId: 'G-EEKGVHB3BM',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    appId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    messagingSenderId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    projectId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    storageBucket: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
+    apiKey: 'AIzaSyDHHTosShAz7r4AWDIX4aChMRBp-dEJiVI',
+    appId: '1:1039935330316:android:7563c90f12d1dbf4bcf629',
+    messagingSenderId: '1039935330316',
+    projectId: 'saobracaj-7fd5e',
+    storageBucket: 'saobracaj-7fd5e.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    appId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    messagingSenderId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    projectId: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
-    storageBucket: 'REPLACE_WITH_FLUTTERFIRE_CONFIGURE',
+    apiKey: 'AIzaSyBNbPaaYr6K2SUm4Buu8_bdlmsz0LXwHo8',
+    appId: '1:1039935330316:ios:765e90f2d92af606bcf629',
+    messagingSenderId: '1039935330316',
+    projectId: 'saobracaj-7fd5e',
+    storageBucket: 'saobracaj-7fd5e.firebasestorage.app',
+    iosClientId: '1039935330316-rnhorhr3nqrmpoi7cpfrppdfcbichn2b.apps.googleusercontent.com',
     iosBundleId: 'at.gleb.saobracaj.saobracaj',
   );
 }

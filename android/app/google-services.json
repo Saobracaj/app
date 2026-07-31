@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "1039935330316",
+    "project_id": "saobracaj-7fd5e",
+    "storage_bucket": "saobracaj-7fd5e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1039935330316:android:7563c90f12d1dbf4bcf629",
+        "android_client_info": {
+          "package_name": "at.gleb.saobracaj"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1039935330316-bhscbcvraua9v2hdjf3ha3p5eorco4fa.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHHTosShAz7r4AWDIX4aChMRBp-dEJiVI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1039935330316-bhscbcvraua9v2hdjf3ha3p5eorco4fa.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1039935330316-rnhorhr3nqrmpoi7cpfrppdfcbichn2b.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "at.gleb.saobracaj.saobracaj"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
