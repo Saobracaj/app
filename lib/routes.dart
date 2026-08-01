@@ -6,6 +6,7 @@ import 'package:saobracaj/auth/presentation/profile_page.dart';
 import 'package:saobracaj/auth/presentation/register_page.dart';
 import 'package:saobracaj/auth/presentation/reset_password_page.dart';
 import 'package:saobracaj/theme/presentation/appearance_page.dart';
+import 'package:saobracaj/notifications/presentation/notifications_page.dart';
 import 'package:saobracaj/home/home_content_page.dart';
 import 'package:saobracaj/home_page.dart';
 import 'package:saobracaj/questions/questions_page.dart';
@@ -22,7 +23,7 @@ import 'package:saobracaj/zakon/zakon.dart';
 
 final routes = RouteMap(
   routes: {
-    '/': (_) => IndexedPage(child: HomePage(), paths: ['/home', '/questions', '/practice', '/statistics', '/about']),
+    '/': (_) => IndexedPage(child: HomePage(), paths: ['/home', '/questions', '/practice', '/statistics', '/settings']),
     '/home': (_) => MaterialPage(child: HomeContentPage()),
     '/questions': (_) => MaterialPage(child: QuestionsPage()),
     '/statistics': (_) => MaterialPage(child: StatisticsPage()),
@@ -63,8 +64,10 @@ final routes = RouteMap(
             email: data.queryParameters['email'] ?? '',
           ),
         ),
+    '/settings': (_) => const MaterialPage(child: ProfilePage()),
     '/profile': (_) => const MaterialPage(child: ProfilePage()),
     '/appearance': (_) => const MaterialPage(child: AppearancePage()),
+    '/notifications': (_) => const MaterialPage(child: NotificationsPage()),
   },
 );
 

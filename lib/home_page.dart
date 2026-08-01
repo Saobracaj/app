@@ -29,7 +29,7 @@ class _HomePageState extends State<HomePage> {
             NavigationDestination(label: LocaleKeys.home_questions.tr(), icon: const Icon(Icons.question_answer)),
             NavigationDestination(label: LocaleKeys.home_simulation.tr(), icon: const Icon(Icons.car_crash_outlined)),
             NavigationDestination(label: LocaleKeys.home_history.tr(), icon: const Icon(Icons.graphic_eq)),
-            NavigationDestination(label: LocaleKeys.home_info.tr(), icon: const Icon(Icons.info_outline_rounded)),
+            NavigationDestination(label: LocaleKeys.home_settings.tr(), icon: const Icon(Icons.settings_outlined)),
           ],
           selectedIndex: pageState.index,
           onDestinationSelected: (index) {
