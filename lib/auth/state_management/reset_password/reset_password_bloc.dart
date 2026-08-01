@@ -18,6 +18,9 @@ class ResetPasswordBloc extends Bloc<ResetPasswordEvent, ResetPasswordState> {
     on<NewPasswordChanged>(
       (e, emit) => emit(state.copyWith(newPassword: e.newPassword)),
     );
+    on<TogglePasswordVisibility>(
+      (e, emit) => emit(state.copyWith(obscurePassword: !state.obscurePassword)),
+    );
     on<SendCodePressed>(_onSendCode);
     on<ConfirmPressed>(_onConfirm);
   }
