@@ -103,8 +103,13 @@
         "themeLight": "Светлая",
         "themeDark": "Тёмная",
         "notifications": "Уведомления",
+        "notificationsSubtitle": "Push и уведомления на почту",
         "emailNotifications": "Уведомления на почту",
-        "pushNotifications": "Push-уведомления"
+        "pushNotifications": "Push-уведомления",
+        "pushOnThisDevice": "На этом устройстве",
+        "pushOnThisBrowser": "В этом браузере",
+        "pushBlockedHint": "Уведомления отключены в настройках системы. Включите их, чтобы получать push.",
+        "pushBlockedInBrowser": "Уведомления заблокированы для этого сайта. Разрешите их в настройках браузера и попробуйте снова."
     },
     "session": {
         "resume_prompt": "Продолжить с того места, где вы остановились на другом устройстве?",

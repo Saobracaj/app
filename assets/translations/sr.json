@@ -103,8 +103,13 @@
         "themeLight": "Светла",
         "themeDark": "Тамна",
         "notifications": "Обавештења",
+        "notificationsSubtitle": "Push и обавештења на имејл",
         "emailNotifications": "Обавештења на имејл",
-        "pushNotifications": "Push обавештења"
+        "pushNotifications": "Push обавештења",
+        "pushOnThisDevice": "На овом уређају",
+        "pushOnThisBrowser": "У овом прегледачу",
+        "pushBlockedHint": "Обавештења су искључена у подешавањима система. Укључите их да бисте примали push.",
+        "pushBlockedInBrowser": "Обавештења су блокирана за овај сајт. Дозволите их у подешавањима прегледача и покушајте поново."
     },
     "session": {
         "resume_prompt": "Наставите тамо где сте стали на другом уређају?",

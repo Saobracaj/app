@@ -56,20 +56,12 @@ class ProfilePage extends StatelessWidget {
                 const _AccentPicker(),
                 const _ThemeModePicker(),
                 const Divider(),
-                _SectionHeader(LocaleKeys.settings_notifications.tr()),
-                SwitchListTile(
-                  title: Text(LocaleKeys.settings_emailNotifications.tr()),
-                  value: auth.emailNotifications,
-                  onChanged: (v) => context
-                      .read<AuthBloc>()
-                      .add(EmailNotificationsToggled(v)),
-                ),
-                SwitchListTile(
-                  title: Text(LocaleKeys.settings_pushNotifications.tr()),
-                  value: auth.pushNotifications,
-                  onChanged: (v) => context
-                      .read<AuthBloc>()
-                      .add(PushNotificationsToggled(v)),
+                ListTile(
+                  leading: const Icon(Icons.notifications_outlined),
+                  title: Text(LocaleKeys.settings_notifications.tr()),
+                  subtitle: Text(LocaleKeys.settings_notificationsSubtitle.tr()),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Routemaster.of(context).push('/notifications'),
                 ),
                 const SizedBox(height: 24),
               ],

@@ -69,6 +69,9 @@ dependencies:
   google_sign_in: ^6.3.0
   get_it: ^9.2.1
   injectable: ^3.0.0
+  # Requesting the OS notification permission for the push toggle (see
+  # lib/notifications/). Mirrors owncup's notification-permission handling.
+  permission_handler: ^12.0.3
 
 dev_dependencies:
   flutter_test:
