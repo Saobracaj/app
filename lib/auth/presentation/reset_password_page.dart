@@ -30,6 +30,7 @@ class ResetPasswordView extends StatelessWidget {
   ResetPasswordView({super.key});
 
   final _formKey = GlobalKey<FormState>();
+  final _newPassword = TextEditingController();
 
   void _sendCode(BuildContext context) {
     if (_formKey.currentState!.validate()) {
@@ -102,15 +103,37 @@ class ResetPasswordView extends StatelessWidget {
                             ),
                             const SizedBox(height: 16),
                             TextFormField(
+                              controller: _newPassword,
                               decoration: InputDecoration(
                                 border: const OutlineInputBorder(),
                                 labelText: LocaleKeys.auth_newPassword.tr(),
                                 prefixIcon: const Icon(Icons.lock_outline),
+                                suffixIcon: IconButton(
+                                  onPressed: () =>
+                                      bloc.add(TogglePasswordVisibility()),
+                                  icon: Icon(
+                                    state.obscurePassword
+                                        ? Icons.visibility_outlined
+                                        : Icons.visibility_off_outlined,
+                                  ),
+                                ),
                               ),
-                              obscureText: true,
+                              obscureText: state.obscurePassword,
+                              autofillHints: const [AutofillHints.newPassword],
                               validator: passwordValidator,
                               onSaved: (v) =>
                                   bloc.add(NewPasswordChanged(v ?? '')),
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              decoration: InputDecoration(
+                                border: const OutlineInputBorder(),
+                                labelText: LocaleKeys.auth_passwordRepeat.tr(),
+                                prefixIcon: const Icon(Icons.lock_outline),
+                              ),
+                              obscureText: state.obscurePassword,
+                              validator: repeatPasswordValidator(_newPassword),
+                              onFieldSubmitted: (_) => _confirm(context),
                             ),
                           ],
                           const SizedBox(height: 16),
