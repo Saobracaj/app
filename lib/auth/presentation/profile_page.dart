@@ -4,8 +4,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
 import '../../generated/locale_keys.g.dart';
-import '../../theme/state_management/theme_bloc.dart';
-import '../../theme/state_management/theme_events.dart';
 import '../state_management/auth/auth_bloc.dart';
 import '../state_management/auth/auth_events.dart';
 import '../state_management/auth/auth_state.dart';
@@ -52,9 +50,13 @@ class ProfilePage extends StatelessWidget {
                     ),
                   ),
                 const Divider(),
-                _SectionHeader(LocaleKeys.settings_appearance.tr()),
-                const _AccentPicker(),
-                const _ThemeModePicker(),
+                ListTile(
+                  leading: const Icon(Icons.palette_outlined),
+                  title: Text(LocaleKeys.settings_appearance.tr()),
+                  subtitle: Text(LocaleKeys.settings_appearanceSubtitle.tr()),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Routemaster.of(context).push('/appearance'),
+                ),
                 const Divider(),
                 _SectionHeader(LocaleKeys.settings_notifications.tr()),
                 SwitchListTile(
@@ -117,78 +119,6 @@ class _SectionHeader extends StatelessWidget {
           fontWeight: FontWeight.bold,
         ),
       ),
-    );
-  }
-}
-
-class _AccentPicker extends StatelessWidget {
-  const _AccentPicker();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeBloc, ThemeState>(
-      builder: (context, theme) {
-        return ListTile(
-          title: Text(LocaleKeys.settings_accentColor.tr()),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Wrap(
-              spacing: 12,
-              children: [
-                for (var i = 0; i < kAppAccents.length; i++)
-                  GestureDetector(
-                    onTap: () =>
-                        context.read<ThemeBloc>().add(AccentChanged(i)),
-                    child: CircleAvatar(
-                      backgroundColor: kAppAccents[i].color,
-                      radius: 18,
-                      child: theme.accentIndex == i
-                          ? const Icon(Icons.check, color: Colors.white)
-                          : null,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ThemeModePicker extends StatelessWidget {
-  const _ThemeModePicker();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeBloc, ThemeState>(
-      builder: (context, theme) {
-        return ListTile(
-          title: Text(LocaleKeys.settings_themeMode.tr()),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: SegmentedButton<ThemeMode>(
-              segments: [
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  label: Text(LocaleKeys.settings_themeSystem.tr()),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  label: Text(LocaleKeys.settings_themeLight.tr()),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  label: Text(LocaleKeys.settings_themeDark.tr()),
-                ),
-              ],
-              selected: {theme.mode},
-              onSelectionChanged: (s) =>
-                  context.read<ThemeBloc>().add(ModeChanged(s.first)),
-            ),
-          ),
-        );
-      },
     );
   }
 }
