@@ -1,3 +1,4 @@
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -71,31 +72,45 @@ class _MyAppState extends State<MyApp> {
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, themeState) {
-          return MaterialApp.router(
-            locale: context.locale,
-            supportedLocales: context.supportedLocales,
-            localizationsDelegates: context.localizationDelegates,
-            debugShowCheckedModeBanner: false,
-            builder: (context, child) => SessionResumeGate(
-              delegate: _routerDelegate,
-              child: child ?? const SizedBox.shrink(),
-            ),
-            routerDelegate: _routerDelegate,
-            routeInformationParser: RoutemasterParser(),
-            title: 'Saobraćaj',
-            themeMode: themeState.mode,
-            theme: ThemeData(
-              colorScheme:
-                  ColorScheme.fromSeed(seedColor: themeState.seedColor),
-              textTheme: GoogleFonts.interTextTheme(),
-            ),
-            darkTheme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: themeState.seedColor,
-                brightness: Brightness.dark,
-              ),
-              textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
-            ),
+          return DynamicColorBuilder(
+            builder: (lightDynamic, darkDynamic) {
+              // The "default" accent uses the platform dynamic palette when
+              // available (Android 12+); every explicit swatch — and any
+              // platform without dynamic colors — falls back to a seeded scheme.
+              final useDynamic = themeState.isDefaultAccent;
+              final lightScheme = useDynamic && lightDynamic != null
+                  ? lightDynamic.harmonized()
+                  : ColorScheme.fromSeed(seedColor: themeState.seedColor);
+              final darkScheme = useDynamic && darkDynamic != null
+                  ? darkDynamic.harmonized()
+                  : ColorScheme.fromSeed(
+                      seedColor: themeState.seedColor,
+                      brightness: Brightness.dark,
+                    );
+              return MaterialApp.router(
+                locale: context.locale,
+                supportedLocales: context.supportedLocales,
+                localizationsDelegates: context.localizationDelegates,
+                debugShowCheckedModeBanner: false,
+                builder: (context, child) => SessionResumeGate(
+                  delegate: _routerDelegate,
+                  child: child ?? const SizedBox.shrink(),
+                ),
+                routerDelegate: _routerDelegate,
+                routeInformationParser: RoutemasterParser(),
+                title: 'Saobraćaj',
+                themeMode: themeState.mode,
+                theme: ThemeData(
+                  colorScheme: lightScheme,
+                  textTheme: GoogleFonts.interTextTheme(),
+                ),
+                darkTheme: ThemeData(
+                  colorScheme: darkScheme,
+                  textTheme:
+                      GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+                ),
+              );
+            },
           );
         },
       ),

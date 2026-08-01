@@ -72,5 +72,19 @@ void main() {
       expect(next.accentIndex, 2);
       expect(next.mode, ThemeMode.light);
     });
+
+    test('акцент по умолчанию (null) использует запасной seed-цвет', () {
+      const state = ThemeState(accentIndex: null, mode: ThemeMode.system);
+      expect(state.isDefaultAccent, isTrue);
+      expect(state.seedColor, kDefaultSeedColor);
+    });
+
+    test('withDefaultAccent сбрасывает акцент в значение по умолчанию', () {
+      const state = ThemeState(accentIndex: 3, mode: ThemeMode.dark);
+      final next = state.withDefaultAccent();
+      expect(next.isDefaultAccent, isTrue);
+      expect(next.accentIndex, isNull);
+      expect(next.mode, ThemeMode.dark);
+    });
   });
 }
