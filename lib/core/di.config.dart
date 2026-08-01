@@ -23,6 +23,8 @@ import '../auth/state_management/login/login_bloc.dart' as _i10;
 import '../auth/state_management/register/register_bloc.dart' as _i830;
 import '../auth/state_management/reset_password/reset_password_bloc.dart'
     as _i940;
+import '../notifications/data/notification_permissions.dart' as _i426;
+import '../notifications/state_management/notifications_bloc.dart' as _i618;
 import 'di.dart' as _i913;
 
 extension GetItInjectableX on _i174.GetIt {
@@ -34,6 +36,9 @@ extension GetItInjectableX on _i174.GetIt {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final registerModule = _$RegisterModule();
     gh.lazySingleton<_i25.TokenStorage>(() => _i25.TokenStorage());
+    gh.lazySingleton<_i426.NotificationPermissions>(
+      () => const _i426.NotificationPermissions(),
+    );
     gh.lazySingleton<_i483.GraphqlClient>(
       () => registerModule.graphqlClient(gh<_i25.TokenStorage>()),
     );
@@ -60,6 +65,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i388.AuthBloc>(
       () => _i388.AuthBloc(gh<_i880.AuthRepository>()),
+    );
+    gh.factory<_i618.NotificationsBloc>(
+      () => _i618.NotificationsBloc(
+        gh<_i880.AuthRepository>(),
+        gh<_i388.AuthBloc>(),
+        gh<_i426.NotificationPermissions>(),
+      ),
     );
     return this;
   }

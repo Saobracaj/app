@@ -4,7 +4,8 @@
         "questions": "Questions",
         "simulation": "Simulation",
         "history": "History",
-        "info": "About"
+        "info": "About",
+        "settings": "Settings"
     },
     "simulation": {
         "title": "Exam Simulation",
@@ -97,14 +98,23 @@
         "logoutConfirmCancel": "Cancel",
         "logoutConfirmOk": "Log out",
         "appearance": "Appearance",
+        "appearanceSubtitle": "Accent color and theme",
         "accentColor": "Accent color",
+        "accentDefault": "Default (dynamic)",
         "themeMode": "Theme",
         "themeSystem": "System",
         "themeLight": "Light",
         "themeDark": "Dark",
         "notifications": "Notifications",
+        "notificationsSubtitle": "Push and email notifications",
+        "about": "About",
+        "aboutSubtitle": "Info and privacy policy",
         "emailNotifications": "Email notifications",
-        "pushNotifications": "Push notifications"
+        "pushNotifications": "Push notifications",
+        "pushOnThisDevice": "On this device",
+        "pushOnThisBrowser": "In this browser",
+        "pushBlockedHint": "Notifications are turned off in the system settings. Enable them to receive push.",
+        "pushBlockedInBrowser": "Notifications are blocked for this site. Allow them in your browser settings and try again."
     },
     "session": {
         "resume_prompt": "Continue where you left off on your other device?",
