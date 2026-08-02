@@ -73,6 +73,14 @@ class ProfilePage extends StatelessWidget {
                 ],
                 const Divider(height: 0),
                 ListTile(
+                  leading: const Icon(Icons.tune),
+                  title: Text('settings.features'.tr()),
+                  subtitle: Text('settings.featuresSubtitle'.tr()),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Routemaster.of(context).push('/features'),
+                ),
+                const Divider(height: 0),
+                ListTile(
                   leading: const Icon(Icons.info_outline_rounded),
                   title: Text(LocaleKeys.settings_about.tr()),
                   subtitle: Text(LocaleKeys.settings_aboutSubtitle.tr()),

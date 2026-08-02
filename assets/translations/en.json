@@ -109,6 +109,8 @@
         "notificationsSubtitle": "Push and email notifications",
         "about": "About",
         "aboutSubtitle": "Info and privacy policy",
+        "features": "Features",
+        "featuresSubtitle": "Turn app features on and off",
         "emailNotifications": "Email notifications",
         "pushNotifications": "Push notifications",
         "pushOnThisDevice": "On this device",
@@ -119,5 +121,36 @@
     "session": {
         "resume_prompt": "Continue where you left off on your other device?",
         "resume_action": "Continue"
+    },
+    "featureFlags": {
+        "title": "Features",
+        "localSection": "Available features",
+        "localSectionSubtitle": "Can be turned on or off at any time",
+        "accountSection": "For signed-in users",
+        "accountSectionSubtitle": "Available after you sign in",
+        "premiumSection": "Premium features",
+        "premiumSectionSubtitle": "Determined by your subscription",
+        "russianSection": "Russian language",
+        "lockedAuth": "Sign in to use",
+        "lockedPremium": "Available with a subscription",
+        "features": {
+            "individual_question_stats": "Per-question statistics",
+            "aggregate_question_stats": "Overall question difficulty",
+            "question_comments": "Question comments",
+            "public_question_comments": "Public user comments",
+            "question_analysis": "Question analysis",
+            "ask_ai": "Ask AI",
+            "law_definitions_highlight": "Highlight law definitions",
+            "question_feedback": "Leave feedback",
+            "category_summaries": "Summaries",
+            "groups": "Groups",
+            "question_search": "Question search",
+            "share_question": "Share a question",
+            "share_multiple_questions": "Share multiple questions",
+            "auto_question_lists": "Automatic question lists",
+            "custom_question_lists": "Custom question lists",
+            "support_chat": "Support chat",
+            "russian_content": "Russian materials and translations"
+        }
     }
 }

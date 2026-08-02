@@ -109,6 +109,8 @@
         "notificationsSubtitle": "Push и уведомления на почту",
         "about": "О приложении",
         "aboutSubtitle": "Информация и политика конфиденциальности",
+        "features": "Функции",
+        "featuresSubtitle": "Включение и отключение функций приложения",
         "emailNotifications": "Уведомления на почту",
         "pushNotifications": "Push-уведомления",
         "pushOnThisDevice": "На этом устройстве",
@@ -119,5 +121,36 @@
     "session": {
         "resume_prompt": "Продолжить с того места, где вы остановились на другом устройстве?",
         "resume_action": "Продолжить"
+    },
+    "featureFlags": {
+        "title": "Функции",
+        "localSection": "Доступные функции",
+        "localSectionSubtitle": "Можно включить или отключить в любой момент",
+        "accountSection": "Для авторизованных",
+        "accountSectionSubtitle": "Доступны после входа в аккаунт",
+        "premiumSection": "Премиум-функции",
+        "premiumSectionSubtitle": "Определяются вашей подпиской",
+        "russianSection": "Русский язык",
+        "lockedAuth": "Войдите, чтобы использовать",
+        "lockedPremium": "Доступно по подписке",
+        "features": {
+            "individual_question_stats": "Индивидуальная статистика по вопросам",
+            "aggregate_question_stats": "Общая сложность вопроса",
+            "question_comments": "Комментарии к вопросам",
+            "public_question_comments": "Общие комментарии пользователей",
+            "question_analysis": "Анализ вопроса",
+            "ask_ai": "Спросить у AI",
+            "law_definitions_highlight": "Подсветка определений из закона",
+            "question_feedback": "Оставить фидбек",
+            "category_summaries": "Конспекты",
+            "groups": "Группы",
+            "question_search": "Поиск по вопросам",
+            "share_question": "Поделиться вопросом",
+            "share_multiple_questions": "Поделиться несколькими вопросами",
+            "auto_question_lists": "Автоматические списки вопросов",
+            "custom_question_lists": "Кастомные списки вопросов",
+            "support_chat": "Чат с поддержкой",
+            "russian_content": "Материалы и переводы на русском"
+        }
     }
 }
