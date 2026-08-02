@@ -16,6 +16,9 @@ import 'auth/state_management/auth/auth_bloc.dart';
 import 'auth/state_management/auth/auth_events.dart';
 import 'core/app_language.dart';
 import 'core/di.dart';
+import 'db/dependencies.dart';
+import 'feature_flags/state_management/feature_flags_bloc.dart';
+import 'feature_flags/state_management/feature_flags_events.dart';
 import 'notifications/data/push_token_service.dart';
 import 'generated/codegen_loader.g.dart';
 import 'session/session_resume_gate.dart';
@@ -28,6 +31,9 @@ void main() async {
   await EasyLocalization.ensureInitialized();
   configureDependencies();
   await initFirebase();
+  // Load persisted feature toggles / cached premium grants and refresh from the
+  // backend if a session exists.
+  await featureFlags.bootstrap();
   // Start syncing the device's FCM push token once a session is available.
   getIt<PushTokenService>().start();
   runApp(
@@ -75,6 +81,10 @@ class _MyAppState extends State<MyApp> {
         BlocProvider(create: (context) => ThemeBloc()),
         BlocProvider(
           create: (context) => getIt<AuthBloc>()..add(AuthBootstrapRequested()),
+        ),
+        BlocProvider(
+          create: (context) =>
+              FeatureFlagsBloc(featureFlags)..add(FeatureFlagsStarted()),
         ),
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(

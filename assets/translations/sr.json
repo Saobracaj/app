@@ -109,6 +109,8 @@
         "notificationsSubtitle": "Push и обавештења на имејл",
         "about": "О апликацији",
         "aboutSubtitle": "Информације и политика приватности",
+        "features": "Функције",
+        "featuresSubtitle": "Укључивање и искључивање функција апликације",
         "emailNotifications": "Обавештења на имејл",
         "pushNotifications": "Push обавештења",
         "pushOnThisDevice": "На овом уређају",
@@ -119,5 +121,36 @@
     "session": {
         "resume_prompt": "Наставите тамо где сте стали на другом уређају?",
         "resume_action": "Настави"
+    },
+    "featureFlags": {
+        "title": "Функције",
+        "localSection": "Доступне функције",
+        "localSectionSubtitle": "Могу се укључити или искључити у сваком тренутку",
+        "accountSection": "За пријављене кориснике",
+        "accountSectionSubtitle": "Доступне након пријаве",
+        "premiumSection": "Премијум функције",
+        "premiumSectionSubtitle": "Одређује их ваша претплата",
+        "russianSection": "Руски језик",
+        "lockedAuth": "Пријавите се да бисте користили",
+        "lockedPremium": "Доступно уз претплату",
+        "features": {
+            "individual_question_stats": "Статистика по питању",
+            "aggregate_question_stats": "Општа тежина питања",
+            "question_comments": "Коментари на питања",
+            "public_question_comments": "Јавни коментари корисника",
+            "question_analysis": "Анализа питања",
+            "ask_ai": "Питај AI",
+            "law_definitions_highlight": "Истицање дефиниција из закона",
+            "question_feedback": "Оставите повратну информацију",
+            "category_summaries": "Конспекти",
+            "groups": "Групе",
+            "question_search": "Претрага питања",
+            "share_question": "Подели питање",
+            "share_multiple_questions": "Подели више питања",
+            "auto_question_lists": "Аутоматске листе питања",
+            "custom_question_lists": "Прилагођене листе питања",
+            "support_chat": "Чет са подршком",
+            "russian_content": "Материјали и преводи на руском"
+        }
     }
 }

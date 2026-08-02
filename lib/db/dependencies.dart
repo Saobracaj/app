@@ -1,5 +1,6 @@
 import '../auth/data/graphql_client.dart';
 import '../auth/data/token_storage.dart';
+import '../feature_flags/data/feature_flags_repository.dart';
 import '../session/session_sync_service.dart';
 import '../statistics/statistics_sync_service.dart';
 import 'answer_repository.dart';
@@ -22,6 +23,15 @@ final StatisticsSyncService statisticsSync = StatisticsSyncService(
 // devices. Pushed on navigation (SessionRouteObserver) and pulled on
 // login/startup to offer "continue where you left off" (SessionResumeGate).
 final SessionSyncService sessionSync = SessionSyncService(
+  GraphqlClient(_syncTokenStorage),
+  _syncTokenStorage,
+);
+
+// Feature-flag availability: local toggles (shared preferences) + premium
+// grants pulled from the backend `featureFlags` query. Bootstrapped in main()
+// and refreshed/cleared from AuthBloc on session changes. Widgets read it
+// through FeatureFlagsBloc.
+final FeatureFlagsRepository featureFlags = FeatureFlagsRepository(
   GraphqlClient(_syncTokenStorage),
   _syncTokenStorage,
 );

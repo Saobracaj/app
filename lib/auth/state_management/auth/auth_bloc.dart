@@ -53,6 +53,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         // Merge any statistics gathered before login and pull down anything
         // stored from other devices.
         statisticsSync.sync();
+        // Refresh which premium features this account has been granted.
+        featureFlags.refreshFromBackend();
         try {
           final viewer = await repository.me();
           if (viewer != null) {
@@ -67,6 +69,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         }
       case AuthStatus.unauthenticated:
         emit(state.copyWith(status: AuthStatus.unauthenticated, clearViewer: true));
+        // Premium features are tied to the session — drop the cached grants.
+        featureFlags.onLoggedOut();
       case AuthStatus.unknown:
         emit(state.copyWith(status: AuthStatus.unknown));
     }
