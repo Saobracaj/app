@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 
 import '../auth/data/graphql_client.dart';
 import '../auth/data/token_storage.dart';
+import 'app_language.dart';
 import 'di.config.dart';
 
 /// Global service locator. Obtain any registered dependency with `getIt<T>()`.
@@ -25,5 +26,6 @@ void configureDependencies() => getIt.init();
 @module
 abstract class RegisterModule {
   @lazySingleton
-  GraphqlClient graphqlClient(TokenStorage storage) => GraphqlClient(storage);
+  GraphqlClient graphqlClient(TokenStorage storage) =>
+      GraphqlClient(storage, languageProvider: () => appLanguageCode);
 }
