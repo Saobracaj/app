@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saobracaj/test/quest/quest.dart';
+import '../../../../core/di.dart';
 import '../state_management/comment_bloc.dart';
 
 class CommentWidget extends StatelessWidget {
@@ -11,7 +12,7 @@ class CommentWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => CommentBloc(questionId: questionId),
+      create: (_) => getIt<CommentBloc>(param1: questionId),
       child: BlocBuilder<CommentBloc, CommentState>(
         builder: (context, state) {
           if (state.isBusy) {

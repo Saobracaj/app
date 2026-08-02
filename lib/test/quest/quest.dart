@@ -5,6 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
+import 'package:saobracaj/feature_flags/domain/app_feature.dart';
+import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/test/quest/state_management/quest_bloc.dart';
@@ -21,7 +23,12 @@ import 'finalize_test.dart';
 import 'question_features/presentation/question_features_tabs.dart';
 
 class Quest extends StatelessWidget {
-  const Quest({super.key, required this.questions, required this.options, this.subcategory});
+  const Quest({
+    super.key,
+    required this.questions,
+    required this.options,
+    this.subcategory,
+  });
 
   final List<int> questions;
   final StartTestState options;
@@ -43,9 +50,11 @@ class Quest extends StatelessWidget {
           }
         }
         return BlocProvider(
-          create:
-              (context) =>
-                  QuestBloc(state.questionsData!.copyWith(questions: qs), options.random ? ([...questions]..shuffle()) : [...questions], subcategory),
+          create: (context) => QuestBloc(
+            state.questionsData!.copyWith(questions: qs),
+            options.random ? ([...questions]..shuffle()) : [...questions],
+            subcategory,
+          ),
           child: BlocBuilder<QuestBloc, QuestState>(
             builder: (context, state) {
               final questBloc = context.read<QuestBloc>();
@@ -53,48 +62,83 @@ class Quest extends StatelessWidget {
                 context.read<AllQuestionsBloc>().add(LoadStatistics());
                 return FinalizeTestWidget();
               }
-              return Scaffold(
-                appBar: AppBar(
-                  title: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('Питање: ${state.currentQuestionIndex + 1} / ${questions.length}'),
-                    subtitle: Text(
-                      'Број поена: ${qs.firstWhere((element) => element.id == state.questions[state.currentQuestionIndex]).points}',
-                      style: TextStyle(color: Color(0xff2c6aa0), fontStyle: FontStyle.italic),
-                    ),
-                  ),
+              return BlocProvider(
+                key: ValueKey(
+                  'translations_${state.questions[state.currentQuestionIndex]}',
                 ),
-                body: ListView(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Wrap(
-                        spacing: 2,
-                        runSpacing: 2,
-                        children:
-                            state.questions.map((e) {
-                              final isAnswered = state.answers[e] != null;
-                              final isCorrect = (setEquals(
-                                state.answers[e],
-                                qs.firstWhere((element) => element.id == e).choices.where((element) => element.isCorrect).toSet(),
-                              ));
-                              return InkWell(
-                                onTap: () => questBloc.add(MoveToQuestion(e)),
-                                child: AnimatedContainer(
-                                  duration: Duration(milliseconds: 100),
-                                  width: 8,
-                                  height: 8,
-                                  decoration: BoxDecoration(
-                                    color: !isAnswered ? Colors.grey : (isCorrect ? Colors.green : Colors.red),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: state.questions[state.currentQuestionIndex] == e ? Border.all(color: Colors.black, width: 2) : null,
-                                  ),
-                                ),
-                              );
-                            }).toList(),
+                create: (context) => TranslationsBloc(),
+                child: Scaffold(
+                  appBar: AppBar(
+                    title: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        'Питање: ${state.currentQuestionIndex + 1} / ${questions.length}',
+                      ),
+                      subtitle: Text(
+                        'Број поена: ${qs.firstWhere((element) => element.id == state.questions[state.currentQuestionIndex]).points}',
+                        style: TextStyle(
+                          color: Color(0xff2c6aa0),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+
+                      trailing: FeatureGate(
+                        feature: AppFeature.russianContent,
+                        child: Builder(
+                          builder: (context) => IconButton(
+                            onPressed: () => context
+                                .read<TranslationsBloc>()
+                                .add(ToggleShowTranslation()),
+                            icon: Icon(Icons.translate_outlined),
+                          ),
+                        ),
                       ),
                     ),
-                    /*Padding(
+                  ),
+                  body: ListView(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Wrap(
+                          spacing: 2,
+                          runSpacing: 2,
+                          children: state.questions.map((e) {
+                            final isAnswered = state.answers[e] != null;
+                            final isCorrect = (setEquals(
+                              state.answers[e],
+                              qs
+                                  .firstWhere((element) => element.id == e)
+                                  .choices
+                                  .where((element) => element.isCorrect)
+                                  .toSet(),
+                            ));
+                            return InkWell(
+                              onTap: () => questBloc.add(MoveToQuestion(e)),
+                              child: AnimatedContainer(
+                                duration: Duration(milliseconds: 100),
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: !isAnswered
+                                      ? Colors.grey
+                                      : (isCorrect ? Colors.green : Colors.red),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border:
+                                      state.questions[state
+                                              .currentQuestionIndex] ==
+                                          e
+                                      ? Border.all(
+                                          color: Colors.black,
+                                          width: 2,
+                                        )
+                                      : null,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      /*Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Text('Баллов: ${state.score} / ${state.possibleScore}', style: Theme.of(context).textTheme.labelSmall),
                     ),
@@ -106,41 +150,52 @@ class Quest extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Text('Неправильных ответов: ${state.wrongAnswers}', style: Theme.of(context).textTheme.labelSmall),
                     ),*/
-                    SizedBox(height: 16),
-                    QuestionContent(
-                      key: ValueKey(state.questions[state.currentQuestionIndex]),
-                      randomOptions: options.randomOptionsOrder,
-                      question: qs.firstWhere((element) => state.questions[state.currentQuestionIndex] == element.id),
-                      answers: state.answers[state.questions[state.currentQuestionIndex]],
-                      last: state.currentQuestionIndex == state.questions.length - 1,
-                    ),
-                  ],
-                ),
-                bottomNavigationBar: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed:
-                              state.currentQuestionIndex == 0
-                                  ? null
-                                  : () {
+                      SizedBox(height: 16),
+                      QuestionContent(
+                        key: ValueKey(
+                          state.questions[state.currentQuestionIndex],
+                        ),
+                        randomOptions: options.randomOptionsOrder,
+                        question: qs.firstWhere(
+                          (element) =>
+                              state.questions[state.currentQuestionIndex] ==
+                              element.id,
+                        ),
+                        answers:
+                            state.answers[state.questions[state
+                                .currentQuestionIndex]],
+                        last:
+                            state.currentQuestionIndex ==
+                            state.questions.length - 1,
+                      ),
+                    ],
+                  ),
+                  bottomNavigationBar: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            onPressed: state.currentQuestionIndex == 0
+                                ? null
+                                : () {
                                     questBloc.add(PrevQuestion());
                                   },
-                          icon: Icon(Icons.arrow_back_ios_new_outlined),
-                        ),
-                        SizedBox(width: 16),
-                        IconButton(
-                          onPressed:
-                              state.currentQuestionIndex == state.questions.length - 1
-                                  ? null
-                                  : () {
+                            icon: Icon(Icons.arrow_back_ios_new_outlined),
+                          ),
+                          SizedBox(width: 16),
+                          IconButton(
+                            onPressed:
+                                state.currentQuestionIndex ==
+                                    state.questions.length - 1
+                                ? null
+                                : () {
                                     questBloc.add(NextQuestion());
                                   },
-                          icon: Icon(Icons.arrow_forward_ios_outlined),
-                        ),
-                      ],
+                            icon: Icon(Icons.arrow_forward_ios_outlined),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -154,7 +209,13 @@ class Quest extends StatelessWidget {
 }
 
 class QuestionContent extends StatelessWidget {
-  const QuestionContent({super.key, required this.randomOptions, required this.question, required this.answers, required this.last});
+  const QuestionContent({
+    super.key,
+    required this.randomOptions,
+    required this.question,
+    required this.answers,
+    required this.last,
+  });
 
   final bool randomOptions;
   final Question question;
@@ -163,7 +224,9 @@ class QuestionContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rightAnswers = question.choices.where((element) => element.isCorrect).length;
+    final rightAnswers = question.choices
+        .where((element) => element.isCorrect)
+        .length;
     final questBloc = context.read<QuestBloc>();
     var choices = [...question.choices];
     /* if (randomOptions) {
@@ -173,13 +236,9 @@ class QuestionContent extends StatelessWidget {
     return MultiBlocProvider(
       key: ValueKey(question.id),
       providers: [
-        BlocProvider(create: (context) => QuestContentBloc(choices.toSet(), answers ?? {}, question.id)),
         BlocProvider(
-          create:
-              (context) => TranslationsBloc(
-                // context.read<AllQuestionsBloc>().state.questionsData?.questions.firstWhereOrNull((element) => element.id == question.id),
-                // question,
-              ),
+          create: (context) =>
+              QuestContentBloc(choices.toSet(), answers ?? {}, question.id),
         ),
       ],
       child: BlocBuilder<QuestContentBloc, QuesContentState>(
@@ -194,105 +253,145 @@ class QuestionContent extends StatelessWidget {
                   if (value != null) bloc.add(AddChoice(value));
                 },
                 child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  QuestionTries(question.id),
-                  SizedBox(height: 16),
-                  SelectableText(question.id.toString()),
-                  ListTile(
-                    title: QuestMarkdown(text: question.text.trim().dict),
-                    subtitle:
-                        (!translationState.showTranslation || question.translation == null)
-                            ? null
-                            : Padding(padding: EdgeInsets.only(top: 8), child: Text(question.translation!)),
-                  ),
-                  if (question.hasImage)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(minHeight: 200, maxHeight: 600, maxWidth: 600),
-                        child: Image.asset('assets/img/${question.imageId}.jpeg'),
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    QuestionTries(question.id),
+                    SizedBox(height: 16),
+                    SelectableText(question.id.toString()),
+                    ListTile(
+                      title: QuestMarkdown(text: question.text.trim().dict),
+                      subtitle:
+                          (!translationState.showTranslation ||
+                              question.translation == null)
+                          ? null
+                          : Padding(
+                              padding: EdgeInsets.only(top: 8),
+                              child: Text(question.translation!),
+                            ),
+                    ),
+                    if (question.hasImage)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: 200,
+                            maxHeight: 600,
+                            maxWidth: 600,
+                          ),
+                          child: Image.asset(
+                            'assets/img/${question.imageId}.jpeg',
+                          ),
+                        ),
                       ),
-                    ),
-                  if (rightAnswers > 1)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('Број потребних одговора: $rightAnswers', style: TextStyle(color: Color(0xff2c6aa0), fontStyle: FontStyle.italic)),
-                    ),
-                  for (var c in choices)
                     if (rightAnswers > 1)
-                      AnimatedContainer(
-                        duration: Duration(milliseconds: 200),
-                        color: !state.showCorrectAnswers ? Colors.transparent : (c.isCorrect ? Color(0x2200ff00) : Color(0x10ff0000)),
-                        child: CheckboxListTile(
-                          title: QuestMarkdown(text: c.text.trim().dict),
-                          value: state.selectedChoices.contains(c),
-                          onChanged: (value) => context.read<QuestContentBloc>().add(AddChoice(c)),
-                          controlAffinity: ListTileControlAffinity.leading,
-                          subtitle:
-                              (c.translationRu == null || !translationState.showTranslation)
-                                  ? null
-                                  : Padding(padding: const EdgeInsets.only(top: 4.0), child: Text(c.translationRu!)),
-                        ),
-                      )
-                    else
-                      AnimatedContainer(
-                        duration: Duration(milliseconds: 200),
-                        color: !state.showCorrectAnswers ? Colors.transparent : (c.isCorrect ? Color(0x22008E00) : Color(0x10ff0000)),
-                        child: RadioListTile<Choice>(
-                          title: QuestMarkdown(text: c.text.trim().dict),
-                          value: c,
-                          subtitle: (c.translationRu == null || !translationState.showTranslation) ? null : Text(c.translationRu!),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'Број потребних одговора: $rightAnswers',
+                          style: TextStyle(
+                            color: Color(0xff2c6aa0),
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
                       ),
+                    for (var c in choices)
+                      if (rightAnswers > 1)
+                        AnimatedContainer(
+                          duration: Duration(milliseconds: 200),
+                          color: !state.showCorrectAnswers
+                              ? Colors.transparent
+                              : (c.isCorrect
+                                    ? Color(0x2200ff00)
+                                    : Color(0x10ff0000)),
+                          child: CheckboxListTile(
+                            title: QuestMarkdown(text: c.text.trim().dict),
+                            value: state.selectedChoices.contains(c),
+                            onChanged: (value) => context
+                                .read<QuestContentBloc>()
+                                .add(AddChoice(c)),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            subtitle:
+                                (c.translationRu == null ||
+                                    !translationState.showTranslation)
+                                ? null
+                                : Padding(
+                                    padding: const EdgeInsets.only(top: 4.0),
+                                    child: Text(c.translationRu!),
+                                  ),
+                          ),
+                        )
+                      else
+                        AnimatedContainer(
+                          duration: Duration(milliseconds: 200),
+                          color: !state.showCorrectAnswers
+                              ? Colors.transparent
+                              : (c.isCorrect
+                                    ? Color(0x22008E00)
+                                    : Color(0x10ff0000)),
+                          child: RadioListTile<Choice>(
+                            title: QuestMarkdown(text: c.text.trim().dict),
+                            value: c,
+                            subtitle:
+                                (c.translationRu == null ||
+                                    !translationState.showTranslation)
+                                ? null
+                                : Text(c.translationRu!),
+                          ),
+                        ),
 
-                  SizedBox(height: 16),
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.all(16),
-                    child: ElevatedButton(onPressed: last ? null : () => _closeTest(context, state), child: Text('Следеће питање')),
-                  ),
-                  if (last)
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: OutlinedButton(
-                        onPressed: () async {
-                          await _closeTest(context, state);
-                          if (questBloc.state.answers.length != questBloc.state.questions.length) {
-                            if (!context.mounted) return;
-                            final res = await _showMyDialog(context);
-                            if (res != true) {
-                              return;
-                            }
-                          }
-                          questBloc.add(FinalizeTest());
-                        },
-                        child: Text('Завершить тест'),
+                    SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(16),
+                      child: ElevatedButton(
+                        onPressed: last
+                            ? null
+                            : () => _closeTest(context, state),
+                        child: Text('Следеће питање'),
                       ),
                     ),
-                  SizedBox(height: 16),
-                  TextButton(
-                    onPressed:
-                        state.showCorrectAnswers
-                            ? null
-                            : () {
+                    if (last)
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            await _closeTest(context, state);
+                            if (questBloc.state.answers.length !=
+                                questBloc.state.questions.length) {
+                              if (!context.mounted) return;
+                              final res = await _showMyDialog(context);
+                              if (res != true) {
+                                return;
+                              }
+                            }
+                            questBloc.add(FinalizeTest());
+                          },
+                          child: Text('Завершить тест'),
+                        ),
+                      ),
+                    SizedBox(height: 16),
+                    TextButton(
+                      onPressed: state.showCorrectAnswers
+                          ? null
+                          : () {
                               bloc.add(ShowCorrectAnswers());
                             },
-                    child: Text('Прикажи одговор'),
-                  ),
-                  TextButton(onPressed: () => context.read<TranslationsBloc>().add(ToggleShowTranslation()), child: Text('Перевод')),
-                  // SizedBox(height: 400, width: 300, child: PropushanjeAnimation()),
+                      child: Text('Прикажи одговор'),
+                    ),
 
-                  // AnimatedAutoWidget(color: Colors.green, leftIndicatorOn: true, rightIndicatorOn: true),
-                  // SizedBox(height: 200, child: RoadView(moving: true,)),
-                  // Mimoilazenje(),
-                  // ObgonAnimacija(),
-                  // Obgon(),
-                  // ObyezdAnimacija(),
-                  // ObyezdAnimacija2(),
-                  // BlockedRoadScene(),
-                  QuestionFeaturesTabs(questionId: question.id),
-                ],
+                    // SizedBox(height: 400, width: 300, child: PropushanjeAnimation()),
+
+                    // AnimatedAutoWidget(color: Colors.green, leftIndicatorOn: true, rightIndicatorOn: true),
+                    // SizedBox(height: 200, child: RoadView(moving: true,)),
+                    // Mimoilazenje(),
+                    // ObgonAnimacija(),
+                    // Obgon(),
+                    // ObyezdAnimacija(),
+                    // ObyezdAnimacija2(),
+                    // BlockedRoadScene(),
+                    if (state.showCorrectAnswers)
+                      QuestionFeaturesTabs(questionId: question.id),
+                  ],
                 ),
               );
             },
@@ -306,9 +405,13 @@ class QuestionContent extends StatelessWidget {
     final questBloc = context.read<QuestBloc>();
     final bloc = context.read<QuestContentBloc>();
     if (state.selectedChoices.isNotEmpty) {
-      var correctAnswer = question.choices.where((element) => element.isCorrect).toSet();
+      var correctAnswer = question.choices
+          .where((element) => element.isCorrect)
+          .toSet();
       if (correctAnswer.length != state.selectedChoices.length) {
-        const snackBar = SnackBar(content: Text('Нисте означили потребан број одговора'));
+        const snackBar = SnackBar(
+          content: Text('Нисте означили потребан број одговора'),
+        );
         ScaffoldMessenger.of(context).showSnackBar(snackBar);
         return;
       }
@@ -341,7 +444,13 @@ Future<bool?> _showMyDialog(BuildContext context) async {
       return AlertDialog(
         title: const Text('Завершить тест'),
         content: const SingleChildScrollView(
-          child: ListBody(children: <Widget>[Text('Вы не дали ответ на некоторые вопросы. Вы точно хотите завершить тест?')]),
+          child: ListBody(
+            children: <Widget>[
+              Text(
+                'Вы не дали ответ на некоторые вопросы. Вы точно хотите завершить тест?',
+              ),
+            ],
+          ),
         ),
         actions: <Widget>[
           TextButton(
@@ -363,7 +472,12 @@ Future<bool?> _showMyDialog(BuildContext context) async {
 }
 
 class QuestMarkdown extends StatelessWidget {
-  const QuestMarkdown({super.key, required this.text, this.padding, this.useLargeText = true});
+  const QuestMarkdown({
+    super.key,
+    required this.text,
+    this.padding,
+    this.useLargeText = true,
+  });
 
   final String text;
   final EdgeInsets? padding;
@@ -381,7 +495,10 @@ class QuestMarkdown extends StatelessWidget {
       styleSheet: MarkdownStyleSheet(
         p: useLargeText ? Theme.of(context).textTheme.bodyLarge : null,
         a: TextStyle(color: Theme.of(context).colorScheme.primary),
-        blockquoteDecoration: BoxDecoration(color: Theme.of(context).colorScheme.secondary.withAlpha(40), borderRadius: BorderRadius.circular(2.0)),
+        blockquoteDecoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.secondary.withAlpha(40),
+          borderRadius: BorderRadius.circular(2.0),
+        ),
       ),
       sizedImageBuilder: (config) {
         final uri = config.uri.toString();
@@ -400,7 +517,11 @@ class QuestMarkdown extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SizedBox(height: 8),
-            if (config.title != null) Text(config.title!, style: Theme.of(context).textTheme.titleMedium),
+            if (config.title != null)
+              Text(
+                config.title!,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
             SizedBox(height: 8),
             imageWidget,
             SizedBox(height: 8),
@@ -440,7 +561,11 @@ Future showMarkdown(BuildContext context, String link) async {
   final chlan = o['chlan'];
   final chapter = o['chapter'];
 
-  final _ = {'paragraph': o['paragraph'], 'chlan': o['chlan'], 'chapter': o['chapter']};
+  final _ = {
+    'paragraph': o['paragraph'],
+    'chlan': o['chlan'],
+    'chapter': o['chapter'],
+  };
 
   final uriPath = 'zakon?paragraph=$paragraph&chlan=$chlan&chapter=$chapter';
   // final uri = Uri.https('saobracaj.app', '/zakon', queryParameters).path;
@@ -450,18 +575,25 @@ Future showMarkdown(BuildContext context, String link) async {
     isScrollControlled: true,
     isDismissible: true,
     showDragHandle: true,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
     builder: (context) {
       return Padding(
         // Для того чтобы bottom sheet не обрезался под клавиатурой
-        padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(((o['title'] as String?)?.capitalize() ?? '').fixMd, style: Theme.of(context).textTheme.headlineMedium),
+                child: Text(
+                  ((o['title'] as String?)?.capitalize() ?? '').fixMd,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
               ),
               SizedBox(height: 16),
               /* TextButton(
@@ -476,15 +608,26 @@ Future showMarkdown(BuildContext context, String link) async {
                 },
                 subtitle: Text(
                   'Закон о безбедности саобраћаја на путевима, члан $chlan',
-                  style: TextStyle(color: Theme.of(context).colorScheme.secondary),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
                 ),
-                leading: Icon(Icons.info_outline_rounded, color: Theme.of(context).colorScheme.secondary),
+                leading: Icon(
+                  Icons.info_outline_rounded,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
               ),
               SizedBox(height: 16),
-              QuestMarkdown(text: text.fixMd, padding: const EdgeInsets.symmetric(horizontal: 16)),
+              QuestMarkdown(
+                text: text.fixMd,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
               if (o['ru'] != null) ...[
                 SizedBox(height: 16),
-                QuestMarkdown(text: (o['ru'] as String).fixMd, padding: const EdgeInsets.symmetric(horizontal: 16)),
+                QuestMarkdown(
+                  text: (o['ru'] as String).fixMd,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
               ],
 
               Container(

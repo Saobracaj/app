@@ -26,6 +26,8 @@ import '../auth/state_management/reset_password/reset_password_bloc.dart'
 import '../notifications/data/notification_permissions.dart' as _i426;
 import '../notifications/data/push_token_service.dart' as _i875;
 import '../notifications/state_management/notifications_bloc.dart' as _i618;
+import '../test/quest/comment/data/comment_repository.dart' as _i359;
+import '../test/quest/comment/state_management/comment_bloc.dart' as _i213;
 import 'di.dart' as _i913;
 
 extension GetItInjectableX on _i174.GetIt {
@@ -71,12 +73,19 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i388.AuthBloc>(
       () => _i388.AuthBloc(gh<_i880.AuthRepository>()),
     );
+    gh.lazySingleton<_i359.CommentRepository>(
+      () => _i359.CommentRepository(gh<_i483.GraphqlClient>()),
+    );
     gh.factory<_i618.NotificationsBloc>(
       () => _i618.NotificationsBloc(
         gh<_i880.AuthRepository>(),
         gh<_i388.AuthBloc>(),
         gh<_i426.NotificationPermissions>(),
       ),
+    );
+    gh.factoryParam<_i213.CommentBloc, int, dynamic>(
+      (questionId, _) =>
+          _i213.CommentBloc(gh<_i359.CommentRepository>(), questionId),
     );
     return this;
   }

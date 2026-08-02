@@ -5,7 +5,6 @@ import '../../../../feature_flags/domain/app_feature.dart';
 import '../../../../feature_flags/state_management/feature_flags_bloc.dart';
 import '../../comment/comment_widget/comment_widget.dart';
 import '../state_management/question_features_bloc.dart';
-import '../state_management/question_features_events.dart';
 import '../state_management/question_features_state.dart';
 
 /// Tabbed panel shown under a question (only on the *questions* flow, not
@@ -46,10 +45,7 @@ class QuestionFeaturesTabs extends StatelessWidget {
         builder: (context, state) {
           // Fall back to the first visible tab, and re-anchor if the previously
           // selected tab disappeared (e.g. the user logged out).
-          final selected =
-              (state.selected != null && visible.contains(state.selected))
-                  ? state.selected!
-                  : visible.first;
+          final selected = (state.selected != null && visible.contains(state.selected)) ? state.selected! : visible.first;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -77,70 +73,16 @@ class _TabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: Row(
-        children: [
-          for (final feature in features)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: _TabButton(
-                feature: feature,
-                selected: feature == selected,
-                onTap:
-                    () => context.read<QuestionFeaturesBloc>().add(
-                      TabSelected(feature),
-                    ),
-              ),
-            ),
-        ],
-      ),
+    return DefaultTabController(
+      length: features.length,
+      child: TabBar(tabs: features.map(_getTabForFeature).toList()),
     );
   }
 }
 
-class _TabButton extends StatelessWidget {
-  const _TabButton({
-    required this.feature,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final AppFeature feature;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final spec = _specFor(feature);
-    final fg = selected ? scheme.onPrimary : scheme.onSurfaceVariant;
-    return Material(
-      color: selected ? scheme.primary : scheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(spec.icon, size: 18, color: fg),
-              const SizedBox(width: 6),
-              Text(
-                spec.label,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelLarge?.copyWith(color: fg),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+Tab _getTabForFeature(AppFeature feature) {
+  final spec = _specFor(feature);
+  return Tab(icon: Icon(spec.icon));
 }
 
 class _TabContent extends StatelessWidget {
@@ -176,17 +118,11 @@ class _ComingSoon extends StatelessWidget {
         children: [
           Icon(spec.icon, size: 40, color: scheme.outline),
           const SizedBox(height: 12),
-          Text(
-            spec.label,
-            style: Theme.of(context).textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
+          Text(spec.label, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
           const SizedBox(height: 4),
           Text(
             'Ускоро доступно',
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
         ],
@@ -204,18 +140,9 @@ class _TabSpec {
 }
 
 _TabSpec _specFor(AppFeature feature) => switch (feature) {
-  AppFeature.questionComments => const _TabSpec(
-    Icons.menu_book_outlined,
-    'Објашњење',
-  ),
-  AppFeature.publicQuestionComments => const _TabSpec(
-    Icons.forum_outlined,
-    'Дискусија',
-  ),
-  AppFeature.questionAnalysis => const _TabSpec(
-    Icons.insights_outlined,
-    'Анализа',
-  ),
+  AppFeature.questionComments => const _TabSpec(Icons.menu_book_outlined, 'Објашњење'),
+  AppFeature.publicQuestionComments => const _TabSpec(Icons.forum_outlined, 'Дискусија'),
+  AppFeature.questionAnalysis => const _TabSpec(Icons.insights_outlined, 'Анализа'),
   AppFeature.askAi => const _TabSpec(Icons.auto_awesome_outlined, 'Питај AI'),
   _ => const _TabSpec(Icons.info_outline, ''),
 };
