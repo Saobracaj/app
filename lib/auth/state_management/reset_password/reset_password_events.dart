@@ -15,6 +15,8 @@ class NewPasswordChanged extends ResetPasswordEvent {
   final String newPassword;
 }
 
+class TogglePasswordVisibility extends ResetPasswordEvent {}
+
 /// Step 1: request a reset code by email.
 class SendCodePressed extends ResetPasswordEvent {}
 

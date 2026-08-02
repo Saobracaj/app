@@ -1,11 +1,14 @@
 import 'package:http/http.dart' as http;
 
+import '../../../../flavor.dart';
+
 final commentDataSource = CommentDataSource();
 
 class CommentDataSource {
   final String baseUrl;
 
-  CommentDataSource({this.baseUrl = 'http://0.0.0.0:8080'});
+  CommentDataSource({String? baseUrl})
+    : baseUrl = baseUrl ?? FlavorConfig.instance.apiBaseUrl;
 
   Future<String?> fetchComment(int questionId) async {
     final url = Uri.parse('$baseUrl/comment?qid=$questionId');

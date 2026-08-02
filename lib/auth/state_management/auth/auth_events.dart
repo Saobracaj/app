@@ -13,13 +13,3 @@ class SessionStatusChanged extends AuthEvent {
 
 /// User asked to sign out.
 class LogoutRequested extends AuthEvent {}
-
-class EmailNotificationsToggled extends AuthEvent {
-  EmailNotificationsToggled(this.enabled);
-  final bool enabled;
-}
-
-class PushNotificationsToggled extends AuthEvent {
-  PushNotificationsToggled(this.enabled);
-  final bool enabled;
-}

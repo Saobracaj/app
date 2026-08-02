@@ -8,6 +8,7 @@ abstract class ResetPasswordState with _$ResetPasswordState {
     @Default('') String email,
     @Default('') String code,
     @Default('') String newPassword,
+    @Default(true) bool obscurePassword,
     // False = step 1 (enter email). True = step 2 (enter code + new password).
     @Default(false) bool codeSent,
     @Default(false) bool inProgress,

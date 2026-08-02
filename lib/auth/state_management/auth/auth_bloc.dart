@@ -1,29 +1,25 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../db/dependencies.dart';
 import '../../data/auth_repository.dart';
 import 'auth_events.dart';
 import 'auth_state.dart';
 
-/// Holds the current session and exposes the notification toggles used by the
-/// settings screen. It is the app-wide session holder: it subscribes to
-/// [AuthRepository.sessionStatus] and reacts to every transition — auth *flows*
-/// (login / register / reset / firebase) run through [AuthRepository] and the
-/// stream carries the result here. This mirrors owncup's `AuthBloc`, which
-/// listens to its `UserAuthRepository` stream the same way.
+/// App-wide session holder: it subscribes to [AuthRepository.sessionStatus] and
+/// reacts to every transition — auth *flows* (login / register / reset /
+/// firebase) run through [AuthRepository] and the stream carries the result
+/// here. This mirrors owncup's `AuthBloc`, which listens to its
+/// `UserAuthRepository` stream the same way. Notification preferences live in
+/// their own feature (`lib/notifications/`).
 @lazySingleton
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc(this.repository) : super(const AuthState()) {
     on<AuthBootstrapRequested>(_onBootstrap);
     on<SessionStatusChanged>(_onSessionStatusChanged);
     on<LogoutRequested>(_onLogout);
-    on<EmailNotificationsToggled>(_onEmailNotifications);
-    on<PushNotificationsToggled>(_onPushNotifications);
 
     _sub = repository.sessionStatus
         .distinct()
@@ -33,28 +29,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final AuthRepository repository;
   late final StreamSubscription<AuthStatus> _sub;
 
-  static const _emailNotifKey = 'notif_email_enabled';
-  static const _pushNotifKey = 'notif_push_enabled';
-
   @override
   Future<void> close() {
     _sub.cancel();
     return super.close();
   }
 
-  /// Load persisted notification preferences, then let the repository publish
-  /// the stored session on its stream.
+  /// Let the repository publish the stored session on its stream.
   Future<void> _onBootstrap(
     AuthBootstrapRequested event,
     Emitter<AuthState> emit,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    emit(
-      state.copyWith(
-        emailNotifications: prefs.getBool(_emailNotifKey) ?? true,
-        pushNotifications: prefs.getBool(_pushNotifKey) ?? true,
-      ),
-    );
     await repository.bootstrap();
   }
 
@@ -89,43 +74,5 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _onLogout(LogoutRequested event, Emitter<AuthState> emit) {
     return repository.logout();
-  }
-
-  Future<void> _onEmailNotifications(
-    EmailNotificationsToggled event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(state.copyWith(emailNotifications: event.enabled));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_emailNotifKey, event.enabled);
-    if (state.isAuthenticated) {
-      try {
-        await repository.setEmailNotifications(event.enabled);
-      } catch (_) {
-        // best-effort; the local preference is authoritative for the UI.
-      }
-    }
-  }
-
-  Future<void> _onPushNotifications(
-    PushNotificationsToggled event,
-    Emitter<AuthState> emit,
-  ) async {
-    emit(state.copyWith(pushNotifications: event.enabled));
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_pushNotifKey, event.enabled);
-    if (state.isAuthenticated) {
-      try {
-        await repository.registerDevice(platform: _platform());
-        await repository.setDevicePushEnabled(event.enabled);
-      } catch (_) {
-        // best-effort; requires a configured FCM token to take full effect.
-      }
-    }
-  }
-
-  String _platform() {
-    if (kIsWeb) return 'web';
-    return defaultTargetPlatform.name;
   }
 }

@@ -4,14 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
 import '../../generated/locale_keys.g.dart';
-import '../../theme/state_management/theme_bloc.dart';
-import '../../theme/state_management/theme_events.dart';
 import '../state_management/auth/auth_bloc.dart';
 import '../state_management/auth/auth_events.dart';
 import '../state_management/auth/auth_state.dart';
 
-/// Settings screen reachable from the profile icon: account (login / logout),
-/// appearance (accent color + light/dark mode) and notification preferences.
+/// Settings menu (the "Settings" bottom-navigation tab, also reachable from the
+/// profile icon): account (login / logout) plus rows opening the Appearance,
+/// Notifications (signed-in only) and About screens.
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
 
@@ -52,24 +51,33 @@ class ProfilePage extends StatelessWidget {
                     ),
                   ),
                 const Divider(),
-                _SectionHeader(LocaleKeys.settings_appearance.tr()),
-                const _AccentPicker(),
-                const _ThemeModePicker(),
-                const Divider(),
-                _SectionHeader(LocaleKeys.settings_notifications.tr()),
-                SwitchListTile(
-                  title: Text(LocaleKeys.settings_emailNotifications.tr()),
-                  value: auth.emailNotifications,
-                  onChanged: (v) => context
-                      .read<AuthBloc>()
-                      .add(EmailNotificationsToggled(v)),
+                ListTile(
+                  leading: const Icon(Icons.palette_outlined),
+                  title: Text(LocaleKeys.settings_appearance.tr()),
+                  subtitle: Text(LocaleKeys.settings_appearanceSubtitle.tr()),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Routemaster.of(context).push('/appearance'),
                 ),
-                SwitchListTile(
-                  title: Text(LocaleKeys.settings_pushNotifications.tr()),
-                  value: auth.pushNotifications,
-                  onChanged: (v) => context
-                      .read<AuthBloc>()
-                      .add(PushNotificationsToggled(v)),
+                // Notifications only make sense for a signed-in account, so the
+                // entry is hidden while signed out.
+                if (auth.isAuthenticated) ...[
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.notifications_outlined),
+                    title: Text(LocaleKeys.settings_notifications.tr()),
+                    subtitle:
+                        Text(LocaleKeys.settings_notificationsSubtitle.tr()),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Routemaster.of(context).push('/notifications'),
+                  ),
+                ],
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.info_outline_rounded),
+                  title: Text(LocaleKeys.settings_about.tr()),
+                  subtitle: Text(LocaleKeys.settings_aboutSubtitle.tr()),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Routemaster.of(context).push('/about'),
                 ),
                 const SizedBox(height: 24),
               ],
@@ -117,78 +125,6 @@ class _SectionHeader extends StatelessWidget {
           fontWeight: FontWeight.bold,
         ),
       ),
-    );
-  }
-}
-
-class _AccentPicker extends StatelessWidget {
-  const _AccentPicker();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeBloc, ThemeState>(
-      builder: (context, theme) {
-        return ListTile(
-          title: Text(LocaleKeys.settings_accentColor.tr()),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Wrap(
-              spacing: 12,
-              children: [
-                for (var i = 0; i < kAppAccents.length; i++)
-                  GestureDetector(
-                    onTap: () =>
-                        context.read<ThemeBloc>().add(AccentChanged(i)),
-                    child: CircleAvatar(
-                      backgroundColor: kAppAccents[i].color,
-                      radius: 18,
-                      child: theme.accentIndex == i
-                          ? const Icon(Icons.check, color: Colors.white)
-                          : null,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ThemeModePicker extends StatelessWidget {
-  const _ThemeModePicker();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ThemeBloc, ThemeState>(
-      builder: (context, theme) {
-        return ListTile(
-          title: Text(LocaleKeys.settings_themeMode.tr()),
-          subtitle: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: SegmentedButton<ThemeMode>(
-              segments: [
-                ButtonSegment(
-                  value: ThemeMode.system,
-                  label: Text(LocaleKeys.settings_themeSystem.tr()),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.light,
-                  label: Text(LocaleKeys.settings_themeLight.tr()),
-                ),
-                ButtonSegment(
-                  value: ThemeMode.dark,
-                  label: Text(LocaleKeys.settings_themeDark.tr()),
-                ),
-              ],
-              selected: {theme.mode},
-              onSelectionChanged: (s) =>
-                  context.read<ThemeBloc>().add(ModeChanged(s.first)),
-            ),
-          ),
-        );
-      },
     );
   }
 }

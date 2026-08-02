@@ -4,7 +4,8 @@
         "questions": "Питања",
         "simulation": "Симулација",
         "history": "Историја",
-        "info": "О апликацији"
+        "info": "О апликацији",
+        "settings": "Подешавања"
     },
     "simulation": {
         "title": "Симулација испита",
@@ -97,14 +98,23 @@
         "logoutConfirmCancel": "Откажи",
         "logoutConfirmOk": "Одјави се",
         "appearance": "Изглед",
+        "appearanceSubtitle": "Боја акцента и тема",
         "accentColor": "Боја акцента",
+        "accentDefault": "Подразумевано (динамичка)",
         "themeMode": "Тема",
         "themeSystem": "Системска",
         "themeLight": "Светла",
         "themeDark": "Тамна",
         "notifications": "Обавештења",
+        "notificationsSubtitle": "Push и обавештења на имејл",
+        "about": "О апликацији",
+        "aboutSubtitle": "Информације и политика приватности",
         "emailNotifications": "Обавештења на имејл",
-        "pushNotifications": "Push обавештења"
+        "pushNotifications": "Push обавештења",
+        "pushOnThisDevice": "На овом уређају",
+        "pushOnThisBrowser": "У овом прегледачу",
+        "pushBlockedHint": "Обавештења су искључена у подешавањима система. Укључите их да бисте примали push.",
+        "pushBlockedInBrowser": "Обавештења су блокирана за овај сајт. Дозволите их у подешавањима прегледача и покушајте поново."
     },
     "session": {
         "resume_prompt": "Наставите тамо где сте стали на другом уређају?",
