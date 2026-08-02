@@ -10,7 +10,7 @@ export 'theme_state.dart';
 /// Persists the accent color and light/dark mode across launches.
 class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
   ThemeBloc()
-    : super(const ThemeState(accentIndex: 0, mode: ThemeMode.system)) {
+    : super(const ThemeState(accentIndex: 0, mode: ThemeMode.light)) {
     on<ThemeStarted>(_onStarted);
     on<AccentChanged>(_onAccentChanged);
     on<ModeChanged>(_onModeChanged);
@@ -57,8 +57,13 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
         return ThemeMode.light;
       case 'dark':
         return ThemeMode.dark;
-      default:
+      case 'system':
         return ThemeMode.system;
+      // No saved preference: keep a fixed scheme instead of following the OS,
+      // so the interface colors don't change on their own until the user picks
+      // a mode explicitly.
+      default:
+        return ThemeMode.light;
     }
   }
 }

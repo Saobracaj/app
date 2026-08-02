@@ -1,6 +1,9 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/auth/presentation/auth_button.dart';
+import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/statistics/state_management/history_bloc.dart';
 
@@ -17,6 +20,10 @@ class StatisticsPage extends StatelessWidget {
               builder: (context, state) {
                 final qs = allQuestionsState.questionsData!.questions;
                 return Scaffold(
+                  appBar: AppBar(
+                    title: Text(LocaleKeys.home_history.tr()),
+                    actions: const [AuthButton()],
+                  ),
                   body: ListView(
                     children: [
                       Padding(
@@ -35,13 +42,7 @@ class StatisticsPage extends StatelessWidget {
                           onTap: () {
                             Routemaster.of(context).push('q?q=${e.id}&randomOptionsOrder=true');
                           },
-                          title: Container(
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.surface.withAlpha(220),
-                              borderRadius: BorderRadius.circular(8), // Закруглённые углы
-                            ),
-                            child: Text(qs.firstWhere((element) => element.id == e.id).text, maxLines: 2, overflow: TextOverflow.ellipsis),
-                          ),
+                          title: Text(qs.firstWhere((element) => element.id == e.id).text, maxLines: 2, overflow: TextOverflow.ellipsis),
                           trailing: SizedBox(
                             width: 60,
                             height: 48,

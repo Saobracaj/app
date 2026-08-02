@@ -51,11 +51,11 @@ class ProfilePage extends StatelessWidget {
                       child: Text(LocaleKeys.settings_loginButton.tr()),
                     ),
                   ),
-                const Divider(),
+                const Divider(height: 0),
                 _SectionHeader(LocaleKeys.settings_appearance.tr()),
                 const _AccentPicker(),
                 const _ThemeModePicker(),
-                const Divider(),
+                const Divider(height: 0),
                 _SectionHeader(LocaleKeys.settings_notifications.tr()),
                 SwitchListTile(
                   title: Text(LocaleKeys.settings_emailNotifications.tr()),

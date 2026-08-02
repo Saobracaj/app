@@ -1,4 +1,7 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:saobracaj/auth/presentation/auth_button.dart';
+import 'package:saobracaj/generated/locale_keys.g.dart';
 
 /// Главная страница приложения. Пока пустая заготовка.
 class HomeContentPage extends StatelessWidget {
@@ -6,8 +9,12 @@ class HomeContentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(LocaleKeys.home_home.tr()),
+        actions: const [AuthButton()],
+      ),
+      body: const Center(
         child: Text('Home'),
       ),
     );
