@@ -14,7 +14,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'auth/data/firebase_init.dart';
 import 'auth/state_management/auth/auth_bloc.dart';
 import 'auth/state_management/auth/auth_events.dart';
+import 'core/app_language.dart';
 import 'core/di.dart';
+import 'notifications/data/push_token_service.dart';
 import 'generated/codegen_loader.g.dart';
 import 'session/session_resume_gate.dart';
 import 'session/session_route_observer.dart';
@@ -26,6 +28,8 @@ void main() async {
   await EasyLocalization.ensureInitialized();
   configureDependencies();
   await initFirebase();
+  // Start syncing the device's FCM push token once a session is available.
+  getIt<PushTokenService>().start();
   runApp(
     EasyLocalization(
       useOnlyLangCode: true,
@@ -61,6 +65,9 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Mirror the active UI locale onto the header sent with every GraphQL
+    // request, so the backend keeps the stored user language in sync.
+    appLanguageCode = context.locale.languageCode;
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (context) => AllQuestionsBloc()..add(Load())),

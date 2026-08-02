@@ -24,6 +24,7 @@ import '../auth/state_management/register/register_bloc.dart' as _i830;
 import '../auth/state_management/reset_password/reset_password_bloc.dart'
     as _i940;
 import '../notifications/data/notification_permissions.dart' as _i426;
+import '../notifications/data/push_token_service.dart' as _i875;
 import '../notifications/state_management/notifications_bloc.dart' as _i618;
 import 'di.dart' as _i913;
 
@@ -62,6 +63,10 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i940.ResetPasswordBloc>(
       () => _i940.ResetPasswordBloc(gh<_i880.AuthRepository>()),
+    );
+    gh.lazySingleton<_i875.PushTokenService>(
+      () => _i875.PushTokenService(gh<_i880.AuthRepository>()),
+      dispose: (i) => i.dispose(),
     );
     gh.lazySingleton<_i388.AuthBloc>(
       () => _i388.AuthBloc(gh<_i880.AuthRepository>()),

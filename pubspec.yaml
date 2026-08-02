@@ -73,6 +73,7 @@ dependencies:
   # Requesting the OS notification permission for the push toggle (see
   # lib/notifications/). Mirrors owncup's notification-permission handling.
   permission_handler: ^12.0.3
+  firebase_messaging: ^16.4.3
 
 dev_dependencies:
   flutter_test:
