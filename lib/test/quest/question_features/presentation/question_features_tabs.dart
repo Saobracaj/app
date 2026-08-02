@@ -118,6 +118,9 @@ class _TabBarState extends State<_TabBar> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     return TabBar(
       controller: _controller,
+      // Let the selection indicator span the full tab (≈1/n of the width)
+      // rather than shrinking to the icon above it.
+      indicatorSize: TabBarIndicatorSize.tab,
       tabs: widget.features.map(_getTabForFeature).toList(),
       onTap: (index) => context.read<QuestionFeaturesBloc>().add(TabSelected(widget.features[index])),
     );
@@ -126,7 +129,10 @@ class _TabBarState extends State<_TabBar> with SingleTickerProviderStateMixin {
 
 Tab _getTabForFeature(AppFeature feature) {
   final spec = _specFor(feature);
-  return Tab(icon: Icon(spec.icon));
+  // The tabs show only icons; the label is surfaced as a long-press tooltip.
+  return Tab(
+    icon: Tooltip(message: spec.label, child: Icon(spec.icon)),
+  );
 }
 
 class _TabContent extends StatelessWidget {
