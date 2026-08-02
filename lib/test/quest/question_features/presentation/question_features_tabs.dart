@@ -5,6 +5,7 @@ import '../../../../feature_flags/domain/app_feature.dart';
 import '../../../../feature_flags/state_management/feature_flags_bloc.dart';
 import '../../comment/comment_widget/comment_widget.dart';
 import '../state_management/question_features_bloc.dart';
+import '../state_management/question_features_events.dart';
 import '../state_management/question_features_state.dart';
 
 /// Tabbed panel shown under a question (only on the *questions* flow, not
@@ -50,9 +51,7 @@ class QuestionFeaturesTabs extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 8),
-              const Divider(height: 1),
               _TabBar(features: visible, selected: selected),
-              const Divider(height: 1),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: _TabContent(feature: selected, questionId: questionId),
@@ -65,17 +64,62 @@ class QuestionFeaturesTabs extends StatelessWidget {
   }
 }
 
-class _TabBar extends StatelessWidget {
+/// The tab bar itself. Holds a [TabController] (a ticker-based animation
+/// controller, the sanctioned use of state in a widget) whose selection is
+/// kept in lock-step with the [QuestionFeaturesBloc]: tapping a tab dispatches
+/// [TabSelected], and an externally-changed [selected] (e.g. the visible tab
+/// list shrank) is mirrored back onto the controller.
+class _TabBar extends StatefulWidget {
   const _TabBar({required this.features, required this.selected});
 
   final List<AppFeature> features;
   final AppFeature selected;
 
   @override
+  State<_TabBar> createState() => _TabBarState();
+}
+
+class _TabBarState extends State<_TabBar> with SingleTickerProviderStateMixin {
+  late TabController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = _newController();
+  }
+
+  TabController _newController() => TabController(
+    length: widget.features.length,
+    initialIndex: widget.features.indexOf(widget.selected).clamp(0, widget.features.length - 1),
+    vsync: this,
+  );
+
+  @override
+  void didUpdateWidget(covariant _TabBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.features.length != widget.features.length) {
+      // The set of visible tabs changed — the controller's length is fixed, so
+      // rebuild it from scratch.
+      _controller.dispose();
+      _controller = _newController();
+    } else {
+      final index = widget.features.indexOf(widget.selected);
+      if (index >= 0 && index != _controller.index) _controller.index = index;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: features.length,
-      child: TabBar(tabs: features.map(_getTabForFeature).toList()),
+    return TabBar(
+      controller: _controller,
+      tabs: widget.features.map(_getTabForFeature).toList(),
+      onTap: (index) => context.read<QuestionFeaturesBloc>().add(TabSelected(widget.features[index])),
     );
   }
 }
