@@ -23,4 +23,7 @@ sealed class QuestionSearchState with _$QuestionSearchState {
 
   /// Whether the user is actively searching (the field has non-whitespace text).
   bool get isActive => query.trim().isNotEmpty;
+
+  /// Total number of matching questions across all category groups.
+  int get matchCount => groups.fold(0, (sum, group) => sum + group.questions.length);
 }

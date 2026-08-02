@@ -74,6 +74,19 @@ void main() {
     final state = await search(bloc, 'вертолёт');
     expect(state.isActive, isTrue);
     expect(state.groups, isEmpty);
+    expect(state.matchCount, 0);
+    await bloc.close();
+  });
+
+  test('matchCount считает все найденные вопросы по всем категориям', () async {
+    final bloc = QuestionSearchBloc(data);
+    // «знак» встречается в вариантах ответа вопроса 11 (категория A). Проверяем
+    // суммарный счётчик по группам.
+    final oneMatch = await search(bloc, 'знак');
+    expect(oneMatch.matchCount, 1);
+    // «красный» находит вопросы 10 и 11 — обе в категории A, итого два.
+    final twoMatches = await search(bloc, 'красный');
+    expect(twoMatches.matchCount, 2);
     await bloc.close();
   });
 }
