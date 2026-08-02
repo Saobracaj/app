@@ -17,8 +17,8 @@ import 'package:saobracaj/test/quest/state_management/translations_bloc.dart';
 import 'package:saobracaj/util/nav_to_url.dart';
 import 'package:collection/collection.dart';
 
-import 'comment/comment_widget/comment_widget.dart';
 import 'finalize_test.dart';
+import 'question_features/presentation/question_features_tabs.dart';
 
 class Quest extends StatelessWidget {
   const Quest({super.key, required this.questions, required this.options, this.subcategory});
@@ -291,7 +291,7 @@ class QuestionContent extends StatelessWidget {
                   // ObyezdAnimacija(),
                   // ObyezdAnimacija2(),
                   // BlockedRoadScene(),
-                  CommentWidget(questionId: question.id),
+                  QuestionFeaturesTabs(questionId: question.id),
                 ],
                 ),
               );
