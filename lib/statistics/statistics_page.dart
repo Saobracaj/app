@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/auth/presentation/auth_button.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
+import 'package:saobracaj/questions/presentation/question_list_tile.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/statistics/state_management/history_bloc.dart';
 
@@ -38,27 +39,11 @@ class StatisticsPage extends StatelessWidget {
                       SizedBox(height: 16),
                       ListTile(title: Text('Последние ошибки:', style: Theme.of(context).textTheme.titleMedium)),
                       ...state.questions.map(
-                        (e) => ListTile(
+                        (e) => QuestionListTile(
+                          question: qs.firstWhere((element) => element.id == e.id),
                           onTap: () {
                             Routemaster.of(context).push('q?q=${e.id}&randomOptionsOrder=true');
                           },
-                          title: Text(qs.firstWhere((element) => element.id == e.id).text, maxLines: 2, overflow: TextOverflow.ellipsis),
-                          trailing: SizedBox(
-                            width: 60,
-                            height: 48,
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.asset(
-                                'assets/img/${qs.firstWhere((element) => element.id == e.id).id}.jpeg',
-                                // fit: BoxFit.cover,
-                                width: 48,
-                                height: 48,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Icon(Icons.car_crash, size: 48, color: Theme.of(context).colorScheme.secondary.withAlpha(50));
-                                },
-                              ),
-                            ),
-                          ),
                         ),
                       ),
                     ],
