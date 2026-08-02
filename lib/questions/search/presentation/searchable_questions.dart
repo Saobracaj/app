@@ -43,6 +43,14 @@ class _SearchableQuestionsView extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: _SearchField(),
         ),
+        BlocBuilder<QuestionSearchBloc, QuestionSearchState>(
+          builder: (context, state) {
+            // When there are no hits the `_NoResults` placeholder already
+            // conveys that, so the count line only shows for non-empty results.
+            if (!state.isActive || state.matchCount == 0) return const SizedBox.shrink();
+            return _ResultsCount(count: state.matchCount);
+          },
+        ),
         Expanded(
           child: BlocBuilder<QuestionSearchBloc, QuestionSearchState>(
             builder: (context, state) {
@@ -99,6 +107,44 @@ class _SearchFieldState extends State<_SearchField> {
               },
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// A small caption under the search field with the number of matching
+/// questions for the current query (e.g. "Найдено 3 вопроса").
+class _ResultsCount extends StatelessWidget {
+  const _ResultsCount({required this.count});
+
+  final int count;
+
+  /// Russian plural form of "вопрос" agreeing with [count].
+  String _questionsWord(int n) {
+    final mod100 = n % 100;
+    if (mod100 >= 11 && mod100 <= 14) return 'вопросов';
+    switch (n % 10) {
+      case 1:
+        return 'вопрос';
+      case 2:
+      case 3:
+      case 4:
+        return 'вопроса';
+      default:
+        return 'вопросов';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Найдено $count ${_questionsWord(count)}',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
         ),
       ),
     );
