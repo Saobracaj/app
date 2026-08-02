@@ -50,7 +50,7 @@ class ProfilePage extends StatelessWidget {
                       child: Text(LocaleKeys.settings_loginButton.tr()),
                     ),
                   ),
-                const Divider(),
+                const Divider(height: 0),
                 ListTile(
                   leading: const Icon(Icons.palette_outlined),
                   title: Text(LocaleKeys.settings_appearance.tr()),
@@ -61,7 +61,7 @@ class ProfilePage extends StatelessWidget {
                 // Notifications only make sense for a signed-in account, so the
                 // entry is hidden while signed out.
                 if (auth.isAuthenticated) ...[
-                  const Divider(),
+                  const Divider(height: 0),
                   ListTile(
                     leading: const Icon(Icons.notifications_outlined),
                     title: Text(LocaleKeys.settings_notifications.tr()),
@@ -71,7 +71,7 @@ class ProfilePage extends StatelessWidget {
                     onTap: () => Routemaster.of(context).push('/notifications'),
                   ),
                 ],
-                const Divider(),
+                const Divider(height: 0),
                 ListTile(
                   leading: const Icon(Icons.info_outline_rounded),
                   title: Text(LocaleKeys.settings_about.tr()),

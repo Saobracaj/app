@@ -1,7 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:routemaster/routemaster.dart';
-import 'auth/presentation/auth_button.dart';
 import 'generated/locale_keys.g.dart';
 
 class HomePage extends StatefulWidget {
@@ -16,10 +15,6 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final pageState = IndexedPage.of(context);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Saobraćaj'),
-        actions: const [AuthButton()],
-      ),
       bottomNavigationBar: BottomAppBar(
         shape: const CircularNotchedRectangle(),
         child: NavigationBar(

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_time_ago/get_time_ago.dart';
 import 'package:routemaster/routemaster.dart';
 
+import 'package:saobracaj/auth/presentation/auth_button.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/practice/finalize_practice.dart';
 import 'package:saobracaj/test/practice/practice.dart' show formatDuration;
@@ -20,7 +21,10 @@ class PracticePage extends StatelessWidget {
       child: BlocBuilder<PracticePageBloc, PracticeParams>(
         builder: (context, state) {
           return Scaffold(
-            appBar: AppBar(title: Text(LocaleKeys.simulation_title.tr())),
+            appBar: AppBar(
+              title: Text(LocaleKeys.simulation_title.tr()),
+              actions: const [AuthButton()],
+            ),
             body: ListView(
               children: [
                 CheckboxListTile(
