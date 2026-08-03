@@ -186,7 +186,7 @@
         "reply": "Reply",
         "send": "Send",
         "showMore": "Show more",
-        "showPrevious": "Show previous ({})",
+        "showPrevious": "Show previous replies ({})",
         "empty": "No comments yet. Be the first!",
         "banned": "You cannot leave comments.",
         "anonymous": "Anonymous",
@@ -224,6 +224,38 @@
             "errorTooLong": "Name must be at most {} characters",
             "errorTooManyWords": "Name must contain at most {} words",
             "errorControlChars": "Name must not contain control characters"
+        },
+        "report": "Report",
+        "reportTitle": "Report this comment?",
+        "reportBody": "The comment will be sent to the moderators for review.",
+        "reported": "Report sent",
+        "copy": "Copy text",
+        "copied": "Text copied",
+        "subscribeThread": "Subscribe to thread",
+        "unsubscribe": "Unsubscribe from thread",
+        "replyingTo": "Replying to {}",
+        "time": {
+            "justNow": "just now",
+            "minutes": {
+                "one": "{} min ago",
+                "other": "{} min ago"
+            },
+            "hours": {
+                "one": "{} h ago",
+                "other": "{} h ago"
+            },
+            "days": {
+                "one": "{} day ago",
+                "other": "{} days ago"
+            },
+            "months": {
+                "one": "{} month ago",
+                "other": "{} months ago"
+            },
+            "years": {
+                "one": "{} year ago",
+                "other": "{} years ago"
+            }
         }
     },
     "questionLists": {

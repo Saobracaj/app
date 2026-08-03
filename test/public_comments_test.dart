@@ -1,7 +1,38 @@
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/profile/domain/display_name_rules.dart';
 import 'package:saobracaj/public_comments/models/public_comment.dart';
 import 'package:saobracaj/public_comments/presentation/relative_time.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Поднимает EasyLocalization с настоящими переводами (CodegenLoader, без
+/// ассетов) на локали [locale], чтобы relativeTime резолвил ключи и плюралы.
+Future<void> _pumpLocalized(WidgetTester tester, Locale locale) async {
+  SharedPreferences.setMockInitialValues({});
+  await EasyLocalization.ensureInitialized();
+  await tester.pumpWidget(
+    EasyLocalization(
+      useOnlyLangCode: true,
+      ignorePluralRules: false,
+      supportedLocales: const [Locale('sr'), Locale('ru'), Locale('en')],
+      fallbackLocale: const Locale('ru'),
+      startLocale: locale,
+      path: 'assets/translations',
+      assetLoader: const CodegenLoader(),
+      child: Builder(
+        builder: (context) => MaterialApp(
+          localizationsDelegates: context.localizationDelegates,
+          supportedLocales: context.supportedLocales,
+          locale: context.locale,
+          home: const SizedBox(),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
 
 void main() {
   group('Валидация отображаемого имени', () {
@@ -30,31 +61,59 @@ void main() {
     });
   });
 
-  group('Относительное время (русские формы множественного числа)', () {
+  group('Относительное время (локализованное)', () {
     final now = DateTime(2026, 8, 3, 12, 0, 0);
 
-    test('только что для свежих меток', () {
-      expect(relativeTime(now.subtract(const Duration(seconds: 10)), now: now),
-          'только что');
+    testWidgets('русская локаль: только что, минуты, часы, годы', (
+      tester,
+    ) async {
+      await _pumpLocalized(tester, const Locale('ru'));
+      expect(
+        relativeTime(now.subtract(const Duration(seconds: 10)), now: now),
+        'только что',
+      );
+      expect(
+        relativeTime(now.subtract(const Duration(minutes: 5)), now: now),
+        '5 мин назад',
+      );
+      expect(
+        relativeTime(now.subtract(const Duration(hours: 2)), now: now),
+        '2 ч назад',
+      );
+      expect(
+        relativeTime(now.subtract(const Duration(days: 800)), now: now),
+        '2 года назад',
+      );
+      expect(
+        relativeTime(now.subtract(const Duration(days: 2000)), now: now),
+        '5 лет назад',
+      );
     });
 
-    test('минуты склоняются правильно', () {
-      expect(relativeTime(now.subtract(const Duration(minutes: 1)), now: now),
-          '1 минуту назад');
-      expect(relativeTime(now.subtract(const Duration(minutes: 2)), now: now),
-          '2 минуты назад');
-      expect(relativeTime(now.subtract(const Duration(minutes: 5)), now: now),
-          '5 минут назад');
+    testWidgets('сербская локаль: CLDR few/other на месяцах', (tester) async {
+      await _pumpLocalized(tester, const Locale('sr'));
+      expect(
+        relativeTime(now.subtract(const Duration(minutes: 5)), now: now),
+        'пре 5 мин',
+      );
+      expect(
+        relativeTime(now.subtract(const Duration(days: 65)), now: now),
+        'пре 2 месеца',
+      );
+      expect(
+        relativeTime(now.subtract(const Duration(days: 160)), now: now),
+        'пре 5 месеци',
+      );
     });
 
-    test('часы склоняются правильно', () {
-      expect(relativeTime(now.subtract(const Duration(hours: 2)), now: now),
-          '2 часа назад');
-    });
-
-    test('будущие метки (перекос часов) не дают отрицательное время', () {
-      expect(relativeTime(now.add(const Duration(minutes: 5)), now: now),
-          'только что');
+    testWidgets('будущие метки (перекос часов) не дают отрицательное время', (
+      tester,
+    ) async {
+      await _pumpLocalized(tester, const Locale('ru'));
+      expect(
+        relativeTime(now.add(const Duration(minutes: 5)), now: now),
+        'только что',
+      );
     });
   });
 
