@@ -14,6 +14,7 @@ import '../../comment/comment_widget/comment_widget.dart';
 import '../state_management/question_features_bloc.dart';
 import '../state_management/question_features_events.dart';
 import '../state_management/question_features_state.dart';
+import 'question_analysis_tab.dart';
 
 /// Tabbed panel shown under a question (only on the *questions* flow, not
 /// practice) exposing the per-question features. Each tab is gated by its
@@ -25,9 +26,8 @@ import '../state_management/question_features_state.dart';
 /// surrounding scroll view (no [TabBarView]), so it grows to fit its content
 /// and scrolls with the rest of the question instead of needing a bounded box.
 ///
-/// Only [AppFeature.questionComments] has real content (the expert comment for
-/// the question, when the backend has one in `Ready` status); the other tabs
-/// are placeholders until their features are built.
+/// The chrome is adaptive: with a single visible section the tab row collapses
+/// into a plain header.
 class QuestionFeaturesTabs extends StatelessWidget {
   const QuestionFeaturesTabs({
     super.key,
@@ -82,113 +82,130 @@ class QuestionFeaturesTabs extends StatelessWidget {
           // Fall back to the first visible tab, and re-anchor if the previously
           // selected tab disappeared (e.g. the user logged out).
           final selected = (state.selected != null && visible.contains(state.selected)) ? state.selected! : visible.first;
-          final column = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 8),
-              _TabBar(features: visible, selected: selected),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: _TabContent(
-                  feature: selected,
-                  questionId: questionId,
-                  commentThreadId: commentThreadId,
-                ),
+          final card = Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerLow,
+                borderRadius: BorderRadius.circular(18),
               ),
-            ],
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (visible.length == 1)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                      child: _TabLabel(
+                        feature: visible.single,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                    )
+                  else
+                    _PillTabs(features: visible, selected: selected),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: _TabContent(
+                      feature: selected,
+                      questionId: questionId,
+                      commentThreadId: commentThreadId,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           );
           // On a deep link into the discussion, scroll this panel into view once
           // it is laid out.
-          return autoScroll ? _EnsureVisibleOnce(child: column) : column;
+          return autoScroll ? _EnsureVisibleOnce(child: card) : card;
         },
       ),
     );
   }
 }
 
-/// The tab bar itself. Holds a [TabController] (a ticker-based animation
-/// controller, the sanctioned use of state in a widget) whose selection is
-/// kept in lock-step with the [QuestionFeaturesBloc]: tapping a tab dispatches
-/// [TabSelected], and an externally-changed [selected] (e.g. the visible tab
-/// list shrank) is mirrored back onto the controller.
-class _TabBar extends StatefulWidget {
-  const _TabBar({required this.features, required this.selected});
+/// The stateless pill-style tab row, driven entirely by [QuestionFeaturesBloc].
+class _PillTabs extends StatelessWidget {
+  const _PillTabs({required this.features, required this.selected});
 
   final List<AppFeature> features;
   final AppFeature selected;
 
   @override
-  State<_TabBar> createState() => _TabBarState();
-}
-
-class _TabBarState extends State<_TabBar> with SingleTickerProviderStateMixin {
-  late TabController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = _newController();
-  }
-
-  TabController _newController() => TabController(
-    length: widget.features.length,
-    initialIndex: widget.features.indexOf(widget.selected).clamp(0, widget.features.length - 1),
-    vsync: this,
-  );
-
-  @override
-  void didUpdateWidget(covariant _TabBar oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.features.length != widget.features.length) {
-      // The set of visible tabs changed — the controller's length is fixed, so
-      // rebuild it from scratch.
-      _controller.dispose();
-      _controller = _newController();
-    } else {
-      final index = widget.features.indexOf(widget.selected);
-      if (index >= 0 && index != _controller.index) _controller.index = index;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return TabBar(
-      controller: _controller,
-      // Let the selection indicator span the full tab (≈1/n of the width)
-      // rather than shrinking to the icon above it.
-      indicatorSize: TabBarIndicatorSize.tab,
-      tabs: widget.features.map((f) => _tabFor(context, f)).toList(),
-      onTap: (index) => context.read<QuestionFeaturesBloc>().add(TabSelected(widget.features[index])),
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
+      child: Row(
+        children: [
+          for (final feature in features)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => context.read<QuestionFeaturesBloc>().add(
+                    TabSelected(feature),
+                  ),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: feature == selected
+                          ? scheme.secondaryContainer
+                          : null,
+                    ),
+                    child: _TabLabel(
+                      feature: feature,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        fontWeight: feature == selected
+                            ? FontWeight.w600
+                            : null,
+                        color: feature == selected
+                            ? scheme.onSecondaryContainer
+                            : scheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
 
-Tab _tabFor(BuildContext context, AppFeature feature) {
-  final spec = _specFor(feature);
-  // The public-comments tab carries a badge with the number of top-level
-  // comments (hidden when zero); the rest are plain icons.
-  final scheme = Theme.of(context).colorScheme;
-  final Widget icon = feature == AppFeature.publicQuestionComments
-      ? BlocBuilder<CommentCountBloc, CommentCountState>(
-          builder: (context, state) => Badge.count(
-            count: state.count,
-            isLabelVisible: state.count > 0,
-            // A neutral badge instead of the default error-red, so the count
-            // reads as informational rather than an alert.
-            backgroundColor: scheme.secondaryContainer,
-            textColor: scheme.onSecondaryContainer,
-            child: Icon(spec.icon),
-          ),
-        )
-      : Icon(spec.icon);
-  // The tabs show only icons; the label is surfaced as a long-press tooltip.
-  return Tab(icon: Tooltip(message: spec.label, child: icon));
+/// A tab's text label; the discussion one carries the top-level comment count
+/// inline ("Дискусија · 4") instead of a badge.
+class _TabLabel extends StatelessWidget {
+  const _TabLabel({required this.feature, this.style});
+
+  final AppFeature feature;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = _specFor(feature).label;
+    if (feature != AppFeature.publicQuestionComments) {
+      return Text(
+        label,
+        style: style,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+    return BlocBuilder<CommentCountBloc, CommentCountState>(
+      builder: (context, state) => Text(
+        state.count > 0 ? '$label · ${state.count}' : label,
+        style: style,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
 }
 
 class _TabContent extends StatelessWidget {
@@ -212,6 +229,8 @@ class _TabContent extends StatelessWidget {
           questionId: questionId,
           threadId: commentThreadId,
         );
+      case AppFeature.questionAnalysis:
+        return QuestionAnalysisTab(questionId: questionId);
       default:
         return _ComingSoon(feature: feature);
     }
