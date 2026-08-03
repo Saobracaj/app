@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/di.dart';
 import '../../../../feature_flags/domain/app_feature.dart';
 import '../../../../feature_flags/state_management/feature_flags_bloc.dart';
+import '../../../../public_comments/presentation/public_comments_widget.dart';
+import '../../../../public_comments/state_management/comment_count_bloc.dart';
+import '../../../../public_comments/state_management/comment_count_events.dart';
+import '../../../../public_comments/state_management/comment_count_state.dart';
 import '../../comment/comment_widget/comment_widget.dart';
 import '../state_management/question_features_bloc.dart';
 import '../state_management/question_features_events.dart';
@@ -40,8 +45,17 @@ class QuestionFeaturesTabs extends StatelessWidget {
     final visible = _features.where(flags.isEnabled).toList();
     if (visible.isEmpty) return const SizedBox.shrink();
 
-    return BlocProvider(
-      create: (_) => QuestionFeaturesBloc(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => QuestionFeaturesBloc()),
+        // The tab badge only needs the scalar top-level count; kept apart from
+        // the full comments Bloc scoped inside the discussion tab.
+        if (visible.contains(AppFeature.publicQuestionComments))
+          BlocProvider(
+            create: (_) => getIt<CommentCountBloc>(param1: questionId)
+              ..add(CommentCountRequested()),
+          ),
+      ],
       child: BlocBuilder<QuestionFeaturesBloc, QuestionFeaturesState>(
         builder: (context, state) {
           // Fall back to the first visible tab, and re-anchor if the previously
@@ -121,18 +135,27 @@ class _TabBarState extends State<_TabBar> with SingleTickerProviderStateMixin {
       // Let the selection indicator span the full tab (≈1/n of the width)
       // rather than shrinking to the icon above it.
       indicatorSize: TabBarIndicatorSize.tab,
-      tabs: widget.features.map(_getTabForFeature).toList(),
+      tabs: widget.features.map((f) => _tabFor(context, f)).toList(),
       onTap: (index) => context.read<QuestionFeaturesBloc>().add(TabSelected(widget.features[index])),
     );
   }
 }
 
-Tab _getTabForFeature(AppFeature feature) {
+Tab _tabFor(BuildContext context, AppFeature feature) {
   final spec = _specFor(feature);
+  // The public-comments tab carries a badge with the number of top-level
+  // comments (hidden when zero); the rest are plain icons.
+  final Widget icon = feature == AppFeature.publicQuestionComments
+      ? BlocBuilder<CommentCountBloc, CommentCountState>(
+          builder: (context, state) => Badge.count(
+            count: state.count,
+            isLabelVisible: state.count > 0,
+            child: Icon(spec.icon),
+          ),
+        )
+      : Icon(spec.icon);
   // The tabs show only icons; the label is surfaced as a long-press tooltip.
-  return Tab(
-    icon: Tooltip(message: spec.label, child: Icon(spec.icon)),
-  );
+  return Tab(icon: Tooltip(message: spec.label, child: icon));
 }
 
 class _TabContent extends StatelessWidget {
@@ -146,6 +169,8 @@ class _TabContent extends StatelessWidget {
     switch (feature) {
       case AppFeature.questionComments:
         return CommentWidget(questionId: questionId);
+      case AppFeature.publicQuestionComments:
+        return PublicCommentsWidget(questionId: questionId);
       default:
         return _ComingSoon(feature: feature);
     }

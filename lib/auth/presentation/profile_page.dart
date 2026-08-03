@@ -32,6 +32,9 @@ class ProfilePage extends StatelessWidget {
                         args: [auth.viewer?.email ?? ''],
                       ),
                     ),
+                    // Tapping the account row opens the profile screen (display
+                    // name + delete account).
+                    onTap: () => Routemaster.of(context).push('/displayName'),
                     trailing: TextButton.icon(
                       onPressed: () => _confirmLogout(context),
                       icon: const Icon(Icons.logout),
