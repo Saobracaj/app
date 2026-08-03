@@ -1,5 +1,7 @@
+import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
@@ -14,10 +16,13 @@ import 'relative_time.dart';
 
 /// Public, social comments for one exam question (the "Дискусија" tab).
 ///
-/// Rendered as a plain column inside the question's own scroll view (like the
-/// editorial comment widget), so pagination is a "load more" affordance rather
-/// than an inner scroll. Reading is open to everyone; the composer appears only
-/// for a signed-in, non-banned user who has set a display name.
+/// Reading-first per the redesign: a comment row carries only the author, the
+/// time, the body and the like control; everything else — reply, report,
+/// thread subscription, copy, delete — lives in a long-press context menu.
+/// One composer is pinned at the bottom of the section; replying targets it
+/// via a chip. Rendered as a plain column inside the question's own scroll
+/// view, so pagination is a "load more" affordance rather than an inner
+/// scroll. Reading is open to everyone.
 class PublicCommentsWidget extends StatelessWidget {
   const PublicCommentsWidget({
     super.key,
@@ -74,34 +79,31 @@ class _CommentsBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final bloc = context.read<CommentsBloc>();
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (state.canWrite)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: CommentComposer(
-              hint: LocaleKeys.comments_write.tr(),
-              submitting: state.submitting,
-              onSubmit: (text) => _submitComment(context, state, text),
-            ),
-          )
-        else if (state.isBanned)
-          _Notice(LocaleKeys.comments_banned.tr()),
         if (state.comments.isEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
             child: Text(LocaleKeys.comments_empty.tr()),
           )
         else
-          ...state.comments.map(
-            (c) => _TopLevelComment(
-              comment: c,
-              state: state,
+          // The ink of the row highlights would otherwise be swallowed by the
+          // feature card's background color painted above the nearest Material.
+          Material(
+            type: MaterialType.transparency,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < state.comments.length; i++) ...[
+                  if (i > 0) const Divider(height: 1),
+                  _Thread(comment: state.comments[i], state: state),
+                ],
+              ],
             ),
           ),
         if (state.hasNextPage)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             child: Center(
               child: state.loadingMore
                   ? const SizedBox(
@@ -115,15 +117,22 @@ class _CommentsBody extends StatelessWidget {
                     ),
             ),
           ),
+        if (state.canWrite || state.isBanned) ...[
+          if (state.comments.isNotEmpty) const Divider(height: 1),
+          if (state.canWrite)
+            _ComposerSection(state: state)
+          else
+            _Notice(LocaleKeys.comments_banned.tr()),
+        ],
         const SizedBox(height: 8),
       ],
     );
   }
 }
 
-/// A top-level comment with its author line, body, actions and reply thread.
-class _TopLevelComment extends StatelessWidget {
-  const _TopLevelComment({required this.comment, required this.state});
+/// A top-level comment with its (collapsed) reply thread.
+class _Thread extends StatelessWidget {
+  const _Thread({required this.comment, required this.state});
 
   final PublicComment comment;
   final CommentsState state;
@@ -133,117 +142,269 @@ class _TopLevelComment extends StatelessWidget {
     final bloc = context.read<CommentsBloc>();
     final replies = comment.replies;
     final expanded = state.expandedThreads.contains(comment.id);
-    final visibleReplies = (replies.length > 3 && !expanded)
-        ? replies.sublist(replies.length - 3)
+    // Collapsed threads show only the most recent reply (decision 11).
+    final visibleReplies = (replies.length > 1 && !expanded)
+        ? [replies.last]
         : replies;
     final hiddenCount = replies.length - visibleReplies.length;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _AuthorLine(comment: comment),
-          const SizedBox(height: 4),
-          Text(comment.body),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              _LikeButton(comment: comment),
-              const SizedBox(width: 8),
-              TextButton.icon(
-                onPressed: () => bloc.add(ReplyFocusRequested(comment.id)),
-                icon: const Icon(Icons.reply, size: 18),
-                label: Text(LocaleKeys.comments_reply.tr()),
+          _CommentTile(comment: comment, state: state),
+          if (hiddenCount > 0)
+            Padding(
+              padding: const EdgeInsets.only(left: 20),
+              child: TextButton(
+                onPressed: () => bloc.add(RepliesExpanded(comment.id)),
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                ),
+                child: Text(
+                  LocaleKeys.comments_showPrevious.tr(args: ['$hiddenCount']),
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
               ),
-              const Spacer(),
-              if (comment.deletableByMe)
-                _DeleteButton(comment: comment),
-              if (state.isAuthenticated)
-                _SubscriptionToggle(comment: comment),
-            ],
-          ),
-          if (replies.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(left: 16, top: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (hiddenCount > 0)
-                    TextButton(
-                      onPressed: () =>
-                          bloc.add(RepliesExpanded(comment.id)),
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                      ),
-                      child: Text(
-                        LocaleKeys.comments_showPrevious
-                            .tr(args: ['$hiddenCount']),
-                      ),
-                    ),
-                  ...visibleReplies.map((r) => _ReplyTile(reply: r)),
-                ],
-              ),
             ),
-          if (state.canWrite)
-            Padding(
-              padding: const EdgeInsets.only(left: 16, top: 4),
-              child: CommentComposer(
-                hint: LocaleKeys.comments_reply.tr(),
-                dense: true,
-                submitting: state.submitting,
-                // Focus this composer when the user taps "Ответить" on this
-                // top-level comment.
-                focusRequestId: state.replyFocusTarget == comment.id
-                    ? state.replyFocusRequestId
-                    : null,
-                onSubmit: (text) =>
-                    _submitComment(context, state, text, parentId: comment.id),
+          for (final reply in visibleReplies)
+            Container(
+              margin: const EdgeInsets.only(left: 20, top: 8),
+              padding: const EdgeInsets.only(left: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  left: BorderSide(
+                    width: 2,
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                ),
               ),
+              child: _CommentTile(comment: reply, state: state),
             ),
-          const Divider(height: 24),
         ],
       ),
     );
   }
 }
 
-/// A second-level reply: author line, body, and a compact like control.
-class _ReplyTile extends StatelessWidget {
-  const _ReplyTile({required this.reply});
+/// What the long-press menu can do with a comment.
+enum _CommentAction { reply, report, subscribe, copy, delete }
 
-  final PublicComment reply;
+/// One comment row: author, time, body, like. All other actions live in the
+/// long-press menu. The only widget state is the last press position, needed
+/// to anchor the menu at the finger (the sanctioned purely-visual exception).
+class _CommentTile extends StatefulWidget {
+  const _CommentTile({required this.comment, required this.state});
+
+  final PublicComment comment;
+  final CommentsState state;
+
+  @override
+  State<_CommentTile> createState() => _CommentTileState();
+}
+
+class _CommentTileState extends State<_CommentTile> {
+  Offset _pressPosition = Offset.zero;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _AuthorLine(comment: reply),
-          const SizedBox(height: 2),
-          Text(reply.body),
-          const SizedBox(height: 2),
-          Row(
-            children: [
-              _LikeButton(comment: reply, compact: true),
-              const Spacer(),
-              if (reply.deletableByMe) _DeleteButton(comment: reply),
-            ],
+    final theme = Theme.of(context);
+    final comment = widget.comment;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTapDown: (details) => _pressPosition = details.globalPosition,
+      onLongPress: () => _showActionsMenu(context),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _AuthorLine(comment: comment),
+            const SizedBox(height: 4),
+            Text(
+              comment.body,
+              style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+            ),
+            const SizedBox(height: 4),
+            _LikeButton(comment: comment),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showActionsMenu(BuildContext context) async {
+    final bloc = context.read<CommentsBloc>();
+    final state = widget.state;
+    final comment = widget.comment;
+    final topLevelId = comment.parentId ?? comment.id;
+    final top = state.comments.firstWhereOrNull((c) => c.id == topLevelId);
+    // Both ids default to '' — without the isNotEmpty guard every
+    // anonymous-author comment would look like the viewer's own.
+    final isOwn =
+        comment.authorId.isNotEmpty && comment.authorId == state.viewerId;
+    final reported = state.reportedIds.contains(comment.id);
+    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+
+    final action = await showMenu<_CommentAction>(
+      context: context,
+      position: RelativeRect.fromRect(
+        _pressPosition & Size.zero,
+        Offset.zero & overlay.size,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      color: Theme.of(context).colorScheme.surfaceContainerHigh,
+      items: [
+        if (state.canWrite)
+          _menuItem(
+            _CommentAction.reply,
+            Icons.reply,
+            LocaleKeys.comments_reply.tr(),
           ),
+        if (state.isAuthenticated && !isOwn)
+          reported
+              ? _menuItem(
+                  null,
+                  Icons.flag_outlined,
+                  LocaleKeys.comments_reported.tr(),
+                  enabled: false,
+                )
+              : _menuItem(
+                  _CommentAction.report,
+                  Icons.flag_outlined,
+                  LocaleKeys.comments_report.tr(),
+                ),
+        if (state.isAuthenticated && top != null)
+          _menuItem(
+            _CommentAction.subscribe,
+            top.subscribedByMe
+                ? Icons.notifications_off_outlined
+                : Icons.notifications_none,
+            top.subscribedByMe
+                ? LocaleKeys.comments_unsubscribe.tr()
+                : LocaleKeys.comments_subscribeThread.tr(),
+          ),
+        _menuItem(
+          _CommentAction.copy,
+          Icons.copy_outlined,
+          LocaleKeys.comments_copy.tr(),
+        ),
+        if (comment.deletableByMe)
+          _menuItem(
+            _CommentAction.delete,
+            Icons.delete_outline,
+            LocaleKeys.comments_delete.tr(),
+          ),
+      ],
+    );
+    if (action == null || !context.mounted) return;
+
+    switch (action) {
+      case _CommentAction.reply:
+        bloc.add(ReplyFocusRequested(topLevelId));
+      case _CommentAction.report:
+        await _confirmReport(context, bloc, comment);
+      case _CommentAction.subscribe:
+        bloc.add(CommentSubscriptionToggled(top!, !top.subscribedByMe));
+      case _CommentAction.copy:
+        await Clipboard.setData(ClipboardData(text: comment.body));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(LocaleKeys.comments_copied.tr())),
+          );
+        }
+      case _CommentAction.delete:
+        await _confirmDelete(context, bloc, comment);
+    }
+  }
+
+  PopupMenuItem<_CommentAction> _menuItem(
+    _CommentAction? value,
+    IconData icon,
+    String label, {
+    bool enabled = true,
+  }) {
+    return PopupMenuItem<_CommentAction>(
+      value: value,
+      enabled: enabled,
+      height: 44,
+      child: Row(
+        children: [
+          Icon(icon, size: 18),
+          const SizedBox(width: 10),
+          Text(label),
         ],
       ),
     );
   }
 }
 
-/// Display name + relative time. The delete affordance lives in the comment's
-/// actions row, not here.
+/// Report flow. UI-only while the backend has no reportComment mutation: the
+/// confirmation and the "sent" acknowledgement work, the id is remembered for
+/// the session so the menu shows the comment as already reported.
+Future<void> _confirmReport(
+  BuildContext context,
+  CommentsBloc bloc,
+  PublicComment comment,
+) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(LocaleKeys.comments_reportTitle.tr()),
+      content: Text(LocaleKeys.comments_reportBody.tr()),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: Text(LocaleKeys.comments_cancel.tr()),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: Text(LocaleKeys.comments_report.tr()),
+        ),
+      ],
+    ),
+  );
+  if (ok != true) return;
+  bloc.add(CommentReported(comment.id));
+  if (context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(LocaleKeys.comments_reported.tr())),
+    );
+  }
+}
+
+/// Confirm and dispatch the deletion of [comment] (the caller's own, or any
+/// comment for a moderator).
+Future<void> _confirmDelete(
+  BuildContext context,
+  CommentsBloc bloc,
+  PublicComment comment,
+) async {
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: Text(LocaleKeys.comments_deleteTitle.tr()),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: Text(LocaleKeys.comments_cancel.tr()),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: Text(LocaleKeys.comments_delete.tr()),
+        ),
+      ],
+    ),
+  );
+  if (ok == true) bloc.add(CommentDeleted(comment.id));
+}
+
+/// Display name + relative time, aligned on the text baseline.
 class _AuthorLine extends StatelessWidget {
   const _AuthorLine({required this.comment});
 
@@ -253,6 +414,8 @@ class _AuthorLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
       children: [
         Flexible(
           child: Text(
@@ -275,58 +438,12 @@ class _AuthorLine extends StatelessWidget {
   }
 }
 
-/// Delete affordance for a comment the caller may remove (their own, or any
-/// comment for a moderator). Confirms before dispatching the delete.
-class _DeleteButton extends StatelessWidget {
-  const _DeleteButton({required this.comment});
-
-  final PublicComment comment;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkResponse(
-      onTap: () => _confirmDelete(context),
-      radius: 18,
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: Icon(
-          Icons.delete_outline,
-          size: 18,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _confirmDelete(BuildContext context) async {
-    final bloc = context.read<CommentsBloc>();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(LocaleKeys.comments_deleteTitle.tr()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(LocaleKeys.comments_cancel.tr()),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(LocaleKeys.comments_delete.tr()),
-          ),
-        ],
-      ),
-    );
-    if (ok == true) bloc.add(CommentDeleted(comment.id));
-  }
-}
-
 /// Heart + count. The count is toggled optimistically in the Bloc; here the
 /// heart fill and the count animate on change.
 class _LikeButton extends StatelessWidget {
-  const _LikeButton({required this.comment, this.compact = false});
+  const _LikeButton({required this.comment});
 
   final PublicComment comment;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -350,7 +467,7 @@ class _LikeButton extends StatelessWidget {
               child: Icon(
                 liked ? Icons.favorite : Icons.favorite_border,
                 key: ValueKey(liked),
-                size: compact ? 16 : 18,
+                size: 18,
                 color: color,
               ),
             ),
@@ -381,36 +498,104 @@ class _LikeButton extends StatelessWidget {
   }
 }
 
-/// Minimalist per-thread reply-subscription toggle (top-level comments only).
-class _SubscriptionToggle extends StatelessWidget {
-  const _SubscriptionToggle({required this.comment});
+/// The single pinned composer at the bottom of the section: avatar, the reply
+/// target chip (when set from the menu) and the input field.
+class _ComposerSection extends StatelessWidget {
+  const _ComposerSection({required this.state});
 
-  final PublicComment comment;
+  final CommentsState state;
 
   @override
   Widget build(BuildContext context) {
-    final subscribed = comment.subscribedByMe;
-    final scheme = Theme.of(context).colorScheme;
-    return Tooltip(
-      message: subscribed
-          ? LocaleKeys.comments_subscribedTooltip.tr()
-          : LocaleKeys.comments_subscribeTooltip.tr(),
-      child: InkResponse(
-        radius: 20,
-        onTap: () => context
-            .read<CommentsBloc>()
-            .add(CommentSubscriptionToggled(comment, !subscribed)),
-        child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(
-            subscribed
-                ? Icons.notifications_active
-                : Icons.notifications_none,
-            size: 18,
-            color: subscribed ? scheme.primary : scheme.onSurfaceVariant,
+    final bloc = context.read<CommentsBloc>();
+    final target = state.replyFocusTarget == null
+        ? null
+        : state.comments.firstWhereOrNull(
+            (c) => c.id == state.replyFocusTarget,
+          );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (target != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+            child: InputChip(
+              visualDensity: VisualDensity.compact,
+              label: Text(
+                LocaleKeys.comments_replyingTo.tr(
+                  args: [
+                    target.authorDisplayName.isEmpty
+                        ? LocaleKeys.comments_anonymous.tr()
+                        : target.authorDisplayName,
+                  ],
+                ),
+              ),
+              onDeleted: () => bloc.add(ReplyTargetCleared()),
+            ),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              _Avatar(displayName: state.profile?.displayName),
+              const SizedBox(width: 10),
+              Expanded(
+                child: CommentComposer(
+                  hint: LocaleKeys.comments_write.tr(),
+                  submitting: state.submitting,
+                  // Focus the field when a reply target was just chosen.
+                  focusRequestId: state.replyFocusTarget != null
+                      ? state.replyFocusRequestId
+                      : null,
+                  onSubmit: (text) => _submitComment(
+                    context,
+                    state,
+                    text,
+                    parentId: state.replyFocusTarget,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// The 34px initials circle next to the composer.
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.displayName});
+
+  final String? displayName;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final words = (displayName ?? '')
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .take(2);
+    final initials = words.map((w) => w[0].toUpperCase()).join();
+    return Container(
+      width: 34,
+      height: 34,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: scheme.secondaryContainer,
+        shape: BoxShape.circle,
       ),
+      child: initials.isEmpty
+          ? Icon(Icons.person_outline, size: 18, color: scheme.onSecondaryContainer)
+          : Text(
+              initials,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: scheme.onSecondaryContainer,
+              ),
+            ),
     );
   }
 }
@@ -482,7 +667,7 @@ class _Notice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
       child: Text(
         text,
         style: Theme.of(context).textTheme.bodySmall?.copyWith(

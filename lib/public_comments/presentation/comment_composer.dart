@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 
 import '../../generated/locale_keys.g.dart';
 
-/// A text field that reveals a "Отправить" button *below* it once focused (per
-/// the spec). A focus toggle is the sanctioned use of local widget state.
+/// A pill-shaped text field that reveals a round send button beside it once
+/// focused. A focus toggle is the sanctioned use of local widget state.
 ///
 /// [focusRequestId] lets the parent move focus into this composer: whenever it
 /// changes to a new non-null value (bumped on each "Ответить" tap) the field
@@ -82,48 +82,72 @@ class _CommentComposerState extends State<CommentComposer> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final showSend = _focused || _controller.text.trim().isNotEmpty;
     return TextFieldTapRegion(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          TextField(
-            controller: _controller,
-            focusNode: _focus,
-            minLines: 1,
-            maxLines: 4,
-            maxLength: 1000,
-            buildCounter: (_, {required currentLength, maxLength, required isFocused}) => null,
-            inputFormatters: [LengthLimitingTextInputFormatter(1000)],
-            onChanged: (_) => setState(() {}),
-            // Any tap outside the composer closes the keyboard and releases the
-            // field, on every platform.
-            onTapOutside: (_) => _focus.unfocus(),
-            decoration: InputDecoration(
-              hintText: widget.hint,
-              isDense: widget.dense,
-              border: const OutlineInputBorder(),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              focusNode: _focus,
+              minLines: 1,
+              maxLines: 4,
+              maxLength: 1000,
+              buildCounter:
+                  (
+                    _, {
+                    required currentLength,
+                    maxLength,
+                    required isFocused,
+                  }) => null,
+              inputFormatters: [LengthLimitingTextInputFormatter(1000)],
+              onChanged: (_) => setState(() {}),
+              // Any tap outside the composer closes the keyboard and releases
+              // the field, on every platform.
+              onTapOutside: (_) => _focus.unfocus(),
+              decoration: InputDecoration(
+                hintText: widget.hint,
+                isDense: true,
+                filled: true,
+                fillColor: scheme.surfaceContainerHigh,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(21),
+                  borderSide: BorderSide.none,
+                ),
+              ),
             ),
           ),
           if (showSend)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Align(
-                alignment: Alignment.centerRight,
-                child: widget.submitting
-                    ? const Padding(
-                        padding: EdgeInsets.all(8),
-                        child: SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : FilledButton(
-                        onPressed: _submit,
-                        child: Text(LocaleKeys.comments_send.tr()),
+              padding: const EdgeInsets.only(left: 10),
+              child: widget.submitting
+                  ? const SizedBox(
+                      height: 42,
+                      width: 42,
+                      child: Padding(
+                        padding: EdgeInsets.all(11),
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       ),
-              ),
+                    )
+                  : FilledButton(
+                      style: FilledButton.styleFrom(
+                        shape: const CircleBorder(),
+                        fixedSize: const Size(42, 42),
+                        minimumSize: const Size(42, 42),
+                        padding: EdgeInsets.zero,
+                      ),
+                      onPressed: _submit,
+                      child: Tooltip(
+                        message: LocaleKeys.comments_send.tr(),
+                        child: const Icon(Icons.send, size: 18),
+                      ),
+                    ),
             ),
         ],
       ),
