@@ -1,8 +1,10 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di.dart';
 import '../../../../feature_flags/domain/app_feature.dart';
+import '../../../../generated/locale_keys.g.dart';
 import '../../../../feature_flags/state_management/feature_flags_bloc.dart';
 import '../../../../public_comments/presentation/public_comments_widget.dart';
 import '../../../../public_comments/state_management/comment_count_bloc.dart';
@@ -171,11 +173,16 @@ Tab _tabFor(BuildContext context, AppFeature feature) {
   final spec = _specFor(feature);
   // The public-comments tab carries a badge with the number of top-level
   // comments (hidden when zero); the rest are plain icons.
+  final scheme = Theme.of(context).colorScheme;
   final Widget icon = feature == AppFeature.publicQuestionComments
       ? BlocBuilder<CommentCountBloc, CommentCountState>(
           builder: (context, state) => Badge.count(
             count: state.count,
             isLabelVisible: state.count > 0,
+            // A neutral badge instead of the default error-red, so the count
+            // reads as informational rather than an alert.
+            backgroundColor: scheme.secondaryContainer,
+            textColor: scheme.onSecondaryContainer,
             child: Icon(spec.icon),
           ),
         )
@@ -263,7 +270,7 @@ class _ComingSoon extends StatelessWidget {
           Text(spec.label, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
           const SizedBox(height: 4),
           Text(
-            'Ускоро доступно',
+            LocaleKeys.questionTabs_comingSoon.tr(),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
@@ -282,9 +289,13 @@ class _TabSpec {
 }
 
 _TabSpec _specFor(AppFeature feature) => switch (feature) {
-  AppFeature.questionComments => const _TabSpec(Icons.menu_book_outlined, 'Објашњење'),
-  AppFeature.publicQuestionComments => const _TabSpec(Icons.forum_outlined, 'Дискусија'),
-  AppFeature.questionAnalysis => const _TabSpec(Icons.insights_outlined, 'Анализа'),
-  AppFeature.askAi => const _TabSpec(Icons.auto_awesome_outlined, 'Питај AI'),
+  AppFeature.questionComments =>
+    _TabSpec(Icons.menu_book_outlined, LocaleKeys.questionTabs_explanation.tr()),
+  AppFeature.publicQuestionComments =>
+    _TabSpec(Icons.forum_outlined, LocaleKeys.questionTabs_discussion.tr()),
+  AppFeature.questionAnalysis =>
+    _TabSpec(Icons.insights_outlined, LocaleKeys.questionTabs_analysis.tr()),
+  AppFeature.askAi =>
+    _TabSpec(Icons.auto_awesome_outlined, LocaleKeys.questionTabs_askAi.tr()),
   _ => const _TabSpec(Icons.info_outline, ''),
 };

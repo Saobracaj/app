@@ -1,8 +1,10 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
+import '../../generated/locale_keys.g.dart';
 import '../../profile/presentation/display_name_dialog.dart';
 import '../models/public_comment.dart';
 import '../state_management/comments_bloc.dart';
@@ -78,17 +80,17 @@ class _CommentsBody extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: _Composer(
-              hint: 'Написать комментарий',
+              hint: LocaleKeys.comments_write.tr(),
               submitting: state.submitting,
               onSubmit: (text) => _submitComment(context, state, text),
             ),
           )
         else if (state.isBanned)
-          const _Notice('Вы не можете оставлять комментарии.'),
+          _Notice(LocaleKeys.comments_banned.tr()),
         if (state.comments.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-            child: Text('Пока нет комментариев. Будьте первым!'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: Text(LocaleKeys.comments_empty.tr()),
           )
         else
           ...state.comments.map(
@@ -109,7 +111,7 @@ class _CommentsBody extends StatelessWidget {
                     )
                   : OutlinedButton(
                       onPressed: () => bloc.add(CommentsLoadMore()),
-                      child: const Text('Показать ещё'),
+                      child: Text(LocaleKeys.comments_showMore.tr()),
                     ),
             ),
           ),
@@ -141,7 +143,9 @@ class _TopLevelComment extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _AuthorLine(comment: comment),
+          // Delete for a top-level comment lives in the actions row below (next
+          // to the subscribe toggle), not on the author line.
+          _AuthorLine(comment: comment, showDelete: false),
           const SizedBox(height: 4),
           Text(comment.body),
           const SizedBox(height: 4),
@@ -150,14 +154,16 @@ class _TopLevelComment extends StatelessWidget {
               _LikeButton(comment: comment),
               const SizedBox(width: 8),
               TextButton.icon(
-                onPressed: () => _showReplySheet(context, bloc),
+                onPressed: () => bloc.add(ReplyFocusRequested(comment.id)),
                 icon: const Icon(Icons.reply, size: 18),
-                label: const Text('Ответить'),
+                label: Text(LocaleKeys.comments_reply.tr()),
                 style: TextButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                 ),
               ),
               const Spacer(),
+              if (comment.deletableByMe)
+                _DeleteButton(comment: comment),
               if (state.isAuthenticated)
                 _SubscriptionToggle(comment: comment),
             ],
@@ -176,7 +182,10 @@ class _TopLevelComment extends StatelessWidget {
                         visualDensity: VisualDensity.compact,
                         padding: EdgeInsets.zero,
                       ),
-                      child: Text('Показать предыдущие ($hiddenCount)'),
+                      child: Text(
+                        LocaleKeys.comments_showPrevious
+                            .tr(args: ['$hiddenCount']),
+                      ),
                     ),
                   ...visibleReplies.map((r) => _ReplyTile(reply: r)),
                 ],
@@ -186,9 +195,14 @@ class _TopLevelComment extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: 16, top: 4),
               child: _Composer(
-                hint: 'Ответить',
+                hint: LocaleKeys.comments_reply.tr(),
                 dense: true,
                 submitting: state.submitting,
+                // Focus this composer when the user taps "Ответить" on this
+                // top-level comment.
+                focusRequestId: state.replyFocusTarget == comment.id
+                    ? state.replyFocusRequestId
+                    : null,
                 onSubmit: (text) =>
                     _submitComment(context, state, text, parentId: comment.id),
               ),
@@ -197,12 +211,6 @@ class _TopLevelComment extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  void _showReplySheet(BuildContext context, CommentsBloc bloc) {
-    // Focus the thread's inline composer by expanding older replies (keeps the
-    // field visible) — the composer itself lives under the replies.
-    if (comment.replies.length > 3) bloc.add(RepliesExpanded(comment.id));
   }
 }
 
@@ -233,9 +241,14 @@ class _ReplyTile extends StatelessWidget {
 /// Display name + relative time, with a delete affordance for the caller's own
 /// comments (and for moderators).
 class _AuthorLine extends StatelessWidget {
-  const _AuthorLine({required this.comment});
+  const _AuthorLine({required this.comment, this.showDelete = true});
 
   final PublicComment comment;
+
+  /// Whether to render the inline delete affordance on this line. Top-level
+  /// comments set this to `false` — their delete control lives in the actions
+  /// row instead (next to the subscribe toggle).
+  final bool showDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -245,7 +258,7 @@ class _AuthorLine extends StatelessWidget {
         Flexible(
           child: Text(
             comment.authorDisplayName.isEmpty
-                ? 'Аноним'
+                ? LocaleKeys.comments_anonymous.tr()
                 : comment.authorDisplayName,
             style: theme.textTheme.bodyMedium
                 ?.copyWith(fontWeight: FontWeight.w600),
@@ -258,19 +271,35 @@ class _AuthorLine extends StatelessWidget {
           style: theme.textTheme.bodySmall
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
-        if (comment.deletableByMe) ...[
+        if (showDelete && comment.deletableByMe) ...[
           const Spacer(),
-          InkResponse(
-            onTap: () => _confirmDelete(context),
-            radius: 18,
-            child: Icon(
-              Icons.delete_outline,
-              size: 18,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
+          _DeleteButton(comment: comment),
         ],
       ],
+    );
+  }
+}
+
+/// Delete affordance for a comment the caller may remove (their own, or any
+/// comment for a moderator). Confirms before dispatching the delete.
+class _DeleteButton extends StatelessWidget {
+  const _DeleteButton({required this.comment});
+
+  final PublicComment comment;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkResponse(
+      onTap: () => _confirmDelete(context),
+      radius: 18,
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Icon(
+          Icons.delete_outline,
+          size: 18,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 
@@ -279,15 +308,15 @@ class _AuthorLine extends StatelessWidget {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Удалить комментарий?'),
+        title: Text(LocaleKeys.comments_deleteTitle.tr()),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Отмена'),
+            child: Text(LocaleKeys.comments_cancel.tr()),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Удалить'),
+            child: Text(LocaleKeys.comments_delete.tr()),
           ),
         ],
       ),
@@ -308,7 +337,9 @@ class _LikeButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final liked = comment.likedByMe;
-    final color = liked ? Colors.red : scheme.onSurfaceVariant;
+    // Use the theme's palette (accent) for the "liked" state rather than a
+    // hardcoded red, so likes follow the app's colour scheme.
+    final color = liked ? scheme.primary : scheme.onSurfaceVariant;
     return InkResponse(
       onTap: () => context.read<CommentsBloc>().add(CommentLikeToggled(comment)),
       radius: 20,
@@ -366,7 +397,9 @@ class _SubscriptionToggle extends StatelessWidget {
     final subscribed = comment.subscribedByMe;
     final scheme = Theme.of(context).colorScheme;
     return Tooltip(
-      message: subscribed ? 'Вы подписаны на ответы' : 'Подписаться на ответы',
+      message: subscribed
+          ? LocaleKeys.comments_subscribedTooltip.tr()
+          : LocaleKeys.comments_subscribeTooltip.tr(),
       child: InkResponse(
         radius: 20,
         onTap: () => context
@@ -387,14 +420,19 @@ class _SubscriptionToggle extends StatelessWidget {
   }
 }
 
-/// A text field that reveals a "Отправить" button once focused (per the spec).
-/// A focus toggle is the sanctioned use of local widget state.
+/// A text field that reveals a "Отправить" button *below* it once focused (per
+/// the spec). A focus toggle is the sanctioned use of local widget state.
+///
+/// [focusRequestId] lets the parent move focus into this composer: whenever it
+/// changes to a new non-null value (bumped on each "Ответить" tap) the field
+/// requests focus.
 class _Composer extends StatefulWidget {
   const _Composer({
     required this.hint,
     required this.onSubmit,
     this.submitting = false,
     this.dense = false,
+    this.focusRequestId,
   });
 
   final String hint;
@@ -405,6 +443,7 @@ class _Composer extends StatefulWidget {
   final Future<bool> Function(String) onSubmit;
   final bool submitting;
   final bool dense;
+  final int? focusRequestId;
 
   @override
   State<_Composer> createState() => _ComposerState();
@@ -419,6 +458,17 @@ class _ComposerState extends State<_Composer> {
   void initState() {
     super.initState();
     _focus.addListener(() => setState(() => _focused = _focus.hasFocus));
+  }
+
+  @override
+  void didUpdateWidget(covariant _Composer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A new focus request arrived (the user tapped "Ответить" on this thread) —
+    // move focus into the field.
+    if (widget.focusRequestId != null &&
+        widget.focusRequestId != oldWidget.focusRequestId) {
+      _focus.requestFocus();
+    }
   }
 
   @override
@@ -440,39 +490,43 @@ class _ComposerState extends State<_Composer> {
   @override
   Widget build(BuildContext context) {
     final showSend = _focused || _controller.text.trim().isNotEmpty;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.end,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(
-          child: TextField(
-            controller: _controller,
-            focusNode: _focus,
-            minLines: 1,
-            maxLines: 4,
-            maxLength: 1000,
-            buildCounter: (_, {required currentLength, maxLength, required isFocused}) => null,
-            inputFormatters: [LengthLimitingTextInputFormatter(1000)],
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              hintText: widget.hint,
-              isDense: widget.dense,
-              border: const OutlineInputBorder(),
-            ),
+        TextField(
+          controller: _controller,
+          focusNode: _focus,
+          minLines: 1,
+          maxLines: 4,
+          maxLength: 1000,
+          buildCounter: (_, {required currentLength, maxLength, required isFocused}) => null,
+          inputFormatters: [LengthLimitingTextInputFormatter(1000)],
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            hintText: widget.hint,
+            isDense: widget.dense,
+            border: const OutlineInputBorder(),
           ),
         ),
         if (showSend)
           Padding(
-            padding: const EdgeInsets.only(left: 8),
-            child: widget.submitting
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : FilledButton(
-                    onPressed: _submit,
-                    child: const Text('Отправить'),
-                  ),
+            padding: const EdgeInsets.only(top: 8),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: widget.submitting
+                  ? const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : FilledButton(
+                      onPressed: _submit,
+                      child: Text(LocaleKeys.comments_send.tr()),
+                    ),
+            ),
           ),
       ],
     );
@@ -517,18 +571,16 @@ Future<void> _offerSubscription(
   final agreed = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Подписаться на ответы?'),
-      content: const Text(
-        'Получайте уведомления о новых ответах в этой ветке.',
-      ),
+      title: Text(LocaleKeys.comments_subscribeTitle.tr()),
+      content: Text(LocaleKeys.comments_subscribeBody.tr()),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(ctx).pop(false),
-          child: const Text('Не сейчас'),
+          child: Text(LocaleKeys.comments_subscribeNotNow.tr()),
         ),
         FilledButton(
           onPressed: () => Navigator.of(ctx).pop(true),
-          child: const Text('Подписаться'),
+          child: Text(LocaleKeys.comments_subscribe.tr()),
         ),
       ],
     ),

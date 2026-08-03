@@ -23,8 +23,11 @@ abstract class CommentsState with _$CommentsState {
     @Default(false) bool isAuthenticated,
     UserProfile? profile,
     @Default(<String>{}) Set<String> expandedThreads,
-    // The top-level comment whose inline reply field is currently open, if any.
-    String? replyingTo,
+    // The top-level comment whose inline reply composer should take focus, set
+    // when the user taps "Ответить". [replyFocusRequestId] is bumped on every
+    // such tap so the target composer re-focuses even on repeated taps.
+    String? replyFocusTarget,
+    @Default(0) int replyFocusRequestId,
     // Transient: a comment the user just posted for which the UI should offer a
     // "subscribe to replies" dialog (cleared once the dialog is shown).
     PublicComment? subscriptionPromptFor,

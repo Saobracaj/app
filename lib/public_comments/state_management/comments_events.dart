@@ -56,3 +56,10 @@ class RepliesExpanded extends CommentsEvent {
   RepliesExpanded(this.topLevelId);
   final String topLevelId;
 }
+
+/// The user tapped "Ответить" on a top-level comment: move focus to that
+/// thread's inline reply composer (without expanding its replies).
+class ReplyFocusRequested extends CommentsEvent {
+  ReplyFocusRequested(this.topLevelId);
+  final String topLevelId;
+}
