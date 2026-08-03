@@ -8,6 +8,8 @@ import 'package:saobracaj/auth/presentation/reset_password_page.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_flags_page.dart';
 import 'package:saobracaj/theme/presentation/appearance_page.dart';
 import 'package:saobracaj/notifications/presentation/notifications_page.dart';
+import 'package:saobracaj/profile/presentation/display_name_page.dart';
+import 'package:saobracaj/public_comments/presentation/moderation_page.dart';
 import 'package:saobracaj/home/home_content_page.dart';
 import 'package:saobracaj/home_page.dart';
 import 'package:saobracaj/questions/questions_page.dart';
@@ -37,6 +39,9 @@ final routes = RouteMap(
           ),
         ),
     '/quest': questPage,
+    // Deep link to a single question's discussion:
+    // saobracaj://question/{id}?comments=1&thread={topCommentId}
+    '/question/:id': questCommentsPage,
     '/quest/zakon': zakonPage,
     '/quest/q': questPage,
     '/quest/q/zakon': zakonPage,
@@ -70,8 +75,26 @@ final routes = RouteMap(
     '/appearance': (_) => const MaterialPage(child: AppearancePage()),
     '/features': (_) => const MaterialPage(child: FeatureFlagsPage()),
     '/notifications': (_) => const MaterialPage(child: NotificationsPage()),
+    '/displayName': (_) => const MaterialPage(child: DisplayNamePage()),
+    '/moderation': (_) => const MaterialPage(child: ModerationPage()),
   },
 );
+
+/// Deep link into a single question opened straight on its discussion tab.
+/// Path: `/question/{id}`; query `comments=1` opens the comments tab and
+/// scrolls to it, `thread={topCommentId}` expands that thread.
+MaterialPage questCommentsPage(dynamic data) {
+  final id = int.tryParse(data.pathParameters['id'] as String? ?? '');
+  final comments = data.queryParameters['comments'];
+  return MaterialPage(
+    child: Quest(
+      options: StartTestState(random: false, randomOptionsOrder: false),
+      questions: id != null ? [id] : const <int>[],
+      openComments: comments == '1' || comments == 'true',
+      commentThreadId: data.queryParameters['thread'],
+    ),
+  );
+}
 
 var questPage = (data) {
   return MaterialPage(

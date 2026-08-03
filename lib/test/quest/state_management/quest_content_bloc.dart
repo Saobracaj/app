@@ -13,8 +13,17 @@ class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
   QuestContentBloc(
     Set<Choice> choices,
     Set<Choice> currentAnswers,
-    this.questionId,
-  ) : super(QuesContentState(choices: choices, selectedChoices: currentAnswers)) {
+    this.questionId, {
+    bool revealAnswers = false,
+  }) : super(
+         QuesContentState(
+           choices: choices,
+           selectedChoices: currentAnswers,
+           // Deep links into the discussion reveal the feature tabs (which host
+           // the comments) immediately, without requiring an attempt first.
+           showCorrectAnswers: revealAnswers,
+         ),
+       ) {
     on<AddChoice>(_onAddChoise);
     on<ShowCorrectAnswers>(_onShowCorrectAnswers);
     on<GetHistory>(_onGetHistory);

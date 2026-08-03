@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/di.dart';
 import '../../../../feature_flags/domain/app_feature.dart';
 import '../../../../feature_flags/state_management/feature_flags_bloc.dart';
+import '../../../../public_comments/presentation/public_comments_widget.dart';
+import '../../../../public_comments/state_management/comment_count_bloc.dart';
+import '../../../../public_comments/state_management/comment_count_events.dart';
+import '../../../../public_comments/state_management/comment_count_state.dart';
 import '../../comment/comment_widget/comment_widget.dart';
 import '../state_management/question_features_bloc.dart';
 import '../state_management/question_features_events.dart';
@@ -22,9 +27,21 @@ import '../state_management/question_features_state.dart';
 /// the question, when the backend has one in `Ready` status); the other tabs
 /// are placeholders until their features are built.
 class QuestionFeaturesTabs extends StatelessWidget {
-  const QuestionFeaturesTabs({super.key, required this.questionId});
+  const QuestionFeaturesTabs({
+    super.key,
+    required this.questionId,
+    this.initialFeature,
+    this.commentThreadId,
+    this.autoScroll = false,
+  });
 
   final int questionId;
+
+  /// Deep-link support: the tab to pre-select (e.g. the discussion), the thread
+  /// to expand inside it, and whether to scroll this panel into view on open.
+  final AppFeature? initialFeature;
+  final String? commentThreadId;
+  final bool autoScroll;
 
   /// The per-question features, in the order their tabs appear.
   static const _features = <AppFeature>[
@@ -40,24 +57,47 @@ class QuestionFeaturesTabs extends StatelessWidget {
     final visible = _features.where(flags.isEnabled).toList();
     if (visible.isEmpty) return const SizedBox.shrink();
 
-    return BlocProvider(
-      create: (_) => QuestionFeaturesBloc(),
+    // Honour a deep-linked initial tab only when that feature is actually
+    // visible to this user.
+    final initial =
+        (initialFeature != null && visible.contains(initialFeature))
+            ? initialFeature
+            : null;
+
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(create: (_) => QuestionFeaturesBloc(initial: initial)),
+        // The tab badge only needs the scalar top-level count; kept apart from
+        // the full comments Bloc scoped inside the discussion tab.
+        if (visible.contains(AppFeature.publicQuestionComments))
+          BlocProvider(
+            create: (_) => getIt<CommentCountBloc>(param1: questionId)
+              ..add(CommentCountRequested()),
+          ),
+      ],
       child: BlocBuilder<QuestionFeaturesBloc, QuestionFeaturesState>(
         builder: (context, state) {
           // Fall back to the first visible tab, and re-anchor if the previously
           // selected tab disappeared (e.g. the user logged out).
           final selected = (state.selected != null && visible.contains(state.selected)) ? state.selected! : visible.first;
-          return Column(
+          final column = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 8),
               _TabBar(features: visible, selected: selected),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: _TabContent(feature: selected, questionId: questionId),
+                child: _TabContent(
+                  feature: selected,
+                  questionId: questionId,
+                  commentThreadId: commentThreadId,
+                ),
               ),
             ],
           );
+          // On a deep link into the discussion, scroll this panel into view once
+          // it is laid out.
+          return autoScroll ? _EnsureVisibleOnce(child: column) : column;
         },
       ),
     );
@@ -121,35 +161,87 @@ class _TabBarState extends State<_TabBar> with SingleTickerProviderStateMixin {
       // Let the selection indicator span the full tab (≈1/n of the width)
       // rather than shrinking to the icon above it.
       indicatorSize: TabBarIndicatorSize.tab,
-      tabs: widget.features.map(_getTabForFeature).toList(),
+      tabs: widget.features.map((f) => _tabFor(context, f)).toList(),
       onTap: (index) => context.read<QuestionFeaturesBloc>().add(TabSelected(widget.features[index])),
     );
   }
 }
 
-Tab _getTabForFeature(AppFeature feature) {
+Tab _tabFor(BuildContext context, AppFeature feature) {
   final spec = _specFor(feature);
+  // The public-comments tab carries a badge with the number of top-level
+  // comments (hidden when zero); the rest are plain icons.
+  final Widget icon = feature == AppFeature.publicQuestionComments
+      ? BlocBuilder<CommentCountBloc, CommentCountState>(
+          builder: (context, state) => Badge.count(
+            count: state.count,
+            isLabelVisible: state.count > 0,
+            child: Icon(spec.icon),
+          ),
+        )
+      : Icon(spec.icon);
   // The tabs show only icons; the label is surfaced as a long-press tooltip.
-  return Tab(
-    icon: Tooltip(message: spec.label, child: Icon(spec.icon)),
-  );
+  return Tab(icon: Tooltip(message: spec.label, child: icon));
 }
 
 class _TabContent extends StatelessWidget {
-  const _TabContent({required this.feature, required this.questionId});
+  const _TabContent({
+    required this.feature,
+    required this.questionId,
+    this.commentThreadId,
+  });
 
   final AppFeature feature;
   final int questionId;
+  final String? commentThreadId;
 
   @override
   Widget build(BuildContext context) {
     switch (feature) {
       case AppFeature.questionComments:
         return CommentWidget(questionId: questionId);
+      case AppFeature.publicQuestionComments:
+        return PublicCommentsWidget(
+          questionId: questionId,
+          threadId: commentThreadId,
+        );
       default:
         return _ComingSoon(feature: feature);
     }
   }
+}
+
+/// Scrolls its [child] into view exactly once after the first layout — used to
+/// bring the discussion panel on screen when arriving via a deep link.
+class _EnsureVisibleOnce extends StatefulWidget {
+  const _EnsureVisibleOnce({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_EnsureVisibleOnce> createState() => _EnsureVisibleOnceState();
+}
+
+class _EnsureVisibleOnceState extends State<_EnsureVisibleOnce> {
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_done || !mounted) return;
+      _done = true;
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 400),
+        alignment: 0.1,
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Placeholder body for tabs whose feature is not implemented yet.

@@ -28,11 +28,18 @@ class Quest extends StatelessWidget {
     required this.questions,
     required this.options,
     this.subcategory,
+    this.openComments = false,
+    this.commentThreadId,
   });
 
   final List<int> questions;
   final StartTestState options;
   final String? subcategory;
+
+  /// Deep-link support: open straight into the discussion tab (revealing the
+  /// feature tabs) and, optionally, expand/scroll to a specific thread.
+  final bool openComments;
+  final String? commentThreadId;
 
   @override
   Widget build(BuildContext context) {
@@ -167,6 +174,8 @@ class Quest extends StatelessWidget {
                         last:
                             state.currentQuestionIndex ==
                             state.questions.length - 1,
+                        openComments: openComments,
+                        commentThreadId: commentThreadId,
                       ),
                     ],
                   ),
@@ -215,12 +224,19 @@ class QuestionContent extends StatelessWidget {
     required this.question,
     required this.answers,
     required this.last,
+    this.openComments = false,
+    this.commentThreadId,
   });
 
   final bool randomOptions;
   final Question question;
   final Set<Choice>? answers;
   final bool last;
+
+  /// Deep-link into the discussion for this question (reveal tabs + open the
+  /// comments tab and scroll to it).
+  final bool openComments;
+  final String? commentThreadId;
 
   @override
   Widget build(BuildContext context) {
@@ -237,8 +253,12 @@ class QuestionContent extends StatelessWidget {
       key: ValueKey(question.id),
       providers: [
         BlocProvider(
-          create: (context) =>
-              QuestContentBloc(choices.toSet(), answers ?? {}, question.id),
+          create: (context) => QuestContentBloc(
+            choices.toSet(),
+            answers ?? {},
+            question.id,
+            revealAnswers: openComments,
+          ),
         ),
       ],
       child: BlocBuilder<QuestContentBloc, QuesContentState>(
@@ -390,7 +410,14 @@ class QuestionContent extends StatelessWidget {
                     // ObyezdAnimacija2(),
                     // BlockedRoadScene(),
                     if (state.showCorrectAnswers)
-                      QuestionFeaturesTabs(questionId: question.id),
+                      QuestionFeaturesTabs(
+                        questionId: question.id,
+                        initialFeature: openComments
+                            ? AppFeature.publicQuestionComments
+                            : null,
+                        commentThreadId: openComments ? commentThreadId : null,
+                        autoScroll: openComments,
+                      ),
                   ],
                 ),
               );
