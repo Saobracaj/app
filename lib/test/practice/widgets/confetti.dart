@@ -40,7 +40,7 @@ class _ConfettiDemoState extends State<ConfettiDemo> {
             maxBlastForce: 20,
             minBlastForce: 5,
             gravity: 0.1,
-            shouldLoop: true,
+            shouldLoop: false,
           ),
         ),
         Align(
@@ -53,7 +53,7 @@ class _ConfettiDemoState extends State<ConfettiDemo> {
             maxBlastForce: 20,
             minBlastForce: 5,
             gravity: 0.1,
-            shouldLoop: true,
+            shouldLoop: false,
           ),
         ),Align(
           alignment: Alignment.topRight,
@@ -65,7 +65,7 @@ class _ConfettiDemoState extends State<ConfettiDemo> {
             maxBlastForce: 20,
             minBlastForce: 5,
             gravity: 0.1,
-            shouldLoop: true,
+            shouldLoop: false,
           ),
         ),
       ],
