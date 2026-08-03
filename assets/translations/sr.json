@@ -43,7 +43,27 @@
             "okButton": "Заврши"
         },
         "previousTries": "Претходни покушаји",
-        "noPreviousTries": "Раније нисте одговарали на ово питање"
+        "noPreviousTries": "Раније нисте одговарали на ово питање",
+        "title": "Питање {} / {}",
+        "points": {
+            "one": "{} поен",
+            "few": "{} поена",
+            "other": "{} поена"
+        },
+        "pointsLong": "Број поена: {}",
+        "navigatorQuestion": "Питање {}",
+        "requiredAnswers": {
+            "one": "Потребан {} одговор",
+            "few": "Потребна {} одговора",
+            "other": "Потребно {} одговора"
+        },
+        "wrongAnswerCount": "Нисте означили потребан број одговора",
+        "showAnswer": "Прикажи одговор",
+        "next": "Следеће",
+        "finish": "Заврши тест",
+        "ruToggle": "РУ",
+        "share": "Подели питање",
+        "linkCopied": "Линк је копиран"
     },
     "auth": {
         "loginNav": "Пријава",
@@ -158,7 +178,10 @@
         "discussion": "Дискусија",
         "analysis": "Анализа",
         "askAi": "Питај AI",
-        "comingSoon": "Ускоро доступно"
+        "comingSoon": "Ускоро доступно",
+        "attemptCorrect": "тачно",
+        "attemptWrong": "нетачно",
+        "analysisSummary": "Тачно у {} од {} покушаја"
     },
     "comments": {
         "write": "Напишите коментар",

@@ -43,7 +43,29 @@
             "okButton": "Завершить"
         },
         "previousTries": "Предыдущие попытки",
-        "noPreviousTries": "Вы ранее не отвечали на этот вопрос"
+        "noPreviousTries": "Вы ранее не отвечали на этот вопрос",
+        "title": "Вопрос {} / {}",
+        "points": {
+            "one": "{} балл",
+            "few": "{} балла",
+            "many": "{} баллов",
+            "other": "{} балла"
+        },
+        "pointsLong": "Баллов: {}",
+        "navigatorQuestion": "Вопрос {}",
+        "requiredAnswers": {
+            "one": "Нужен {} ответ",
+            "few": "Нужны {} ответа",
+            "many": "Нужно {} ответов",
+            "other": "Нужно {} ответа"
+        },
+        "wrongAnswerCount": "Отмечено не то количество ответов",
+        "showAnswer": "Показать ответ",
+        "next": "Далее",
+        "finish": "Завершить тест",
+        "ruToggle": "РУ",
+        "share": "Поделиться вопросом",
+        "linkCopied": "Ссылка скопирована"
     },
     "auth": {
         "loginNav": "Войти",
@@ -158,7 +180,10 @@
         "discussion": "Обсуждение",
         "analysis": "Анализ",
         "askAi": "Спросить AI",
-        "comingSoon": "Скоро будет доступно"
+        "comingSoon": "Скоро будет доступно",
+        "attemptCorrect": "верно",
+        "attemptWrong": "неверно",
+        "analysisSummary": "Верно в {} из {} попыток"
     },
     "comments": {
         "write": "Написать комментарий",

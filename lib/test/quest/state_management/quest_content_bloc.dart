@@ -1,12 +1,11 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
-import 'package:saobracaj/db/dependencies.dart';
 import 'package:saobracaj/models/models.dart';
 
 part 'quest_content_bloc.freezed.dart';
 
-/// Per-question state for the exam ("quest") flow: which choices are selected,
-/// whether the correct answers are revealed, and the previous-attempts strip.
+/// Per-question state for the exam ("quest") flow: which choices are selected
+/// and whether the correct answers are revealed.
 class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
   final int questionId;
 
@@ -26,8 +25,6 @@ class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
        ) {
     on<AddChoice>(_onAddChoise);
     on<ShowCorrectAnswers>(_onShowCorrectAnswers);
-    on<GetHistory>(_onGetHistory);
-    add(GetHistory());
   }
 
   void _onAddChoise(AddChoice event, Emitter<QuesContentState> emit) {
@@ -52,15 +49,6 @@ class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
   ) {
     emit(state.copyWith(showCorrectAnswers: true));
   }
-
-  void _onGetHistory(GetHistory event, Emitter<QuesContentState> emit) async {
-    final res = await repository.getAnswersByQuestionId(questionId);
-    final arr = <bool>[];
-    for (var r in res) {
-      arr.add(r.isWrong);
-    }
-    emit(state.copyWith(previousTries: arr));
-  }
 }
 
 sealed class QuestContentEvent {}
@@ -73,14 +61,11 @@ class AddChoice extends QuestContentEvent {
 
 class ShowCorrectAnswers extends QuestContentEvent {}
 
-class GetHistory extends QuestContentEvent {}
-
 @freezed
 sealed class QuesContentState with _$QuesContentState {
   const factory QuesContentState({
     @Default({}) Set<Choice> choices,
     @Default({}) Set<Choice> selectedChoices,
     @Default(false) bool showCorrectAnswers,
-    @Default([]) List<bool> previousTries,
   }) = _QuesContentState;
 }

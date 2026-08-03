@@ -1,5 +1,7 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
+import '../../../generated/locale_keys.g.dart';
 import '../../../theme/quiz_colors.dart';
 
 /// How one question of the current run has turned out so far.
@@ -73,8 +75,12 @@ class _QuestionNavigator extends StatelessWidget {
         return ListTile(
           selected: isCurrent,
           leading: _StatusDot(status: entry.status),
-          title: Text('Питање ${entry.number}'),
-          subtitle: Text('Број поена: ${entry.points}'),
+          title: Text(
+            LocaleKeys.quest_navigatorQuestion.tr(args: ['${entry.number}']),
+          ),
+          subtitle: Text(
+            LocaleKeys.quest_pointsLong.tr(args: ['${entry.points}']),
+          ),
           trailing: isCurrent ? const Icon(Icons.arrow_right_alt) : null,
           onTap: () => Navigator.of(context).pop(entry.questionId),
         );

@@ -8,6 +8,7 @@ import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 
 // ignore: depend_on_referenced_packages
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:saobracaj/purchase/state_management/purchase_bloc.dart';
 
 import 'auth/data/auth_repository.dart';
@@ -33,6 +34,9 @@ void main() async {
   usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
+  // DateFormat throws for sr/ru until their symbol tables are loaded;
+  // easy_localization does not do this on its own.
+  await initializeDateFormatting();
   configureDependencies();
   await initFirebase();
   // Instantiate the session holder before anything issues an authenticated

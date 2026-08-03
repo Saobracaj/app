@@ -43,7 +43,25 @@
             "okButton": "Finish"
         },
         "previousTries": "Previous Attempts",
-        "noPreviousTries": "You haven't answered this question before"
+        "noPreviousTries": "You haven't answered this question before",
+        "title": "Question {} / {}",
+        "points": {
+            "one": "{} point",
+            "other": "{} points"
+        },
+        "pointsLong": "Points: {}",
+        "navigatorQuestion": "Question {}",
+        "requiredAnswers": {
+            "one": "{} answer required",
+            "other": "{} answers required"
+        },
+        "wrongAnswerCount": "You haven’t selected the required number of answers",
+        "showAnswer": "Show answer",
+        "next": "Next",
+        "finish": "Finish test",
+        "ruToggle": "RU",
+        "share": "Share question",
+        "linkCopied": "Link copied"
     },
     "auth": {
         "loginNav": "Log in",
@@ -158,7 +176,10 @@
         "discussion": "Discussion",
         "analysis": "Analysis",
         "askAi": "Ask AI",
-        "comingSoon": "Coming soon"
+        "comingSoon": "Coming soon",
+        "attemptCorrect": "correct",
+        "attemptWrong": "wrong",
+        "analysisSummary": "Correct in {} of {} attempts"
     },
     "comments": {
         "write": "Write a comment",
