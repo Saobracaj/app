@@ -148,6 +148,43 @@ void main() {
 
       expect(state.expandedThreads, contains('7'));
     });
+
+    test('крестик на чипе сбрасывает цель ответа', () async {
+      final built = _buildBloc(_comment());
+      built.bloc.add(ReplyFocusRequested('7'));
+      await built.bloc.stream.firstWhere((s) => s.replyFocusTarget != null);
+      built.bloc.add(ReplyTargetCleared());
+      final state = await built.bloc.stream
+          .firstWhere((s) => s.replyFocusTarget == null);
+
+      // Счётчик фокуса не трогаем — чистится только цель.
+      expect(state.replyFocusRequestId, 1);
+    });
+
+    test('успешная отправка сбрасывает цель ответа', () async {
+      final built = _buildBloc(_comment());
+      built.bloc.add(ReplyFocusRequested('1'));
+      await built.bloc.stream.firstWhere((s) => s.replyFocusTarget != null);
+      built.bloc.add(CommentSubmitted('привет', parentId: '1'));
+      final state = await built.bloc.stream.firstWhere(
+        (s) => s.comments.isNotEmpty && !s.submitting,
+      );
+
+      expect(state.replyFocusTarget, isNull);
+      // Тред, куда лёг ответ, раскрыт.
+      expect(state.expandedThreads, contains('1'));
+    });
+  });
+
+  group('Жалоба на комментарий (UI-состояние сессии)', () {
+    test('подтверждённая жалоба запоминается в reportedIds', () async {
+      final built = _buildBloc(_comment());
+      built.bloc.add(CommentReported('9'));
+      final state = await built.bloc.stream
+          .firstWhere((s) => s.reportedIds.isNotEmpty);
+
+      expect(state.reportedIds, {'9'});
+    });
   });
 
   group('Предложение подписаться на ответы', () {

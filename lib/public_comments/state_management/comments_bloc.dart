@@ -48,6 +48,8 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
     on<SubscriptionPromptDismissed>(_onPromptDismissed);
     on<RepliesExpanded>(_onRepliesExpanded);
     on<ReplyFocusRequested>(_onReplyFocusRequested);
+    on<ReplyTargetCleared>(_onReplyTargetCleared);
+    on<CommentReported>(_onReported);
   }
 
   final PublicCommentsRepository _comments;
@@ -73,7 +75,12 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
     Emitter<CommentsState> emit,
   ) async {
     final authed = _isAuthenticated;
-    emit(state.copyWith(isAuthenticated: authed));
+    emit(
+      state.copyWith(
+        isAuthenticated: authed,
+        viewerId: _authBloc.state.viewer?.id,
+      ),
+    );
     if (authed) {
       try {
         emit(state.copyWith(profile: await _profiles.myProfile()));
@@ -165,11 +172,18 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
         parentId: event.parentId,
         body: event.body,
       );
-      // Reveal the thread the reply landed in so the new reply is visible.
+      // Reveal the thread the reply landed in so the new reply is visible, and
+      // clear the pinned composer's reply target — it has been consumed.
       final expanded = event.parentId == null
           ? state.expandedThreads
           : {...state.expandedThreads, event.parentId!};
-      emit(state.copyWith(submitting: false, expandedThreads: expanded));
+      emit(
+        state.copyWith(
+          submitting: false,
+          expandedThreads: expanded,
+          replyFocusTarget: null,
+        ),
+      );
       await _loadFirstPage(emit);
       // Reply-subscription handling: only bother the user with the offer dialog
       // when they have no reply subscription set up yet. If they already
@@ -380,6 +394,17 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
         replyFocusRequestId: state.replyFocusRequestId + 1,
       ),
     );
+  }
+
+  void _onReplyTargetCleared(
+    ReplyTargetCleared event,
+    Emitter<CommentsState> emit,
+  ) {
+    emit(state.copyWith(replyFocusTarget: null));
+  }
+
+  void _onReported(CommentReported event, Emitter<CommentsState> emit) {
+    emit(state.copyWith(reportedIds: {...state.reportedIds, event.id}));
   }
 
   /// Subscribe to [created]'s thread without prompting (used when the user has

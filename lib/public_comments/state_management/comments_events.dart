@@ -57,9 +57,19 @@ class RepliesExpanded extends CommentsEvent {
   final String topLevelId;
 }
 
-/// The user tapped "Ответить" on a top-level comment: move focus to that
-/// thread's inline reply composer (without expanding its replies).
+/// The user chose "reply" on a comment: target the pinned composer at that
+/// thread and move focus into it (without expanding the thread's replies).
 class ReplyFocusRequested extends CommentsEvent {
   ReplyFocusRequested(this.topLevelId);
   final String topLevelId;
+}
+
+/// Clear the pinned composer's reply target (the × on the "replying to" chip).
+class ReplyTargetCleared extends CommentsEvent {}
+
+/// The user confirmed a report of a comment. UI-only while the backend has no
+/// reportComment mutation: remembers the id so the menu shows it as reported.
+class CommentReported extends CommentsEvent {
+  CommentReported(this.id);
+  final String id;
 }
