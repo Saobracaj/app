@@ -368,7 +368,7 @@ class _QuestionContent extends StatelessWidget {
                     Container(
                       width: double.infinity,
                       padding: EdgeInsets.all(16),
-                      child: ElevatedButton(
+                      child: FilledButton(
                         onPressed: last ? null : () => _saveAndLoadNext(true, context, state, params),
                         child: Text(ExamStrings.nextQuestion),
                       ),
@@ -376,7 +376,7 @@ class _QuestionContent extends StatelessWidget {
                   if (last && !params.buttonsLikeInExam)
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: OutlinedButton(onPressed: () async => await _finalizeTest(context, state, params), child: Text(ExamStrings.endExam)),
+                      child: FilledButton(onPressed: () async => await _finalizeTest(context, state, params), child: Text(ExamStrings.endExam)),
                     ),
                   SizedBox(height: 16),
                   if (!params.buttonsLikeInExam && params.showRightAnswers)

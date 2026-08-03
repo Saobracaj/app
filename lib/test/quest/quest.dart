@@ -25,6 +25,7 @@ import 'package:saobracaj/util/nav_to_url.dart';
 import 'package:collection/collection.dart';
 
 import 'finalize_test.dart';
+import 'presentation/question_navigator_sheet.dart';
 import 'question_features/presentation/question_features_tabs.dart';
 
 class Quest extends StatelessWidget {
@@ -70,6 +71,12 @@ class Quest extends StatelessWidget {
           child: BlocBuilder<QuestBloc, QuestState>(
             builder: (context, state) {
               final questBloc = context.read<QuestBloc>();
+              // One description of the run, shared by the progress strip and
+              // the navigator sheet so they cannot drift apart.
+              final entries = [
+                for (var i = 0; i < state.questions.length; i++)
+                  _entryFor(state, qs, i),
+              ];
               if (state.finalizeTest) {
                 context.read<AllQuestionsBloc>().add(LoadStatistics());
                 // The answers just recorded change the automatic
@@ -83,91 +90,65 @@ class Quest extends StatelessWidget {
                 ),
                 create: (context) => TranslationsBloc(),
                 child: Scaffold(
+                  // A ListTile used to stand in for the title, which overrode
+                  // the app bar's own typography and height. The counter and
+                  // the score are a plain two-line title; the controls are
+                  // real app-bar actions.
                   appBar: AppBar(
-                    title: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(
-                        'Питање: ${state.currentQuestionIndex + 1} / ${questions.length}',
-                      ),
-                      subtitle: Text(
-                        'Број поена: ${qs.firstWhere((element) => element.id == state.questions[state.currentQuestionIndex]).points}',
-                        style: TextStyle(
-                          color: Theme.of(context).quiz.info,
-                          fontStyle: FontStyle.italic,
+                    title: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Питање: ${state.currentQuestionIndex + 1} / ${questions.length}',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        Text(
+                          'Број поена: ${qs.firstWhere((element) => element.id == state.questions[state.currentQuestionIndex]).points}',
+                          style: Theme.of(context).textTheme.labelMedium
+                              ?.copyWith(color: Theme.of(context).quiz.info),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      FeatureGate(
+                        feature: AppFeature.russianContent,
+                        child: Builder(
+                          builder: (context) => IconButton(
+                            onPressed: () => context
+                                .read<TranslationsBloc>()
+                                .add(ToggleShowTranslation()),
+                            icon: Icon(Icons.translate_outlined),
+                          ),
                         ),
                       ),
-
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          FeatureGate(
-                            feature: AppFeature.russianContent,
-                            child: Builder(
-                              builder: (context) => IconButton(
-                                onPressed: () => context
-                                    .read<TranslationsBloc>()
-                                    .add(ToggleShowTranslation()),
-                                icon: Icon(Icons.translate_outlined),
-                              ),
-                            ),
-                          ),
-                          // Ticking lists here keeps the menu open — see
-                          // AddToListsButton.
-                          AddToListsButton(
-                            questionId:
-                                state.questions[state.currentQuestionIndex],
-                          ),
-                        ],
+                      // Ticking lists here keeps the menu open — see
+                      // AddToListsButton.
+                      AddToListsButton(
+                        questionId: state.questions[state.currentQuestionIndex],
                       ),
-                    ),
+                    ],
                   ),
                   body: ListView(
                     children: [
+                      // A read-only progress strip. It used to double as a
+                      // navigation control, but an 8dp dot is far below the
+                      // minimum tap target — jumping to a question now goes
+                      // through the navigator sheet in the bottom bar.
                       Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Wrap(
                           spacing: 2,
                           runSpacing: 2,
-                          children: state.questions.map((e) {
-                            final quiz = Theme.of(context).quiz;
-                            final isAnswered = state.answers[e] != null;
-                            final isCorrect = (setEquals(
-                              state.answers[e],
-                              qs
-                                  .firstWhere((element) => element.id == e)
-                                  .choices
-                                  .where((element) => element.isCorrect)
-                                  .toSet(),
-                            ));
-                            return InkWell(
-                              onTap: () => questBloc.add(MoveToQuestion(e)),
-                              child: AnimatedContainer(
-                                duration: Duration(milliseconds: 100),
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  color: !isAnswered
-                                      ? quiz.unanswered
-                                      : (isCorrect ? quiz.correct : quiz.wrong),
-                                  borderRadius: BorderRadius.circular(20),
-                                  // The "you are here" ring has to stay visible
-                                  // on both themes — a fixed black one vanished
-                                  // against the dark surface.
-                                  border:
-                                      state.questions[state
-                                              .currentQuestionIndex] ==
-                                          e
-                                      ? Border.all(
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onSurface,
-                                          width: 2,
-                                        )
-                                      : null,
-                                ),
+                          children: [
+                            for (final entry in entries)
+                              _ProgressDot(
+                                entry: entry,
+                                isCurrent:
+                                    entry.questionId ==
+                                    state.questions[state.currentQuestionIndex],
                               ),
-                            );
-                          }).toList(),
+                          ],
                         ),
                       ),
                       /*Padding(
@@ -228,6 +209,22 @@ class Quest extends StatelessWidget {
                                   },
                             icon: Icon(Icons.arrow_forward_ios_outlined),
                           ),
+                          Spacer(),
+                          IconButton(
+                            tooltip: 'Питања',
+                            onPressed: () async {
+                              final picked = await showQuestionNavigator(
+                                context,
+                                entries: entries,
+                                currentQuestionId: state.questions[state
+                                    .currentQuestionIndex],
+                              );
+                              if (picked != null) {
+                                questBloc.add(MoveToQuestion(picked));
+                              }
+                            },
+                            icon: Icon(Icons.format_list_numbered),
+                          ),
                         ],
                       ),
                     ),
@@ -238,6 +235,66 @@ class Quest extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Describes the question at [index] of the run: its number, its worth and
+/// whether it has been answered correctly yet.
+QuestionNavigatorEntry _entryFor(
+  QuestState state,
+  List<Question> qs,
+  int index,
+) {
+  final id = state.questions[index];
+  final question = qs.firstWhere((element) => element.id == id);
+  final given = state.answers[id];
+  final correct = question.choices
+      .where((element) => element.isCorrect)
+      .toSet();
+  return QuestionNavigatorEntry(
+    questionId: id,
+    number: index + 1,
+    points: question.points,
+    status: given == null
+        ? QuestionStatus.unanswered
+        : (setEquals(given, correct)
+              ? QuestionStatus.correct
+              : QuestionStatus.wrong),
+  );
+}
+
+/// One question in the progress strip above the question body.
+class _ProgressDot extends StatelessWidget {
+  const _ProgressDot({required this.entry, required this.isCurrent});
+
+  final QuestionNavigatorEntry entry;
+  final bool isCurrent;
+
+  @override
+  Widget build(BuildContext context) {
+    final quiz = Theme.of(context).quiz;
+    final color = switch (entry.status) {
+      QuestionStatus.unanswered => quiz.unanswered,
+      QuestionStatus.correct => quiz.correct,
+      QuestionStatus.wrong => quiz.wrong,
+    };
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 100),
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(20),
+        // The "you are here" ring has to stay visible on both themes — a fixed
+        // black one vanished against the dark surface.
+        border: isCurrent
+            ? Border.all(
+                color: Theme.of(context).colorScheme.onSurface,
+                width: 2,
+              )
+            : null,
+      ),
     );
   }
 }
@@ -303,7 +360,6 @@ class QuestionContent extends StatelessWidget {
                   children: [
                     QuestionTries(question.id),
                     SizedBox(height: 16),
-                    SelectableText(question.id.toString()),
                     ListTile(
                       title: QuestMarkdown(text: question.text.trim().dict),
                       subtitle:
@@ -389,7 +445,9 @@ class QuestionContent extends StatelessWidget {
                     Container(
                       width: double.infinity,
                       padding: EdgeInsets.all(8),
-                      child: OutlinedButton(
+                      // The primary action of the screen, so it is filled;
+                      // "reveal the answer" below stays a text button.
+                      child: FilledButton(
                         onPressed: last
                             ? null
                             : () => _closeTest(context, state),
@@ -399,7 +457,7 @@ class QuestionContent extends StatelessWidget {
                     if (last)
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: OutlinedButton(
+                        child: FilledButton(
                           onPressed: () async {
                             await _closeTest(context, state);
                             if (questBloc.state.answers.length !=

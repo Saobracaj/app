@@ -29,7 +29,7 @@ class StatisticsPage extends StatelessWidget {
                     children: [
                       Padding(
                         padding: const EdgeInsets.all(16.0),
-                        child: OutlinedButton(
+                        child: FilledButton(
                           onPressed: () {
                             Routemaster.of(context).push('/start?q=${state.questions.take(100).map((e) => e.id).join(',')}');
                           },

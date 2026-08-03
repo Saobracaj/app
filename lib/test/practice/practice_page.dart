@@ -56,7 +56,7 @@ class PracticePage extends StatelessWidget {
                             label: ExamStrings.confirmStart,
                             color: ExamPalette.header,
                           )
-                          : ElevatedButton(onPressed: () => onPressed(context, state), child: Text(LocaleKeys.simulation_start.tr())),
+                          : FilledButton(onPressed: () => onPressed(context, state), child: Text(LocaleKeys.simulation_start.tr())),
                 ),
                 if (state.records.isNotEmpty) ...[
                   Padding(
