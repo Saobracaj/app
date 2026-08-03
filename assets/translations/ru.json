@@ -22,7 +22,20 @@
         "points": "Набрано балов: {}",
         "errors": "Ошибок: {}",
         "close": "Закрыть",
-        "passErrors": "Пройти вопросы с ошибками"
+        "passErrors": "Пройти вопросы с ошибками",
+        "correct": "верно",
+        "errorsShort": "ошибки",
+        "time": "время",
+        "outOf": "из {}",
+        "threshold": "Порог — {} баллов.",
+        "sameTheme": "Все ошибки из одной темы.",
+        "yourErrors": "Ваши ошибки",
+        "reviewErrors": {
+            "one": "Разобрать {} ошибку",
+            "few": "Разобрать {} ошибки",
+            "many": "Разобрать {} ошибок",
+            "other": "Разобрать {} ошибки"
+        }
     },
     "info": {
         "contactsMarkdown": "#### Контакты для связи:\nEmail: [info@gleb.at](mailto:info@gleb.at)\n\nTelegram: [GlebKl](https://t.me/GlebKl)",

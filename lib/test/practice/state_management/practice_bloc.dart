@@ -113,8 +113,6 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
   }
 
   void _onFinalizeTest(FinalizeTest event, Emitter<PracticeState> emit) async {
-    emit(state.copyWith(finalizeTest: true));
-
     _timeSub?.cancel();
     _timeSub == null;
 
@@ -130,13 +128,25 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
         pointsSummary += q.points;
       }
     }
+    final elapsed = DateTime.now().difference(_startTime!).inSeconds;
+
+    // The result screen renders from these — the same numbers that go into
+    // the practice record below.
+    emit(
+      state.copyWith(
+        finalizeTest: true,
+        finalPoints: pointsSummary,
+        finalWrongQuestions: wrongAnswers,
+        elapsedSeconds: elapsed,
+      ),
+    );
 
     await repository.insertPracticeRecord(
       PracticeRecordsCompanion(
         points: Value(pointsSummary),
         time: Value(DateTime.now()),
         mistakes: Value(wrongAnswers.length),
-        durationSeconds: Value((DateTime.now().difference(_startTime!)).inSeconds),
+        durationSeconds: Value(elapsed),
         wrongAnswers: Value(wrongAnswers),
       ),
     );
@@ -222,6 +232,11 @@ sealed class PracticeState with _$PracticeState {
     @Default(0) int score,
     @Default(0) int possibleScore,
     @Default(false) bool finalizeTest,
+    // The authoritative final grading, set once at FinalizeTest: unanswered
+    // questions count as wrong here, unlike the running score above.
+    @Default(0) int finalPoints,
+    @Default(<int>[]) List<int> finalWrongQuestions,
+    int? elapsedSeconds,
     Question? currentQuestion,
     Set<Choice>? currentAnswers,
     @Default(_examDuration) Duration timeLeft,

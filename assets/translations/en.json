@@ -22,7 +22,18 @@
         "points": "Points scored: {}",
         "errors": "Errors: {}",
         "close": "Close",
-        "passErrors": "Go through the error questions"
+        "passErrors": "Go through the error questions",
+        "correct": "correct",
+        "errorsShort": "mistakes",
+        "time": "time",
+        "outOf": "of {}",
+        "threshold": "Pass mark is {} points.",
+        "sameTheme": "All mistakes are from the same topic.",
+        "yourErrors": "Your mistakes",
+        "reviewErrors": {
+            "one": "Review {} mistake",
+            "other": "Review {} mistakes"
+        }
     },
     "info": {
         "contactsMarkdown": "#### Contact Information:\nEmail: [info@gleb.at](mailto:info@gleb.at)\n\nTelegram: [GlebKl](https://t.me/GlebKl)",

@@ -22,7 +22,19 @@
         "points": "Освојено поена: {}",
         "errors": "Број грешака: {}",
         "close": "Затвори",
-        "passErrors": "Понови питања са грешкама"
+        "passErrors": "Понови питања са грешкама",
+        "correct": "тачно",
+        "errorsShort": "грешке",
+        "time": "време",
+        "outOf": "од {}",
+        "threshold": "Праг за пролаз је {} бодова.",
+        "sameTheme": "Све грешке су из исте области.",
+        "yourErrors": "Ваше грешке",
+        "reviewErrors": {
+            "one": "Прегледај {} грешку",
+            "few": "Прегледај {} грешке",
+            "other": "Прегледај {} грешака"
+        }
     },
     "info": {
         "contactsMarkdown": "#### Контакт информације:\nЕмаил: [info@gleb.at](mailto:info@gleb.at)\n\nТелеграм: [GlebKl](https://t.me/GlebKl)",
