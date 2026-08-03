@@ -1,7 +1,10 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../generated/locale_keys.g.dart';
 
 import '../../auth/data/auth_repository.dart';
 import '../../auth/data/graphql_client.dart';
@@ -44,6 +47,7 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
     on<CommentSubscribeAccepted>(_onSubscribeAccepted);
     on<SubscriptionPromptDismissed>(_onPromptDismissed);
     on<RepliesExpanded>(_onRepliesExpanded);
+    on<ReplyFocusRequested>(_onReplyFocusRequested);
   }
 
   final PublicCommentsRepository _comments;
@@ -167,10 +171,19 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
           : {...state.expandedThreads, event.parentId!};
       emit(state.copyWith(submitting: false, expandedThreads: expanded));
       await _loadFirstPage(emit);
-      // Offer to subscribe to replies unless the user is already subscribed to
-      // this thread.
+      // Reply-subscription handling: only bother the user with the offer dialog
+      // when they have no reply subscription set up yet. If they already
+      // enabled push (i.e. subscribed to some thread before), just subscribe to
+      // this thread silently and post; if they are already subscribed to this
+      // thread, do nothing.
       if (!created.subscribedByMe) {
-        emit(state.copyWith(subscriptionPromptFor: created));
+        final prefs = await SharedPreferences.getInstance();
+        final alreadyOptedIn = prefs.getBool(_pushNotifKey) == true;
+        if (alreadyOptedIn) {
+          await _subscribeSilently(created, emit);
+        } else {
+          emit(state.copyWith(subscriptionPromptFor: created));
+        }
       }
     } catch (e) {
       emit(state.copyWith(submitting: false, errorMessage: _message(e)));
@@ -357,6 +370,49 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
     );
   }
 
+  void _onReplyFocusRequested(
+    ReplyFocusRequested event,
+    Emitter<CommentsState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        replyFocusTarget: event.topLevelId,
+        replyFocusRequestId: state.replyFocusRequestId + 1,
+      ),
+    );
+  }
+
+  /// Subscribe to [created]'s thread without prompting (used when the user has
+  /// already opted into reply notifications) and reflect it optimistically.
+  Future<void> _subscribeSilently(
+    PublicComment created,
+    Emitter<CommentsState> emit,
+  ) async {
+    final topLevelId = created.parentId ?? created.id;
+    emit(
+      state.copyWith(
+        comments: _updateOne(
+          state.comments,
+          topLevelId,
+          (c) => c.copyWith(subscribedByMe: true),
+        ),
+      ),
+    );
+    try {
+      await _comments.setCommentSubscription(created.id, true);
+    } catch (_) {
+      emit(
+        state.copyWith(
+          comments: _updateOne(
+            state.comments,
+            topLevelId,
+            (c) => c.copyWith(subscribedByMe: false),
+          ),
+        ),
+      );
+    }
+  }
+
   /// Apply [fn] to the comment with [id], whether it is top-level or a reply,
   /// returning a new list (replies are searched one level deep — the tree is at
   /// most two deep).
@@ -381,6 +437,7 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
     ];
   }
 
-  String _message(Object e) =>
-      e is GraphqlException ? e.message : 'Не удалось загрузить комментарии';
+  String _message(Object e) => e is GraphqlException
+      ? e.message
+      : LocaleKeys.comments_loadError.tr();
 }

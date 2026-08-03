@@ -1,6 +1,8 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../generated/locale_keys.g.dart';
 import '../domain/display_name_rules.dart';
 
 /// Modal that asks a signed-in user for a display name before their first
@@ -46,15 +48,12 @@ class _DisplayNameDialogState extends State<_DisplayNameDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Отображаемое имя'),
+      title: Text(LocaleKeys.comments_displayName_title.tr()),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Укажите имя, которое увидят другие пользователи рядом с вашими '
-            'комментариями.',
-          ),
+          Text(LocaleKeys.comments_displayName_description.tr()),
           const SizedBox(height: 12),
           TextField(
             controller: _controller,
@@ -70,7 +69,7 @@ class _DisplayNameDialogState extends State<_DisplayNameDialog> {
             },
             onSubmitted: (_) => _submit(),
             decoration: InputDecoration(
-              hintText: 'Ваше имя',
+              hintText: LocaleKeys.comments_displayName_hint.tr(),
               border: const OutlineInputBorder(),
               errorText: _error,
             ),
@@ -80,11 +79,11 @@ class _DisplayNameDialogState extends State<_DisplayNameDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Отмена'),
+          child: Text(LocaleKeys.comments_displayName_cancel.tr()),
         ),
         FilledButton(
           onPressed: _submit,
-          child: const Text('Сохранить'),
+          child: Text(LocaleKeys.comments_displayName_save.tr()),
         ),
       ],
     );

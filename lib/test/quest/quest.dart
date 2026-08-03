@@ -362,8 +362,8 @@ class QuestionContent extends StatelessWidget {
                     SizedBox(height: 16),
                     Container(
                       width: double.infinity,
-                      padding: EdgeInsets.all(16),
-                      child: ElevatedButton(
+                      padding: EdgeInsets.all(8),
+                      child: OutlinedButton(
                         onPressed: last
                             ? null
                             : () => _closeTest(context, state),
@@ -389,14 +389,16 @@ class QuestionContent extends StatelessWidget {
                           child: Text('Завершить тест'),
                         ),
                       ),
-                    SizedBox(height: 16),
-                    TextButton(
-                      onPressed: state.showCorrectAnswers
-                          ? null
-                          : () {
-                              bloc.add(ShowCorrectAnswers());
-                            },
-                      child: Text('Прикажи одговор'),
+                    SizedBox(height: 8),
+                    Center(
+                      child: TextButton(
+                        onPressed: state.showCorrectAnswers
+                            ? null
+                            : () {
+                                bloc.add(ShowCorrectAnswers());
+                              },
+                        child: Text('Прикажи одговор'),
+                      ),
                     ),
 
                     // SizedBox(height: 400, width: 300, child: PropushanjeAnimation()),

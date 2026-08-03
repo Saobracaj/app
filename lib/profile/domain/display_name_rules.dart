@@ -7,6 +7,10 @@
 /// and re-validates on `setDisplayName`.
 library;
 
+import 'package:easy_localization/easy_localization.dart';
+
+import '../../generated/locale_keys.g.dart';
+
 const int displayNameMinLen = 2;
 const int displayNameMaxLen = 40;
 const int displayNameMaxWords = 5;
@@ -29,17 +33,21 @@ DisplayNameError? validateDisplayName(String raw) {
   return null;
 }
 
-/// A localized-ish, human message for a validation error (Russian, matching the
-/// app's hardcoded-copy convention for the comments epic).
+/// A localized, human message for a validation error, resolved from the current
+/// locale's translations.
 String displayNameErrorMessage(DisplayNameError error) => switch (error) {
-  DisplayNameError.tooShort =>
-    'Имя должно содержать не менее $displayNameMinLen символов',
-  DisplayNameError.tooLong =>
-    'Имя должно содержать не более $displayNameMaxLen символов',
+  DisplayNameError.tooShort => LocaleKeys.comments_displayName_errorTooShort.tr(
+    args: ['$displayNameMinLen'],
+  ),
+  DisplayNameError.tooLong => LocaleKeys.comments_displayName_errorTooLong.tr(
+    args: ['$displayNameMaxLen'],
+  ),
   DisplayNameError.tooManyWords =>
-    'Имя должно содержать не более $displayNameMaxWords слов',
+    LocaleKeys.comments_displayName_errorTooManyWords.tr(
+      args: ['$displayNameMaxWords'],
+    ),
   DisplayNameError.controlChars =>
-    'Имя не должно содержать управляющих символов',
+    LocaleKeys.comments_displayName_errorControlChars.tr(),
 };
 
 bool _isControl(int rune) =>

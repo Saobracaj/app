@@ -1,8 +1,10 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
+import '../../generated/locale_keys.g.dart';
 import '../models/public_comment.dart';
 import '../state_management/moderation_bloc.dart';
 import '../state_management/moderation_events.dart';
@@ -19,7 +21,7 @@ class ModerationPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Модерация комментариев')),
+      appBar: AppBar(title: Text(LocaleKeys.comments_moderation_title.tr())),
       body: SafeArea(
         child: BlocProvider(
           create: (_) => getIt<ModerationBloc>()..add(ModerationStarted()),
@@ -48,7 +50,7 @@ class _ModerationView extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
         if (state.comments.isEmpty) {
-          return const Center(child: Text('Комментариев пока нет.'));
+          return Center(child: Text(LocaleKeys.comments_moderation_empty.tr()));
         }
         final bloc = context.read<ModerationBloc>();
         return NotificationListener<ScrollNotification>(
@@ -95,7 +97,7 @@ class _ModerationTile extends StatelessWidget {
           Flexible(
             child: Text(
               comment.authorDisplayName.isEmpty
-                  ? 'Аноним'
+                  ? LocaleKeys.comments_anonymous.tr()
                   : comment.authorDisplayName,
               style: theme.textTheme.bodyMedium
                   ?.copyWith(fontWeight: FontWeight.w600),
@@ -117,8 +119,8 @@ class _ModerationTile extends StatelessWidget {
           Text(comment.body),
           const SizedBox(height: 4),
           Text(
-            'Вопрос №${comment.questionId}'
-            '${comment.parentId != null ? ' · ответ' : ''}'
+            '${LocaleKeys.comments_moderation_questionLabel.tr(args: ['${comment.questionId}'])}'
+            '${comment.parentId != null ? ' · ${LocaleKeys.comments_moderation_replyLabel.tr()}' : ''}'
             ' · ♥ ${comment.likesCount}',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -127,10 +129,19 @@ class _ModerationTile extends StatelessWidget {
       ),
       trailing: PopupMenuButton<String>(
         onSelected: (value) => _onAction(context, value),
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 'question', child: Text('Перейти к вопросу')),
-          PopupMenuItem(value: 'delete', child: Text('Удалить комментарий')),
-          PopupMenuItem(value: 'ban', child: Text('Запретить пользователю')),
+        itemBuilder: (_) => [
+          PopupMenuItem(
+            value: 'question',
+            child: Text(LocaleKeys.comments_moderation_goToQuestion.tr()),
+          ),
+          PopupMenuItem(
+            value: 'delete',
+            child: Text(LocaleKeys.comments_moderation_deleteComment.tr()),
+          ),
+          PopupMenuItem(
+            value: 'ban',
+            child: Text(LocaleKeys.comments_moderation_banUser.tr()),
+          ),
         ],
       ),
     );
@@ -144,21 +155,23 @@ class _ModerationTile extends StatelessWidget {
       case 'delete':
         final ok = await _confirm(
           context,
-          title: 'Удалить комментарий?',
-          action: 'Удалить',
+          title: LocaleKeys.comments_moderation_deleteTitle.tr(),
+          action: LocaleKeys.comments_moderation_deleteComment.tr(),
         );
         if (ok) bloc.add(ModerationCommentDeleted(comment.id));
       case 'ban':
         final ok = await _confirm(
           context,
-          title: 'Запретить пользователю комментировать?',
-          action: 'Запретить',
+          title: LocaleKeys.comments_moderation_banTitle.tr(),
+          action: LocaleKeys.comments_moderation_banAction.tr(),
         );
         if (ok && comment.authorId.isNotEmpty) {
           bloc.add(ModerationUserBanned(comment.authorId));
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Пользователю запрещено комментировать.')),
+              SnackBar(
+                content: Text(LocaleKeys.comments_moderation_banned.tr()),
+              ),
             );
           }
         }
@@ -177,7 +190,7 @@ class _ModerationTile extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Отмена'),
+            child: Text(LocaleKeys.comments_cancel.tr()),
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),

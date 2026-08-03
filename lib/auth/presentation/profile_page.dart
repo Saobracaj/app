@@ -81,9 +81,9 @@ class ProfilePage extends StatelessWidget {
                   const Divider(height: 0),
                   ListTile(
                     leading: const Icon(Icons.shield_outlined),
-                    title: const Text('Модерация комментариев'),
+                    title: Text(LocaleKeys.comments_moderation_title.tr()),
                     subtitle:
-                        const Text('Просмотр и удаление комментариев, баны'),
+                        Text(LocaleKeys.comments_moderation_subtitle.tr()),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Routemaster.of(context).push('/moderation'),
                   ),
