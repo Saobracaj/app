@@ -12,12 +12,25 @@ class CommentsRefreshed extends CommentsEvent {}
 /// Load the next page of top-level comments.
 class CommentsLoadMore extends CommentsEvent {}
 
-/// Post a top-level comment ([parentId] null) or a reply.
+/// Post a top-level comment ([parentId] null) or a reply. When
+/// [displayNameToSet] is non-null the user just entered it in the pre-comment
+/// dialog — the Bloc persists it (`setDisplayName`) before posting.
 class CommentSubmitted extends CommentsEvent {
-  CommentSubmitted(this.body, {this.parentId});
+  CommentSubmitted(this.body, {this.parentId, this.displayNameToSet});
   final String body;
   final String? parentId;
+  final String? displayNameToSet;
 }
+
+/// The user accepted the "subscribe to replies" offer for a just-posted comment:
+/// ensure push permission/preference, then subscribe to the thread.
+class CommentSubscribeAccepted extends CommentsEvent {
+  CommentSubscribeAccepted(this.comment);
+  final PublicComment comment;
+}
+
+/// Dismiss the subscription-offer prompt (shown, declined, or handled).
+class SubscriptionPromptDismissed extends CommentsEvent {}
 
 /// Delete the caller's own comment (or, for a moderator, any comment).
 class CommentDeleted extends CommentsEvent {

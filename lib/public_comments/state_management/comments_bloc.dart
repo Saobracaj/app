@@ -1,8 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../auth/data/auth_repository.dart';
 import '../../auth/data/graphql_client.dart';
 import '../../auth/state_management/auth/auth_bloc.dart';
+import '../../notifications/data/notification_permissions.dart';
 import '../../profile/data/profile_repository.dart';
 import '../data/public_comments_repository.dart';
 import '../models/public_comment.dart';
@@ -25,6 +29,8 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
     this._comments,
     this._profiles,
     this._authBloc,
+    this._authRepo,
+    this._permissions,
     @factoryParam this.questionId,
   ) : super(const CommentsState()) {
     on<CommentsStarted>(_onStarted);
@@ -34,13 +40,22 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
     on<CommentDeleted>(_onDeleted);
     on<CommentLikeToggled>(_onLikeToggled);
     on<CommentSubscriptionToggled>(_onSubscriptionToggled);
+    on<CommentSubscribeAccepted>(_onSubscribeAccepted);
+    on<SubscriptionPromptDismissed>(_onPromptDismissed);
     on<RepliesExpanded>(_onRepliesExpanded);
   }
 
   final PublicCommentsRepository _comments;
   final ProfileRepository _profiles;
   final AuthBloc _authBloc;
+  final AuthRepository _authRepo;
+  final NotificationPermissions _permissions;
   final int questionId;
+
+  /// SharedPreferences key mirroring `NotificationsBloc` so enabling push here
+  /// (after the user subscribes to replies) stays in sync with the settings
+  /// screen's toggle.
+  static const _pushNotifKey = 'notif_push_enabled';
 
   bool get _isAuthenticated => _authBloc.state.isAuthenticated;
 
@@ -116,8 +131,21 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
     Emitter<CommentsState> emit,
   ) async {
     emit(state.copyWith(submitting: true, errorMessage: null));
+
+    // The user entered a display name in the pre-comment dialog — persist it
+    // first (the backend re-validates and may reject it).
+    if (event.displayNameToSet != null) {
+      try {
+        final profile = await _profiles.setDisplayName(event.displayNameToSet!);
+        emit(state.copyWith(profile: profile));
+      } catch (e) {
+        emit(state.copyWith(submitting: false, errorMessage: _message(e)));
+        return;
+      }
+    }
+
     try {
-      await _comments.addComment(
+      final created = await _comments.addComment(
         questionId: questionId,
         parentId: event.parentId,
         body: event.body,
@@ -128,10 +156,90 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
           : {...state.expandedThreads, event.parentId!};
       emit(state.copyWith(submitting: false, expandedThreads: expanded));
       await _loadFirstPage(emit);
+      // Offer to subscribe to replies unless the user is already subscribed to
+      // this thread.
+      if (!created.subscribedByMe) {
+        emit(state.copyWith(subscriptionPromptFor: created));
+      }
     } catch (e) {
       emit(state.copyWith(submitting: false, errorMessage: _message(e)));
     }
   }
+
+  void _onPromptDismissed(
+    SubscriptionPromptDismissed event,
+    Emitter<CommentsState> emit,
+  ) {
+    emit(state.copyWith(subscriptionPromptFor: null));
+  }
+
+  /// The user accepted the reply-subscription offer: make sure push is allowed
+  /// and enabled, then subscribe to the thread (the backend resolves the id to
+  /// its top-level thread).
+  Future<void> _onSubscribeAccepted(
+    CommentSubscribeAccepted event,
+    Emitter<CommentsState> emit,
+  ) async {
+    emit(state.copyWith(subscriptionPromptFor: null));
+    final id = event.comment.id;
+
+    // Optimistically reflect the subscription on the (top-level) comment.
+    final topLevelId = event.comment.parentId ?? id;
+    emit(
+      state.copyWith(
+        comments: _updateOne(
+          state.comments,
+          topLevelId,
+          (c) => c.copyWith(subscribedByMe: true),
+        ),
+      ),
+    );
+
+    // Ensure the OS lets us deliver replies, and enable the app-level push
+    // preference if permission is (now) granted — best-effort throughout.
+    try {
+      var status = await _permissions.status();
+      if (!status.granted && !status.permanentlyDenied) {
+        status = await _permissions.request();
+      } else if (status.permanentlyDenied) {
+        await _permissions.openSettings();
+      }
+      if (status.granted) {
+        final prefs = await SharedPreferences.getInstance();
+        if (prefs.getBool(_pushNotifKey) != true) {
+          await prefs.setBool(_pushNotifKey, true);
+          if (_isAuthenticated) {
+            try {
+              await _authRepo.registerDevice(platform: _platform());
+              await _authRepo.setDevicePushEnabled(true);
+            } catch (_) {
+              // Requires a configured FCM token to fully take effect.
+            }
+          }
+        }
+      }
+    } catch (_) {
+      // Permission plumbing is best-effort; the server subscription is what
+      // actually matters and is attempted next.
+    }
+
+    try {
+      await _comments.setCommentSubscription(id, true);
+    } catch (_) {
+      // Roll the optimistic flag back on failure.
+      emit(
+        state.copyWith(
+          comments: _updateOne(
+            state.comments,
+            topLevelId,
+            (c) => c.copyWith(subscribedByMe: false),
+          ),
+        ),
+      );
+    }
+  }
+
+  String _platform() => kIsWeb ? 'web' : defaultTargetPlatform.name;
 
   Future<void> _onDeleted(
     CommentDeleted event,

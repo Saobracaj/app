@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
+import '../../profile/presentation/display_name_dialog.dart';
 import '../models/public_comment.dart';
 import '../state_management/comments_bloc.dart';
 import '../state_management/comments_events.dart';
@@ -28,11 +28,19 @@ class PublicCommentsWidget extends StatelessWidget {
           getIt<CommentsBloc>(param1: questionId)..add(CommentsStarted()),
       child: BlocConsumer<CommentsBloc, CommentsState>(
         listenWhen: (prev, curr) =>
-            curr.errorMessage != null && curr.errorMessage != prev.errorMessage,
+            (curr.errorMessage != null &&
+                curr.errorMessage != prev.errorMessage) ||
+            (curr.subscriptionPromptFor != null &&
+                curr.subscriptionPromptFor != prev.subscriptionPromptFor),
         listener: (context, state) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.errorMessage!)),
-          );
+          if (state.errorMessage != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.errorMessage!)),
+            );
+          }
+          if (state.subscriptionPromptFor != null) {
+            _offerSubscription(context, state.subscriptionPromptFor!);
+          }
         },
         builder: (context, state) {
           if (state.loading) {
@@ -65,11 +73,9 @@ class _CommentsBody extends StatelessWidget {
             child: _Composer(
               hint: 'Написать комментарий',
               submitting: state.submitting,
-              onSubmit: (text) => bloc.add(CommentSubmitted(text)),
+              onSubmit: (text) => _submitComment(context, state, text),
             ),
           )
-        else if (state.needsDisplayName)
-          const _DisplayNamePrompt()
         else if (state.isBanned)
           const _Notice('Вы не можете оставлять комментарии.'),
         if (state.comments.isEmpty)
@@ -177,7 +183,7 @@ class _TopLevelComment extends StatelessWidget {
                 dense: true,
                 submitting: state.submitting,
                 onSubmit: (text) =>
-                    bloc.add(CommentSubmitted(text, parentId: comment.id)),
+                    _submitComment(context, state, text, parentId: comment.id),
               ),
             ),
           const Divider(height: 24),
@@ -385,7 +391,11 @@ class _Composer extends StatefulWidget {
   });
 
   final String hint;
-  final ValueChanged<String> onSubmit;
+
+  /// Returns `true` when the text was accepted (so the field can be cleared);
+  /// `false` when the submission was aborted (e.g. the display-name dialog was
+  /// cancelled), keeping the user's text.
+  final Future<bool> Function(String) onSubmit;
   final bool submitting;
   final bool dense;
 
@@ -411,10 +421,11 @@ class _ComposerState extends State<_Composer> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final text = _controller.text.trim();
     if (text.isEmpty || widget.submitting) return;
-    widget.onSubmit(text);
+    final accepted = await widget.onSubmit(text);
+    if (!accepted || !mounted) return;
     _controller.clear();
     _focus.unfocus();
   }
@@ -461,27 +472,65 @@ class _ComposerState extends State<_Composer> {
   }
 }
 
-/// Shown to a signed-in user who has not set a display name yet: a shortcut to
-/// the profile screen (the pre-comment dialog is a separate flow).
-class _DisplayNamePrompt extends StatelessWidget {
-  const _DisplayNamePrompt();
+/// Submit a top-level comment or reply. If the signed-in user has no display
+/// name yet, a dialog collects one first (a comment may not be posted without
+/// it); the name is persisted by the Bloc alongside the post. Returns `false`
+/// when the flow was cancelled so the composer keeps the user's text.
+Future<bool> _submitComment(
+  BuildContext context,
+  CommentsState state,
+  String text, {
+  String? parentId,
+}) async {
+  final bloc = context.read<CommentsBloc>();
+  String? displayNameToSet;
+  if (state.mustPromptDisplayName) {
+    final name = await showDisplayNameDialog(context);
+    if (name == null) return false; // cancelled — keep the typed text
+    displayNameToSet = name;
+  }
+  bloc.add(
+    CommentSubmitted(
+      text,
+      parentId: parentId,
+      displayNameToSet: displayNameToSet,
+    ),
+  );
+  return true;
+}
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Text('Укажите отображаемое имя, чтобы комментировать.'),
-          ),
-          TextButton(
-            onPressed: () => Routemaster.of(context).push('/displayName'),
-            child: const Text('Указать'),
-          ),
-        ],
+/// After a successful post, offer to subscribe to replies. Accepting delegates
+/// the push-permission/enable + subscribe flow to the Bloc; declining just
+/// clears the prompt.
+Future<void> _offerSubscription(
+  BuildContext context,
+  PublicComment comment,
+) async {
+  final bloc = context.read<CommentsBloc>();
+  final agreed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Подписаться на ответы?'),
+      content: const Text(
+        'Получайте уведомления о новых ответах в этой ветке.',
       ),
-    );
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Не сейчас'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Подписаться'),
+        ),
+      ],
+    ),
+  );
+  if (!context.mounted) return;
+  if (agreed == true) {
+    bloc.add(CommentSubscribeAccepted(comment));
+  } else {
+    bloc.add(SubscriptionPromptDismissed());
   }
 }
 

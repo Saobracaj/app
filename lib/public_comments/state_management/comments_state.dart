@@ -25,19 +25,23 @@ abstract class CommentsState with _$CommentsState {
     @Default(<String>{}) Set<String> expandedThreads,
     // The top-level comment whose inline reply field is currently open, if any.
     String? replyingTo,
+    // Transient: a comment the user just posted for which the UI should offer a
+    // "subscribe to replies" dialog (cleared once the dialog is shown).
+    PublicComment? subscriptionPromptFor,
     String? errorMessage,
   }) = _CommentsState;
 
   const CommentsState._();
 
-  /// Whether the composer should be shown: signed in, not banned, and with a
-  /// display name set (the pre-comment display-name dialog is a separate flow).
+  /// Whether the composer should be shown: signed in and not banned. A missing
+  /// display name no longer hides the composer — it is collected via a dialog
+  /// before the first comment is posted.
   bool get canWrite =>
-      isAuthenticated && (profile?.commentBan == false) && (profile?.hasDisplayName == true);
+      isAuthenticated && profile != null && (profile?.commentBan == false);
 
-  /// Signed in and allowed to comment but has not set a display name yet — the
-  /// composer prompts for one before the first post (handled elsewhere).
-  bool get needsDisplayName =>
+  /// Whether a display-name dialog must be shown before posting (signed in, not
+  /// banned, no display name yet).
+  bool get mustPromptDisplayName =>
       isAuthenticated &&
       profile != null &&
       !profile!.commentBan &&

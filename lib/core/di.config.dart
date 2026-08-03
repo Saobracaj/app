@@ -94,6 +94,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i426.NotificationPermissions>(),
       ),
     );
+    gh.factoryParam<_i405.CommentsBloc, int, dynamic>(
+      (questionId, _) => _i405.CommentsBloc(
+        gh<_i989.PublicCommentsRepository>(),
+        gh<_i311.ProfileRepository>(),
+        gh<_i388.AuthBloc>(),
+        gh<_i880.AuthRepository>(),
+        gh<_i426.NotificationPermissions>(),
+        questionId,
+      ),
+    );
     gh.factoryParam<_i955.CommentCountBloc, int, dynamic>(
       (questionId, _) => _i955.CommentCountBloc(
         gh<_i989.PublicCommentsRepository>(),
@@ -107,14 +117,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factoryParam<_i213.CommentBloc, int, dynamic>(
       (questionId, _) =>
           _i213.CommentBloc(gh<_i359.CommentRepository>(), questionId),
-    );
-    gh.factoryParam<_i405.CommentsBloc, int, dynamic>(
-      (questionId, _) => _i405.CommentsBloc(
-        gh<_i989.PublicCommentsRepository>(),
-        gh<_i311.ProfileRepository>(),
-        gh<_i388.AuthBloc>(),
-        questionId,
-      ),
     );
     return this;
   }
