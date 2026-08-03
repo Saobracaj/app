@@ -51,6 +51,9 @@ void main() async {
   runApp(
     EasyLocalization(
       useOnlyLangCode: true,
+      // Use the real CLDR plural rules (sr: 2 → few, 5 → other); the default
+      // maps 2 to the literal "two" case, which Slavic languages don't have.
+      ignorePluralRules: false,
       supportedLocales: [Locale('ru'), Locale('en'), Locale('sr')],
       fallbackLocale: Locale('ru'),
       path: 'assets/translations',
