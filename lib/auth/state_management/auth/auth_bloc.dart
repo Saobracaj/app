@@ -21,9 +21,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<SessionStatusChanged>(_onSessionStatusChanged);
     on<LogoutRequested>(_onLogout);
 
-    _sub = repository.sessionStatus
-        .distinct()
-        .listen((status) => add(SessionStatusChanged(status)));
+    _sub = repository.sessionStatus.distinct().listen(
+      (status) => add(SessionStatusChanged(status)),
+    );
   }
 
   final AuthRepository repository;
@@ -56,19 +56,26 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         // Refresh which premium features this account has been granted.
         featureFlags.refreshFromBackend();
         try {
+          // A merely expired access token is refreshed inside the client, so
+          // reaching this call with a live session is enough to get a viewer.
           final viewer = await repository.me();
           if (viewer != null) {
             emit(state.copyWith(viewer: viewer));
           } else {
-            // Token is no longer valid — drop it (re-emits unauthenticated).
+            // The account behind the token is gone — drop it (re-emits
+            // unauthenticated).
             await repository.logout();
           }
         } catch (_) {
           // Offline / transient: keep the authenticated session without a
-          // fresh profile.
+          // fresh profile. A definitively expired session is not handled here —
+          // the client reports it on `sessionExpired` and the repository signs
+          // out, which arrives as an `unauthenticated` transition.
         }
       case AuthStatus.unauthenticated:
-        emit(state.copyWith(status: AuthStatus.unauthenticated, clearViewer: true));
+        emit(
+          state.copyWith(status: AuthStatus.unauthenticated, clearViewer: true),
+        );
         // Premium features are tied to the session — drop the cached grants.
         featureFlags.onLoggedOut();
       case AuthStatus.unknown:

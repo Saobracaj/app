@@ -6,6 +6,7 @@ import '../models/auth_tokens.dart';
 import '../models/viewer.dart';
 import 'auth_status.dart';
 import 'graphql_client.dart';
+import 'jwt.dart';
 import 'token_storage.dart';
 
 /// Data-access layer over the `saobracaj_backend` auth/notifications GraphQL API.
@@ -20,10 +21,16 @@ import 'token_storage.dart';
 /// caller has to hand the session to a holder manually.
 @lazySingleton
 class AuthRepository {
-  AuthRepository(this._client, this._storage);
+  AuthRepository(this._client, this._storage) {
+    // The client renews the access token on its own; it only reports back when
+    // the *refresh* token is gone too, which is the one case that must end the
+    // session.
+    _expirySub = _client.sessionExpired.listen((_) => logout());
+  }
 
   final GraphqlClient _client;
   final TokenStorage _storage;
+  late final StreamSubscription<void> _expirySub;
 
   static const _tokenFields = 'accessToken refreshToken authenticated';
 
@@ -180,7 +187,8 @@ class AuthRepository {
   }
 
   /// Publish the persisted session on startup: [AuthStatus.authenticated] if a
-  /// token is stored (the `AuthBloc` then validates it via [me]), otherwise
+  /// renewable session is stored (the `AuthBloc` then validates it via [me],
+  /// and the client refreshes the access token on the way), otherwise
   /// [AuthStatus.unauthenticated].
   Future<void> bootstrap() async {
     _emitSession(
@@ -190,8 +198,19 @@ class AuthRepository {
     );
   }
 
+  /// Whether a session can still be used. An expired *access* token is fine —
+  /// it gets refreshed on the first request; what matters is that either it or
+  /// the refresh token is still alive.
   Future<bool> hasStoredSession() async {
-    final token = await _storage.accessToken;
-    return token != null && token.isNotEmpty;
+    final access = await _storage.accessToken;
+    if (access == null || access.isEmpty) return false;
+    if (!isJwtExpired(access)) return true;
+    return !isJwtExpired(await _storage.refreshToken, skew: Duration.zero);
+  }
+
+  @disposeMethod
+  Future<void> dispose() async {
+    await _expirySub.cancel();
+    await _sessionController.close();
   }
 }

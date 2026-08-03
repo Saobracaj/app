@@ -58,6 +58,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i483.GraphqlClient>(),
         gh<_i25.TokenStorage>(),
       ),
+      dispose: (i) => i.dispose(),
     );
     gh.factoryParam<_i892.ConfirmCodeBloc, String, dynamic>(
       (email, _) => _i892.ConfirmCodeBloc(gh<_i880.AuthRepository>(), email),

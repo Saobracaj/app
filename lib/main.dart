@@ -11,6 +11,7 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:saobracaj/purchase/state_management/purchase_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'auth/data/auth_repository.dart';
 import 'auth/data/firebase_init.dart';
 import 'auth/state_management/auth/auth_bloc.dart';
 import 'auth/state_management/auth/auth_events.dart';
@@ -34,6 +35,10 @@ void main() async {
   await EasyLocalization.ensureInitialized();
   configureDependencies();
   await initFirebase();
+  // Instantiate the session holder before anything issues an authenticated
+  // request: it subscribes to the GraphQL client's `sessionExpired` signal, so
+  // an unrenewable session signs the user out no matter which call hit it first.
+  getIt<AuthRepository>();
   // Load persisted feature toggles / cached premium grants and refresh from the
   // backend if a session exists.
   await featureFlags.bootstrap();
@@ -134,8 +139,9 @@ class _MyAppState extends State<MyApp> {
                 ),
                 darkTheme: ThemeData(
                   colorScheme: darkScheme,
-                  textTheme:
-                      GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+                  textTheme: GoogleFonts.interTextTheme(
+                    ThemeData.dark().textTheme,
+                  ),
                 ),
               );
             },

@@ -1,5 +1,6 @@
 import '../auth/data/graphql_client.dart';
 import '../auth/data/token_storage.dart';
+import '../core/di.dart';
 import '../feature_flags/data/feature_flags_repository.dart';
 import '../session/session_sync_service.dart';
 import '../statistics/statistics_sync_service.dart';
@@ -9,13 +10,18 @@ import 'db.dart';
 final db = AppDatabase();
 final repository = AnswerRepository(db);
 
-// Statistics sync uses its own TokenStorage (shared_preferences-backed, so it
-// sees the same tokens the auth layer stores) and a GraphQL client. Triggered
-// automatically after login/startup (AuthBloc) and after each finished test.
-final TokenStorage _syncTokenStorage = TokenStorage();
+// These globals resolve the shared GraphQL client / token storage from `getIt`,
+// so every request goes through the same token-refresh path (one in-flight
+// refresh, one `sessionExpired` signal wired to `AuthRepository`). They are lazy
+// — `main()` calls `configureDependencies()` before anything touches them.
+GraphqlClient get _client => getIt<GraphqlClient>();
+TokenStorage get _syncTokenStorage => getIt<TokenStorage>();
+
+// Statistics sync. Triggered automatically after login/startup (AuthBloc) and
+// after each finished test.
 final StatisticsSyncService statisticsSync = StatisticsSyncService(
   db,
-  GraphqlClient(_syncTokenStorage),
+  _client,
   _syncTokenStorage,
 );
 
@@ -23,7 +29,7 @@ final StatisticsSyncService statisticsSync = StatisticsSyncService(
 // devices. Pushed on navigation (SessionRouteObserver) and pulled on
 // login/startup to offer "continue where you left off" (SessionResumeGate).
 final SessionSyncService sessionSync = SessionSyncService(
-  GraphqlClient(_syncTokenStorage),
+  _client,
   _syncTokenStorage,
 );
 
@@ -32,6 +38,6 @@ final SessionSyncService sessionSync = SessionSyncService(
 // and refreshed/cleared from AuthBloc on session changes. Widgets read it
 // through FeatureFlagsBloc.
 final FeatureFlagsRepository featureFlags = FeatureFlagsRepository(
-  GraphqlClient(_syncTokenStorage),
+  _client,
   _syncTokenStorage,
 );
