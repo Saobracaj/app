@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:saobracaj/test/quest/quest.dart';
+import 'package:saobracaj/test/quest/presentation/quest_markdown.dart';
 import '../../../../core/di.dart';
 import '../state_management/comment_bloc.dart';
 
