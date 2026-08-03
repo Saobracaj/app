@@ -28,6 +28,13 @@ extension ZakonStringExtension on String {
       tokens.add(match.group(0)!);
     }
 
+    // Знаки препинания, «прилипшие» к слову (напр. «аутопут:», «насеље.»,
+    // «штета,»), не должны мешать сопоставлению термина.
+    final leadingPunct = RegExp(r'^[^\p{L}\p{N}]+', unicode: true);
+    final trailingPunct = RegExp(r'[^\p{L}\p{N}]+$', unicode: true);
+    String stripPunct(String s) =>
+        s.replaceAll(leadingPunct, '').replaceAll(trailingPunct, '');
+
     final buffer = StringBuffer();
     int i = 0;
 
@@ -60,14 +67,21 @@ extension ZakonStringExtension on String {
 
         final candidateWords = candidate
             .where((t) => t.trim().isNotEmpty)
+            .map(stripPunct)
             .join(' ')
             .toLowerCase();
 
         if (candidateWords == phrase) {
           final visibleText = candidate.join();
+          // Ведущие/замыкающие знаки препинания оставляем за пределами ссылки,
+          // чтобы кликабельным было именно слово.
+          final lead = leadingPunct.firstMatch(visibleText)?.group(0) ?? '';
+          final withoutLead = visibleText.substring(lead.length);
+          final trail = trailingPunct.firstMatch(withoutLead)?.group(0) ?? '';
+          final core = withoutLead.substring(0, withoutLead.length - trail.length);
           final title = wordToTitle[phrase]!;
           final encoded = Uri.encodeComponent(title);
-          buffer.write('[$visibleText](dict/$encoded)');
+          buffer.write('$lead[$core](dict/$encoded)$trail');
           i = tokenIndex;
           matched = true;
           break;
