@@ -27,9 +27,21 @@ import '../state_management/question_features_state.dart';
 /// the question, when the backend has one in `Ready` status); the other tabs
 /// are placeholders until their features are built.
 class QuestionFeaturesTabs extends StatelessWidget {
-  const QuestionFeaturesTabs({super.key, required this.questionId});
+  const QuestionFeaturesTabs({
+    super.key,
+    required this.questionId,
+    this.initialFeature,
+    this.commentThreadId,
+    this.autoScroll = false,
+  });
 
   final int questionId;
+
+  /// Deep-link support: the tab to pre-select (e.g. the discussion), the thread
+  /// to expand inside it, and whether to scroll this panel into view on open.
+  final AppFeature? initialFeature;
+  final String? commentThreadId;
+  final bool autoScroll;
 
   /// The per-question features, in the order their tabs appear.
   static const _features = <AppFeature>[
@@ -45,9 +57,16 @@ class QuestionFeaturesTabs extends StatelessWidget {
     final visible = _features.where(flags.isEnabled).toList();
     if (visible.isEmpty) return const SizedBox.shrink();
 
+    // Honour a deep-linked initial tab only when that feature is actually
+    // visible to this user.
+    final initial =
+        (initialFeature != null && visible.contains(initialFeature))
+            ? initialFeature
+            : null;
+
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => QuestionFeaturesBloc()),
+        BlocProvider(create: (_) => QuestionFeaturesBloc(initial: initial)),
         // The tab badge only needs the scalar top-level count; kept apart from
         // the full comments Bloc scoped inside the discussion tab.
         if (visible.contains(AppFeature.publicQuestionComments))
@@ -61,17 +80,24 @@ class QuestionFeaturesTabs extends StatelessWidget {
           // Fall back to the first visible tab, and re-anchor if the previously
           // selected tab disappeared (e.g. the user logged out).
           final selected = (state.selected != null && visible.contains(state.selected)) ? state.selected! : visible.first;
-          return Column(
+          final column = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 8),
               _TabBar(features: visible, selected: selected),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
-                child: _TabContent(feature: selected, questionId: questionId),
+                child: _TabContent(
+                  feature: selected,
+                  questionId: questionId,
+                  commentThreadId: commentThreadId,
+                ),
               ),
             ],
           );
+          // On a deep link into the discussion, scroll this panel into view once
+          // it is laid out.
+          return autoScroll ? _EnsureVisibleOnce(child: column) : column;
         },
       ),
     );
@@ -159,10 +185,15 @@ Tab _tabFor(BuildContext context, AppFeature feature) {
 }
 
 class _TabContent extends StatelessWidget {
-  const _TabContent({required this.feature, required this.questionId});
+  const _TabContent({
+    required this.feature,
+    required this.questionId,
+    this.commentThreadId,
+  });
 
   final AppFeature feature;
   final int questionId;
+  final String? commentThreadId;
 
   @override
   Widget build(BuildContext context) {
@@ -170,11 +201,47 @@ class _TabContent extends StatelessWidget {
       case AppFeature.questionComments:
         return CommentWidget(questionId: questionId);
       case AppFeature.publicQuestionComments:
-        return PublicCommentsWidget(questionId: questionId);
+        return PublicCommentsWidget(
+          questionId: questionId,
+          threadId: commentThreadId,
+        );
       default:
         return _ComingSoon(feature: feature);
     }
   }
+}
+
+/// Scrolls its [child] into view exactly once after the first layout — used to
+/// bring the discussion panel on screen when arriving via a deep link.
+class _EnsureVisibleOnce extends StatefulWidget {
+  const _EnsureVisibleOnce({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_EnsureVisibleOnce> createState() => _EnsureVisibleOnceState();
+}
+
+class _EnsureVisibleOnceState extends State<_EnsureVisibleOnce> {
+  bool _done = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_done || !mounted) return;
+      _done = true;
+      Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 400),
+        alignment: 0.1,
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Placeholder body for tabs whose feature is not implemented yet.

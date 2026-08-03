@@ -88,21 +88,22 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i359.CommentRepository>(
       () => _i359.CommentRepository(gh<_i483.GraphqlClient>()),
     );
-    gh.factory<_i618.NotificationsBloc>(
-      () => _i618.NotificationsBloc(
-        gh<_i880.AuthRepository>(),
-        gh<_i388.AuthBloc>(),
-        gh<_i426.NotificationPermissions>(),
-      ),
-    );
-    gh.factoryParam<_i405.CommentsBloc, int, dynamic>(
-      (questionId, _) => _i405.CommentsBloc(
+    gh.factoryParam<_i405.CommentsBloc, int, String?>(
+      (questionId, threadId) => _i405.CommentsBloc(
         gh<_i989.PublicCommentsRepository>(),
         gh<_i311.ProfileRepository>(),
         gh<_i388.AuthBloc>(),
         gh<_i880.AuthRepository>(),
         gh<_i426.NotificationPermissions>(),
         questionId,
+        threadId,
+      ),
+    );
+    gh.factory<_i618.NotificationsBloc>(
+      () => _i618.NotificationsBloc(
+        gh<_i880.AuthRepository>(),
+        gh<_i388.AuthBloc>(),
+        gh<_i426.NotificationPermissions>(),
       ),
     );
     gh.factory<_i515.ModerationBloc>(

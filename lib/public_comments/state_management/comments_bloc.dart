@@ -32,6 +32,7 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
     this._authRepo,
     this._permissions,
     @factoryParam this.questionId,
+    @factoryParam this.threadId,
   ) : super(const CommentsState()) {
     on<CommentsStarted>(_onStarted);
     on<CommentsRefreshed>(_onRefreshed);
@@ -51,6 +52,10 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
   final AuthRepository _authRepo;
   final NotificationPermissions _permissions;
   final int questionId;
+
+  /// Deep-link target: a top-level comment to expand ("show previous" replies)
+  /// once the first page has loaded, so the linked thread is fully visible.
+  final String? threadId;
 
   /// SharedPreferences key mirroring `NotificationsBloc` so enabling push here
   /// (after the user subscribes to replies) stays in sync with the settings
@@ -73,6 +78,12 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
       }
     }
     await _loadFirstPage(emit);
+    // Deep link: reveal the linked thread's older replies.
+    if (threadId != null) {
+      emit(
+        state.copyWith(expandedThreads: {...state.expandedThreads, threadId!}),
+      );
+    }
   }
 
   Future<void> _onRefreshed(

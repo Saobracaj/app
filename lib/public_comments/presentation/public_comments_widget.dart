@@ -17,15 +17,22 @@ import 'relative_time.dart';
 /// than an inner scroll. Reading is open to everyone; the composer appears only
 /// for a signed-in, non-banned user who has set a display name.
 class PublicCommentsWidget extends StatelessWidget {
-  const PublicCommentsWidget({super.key, required this.questionId});
+  const PublicCommentsWidget({
+    super.key,
+    required this.questionId,
+    this.threadId,
+  });
 
   final int questionId;
+
+  /// Deep-link target thread (top-level comment id) to expand on open.
+  final String? threadId;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) =>
-          getIt<CommentsBloc>(param1: questionId)..add(CommentsStarted()),
+      create: (_) => getIt<CommentsBloc>(param1: questionId, param2: threadId)
+        ..add(CommentsStarted()),
       child: BlocConsumer<CommentsBloc, CommentsState>(
         listenWhen: (prev, curr) =>
             (curr.errorMessage != null &&
