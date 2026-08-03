@@ -81,7 +81,7 @@ class _CategoriesState extends State<Categories> {
                       if (qState.subStats[subCategory.id.toString()] != null)
                         Padding(
                           padding: const EdgeInsets.only(right: 16.0, left: 45+36, bottom: 16),
-                          child: _MiniChart(stats: qState.subStats[subCategory.id.toString()]!),
+                          child: MiniChart(stats: qState.subStats[subCategory.id.toString()]!),
                         ),
                     ],
                   ],
@@ -95,8 +95,8 @@ class _CategoriesState extends State<Categories> {
   }
 }
 
-class _MiniChart extends StatelessWidget {
-  const _MiniChart({required this.stats});
+class MiniChart extends StatelessWidget {
+  const MiniChart({super.key, required this.stats});
 
   final SubStats stats;
 
@@ -108,7 +108,11 @@ class _MiniChart extends StatelessWidget {
     const w = 16.0;
 
     final answers = stats.answers;
-    final maxValue = answers.isNotEmpty ? answers.reduce((a, b) => a > b ? a : b) : 1;
+    // Guard against division by zero (NaN constraints): a session finished with
+    // zero answered questions yields a max/allAnswers of 0.
+    final rawMax = answers.isNotEmpty ? answers.reduce((a, b) => a > b ? a : b) : 1;
+    final maxValue = rawMax > 0 ? rawMax : 1;
+    final allAnswers = stats.allAnswers > 0 ? stats.allAnswers : 1;
 
     return Row(
       // mainAxisAlignment: MainAxisAlignment.end,
@@ -121,7 +125,7 @@ class _MiniChart extends StatelessWidget {
             color:
                 value >= stats.allAnswers
                     ? Colors.green
-                    : (value / stats.allAnswers > 0.9 ? Color(0xff8a8200) : (value / stats.allAnswers < 0.5 ? Colors.red : Colors.blue)),
+                    : (value / allAnswers > 0.9 ? Color(0xff8a8200) : (value / allAnswers < 0.5 ? Colors.red : Colors.blue)),
             child: Center(
               child: FittedBox(
                 child: Text(value.toString(), maxLines: 1, style: Theme.of(context).textTheme.labelSmall!.copyWith(color: Colors.white)),
