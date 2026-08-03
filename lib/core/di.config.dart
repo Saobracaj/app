@@ -31,6 +31,7 @@ import '../profile/state_management/display_name_bloc.dart' as _i957;
 import '../public_comments/data/public_comments_repository.dart' as _i989;
 import '../public_comments/state_management/comment_count_bloc.dart' as _i955;
 import '../public_comments/state_management/comments_bloc.dart' as _i405;
+import '../public_comments/state_management/moderation_bloc.dart' as _i515;
 import '../test/quest/comment/data/comment_repository.dart' as _i359;
 import '../test/quest/comment/state_management/comment_bloc.dart' as _i213;
 import 'di.dart' as _i913;
@@ -103,6 +104,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i426.NotificationPermissions>(),
         questionId,
       ),
+    );
+    gh.factory<_i515.ModerationBloc>(
+      () => _i515.ModerationBloc(gh<_i989.PublicCommentsRepository>()),
     );
     gh.factoryParam<_i955.CommentCountBloc, int, dynamic>(
       (questionId, _) => _i955.CommentCountBloc(

@@ -9,6 +9,7 @@ import 'package:saobracaj/feature_flags/presentation/feature_flags_page.dart';
 import 'package:saobracaj/theme/presentation/appearance_page.dart';
 import 'package:saobracaj/notifications/presentation/notifications_page.dart';
 import 'package:saobracaj/profile/presentation/display_name_page.dart';
+import 'package:saobracaj/public_comments/presentation/moderation_page.dart';
 import 'package:saobracaj/home/home_content_page.dart';
 import 'package:saobracaj/home_page.dart';
 import 'package:saobracaj/questions/questions_page.dart';
@@ -72,6 +73,7 @@ final routes = RouteMap(
     '/features': (_) => const MaterialPage(child: FeatureFlagsPage()),
     '/notifications': (_) => const MaterialPage(child: NotificationsPage()),
     '/displayName': (_) => const MaterialPage(child: DisplayNamePage()),
+    '/moderation': (_) => const MaterialPage(child: ModerationPage()),
   },
 );
 

@@ -74,6 +74,20 @@ class ProfilePage extends StatelessWidget {
                     onTap: () => Routemaster.of(context).push('/notifications'),
                   ),
                 ],
+                // Moderation is gated on the backend `moderate_comments`
+                // permission, so the entry only appears for moderators.
+                if (auth.viewer?.permissions.contains('moderate_comments') ==
+                    true) ...[
+                  const Divider(height: 0),
+                  ListTile(
+                    leading: const Icon(Icons.shield_outlined),
+                    title: const Text('Модерация комментариев'),
+                    subtitle:
+                        const Text('Просмотр и удаление комментариев, баны'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Routemaster.of(context).push('/moderation'),
+                  ),
+                ],
                 const Divider(height: 0),
                 ListTile(
                   leading: const Icon(Icons.tune),
