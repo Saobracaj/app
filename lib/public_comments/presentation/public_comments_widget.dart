@@ -143,9 +143,7 @@ class _TopLevelComment extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Delete for a top-level comment lives in the actions row below (next
-          // to the subscribe toggle), not on the author line.
-          _AuthorLine(comment: comment, showDelete: false),
+          _AuthorLine(comment: comment),
           const SizedBox(height: 4),
           Text(comment.body),
           const SizedBox(height: 4),
@@ -231,24 +229,25 @@ class _ReplyTile extends StatelessWidget {
           const SizedBox(height: 2),
           Text(reply.body),
           const SizedBox(height: 2),
-          _LikeButton(comment: reply, compact: true),
+          Row(
+            children: [
+              _LikeButton(comment: reply, compact: true),
+              const Spacer(),
+              if (reply.deletableByMe) _DeleteButton(comment: reply),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-/// Display name + relative time, with a delete affordance for the caller's own
-/// comments (and for moderators).
+/// Display name + relative time. The delete affordance lives in the comment's
+/// actions row, not here.
 class _AuthorLine extends StatelessWidget {
-  const _AuthorLine({required this.comment, this.showDelete = true});
+  const _AuthorLine({required this.comment});
 
   final PublicComment comment;
-
-  /// Whether to render the inline delete affordance on this line. Top-level
-  /// comments set this to `false` — their delete control lives in the actions
-  /// row instead (next to the subscribe toggle).
-  final bool showDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -271,10 +270,6 @@ class _AuthorLine extends StatelessWidget {
           style: theme.textTheme.bodySmall
               ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
-        if (showDelete && comment.deletableByMe) ...[
-          const Spacer(),
-          _DeleteButton(comment: comment),
-        ],
       ],
     );
   }
