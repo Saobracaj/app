@@ -12,6 +12,7 @@ import 'package:saobracaj/profile/presentation/display_name_page.dart';
 import 'package:saobracaj/public_comments/presentation/moderation_page.dart';
 import 'package:saobracaj/home/home_content_page.dart';
 import 'package:saobracaj/home_page.dart';
+import 'package:saobracaj/question_lists/presentation/question_list_page.dart';
 import 'package:saobracaj/questions/questions_page.dart';
 import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 import 'package:saobracaj/statistics/statistics_page.dart';
@@ -46,6 +47,13 @@ final routes = RouteMap(
     '/quest/q': questPage,
     '/quest/q/zakon': zakonPage,
     '/statistics/q': questPage,
+    // A single question list (automatic or custom) and the questions opened from it.
+    '/lists/:id': (data) => MaterialPage(
+      child: QuestionListPage(
+        listId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+      ),
+    ),
+    '/lists/:id/q': questPage,
     '/questPractice/q': questPage,
     '/questPractice/q/zakon': zakonPage,
     '/questPractice':

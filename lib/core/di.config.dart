@@ -32,6 +32,8 @@ import '../public_comments/data/public_comments_repository.dart' as _i989;
 import '../public_comments/state_management/comment_count_bloc.dart' as _i955;
 import '../public_comments/state_management/comments_bloc.dart' as _i405;
 import '../public_comments/state_management/moderation_bloc.dart' as _i515;
+import '../question_lists/data/question_lists_repository.dart' as _i206;
+import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
 import '../test/quest/comment/data/comment_repository.dart' as _i359;
 import '../test/quest/comment/state_management/comment_bloc.dart' as _i213;
 import 'di.dart' as _i913;
@@ -85,6 +87,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i989.PublicCommentsRepository>(
       () => _i989.PublicCommentsRepository(gh<_i483.GraphqlClient>()),
     );
+    gh.lazySingleton<_i206.QuestionListsRepository>(
+      () => _i206.QuestionListsRepository(gh<_i483.GraphqlClient>()),
+    );
     gh.lazySingleton<_i359.CommentRepository>(
       () => _i359.CommentRepository(gh<_i483.GraphqlClient>()),
     );
@@ -122,6 +127,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factoryParam<_i213.CommentBloc, int, dynamic>(
       (questionId, _) =>
           _i213.CommentBloc(gh<_i359.CommentRepository>(), questionId),
+    );
+    gh.factory<_i1000.QuestionListsBloc>(
+      () => _i1000.QuestionListsBloc(
+        gh<_i206.QuestionListsRepository>(),
+        gh<_i388.AuthBloc>(),
+      ),
     );
     return this;
   }
