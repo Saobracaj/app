@@ -1,6 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
@@ -10,6 +9,7 @@ import '../models/public_comment.dart';
 import '../state_management/comments_bloc.dart';
 import '../state_management/comments_events.dart';
 import '../state_management/comments_state.dart';
+import 'comment_composer.dart';
 import 'relative_time.dart';
 
 /// Public, social comments for one exam question (the "Дискусија" tab).
@@ -79,7 +79,7 @@ class _CommentsBody extends StatelessWidget {
         if (state.canWrite)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: _Composer(
+            child: CommentComposer(
               hint: LocaleKeys.comments_write.tr(),
               submitting: state.submitting,
               onSubmit: (text) => _submitComment(context, state, text),
@@ -194,7 +194,7 @@ class _TopLevelComment extends StatelessWidget {
           if (state.canWrite)
             Padding(
               padding: const EdgeInsets.only(left: 16, top: 4),
-              child: _Composer(
+              child: CommentComposer(
                 hint: LocaleKeys.comments_reply.tr(),
                 dense: true,
                 submitting: state.submitting,
@@ -416,119 +416,6 @@ class _SubscriptionToggle extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-/// A text field that reveals a "Отправить" button *below* it once focused (per
-/// the spec). A focus toggle is the sanctioned use of local widget state.
-///
-/// [focusRequestId] lets the parent move focus into this composer: whenever it
-/// changes to a new non-null value (bumped on each "Ответить" tap) the field
-/// requests focus.
-class _Composer extends StatefulWidget {
-  const _Composer({
-    required this.hint,
-    required this.onSubmit,
-    this.submitting = false,
-    this.dense = false,
-    this.focusRequestId,
-  });
-
-  final String hint;
-
-  /// Returns `true` when the text was accepted (so the field can be cleared);
-  /// `false` when the submission was aborted (e.g. the display-name dialog was
-  /// cancelled), keeping the user's text.
-  final Future<bool> Function(String) onSubmit;
-  final bool submitting;
-  final bool dense;
-  final int? focusRequestId;
-
-  @override
-  State<_Composer> createState() => _ComposerState();
-}
-
-class _ComposerState extends State<_Composer> {
-  final _controller = TextEditingController();
-  final _focus = FocusNode();
-  bool _focused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _focus.addListener(() => setState(() => _focused = _focus.hasFocus));
-  }
-
-  @override
-  void didUpdateWidget(covariant _Composer oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // A new focus request arrived (the user tapped "Ответить" on this thread) —
-    // move focus into the field.
-    if (widget.focusRequestId != null &&
-        widget.focusRequestId != oldWidget.focusRequestId) {
-      _focus.requestFocus();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _focus.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    final text = _controller.text.trim();
-    if (text.isEmpty || widget.submitting) return;
-    final accepted = await widget.onSubmit(text);
-    if (!accepted || !mounted) return;
-    _controller.clear();
-    _focus.unfocus();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final showSend = _focused || _controller.text.trim().isNotEmpty;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextField(
-          controller: _controller,
-          focusNode: _focus,
-          minLines: 1,
-          maxLines: 4,
-          maxLength: 1000,
-          buildCounter: (_, {required currentLength, maxLength, required isFocused}) => null,
-          inputFormatters: [LengthLimitingTextInputFormatter(1000)],
-          onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            hintText: widget.hint,
-            isDense: widget.dense,
-            border: const OutlineInputBorder(),
-          ),
-        ),
-        if (showSend)
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: widget.submitting
-                  ? const Padding(
-                      padding: EdgeInsets.all(8),
-                      child: SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  : FilledButton(
-                      onPressed: _submit,
-                      child: Text(LocaleKeys.comments_send.tr()),
-                    ),
-            ),
-          ),
-      ],
     );
   }
 }
