@@ -39,5 +39,25 @@ void main() {
       expect(getDictByTitle('аутономно возило'), isNotNull);
       expect(getDictByTitle('тестирање аутономног возила'), isNotNull);
     });
+
+    test('исправлен баг: термин с двоеточием ("аутопут:") подсвечивается', () {
+      // вопрос 8087: "Које од наведених услова мора испуњавати аутопут:"
+      final res = 'Које од наведених услова мора испуњавати аутопут:'.dict;
+      final title = Uri.encodeComponent('Аутопут');
+      // слово кликабельно, а двоеточие остаётся за пределами ссылки
+      expect(res, contains('[аутопут](dict/$title):'));
+    });
+
+    test('термин со знаком вопроса ("аутопут?") подсвечивается', () {
+      final res = 'Које услове мора испуњавати аутопут?'.dict;
+      expect(res, contains('аутопут](dict/'));
+      expect(res.contains('аутопут?](dict/'), isFalse);
+    });
+
+    test('знак препинания не попадает внутрь ссылки', () {
+      final res = 'Возило се креће кроз насеље.'.dict;
+      final title = Uri.encodeComponent('Насеље');
+      expect(res, contains('[насеље](dict/$title).'));
+    });
   });
 }
