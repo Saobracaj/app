@@ -4,6 +4,7 @@ import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/questions/state_management/categories_bloc.dart';
+import 'package:saobracaj/theme/quiz_colors.dart';
 
 class Categories extends StatefulWidget {
   const Categories({super.key});
@@ -114,23 +115,41 @@ class MiniChart extends StatelessWidget {
     final maxValue = rawMax > 0 ? rawMax : 1;
     final allAnswers = stats.allAnswers > 0 ? stats.allAnswers : 1;
 
+    final quiz = Theme.of(context).quiz;
+
+    /// Bar fill and its label colour for one bucket, from "fully mastered" down
+    /// to "mostly wrong".
+    (Color, Color) barColors(int value) {
+      if (value >= stats.allAnswers) return (quiz.correct, quiz.onCorrect);
+      final ratio = value / allAnswers;
+      if (ratio > 0.9) return (quiz.warning, quiz.onWarning);
+      if (ratio < 0.5) return (quiz.wrong, quiz.onWrong);
+      return (quiz.info, quiz.onInfo);
+    }
+
     return Row(
       // mainAxisAlignment: MainAxisAlignment.end,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
         for (var value in answers) ...[
-          Container(
-            width: w,
-            height: minHeight + (value / maxValue) * (maxHeight - minHeight),
-            color:
-                value >= stats.allAnswers
-                    ? Colors.green
-                    : (value / allAnswers > 0.9 ? Color(0xff8a8200) : (value / allAnswers < 0.5 ? Colors.red : Colors.blue)),
-            child: Center(
-              child: FittedBox(
-                child: Text(value.toString(), maxLines: 1, style: Theme.of(context).textTheme.labelSmall!.copyWith(color: Colors.white)),
-              ),
-            ),
+          Builder(
+            builder: (context) {
+              final (background, foreground) = barColors(value);
+              return Container(
+                width: w,
+                height: minHeight + (value / maxValue) * (maxHeight - minHeight),
+                color: background,
+                child: Center(
+                  child: FittedBox(
+                    child: Text(
+                      value.toString(),
+                      maxLines: 1,
+                      style: Theme.of(context).textTheme.labelSmall!.copyWith(color: foreground),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
           SizedBox(width: space),
         ],

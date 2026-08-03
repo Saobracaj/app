@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/core/deep_links.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
@@ -19,6 +20,7 @@ import 'package:saobracaj/test/animations/animations_map.dart';
 import 'package:saobracaj/test/practice/widgets/question_tries.dart';
 import 'package:saobracaj/test/quest/state_management/quest_content_bloc.dart';
 import 'package:saobracaj/test/quest/state_management/translations_bloc.dart';
+import 'package:saobracaj/theme/quiz_colors.dart';
 import 'package:saobracaj/util/nav_to_url.dart';
 import 'package:collection/collection.dart';
 
@@ -90,7 +92,7 @@ class Quest extends StatelessWidget {
                       subtitle: Text(
                         'Број поена: ${qs.firstWhere((element) => element.id == state.questions[state.currentQuestionIndex]).points}',
                         style: TextStyle(
-                          color: Color(0xff2c6aa0),
+                          color: Theme.of(context).quiz.info,
                           fontStyle: FontStyle.italic,
                         ),
                       ),
@@ -127,6 +129,7 @@ class Quest extends StatelessWidget {
                           spacing: 2,
                           runSpacing: 2,
                           children: state.questions.map((e) {
+                            final quiz = Theme.of(context).quiz;
                             final isAnswered = state.answers[e] != null;
                             final isCorrect = (setEquals(
                               state.answers[e],
@@ -144,15 +147,20 @@ class Quest extends StatelessWidget {
                                 height: 8,
                                 decoration: BoxDecoration(
                                   color: !isAnswered
-                                      ? Colors.grey
-                                      : (isCorrect ? Colors.green : Colors.red),
+                                      ? quiz.unanswered
+                                      : (isCorrect ? quiz.correct : quiz.wrong),
                                   borderRadius: BorderRadius.circular(20),
+                                  // The "you are here" ring has to stay visible
+                                  // on both themes — a fixed black one vanished
+                                  // against the dark surface.
                                   border:
                                       state.questions[state
                                               .currentQuestionIndex] ==
                                           e
                                       ? Border.all(
-                                          color: Colors.black,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
                                           width: 2,
                                         )
                                       : null,
@@ -260,6 +268,7 @@ class QuestionContent extends StatelessWidget {
     final rightAnswers = question.choices
         .where((element) => element.isCorrect)
         .length;
+    final quiz = Theme.of(context).quiz;
     final questBloc = context.read<QuestBloc>();
     var choices = [...question.choices];
     /* if (randomOptions) {
@@ -326,7 +335,7 @@ class QuestionContent extends StatelessWidget {
                         child: Text(
                           'Број потребних одговора: $rightAnswers',
                           style: TextStyle(
-                            color: Color(0xff2c6aa0),
+                            color: Theme.of(context).quiz.info,
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -338,8 +347,8 @@ class QuestionContent extends StatelessWidget {
                           color: !state.showCorrectAnswers
                               ? Colors.transparent
                               : (c.isCorrect
-                                    ? Color(0x2200ff00)
-                                    : Color(0x10ff0000)),
+                                    ? quiz.correctContainer
+                                    : quiz.wrongContainer),
                           child: CheckboxListTile(
                             title: QuestMarkdown(text: c.text.trim().dict),
                             value: state.selectedChoices.contains(c),
@@ -363,8 +372,8 @@ class QuestionContent extends StatelessWidget {
                           color: !state.showCorrectAnswers
                               ? Colors.transparent
                               : (c.isCorrect
-                                    ? Color(0x22008E00)
-                                    : Color(0x10ff0000)),
+                                    ? quiz.correctContainer
+                                    : quiz.wrongContainer),
                           child: RadioListTile<Choice>(
                             title: QuestMarkdown(text: c.text.trim().dict),
                             value: c,
@@ -589,8 +598,8 @@ class QuestMarkdown extends StatelessWidget {
       Routemaster.of(context).push(link);
     } else if (href.startsWith('zakon')) {
       Routemaster.of(context).push(href);
-    } else if (href.startsWith('https://saobracaj.app/')) {
-      final link = href.split('https://saobracaj.app/')[1];
+    } else if (href.startsWith('https://$kDeepLinkHost/')) {
+      final link = href.split('https://$kDeepLinkHost/')[1];
       Routemaster.of(context).push(link);
     } else {
       navigateToUri(context, Uri.parse(href));

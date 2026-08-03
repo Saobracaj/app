@@ -10,7 +10,7 @@ export 'theme_state.dart';
 /// Persists the accent color and light/dark mode across launches.
 class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
   ThemeBloc()
-    : super(const ThemeState(accentIndex: null, mode: ThemeMode.light)) {
+    : super(const ThemeState(accentIndex: null, mode: ThemeMode.system)) {
     on<ThemeStarted>(_onStarted);
     on<AccentChanged>(_onAccentChanged);
     on<DefaultAccentSelected>(_onDefaultAccentSelected);
@@ -79,11 +79,11 @@ class ThemeBloc extends Bloc<ThemeEvent, ThemeState> {
         return ThemeMode.dark;
       case 'system':
         return ThemeMode.system;
-      // No saved preference: keep a fixed scheme instead of following the OS,
-      // so the interface colors don't change on their own until the user picks
-      // a mode explicitly.
+      // No saved preference: follow the OS, which is what a Material 3 app is
+      // expected to do — a user whose phone is in dark mode gets a dark app
+      // without having to find the setting first.
       default:
-        return ThemeMode.light;
+        return ThemeMode.system;
     }
   }
 }

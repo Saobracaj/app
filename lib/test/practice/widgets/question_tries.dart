@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/practice/state_management/question_tries_bloc.dart';
+import 'package:saobracaj/theme/quiz_colors.dart';
 
 class QuestionTries extends StatelessWidget {
   const QuestionTries(this.qid, {super.key});
@@ -37,7 +38,7 @@ class QuestionTries extends StatelessWidget {
                         Container(
                           width: 6,
                           height: 6,
-                          decoration: BoxDecoration(color: s ? Colors.red : Colors.green, borderRadius: BorderRadius.circular(20)),
+                          decoration: BoxDecoration(color: s ? Theme.of(context).quiz.wrong : Theme.of(context).quiz.correct, borderRadius: BorderRadius.circular(20)),
                         ),
                   ],
                 ),

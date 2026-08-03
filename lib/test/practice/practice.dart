@@ -11,7 +11,10 @@ import 'package:saobracaj/test/practice/state_management/practice_content_bloc.d
 import 'package:saobracaj/test/practice/widgets/custom_checkbox.dart';
 import 'package:saobracaj/test/practice/widgets/quest_button.dart';
 import 'package:saobracaj/test/practice/widgets/question_tries.dart';
+import 'package:saobracaj/theme/exam_theme.dart';
+import 'package:saobracaj/theme/quiz_colors.dart';
 
+import 'exam_strings.dart';
 import 'finalize_practice.dart';
 import 'izvestai.dart';
 
@@ -35,134 +38,186 @@ class Practice extends StatelessWidget {
               final questBloc = context.read<PracticeBloc>();
               if (state.finalizeTest) {
                 context.read<AllQuestionsBloc>().add(LoadStatistics());
+                // The results screen is ordinary app UI (it links back into the
+                // trainer), so it keeps the user's own theme even after an
+                // exam-styled run.
                 return FinalizePracticeWidget();
               }
-              return Scaffold(
-                appBar: AppBar(
-                  toolbarHeight: 80,
-                  automaticallyImplyLeading: false,
-                  title: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Color(0xFF2C6AA0),
-                                width: 1,
-                                style: BorderStyle.solid, // В Flutter нет 'double', можно имитировать
-                              ),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              constraints: const BoxConstraints(minWidth: 120),
-                              decoration: BoxDecoration(color: Color(0xFF2C6AA0), borderRadius: BorderRadius.circular(4)),
-                              child: Text(
-                                'Питање: ${state.currentQuestionIndex + 1} / ${state.questions.length}', // Твой текст
-                                style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white),
-                              ),
-                            ),
-                          ),
-
-                          CustomCheckbox(
-                            value: state.markedQuestions.contains(state.currentQuestionIndex),
-                            onChanged: (value) {
-                              questBloc.add(ToggleMarkQuestion(state.currentQuestionIndex));
-                            },
-                            label: 'Обележите питање',
-                          ),
-
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.black, width: 1, style: BorderStyle.solid),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              constraints: const BoxConstraints(minWidth: 50),
-                              decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(4)),
-                              child: Text(
-                                formatDuration(state.timeLeft),
-                                style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Colors.white),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Број поена: ${state.currentQuestion?.points}',
-                        style: TextStyle(fontSize: 14, color: Color(0xff2c6aa0), fontStyle: FontStyle.italic),
-                      ),
-                    ],
-                  ),
-                ),
-                body:
-                    state.currentQuestion == null
-                        ? SizedBox()
-                        : SingleChildScrollView(
-                          controller: _scrollController,
-                          child: _QuestionContent(
-                            key: ValueKey(state.currentQuestion),
-                            randomOptions: true,
-                            question: state.currentQuestion!,
-                            answers: state.currentAnswers,
-                            last: state.currentQuestionIndex == state.questions.length - 1,
-                            showPreviousTries: params.showStats,
-                            params: params,
-                          ),
-                        ),
-                bottomNavigationBar:
-                    params.buttonsLikeInExam
-                        ? null
-                        : SafeArea(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Row(
-                              children: [
-                                IconButton(
-                                  onPressed:
-                                      state.currentQuestionIndex == 0
-                                          ? null
-                                          : () {
-                                            questBloc.add(PrevQuestion());
-                                          },
-                                  icon: Icon(Icons.arrow_back_ios_new_outlined),
-                                ),
-                                SizedBox(width: 16),
-                                IconButton(
-                                  onPressed:
-                                      state.currentQuestionIndex == state.questions.length - 1
-                                          ? null
-                                          : () {
-                                            questBloc.add(NextQuestion());
-                                          },
-                                  icon: Icon(Icons.arrow_forward_ios_outlined),
-                                ),
-                                Spacer(),
-                                IconButton(
-                                  onPressed: () async {
-                                    final res = await _showTable(context, questBloc.state);
-                                    if (res != null) {
-                                      questBloc.add(NavigateToQuestion(res));
-                                    }
-                                  },
-                                  icon: Icon(Icons.format_list_numbered),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+              // With "buttons like in the exam" on, the whole run is rendered in
+              // the frozen replica palette — the Builder puts every descendant
+              // context (including the ones handed to the report sheet and the
+              // confirmation dialog) below that theme.
+              final run = Builder(
+                builder: (context) => _buildRun(context, state, questBloc),
               );
+              return params.buttonsLikeInExam
+                  ? Theme(data: examTheme, child: run)
+                  : run;
             },
           ),
         );
       },
+    );
+  }
+
+  Widget _buildRun(
+    BuildContext context,
+    PracticeState state,
+    PracticeBloc questBloc,
+  ) {
+    final quiz = Theme.of(context).quiz;
+    return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 80,
+        automaticallyImplyLeading: false,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _HeaderChip(
+                  color: quiz.info,
+                  onColor: quiz.onInfo,
+                  minWidth: 120,
+                  label: ExamStrings.questionCounter(
+                    state.currentQuestionIndex + 1,
+                    state.questions.length,
+                  ),
+                ),
+                CustomCheckbox(
+                  value: state.markedQuestions.contains(
+                    state.currentQuestionIndex,
+                  ),
+                  onChanged: (value) {
+                    questBloc.add(ToggleMarkQuestion(state.currentQuestionIndex));
+                  },
+                  label: ExamStrings.markQuestion,
+                ),
+                _HeaderChip(
+                  // The countdown is the one element the real software renders
+                  // on solid black; outside the exam replica it follows the
+                  // theme's own high-contrast surface instead.
+                  color: params.buttonsLikeInExam
+                      ? ExamPalette.timer
+                      : Theme.of(context).colorScheme.inverseSurface,
+                  onColor: params.buttonsLikeInExam
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onInverseSurface,
+                  minWidth: 50,
+                  label: formatDuration(state.timeLeft),
+                ),
+              ],
+            ),
+            SizedBox(height: 4),
+            Text(
+              ExamStrings.points(state.currentQuestion?.points ?? 0),
+              style: TextStyle(
+                fontSize: 14,
+                color: quiz.info,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: state.currentQuestion == null
+          ? SizedBox()
+          : SingleChildScrollView(
+              controller: _scrollController,
+              child: _QuestionContent(
+                key: ValueKey(state.currentQuestion),
+                randomOptions: true,
+                question: state.currentQuestion!,
+                answers: state.currentAnswers,
+                last:
+                    state.currentQuestionIndex == state.questions.length - 1,
+                showPreviousTries: params.showStats,
+                params: params,
+              ),
+            ),
+      bottomNavigationBar: params.buttonsLikeInExam
+          ? null
+          : SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: state.currentQuestionIndex == 0
+                          ? null
+                          : () {
+                              questBloc.add(PrevQuestion());
+                            },
+                      icon: Icon(Icons.arrow_back_ios_new_outlined),
+                    ),
+                    SizedBox(width: 16),
+                    IconButton(
+                      onPressed:
+                          state.currentQuestionIndex ==
+                              state.questions.length - 1
+                          ? null
+                          : () {
+                              questBloc.add(NextQuestion());
+                            },
+                      icon: Icon(Icons.arrow_forward_ios_outlined),
+                    ),
+                    Spacer(),
+                    IconButton(
+                      onPressed: () async {
+                        final res = await _showTable(context, questBloc.state);
+                        if (res != null) {
+                          questBloc.add(NavigateToQuestion(res));
+                        }
+                      },
+                      icon: Icon(Icons.format_list_numbered),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+/// The exam header's boxed readouts — the question counter and the countdown —
+/// drawn as a filled chip inside a same-coloured hairline frame, the way the
+/// examination software does it.
+class _HeaderChip extends StatelessWidget {
+  const _HeaderChip({
+    required this.color,
+    required this.onColor,
+    required this.label,
+    required this.minWidth,
+  });
+
+  final Color color;
+  final Color onColor;
+  final String label;
+  final double minWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(1),
+      decoration: BoxDecoration(
+        border: Border.all(color: color, width: 1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        constraints: BoxConstraints(minWidth: minWidth),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium!.copyWith(color: onColor),
+        ),
+      ),
     );
   }
 }
@@ -188,6 +243,7 @@ class _QuestionContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rightAnswers = question.choices.where((element) => element.isCorrect).length;
+    final quiz = Theme.of(context).quiz;
     final questBloc = context.read<PracticeBloc>();
     var choices = [...question.choices];
 
@@ -221,13 +277,13 @@ class _QuestionContent extends StatelessWidget {
                   if (rightAnswers > 1)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('Број потребних одговора: $rightAnswers', style: TextStyle(color: Color(0xff2c6aa0), fontStyle: FontStyle.italic)),
+                      child: Text(ExamStrings.requiredAnswers(rightAnswers), style: TextStyle(color: quiz.info, fontStyle: FontStyle.italic)),
                     ),
                   for (var c in choices)
                     if (rightAnswers > 1)
                       AnimatedContainer(
                         duration: Duration(milliseconds: 200),
-                        color: !state.showCorrectAnswers ? Colors.transparent : (c.isCorrect ? Color(0x2200ff00) : Color(0x10ff0000)),
+                        color: !state.showCorrectAnswers ? Colors.transparent : (c.isCorrect ? quiz.correctContainer : quiz.wrongContainer),
                         child: CheckboxListTile(
                           title: Text(c.text),
                           value: state.selectedChoices.contains(c),
@@ -238,7 +294,7 @@ class _QuestionContent extends StatelessWidget {
                     else
                       AnimatedContainer(
                         duration: Duration(milliseconds: 200),
-                        color: !state.showCorrectAnswers ? Colors.transparent : (c.isCorrect ? Color(0x22008E00) : Color(0x10ff0000)),
+                        color: !state.showCorrectAnswers ? Colors.transparent : (c.isCorrect ? quiz.correctContainer : quiz.wrongContainer),
                         child: RadioListTile<Choice>(
                           title: Text(c.text),
                           value: c,
@@ -255,8 +311,8 @@ class _QuestionContent extends StatelessWidget {
                           onPressed: () => _saveAndLoadNext(false, context, state, params),
                           icon: Icons.arrow_back,
                           iconPosition: IconPosition.left,
-                          label: 'Претходно питање',
-                          color: const Color(0xFF428bca),
+                          label: ExamStrings.previousQuestion,
+                          color: ExamPalette.navigation,
                         ),
                       ),
                     if (practiceState.currentQuestionIndex != practiceState.questions.length - 1)
@@ -266,8 +322,8 @@ class _QuestionContent extends StatelessWidget {
                         child: CustomIconButton(
                           onPressed: () => _saveAndLoadNext(true, context, state, params),
                           icon: Icons.arrow_forward,
-                          label: 'Следеће питање',
-                          color: const Color(0xFF428bca),
+                          label: ExamStrings.nextQuestion,
+                          color: ExamPalette.navigation,
                         ),
                       ),
                     Container(
@@ -276,8 +332,8 @@ class _QuestionContent extends StatelessWidget {
                       child: CustomIconButton(
                         onPressed: () async => await _finalizeTest(context, state, params),
                         icon: Icons.exit_to_app,
-                        label: 'Крај испита',
-                        color: const Color(0xffd9534f),
+                        label: ExamStrings.endExam,
+                        color: ExamPalette.danger,
                       ),
                     ),
                     Container(
@@ -291,9 +347,9 @@ class _QuestionContent extends StatelessWidget {
                           }
                         },
                         icon: Icons.format_list_numbered,
-                        label: 'Извештај',
-                        color: const Color(0xfffee188),
-                        textColor: const Color(0xff946331),
+                        label: ExamStrings.report,
+                        color: ExamPalette.report,
+                        textColor: ExamPalette.onReport,
                       ),
                     ),
                     if (params.showRightAnswers)
@@ -303,8 +359,8 @@ class _QuestionContent extends StatelessWidget {
                         child: CustomIconButton(
                           onPressed: () => bloc.add(ShowCorrectAnswers()),
                           icon: Icons.check,
-                          label: 'Прикажи одговор',
-                          color: const Color(0xff629b58),
+                          label: ExamStrings.showAnswer,
+                          color: ExamPalette.success,
                         ),
                       ),
                   ],
@@ -314,13 +370,13 @@ class _QuestionContent extends StatelessWidget {
                       padding: EdgeInsets.all(16),
                       child: ElevatedButton(
                         onPressed: last ? null : () => _saveAndLoadNext(true, context, state, params),
-                        child: Text('Следеће питање'),
+                        child: Text(ExamStrings.nextQuestion),
                       ),
                     ),
                   if (last && !params.buttonsLikeInExam)
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: OutlinedButton(onPressed: () async => await _finalizeTest(context, state, params), child: Text('Завершить тест')),
+                      child: OutlinedButton(onPressed: () async => await _finalizeTest(context, state, params), child: Text(ExamStrings.endExam)),
                     ),
                   SizedBox(height: 16),
                   if (!params.buttonsLikeInExam && params.showRightAnswers)
@@ -331,7 +387,7 @@ class _QuestionContent extends StatelessWidget {
                               : () {
                                 bloc.add(ShowCorrectAnswers());
                               },
-                      child: Text('Прикажи одговор'),
+                      child: Text(ExamStrings.showAnswer),
                     ),
                 ],
                 ),
@@ -349,7 +405,7 @@ class _QuestionContent extends StatelessWidget {
     if (state.selectedChoices.isNotEmpty) {
       var correctAnswer = question.choices.where((element) => element.isCorrect).toSet();
       if (correctAnswer.length != state.selectedChoices.length) {
-        const snackBar = SnackBar(content: Text('Нисте означили потребан број одговора'));
+        const snackBar = SnackBar(content: Text(ExamStrings.wrongAnswerCount));
         ScaffoldMessenger.of(context).showSnackBar(snackBar);
         return SavedAnswer.wrongNumber;
       }
@@ -420,7 +476,7 @@ Future<int?> _showTable(BuildContext context, PracticeState state) async {
               final q = state.questions[i];
               final question = allQuestions.firstWhere((element) => element.id == q);
               final t = TableEntry(
-                question: 'Питање ${i + 1}',
+                question: ExamStrings.reportRow(i + 1),
                 points: question.points,
                 answered: state.answers.containsKey(q),
                 marked: state.markedQuestions.contains(i),
@@ -440,24 +496,21 @@ Future<bool?> _showMyDialog(BuildContext context) async {
     barrierDismissible: false, // user must tap button!
     builder: (BuildContext context) {
       return AlertDialog(
-        title: Text('Да ли сигурно желите завршити теоријски испит?'),
+        title: Text(ExamStrings.finishTitle),
         content: const SingleChildScrollView(
           child: ListBody(
-            children: <Widget>[
-              // Text('Да ли сигурно желите завршити теоријски испит?'),
-              Text('Након потврде више нећете моћи унети било коју измену у дате одговоре.'),
-            ],
+            children: <Widget>[Text(ExamStrings.finishBody)],
           ),
         ),
         actions: <Widget>[
           TextButton(
-            child: const Text('Одустаните'),
+            child: const Text(ExamStrings.finishCancel),
             onPressed: () {
               Navigator.of(context).pop();
             },
           ),
           TextButton(
-            child: const Text('Да'),
+            child: const Text(ExamStrings.finishConfirm),
             onPressed: () {
               Navigator.of(context).pop(true);
             },

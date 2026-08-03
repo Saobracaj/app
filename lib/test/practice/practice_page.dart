@@ -9,7 +9,10 @@ import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/practice/finalize_practice.dart';
 import 'package:saobracaj/test/practice/practice.dart' show formatDuration;
 import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
+import 'package:saobracaj/test/practice/exam_strings.dart';
 import 'package:saobracaj/test/practice/widgets/quest_button.dart';
+import 'package:saobracaj/theme/exam_theme.dart';
+import 'package:saobracaj/theme/quiz_colors.dart';
 
 class PracticePage extends StatelessWidget {
   const PracticePage({super.key});
@@ -50,8 +53,8 @@ class PracticePage extends StatelessWidget {
                           ? CustomIconButton(
                             onPressed: () => onPressed(context, state),
                             icon: Icons.arrow_forward,
-                            label: 'Потврдите почетак симулације испита',
-                            color: const Color(0xFF2C6AA0),
+                            label: ExamStrings.confirmStart,
+                            color: ExamPalette.header,
                           )
                           : ElevatedButton(onPressed: () => onPressed(context, state), child: Text(LocaleKeys.simulation_start.tr())),
                 ),
@@ -71,7 +74,9 @@ class PracticePage extends StatelessWidget {
                         ),
                       ),
                       subtitle: Text(GetTimeAgo.parse(record.time)),
-                      leading: record.points < kMinPoints ? Icon(Icons.close, color: Colors.red) : Icon(Icons.check, color: Colors.green),
+                      leading: record.points < kMinPoints
+                          ? Icon(Icons.close, color: Theme.of(context).quiz.wrong)
+                          : Icon(Icons.check, color: Theme.of(context).quiz.correct),
                       onTap:
                           record.wrongAnswers.isEmpty
                               ? null

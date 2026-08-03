@@ -51,7 +51,6 @@ dependencies:
   url_launcher: ^6.3.2
   easy_localization: ^3.0.8
   easy_localization_loader: ^2.0.2
-  google_fonts: ^8.2.0
   scrollable_positioned_list: ^0.3.8
   collection: ^1.19.0
   rxdart: ^0.28.0
@@ -114,6 +113,20 @@ flutter:
      - assets/dict/
      - assets/parsed_zakon.json
      - assets/md_img/
+
+  # Inter, bundled rather than fetched at runtime: the quiz works offline, so
+  # the type has to as well. Covers Latin, Serbian Latin and Cyrillic.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-400.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-500.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-600.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-700.ttf
+          weight: 700
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

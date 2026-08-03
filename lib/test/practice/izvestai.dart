@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:saobracaj/test/practice/exam_strings.dart';
 import 'package:saobracaj/test/practice/widgets/quest_button.dart';
+import 'package:saobracaj/theme/exam_theme.dart';
+import 'package:saobracaj/theme/quiz_colors.dart';
 
 class TableEntry {
   final String question;
@@ -30,7 +33,7 @@ class QuestionsTable extends StatelessWidget {
             },
             defaultVerticalAlignment: TableCellVerticalAlignment.middle,
 
-            border: TableBorder.all(color: Colors.grey.shade400),
+            border: TableBorder.all(color: Theme.of(context).colorScheme.outlineVariant),
             children: [
               // Header
               TableRow(
@@ -38,19 +41,19 @@ class QuestionsTable extends StatelessWidget {
                 children: [
                   Padding(
                     padding: EdgeInsets.all(8.0),
-                    child: Text('Питање', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary), maxLines: 1, textAlign: TextAlign.center),
+                    child: Text(ExamStrings.reportColumnQuestion, style: TextStyle(color: Theme.of(context).colorScheme.onPrimary), maxLines: 1, textAlign: TextAlign.center),
                   ),
                   Padding(
                     padding: EdgeInsets.all(8.0),
-                    child: FittedBox(child: Text('Број поена', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary), maxLines: 1)),
+                    child: FittedBox(child: Text(ExamStrings.reportColumnPoints, style: TextStyle(color: Theme.of(context).colorScheme.onPrimary), maxLines: 1)),
                   ),
                   Padding(
                     padding: EdgeInsets.all(8.0),
-                    child: FittedBox(child: Text('Одговорено', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary), maxLines: 1)),
+                    child: FittedBox(child: Text(ExamStrings.reportColumnAnswered, style: TextStyle(color: Theme.of(context).colorScheme.onPrimary), maxLines: 1)),
                   ),
                   Padding(
                     padding: EdgeInsets.all(8.0),
-                    child: FittedBox(child: Text('Обележено', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary), maxLines: 1)),
+                    child: FittedBox(child: Text(ExamStrings.reportColumnMarked, style: TextStyle(color: Theme.of(context).colorScheme.onPrimary), maxLines: 1)),
                   ),
                 ],
               ),
@@ -77,7 +80,7 @@ class QuestionsTable extends StatelessWidget {
                     ),
                     Padding(
                       padding: const EdgeInsets.all(8.0),
-                      child: entries[i].marked ? const Icon(Icons.bookmark, color: Colors.orange) : const SizedBox.shrink(),
+                      child: entries[i].marked ? Icon(Icons.bookmark, color: Theme.of(context).quiz.warning) : const SizedBox.shrink(),
                     ),
                   ],
                 ),
@@ -86,7 +89,7 @@ class QuestionsTable extends StatelessWidget {
           SizedBox(height: 16),
           CustomIconButton(onPressed: () {
             Navigator.of(context).pop();
-          }, icon: Icons.arrow_back, label: 'Назад', color: Color(0xfffee188), textColor: const Color(0xff946331)),
+          }, icon: Icons.arrow_back, label: ExamStrings.back, color: ExamPalette.report, textColor: ExamPalette.onReport),
           SizedBox(height: 16),
         ],
       ),

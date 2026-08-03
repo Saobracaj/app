@@ -9,7 +9,6 @@ import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 // ignore: depend_on_referenced_packages
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:saobracaj/purchase/state_management/purchase_bloc.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'auth/data/auth_repository.dart';
 import 'auth/data/firebase_init.dart';
@@ -27,6 +26,7 @@ import 'question_lists/state_management/question_lists_events.dart';
 import 'generated/codegen_loader.g.dart';
 import 'session/session_resume_gate.dart';
 import 'session/session_route_observer.dart';
+import 'theme/app_theme.dart';
 import 'theme/state_management/theme_bloc.dart';
 
 void main() async {
@@ -133,16 +133,8 @@ class _MyAppState extends State<MyApp> {
                 routeInformationParser: RoutemasterParser(),
                 title: 'Saobraćaj',
                 themeMode: themeState.mode,
-                theme: ThemeData(
-                  colorScheme: lightScheme,
-                  textTheme: GoogleFonts.interTextTheme(),
-                ),
-                darkTheme: ThemeData(
-                  colorScheme: darkScheme,
-                  textTheme: GoogleFonts.interTextTheme(
-                    ThemeData.dark().textTheme,
-                  ),
-                ),
+                theme: buildAppTheme(lightScheme),
+                darkTheme: buildAppTheme(darkScheme),
               );
             },
           );

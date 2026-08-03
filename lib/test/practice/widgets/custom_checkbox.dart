@@ -14,7 +14,7 @@ class CustomCheckbox extends StatelessWidget {
       width: width,
       height: 30,
       // padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(border: Border.all(color: Colors.grey, width: 1), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(border: Border.all(color: Theme.of(context).colorScheme.outline, width: 1), borderRadius: BorderRadius.circular(6)),
       child: InkWell(
         onTap: () {
           onChanged.call(!value);

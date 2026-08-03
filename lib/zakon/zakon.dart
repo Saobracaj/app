@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:saobracaj/core/deep_links.dart';
 import 'package:saobracaj/data/zakon_o_bezbednosti_data_source.dart';
 import 'package:saobracaj/zakon/state_management/zakon_bloc.dart';
 import 'package:flutter/services.dart';
@@ -139,7 +140,7 @@ class _Paragraph extends StatelessWidget {
       queryParameters['paragraph'] = paragraph.paragraph;
     }
 
-    final uri = Uri.https('saobracaj.app', '/zakon', queryParameters);
+    final uri = appLink('/zakon', queryParameters);
 
     Clipboard.setData(ClipboardData(text: uri.toString())).then((_) {
       if (!context.mounted) return;

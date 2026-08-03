@@ -7,6 +7,7 @@ import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/test/practice/state_management/practice_bloc.dart';
 import 'package:saobracaj/test/practice/widgets/confetti.dart';
+import 'package:saobracaj/theme/quiz_colors.dart';
 
 const kMinPoints = 85;
 
@@ -57,12 +58,12 @@ class FinalizePracticeWidget extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Colors.teal.withAlpha(220), // Полупрозрачный зелёный
-                                  borderRadius: BorderRadius.circular(16), // Закруглённые углы
+                                  color: Theme.of(context).quiz.correct,
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Text(
                                   LocaleKeys.simulation_success.tr(),
-                                  style: Theme.of(context).textTheme.headlineLarge!.copyWith(color: Colors.white),
+                                  style: Theme.of(context).textTheme.headlineLarge!.copyWith(color: Theme.of(context).quiz.onCorrect),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
@@ -72,12 +73,12 @@ class FinalizePracticeWidget extends StatelessWidget {
                               child: Container(
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  color: Colors.redAccent, // Полупрозрачный зелёный
-                                  borderRadius: BorderRadius.circular(16), // Закруглённые углы
+                                  color: Theme.of(context).quiz.wrong,
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: Text(
                                   LocaleKeys.simulation_fail.tr(),
-                                  style: Theme.of(context).textTheme.headlineLarge!.copyWith(color: Colors.white),
+                                  style: Theme.of(context).textTheme.headlineLarge!.copyWith(color: Theme.of(context).quiz.onWrong),
                                   textAlign: TextAlign.center,
                                 ),
                               ),
