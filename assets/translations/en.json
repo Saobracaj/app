@@ -204,5 +204,32 @@
             "errorTooManyWords": "Name must contain at most {} words",
             "errorControlChars": "Name must not contain control characters"
         }
+    },
+    "questionLists": {
+        "section": "Question lists",
+        "recentMistakes": "Recent mistakes",
+        "questionsCount": "Questions: {}",
+        "create": "Create a list",
+        "createTitle": "New list",
+        "editTitle": "Edit list",
+        "nameLabel": "List name",
+        "nameRequired": "Enter a list name",
+        "color": "Colour",
+        "cancel": "Cancel",
+        "save": "Save",
+        "createAction": "Create",
+        "edit": "Edit",
+        "delete": "Delete list",
+        "deleteConfirm": "Delete",
+        "deleteConfirmTitle": "Delete the list?",
+        "deleteConfirmBody": "The list “{}” will be deleted together with all the questions in it.",
+        "startAll": "Take all questions in the list",
+        "empty": "This list has no questions yet",
+        "missing": "List not found",
+        "addToList": "Add to a list",
+        "addNewList": "Add a new list",
+        "noCustomLists": "You have no lists of your own yet",
+        "signInRequired": "Sign in to create your own lists",
+        "saveError": "Could not save the list"
     }
 }

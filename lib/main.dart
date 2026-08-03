@@ -20,6 +20,9 @@ import 'db/dependencies.dart';
 import 'feature_flags/state_management/feature_flags_bloc.dart';
 import 'feature_flags/state_management/feature_flags_events.dart';
 import 'notifications/data/push_token_service.dart';
+import 'question_lists/presentation/question_lists_error_listener.dart';
+import 'question_lists/state_management/question_lists_bloc.dart';
+import 'question_lists/state_management/question_lists_events.dart';
 import 'generated/codegen_loader.g.dart';
 import 'session/session_resume_gate.dart';
 import 'session/session_route_observer.dart';
@@ -86,6 +89,12 @@ class _MyAppState extends State<MyApp> {
           create: (context) =>
               FeatureFlagsBloc(featureFlags)..add(FeatureFlagsStarted()),
         ),
+        // App-wide so the home-screen row, the list screen and the "add to
+        // list" menu on the question screen share one state.
+        BlocProvider(
+          create: (context) =>
+              getIt<QuestionListsBloc>()..add(QuestionListsStarted()),
+        ),
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, themeState) {
@@ -109,9 +118,11 @@ class _MyAppState extends State<MyApp> {
                 supportedLocales: context.supportedLocales,
                 localizationsDelegates: context.localizationDelegates,
                 debugShowCheckedModeBanner: false,
-                builder: (context, child) => SessionResumeGate(
-                  delegate: _routerDelegate,
-                  child: child ?? const SizedBox.shrink(),
+                builder: (context, child) => QuestionListsErrorListener(
+                  child: SessionResumeGate(
+                    delegate: _routerDelegate,
+                    child: child ?? const SizedBox.shrink(),
+                  ),
                 ),
                 routerDelegate: _routerDelegate,
                 routeInformationParser: RoutemasterParser(),

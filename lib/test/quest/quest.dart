@@ -8,6 +8,9 @@ import 'package:saobracaj/dictionary/dictionary.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
 import 'package:saobracaj/models/models.dart';
+import 'package:saobracaj/question_lists/presentation/add_to_lists_button.dart';
+import 'package:saobracaj/question_lists/state_management/question_lists_bloc.dart';
+import 'package:saobracaj/question_lists/state_management/question_lists_events.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/test/quest/state_management/quest_bloc.dart';
 import 'package:saobracaj/test/state_management/start_test_bloc.dart';
@@ -67,6 +70,9 @@ class Quest extends StatelessWidget {
               final questBloc = context.read<QuestBloc>();
               if (state.finalizeTest) {
                 context.read<AllQuestionsBloc>().add(LoadStatistics());
+                // The answers just recorded change the automatic
+                // "recent mistakes" list on the home screen.
+                context.read<QuestionListsBloc>().add(QuestionListsRefreshed());
                 return FinalizeTestWidget();
               }
               return BlocProvider(
@@ -89,16 +95,27 @@ class Quest extends StatelessWidget {
                         ),
                       ),
 
-                      trailing: FeatureGate(
-                        feature: AppFeature.russianContent,
-                        child: Builder(
-                          builder: (context) => IconButton(
-                            onPressed: () => context
-                                .read<TranslationsBloc>()
-                                .add(ToggleShowTranslation()),
-                            icon: Icon(Icons.translate_outlined),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FeatureGate(
+                            feature: AppFeature.russianContent,
+                            child: Builder(
+                              builder: (context) => IconButton(
+                                onPressed: () => context
+                                    .read<TranslationsBloc>()
+                                    .add(ToggleShowTranslation()),
+                                icon: Icon(Icons.translate_outlined),
+                              ),
+                            ),
                           ),
-                        ),
+                          // Ticking lists here keeps the menu open — see
+                          // AddToListsButton.
+                          AddToListsButton(
+                            questionId:
+                                state.questions[state.currentQuestionIndex],
+                          ),
+                        ],
                       ),
                     ),
                   ),

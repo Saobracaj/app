@@ -204,5 +204,32 @@
             "errorTooManyWords": "Име може садржати највише {} речи",
             "errorControlChars": "Име не сме садржати контролне карактере"
         }
+    },
+    "questionLists": {
+        "section": "Листе питања",
+        "recentMistakes": "Последње грешке",
+        "questionsCount": "Питања: {}",
+        "create": "Направи листу",
+        "createTitle": "Нова листа",
+        "editTitle": "Измена листе",
+        "nameLabel": "Назив листе",
+        "nameRequired": "Унесите назив листе",
+        "color": "Боја",
+        "cancel": "Откажи",
+        "save": "Сачувај",
+        "createAction": "Направи",
+        "edit": "Измени",
+        "delete": "Обриши листу",
+        "deleteConfirm": "Обриши",
+        "deleteConfirmTitle": "Обрисати листу?",
+        "deleteConfirmBody": "Листа „{}“ биће обрисана заједно са свим питањима у њој.",
+        "startAll": "Реши сва питања из листе",
+        "empty": "Листа још нема питања",
+        "missing": "Листа није пронађена",
+        "addToList": "Додај у листу",
+        "addNewList": "Додај нову листу",
+        "noCustomLists": "Још немате своје листе",
+        "signInRequired": "Пријавите се да бисте правили своје листе",
+        "saveError": "Промене листе нису сачуване"
     }
 }
