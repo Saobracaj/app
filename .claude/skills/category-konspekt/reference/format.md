@@ -1,6 +1,11 @@
 # Konspekt JSON format
 
-One file per category: `app/assets/konspekt/<categoryId>.json`. Text is
+One file per category: `app/konspekt_content/<categoryId>.json` — the authored
+source, published from there into the backend database (`saobracaj_konspekts`)
+with `konspekt_cli.py publish`. The app downloads the document over GraphQL; it
+is no longer a bundled Flutter asset, so the JSON shape below is what the
+backend stores verbatim and what `lib/konspekt/models/konspekt.dart` parses.
+Text is
 markdown; every localized string is a `{"ru": ..., "sr": ...}` object — only
 `ru` is filled today, `sr` is `null` (reserved, same idea as
 `parsed_zakon.json`'s `sr`/`ru` pair).

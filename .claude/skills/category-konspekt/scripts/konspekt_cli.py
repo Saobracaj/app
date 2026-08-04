@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
-"""CLI helper for generating and validating category konspekts (study notes).
+"""CLI helper for generating, validating and publishing category konspekts.
 
 Stdlib-only. Reads bundled app assets; writes nothing except what you ask for.
+
+Konspekts are **stored in the backend database** (table `saobracaj_konspekts`)
+and served to the app over GraphQL — they are no longer bundled as Flutter
+assets. The authored JSON is kept in the repo under `konspekt_content/` as the
+editable source, and `publish` uploads it to the database.
 
 Subcommands:
   categories                       list categories with question counts
@@ -9,15 +14,37 @@ Subcommands:
       [--subcategory N] [--images-only]
   validate FILE                    validate a konspekt JSON: structure, question
                                    refs, coverage, illustration refs, dictionary
+  publish CATEGORY_ID              validate, then upsert the konspekt into the
+      [--file PATH] [--dry-run]    backend database over SSH
+  pull CATEGORY_ID [--file PATH]   write the database copy back to a local file
+  published                        list what the database currently serves
+
+Database access (publish/pull/published) goes through SSH to the VPS and `psql`
+inside the Postgres container. Credentials come from the environment — nothing
+is hard-coded, the repo holds no secrets:
+
+  KONSPEKT_VPS_HOST       VPS hostname/IP                 (required)
+  KONSPEKT_VPS_USER       SSH user                        (default: ubuntu)
+  KONSPEKT_VPS_PASSWORD   SSH password; omit to use key auth
+  KONSPEKT_DB_CONTAINER   Postgres container name         (default: app-db-1)
+  KONSPEKT_PG_USER        Postgres role                   (default: saobracaj)
+  KONSPEKT_PG_DB          database name                   (default: saobracaj_backend)
 """
 import argparse
 import json
+import os
 import re
+import stat
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 APP_DIR = Path(__file__).resolve().parents[4]
 ASSETS = APP_DIR / "assets"
+# Authored konspekt sources. Not a Flutter asset directory: the app downloads
+# konspekts from the backend, these files are the editable originals.
+CONTENT_DIR = APP_DIR / "konspekt_content"
 
 
 def load_json(name):
@@ -195,6 +222,166 @@ def cmd_validate(args):
     print("OK")
 
 
+# ---------------------------------------------------------------- database ---
+#
+# The backend is the source of truth for konspekt content. There is no direct
+# Postgres port on the VPS, so every statement is piped through
+# `ssh <vps> docker exec -i <container> psql`. Password auth (when the operator
+# supplies one) goes through SSH_ASKPASS rather than a tty helper, which keeps
+# stdin free for the SQL we pipe in.
+
+TABLE_DDL = """
+CREATE TABLE IF NOT EXISTS saobracaj_konspekts (
+    category_id TEXT PRIMARY KEY,
+    version     INTEGER NOT NULL DEFAULT 1,
+    document    JSONB NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_by  UUID
+);
+"""
+
+
+def default_source(category_id):
+    return CONTENT_DIR / f"{category_id}.json"
+
+
+def _db_env():
+    host = os.environ.get("KONSPEKT_VPS_HOST")
+    if not host:
+        sys.exit(
+            "KONSPEKT_VPS_HOST is not set — see the module docstring for the "
+            "environment variables the database commands need."
+        )
+    return {
+        "host": host,
+        "user": os.environ.get("KONSPEKT_VPS_USER", "ubuntu"),
+        "password": os.environ.get("KONSPEKT_VPS_PASSWORD"),
+        "container": os.environ.get("KONSPEKT_DB_CONTAINER", "app-db-1"),
+        "pg_user": os.environ.get("KONSPEKT_PG_USER", "saobracaj"),
+        "pg_db": os.environ.get("KONSPEKT_PG_DB", "saobracaj_backend"),
+    }
+
+
+def run_sql(sql, psql_flags="-v ON_ERROR_STOP=1"):
+    """Run `sql` on the production database and return psql's stdout."""
+    cfg = _db_env()
+    remote = (
+        f"docker exec -i {cfg['container']} "
+        f"psql {psql_flags} -U {cfg['pg_user']} -d {cfg['pg_db']}"
+    )
+    ssh = [
+        "ssh",
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "LogLevel=ERROR",
+        f"{cfg['user']}@{cfg['host']}",
+        remote,
+    ]
+    env = dict(os.environ)
+    askpass = None
+    if cfg["password"]:
+        # A throwaway helper that just prints the password; SSH_ASKPASS_REQUIRE
+        # =force makes ssh use it even with no tty, so stdin stays ours.
+        fd, askpass = tempfile.mkstemp(prefix="konspekt-askpass-")
+        with os.fdopen(fd, "w") as f:
+            f.write('#!/bin/sh\nprintf "%s\\n" "$KONSPEKT_SSH_PASSWORD"\n')
+        os.chmod(askpass, stat.S_IRWXU)
+        env["SSH_ASKPASS"] = askpass
+        env["SSH_ASKPASS_REQUIRE"] = "force"
+        env["KONSPEKT_SSH_PASSWORD"] = cfg["password"]
+        env.pop("DISPLAY", None)
+    try:
+        done = subprocess.run(
+            ssh, input=sql, env=env, text=True, capture_output=True, check=False
+        )
+    finally:
+        if askpass:
+            os.unlink(askpass)
+    if done.returncode != 0:
+        sys.stderr.write(done.stdout)
+        sys.stderr.write(done.stderr)
+        sys.exit(f"database command failed (exit {done.returncode})")
+    if done.stderr.strip():
+        sys.stderr.write(done.stderr)
+    return done.stdout
+
+
+def _dollar_quote(text):
+    """Quote a JSON document for SQL without escaping anything inside it."""
+    tag = "konspekt"
+    while f"${tag}$" in text:
+        tag += "x"
+    return f"${tag}${text}${tag}$"
+
+
+def cmd_publish(args):
+    path = Path(args.file) if args.file else default_source(args.category_id)
+    if not path.exists():
+        sys.exit(f"{path} does not exist — write the konspekt there first")
+    cmd_validate(argparse.Namespace(file=str(path)))
+
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    if doc.get("categoryId") != args.category_id:
+        sys.exit(
+            f"{path} has categoryId {doc.get('categoryId')!r}, "
+            f"refusing to publish it as {args.category_id!r}"
+        )
+    version = doc.get("version", 1)
+    payload = json.dumps(doc, ensure_ascii=False, separators=(",", ":"))
+
+    if args.dry_run:
+        print(
+            f"dry run: would publish category {args.category_id} "
+            f"v{version} ({len(payload)} bytes)"
+        )
+        return
+
+    sql = (
+        TABLE_DDL
+        + "INSERT INTO saobracaj_konspekts (category_id, version, document)\n"
+        + f"VALUES ('{args.category_id}', {int(version)}, "
+        + _dollar_quote(payload)
+        + "::jsonb)\n"
+        + "ON CONFLICT (category_id) DO UPDATE SET\n"
+        + "    version = EXCLUDED.version,\n"
+        + "    document = EXCLUDED.document,\n"
+        + "    updated_by = NULL,\n"
+        + "    updated_at = now();\n"
+        + "SELECT category_id, version, updated_at,\n"
+        + "       jsonb_array_length(document->'sections') AS sections\n"
+        + "  FROM saobracaj_konspekts WHERE category_id = "
+        + f"'{args.category_id}';\n"
+    )
+    print(run_sql(sql).strip())
+    print(f"published category {args.category_id} v{version} from {path}")
+
+
+def cmd_pull(args):
+    path = Path(args.file) if args.file else default_source(args.category_id)
+    raw = run_sql(
+        "SELECT document::text FROM saobracaj_konspekts "
+        f"WHERE category_id = '{args.category_id}';",
+        psql_flags="-v ON_ERROR_STOP=1 -tAq",
+    ).strip()
+    if not raw:
+        sys.exit(f"no konspekt stored for category {args.category_id}")
+    doc = json.loads(raw)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    print(f"wrote {path} (v{doc.get('version', 1)}, {len(doc.get('sections', []))} sections)")
+
+
+def cmd_published(_args):
+    print(
+        run_sql(
+            "SELECT category_id, version, updated_at, "
+            "jsonb_array_length(document->'sections') AS sections "
+            "FROM saobracaj_konspekts ORDER BY category_id;"
+        ).strip()
+    )
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -210,6 +397,21 @@ def main():
     p = sub.add_parser("validate")
     p.add_argument("file")
     p.set_defaults(func=cmd_validate)
+
+    p = sub.add_parser("publish", help="upload a konspekt to the backend database")
+    p.add_argument("category_id")
+    p.add_argument("--file", help="source JSON (default: konspekt_content/<id>.json)")
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=cmd_publish)
+
+    p = sub.add_parser("pull", help="write the database copy to a local file")
+    p.add_argument("category_id")
+    p.add_argument("--file", help="target JSON (default: konspekt_content/<id>.json)")
+    p.set_defaults(func=cmd_pull)
+
+    sub.add_parser("published", help="list konspekts stored in the database").set_defaults(
+        func=cmd_published
+    )
 
     args = ap.parse_args()
     args.func(args)

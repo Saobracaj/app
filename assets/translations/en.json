@@ -303,6 +303,8 @@
         "copyLink": "Copy link to section",
         "linkCopied": "Link copied",
         "illustrationPlaceholder": "Illustration coming soon",
-        "notFound": "Summary not found"
+        "notFound": "Summary not found",
+        "unavailable": "Summary is not available",
+        "loadFailed": "Could not load the summary. Check your connection and try again"
     }
 }

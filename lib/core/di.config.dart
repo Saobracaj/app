@@ -50,21 +50,8 @@ extension GetItInjectableX on _i174.GetIt {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final registerModule = _$RegisterModule();
     gh.lazySingleton<_i25.TokenStorage>(() => _i25.TokenStorage());
-    gh.lazySingleton<_i491.KonspektRepository>(
-      () => _i491.KonspektRepository(),
-    );
     gh.lazySingleton<_i426.NotificationPermissions>(
       () => const _i426.NotificationPermissions(),
-    );
-    gh.factory<_i187.KonspektCatalogBloc>(
-      () => _i187.KonspektCatalogBloc(gh<_i491.KonspektRepository>()),
-    );
-    gh.factoryParam<_i198.KonspektBloc, String, String?>(
-      (categoryId, initialSection) => _i198.KonspektBloc(
-        gh<_i491.KonspektRepository>(),
-        categoryId,
-        initialSection,
-      ),
     );
     gh.lazySingleton<_i483.GraphqlClient>(
       () => registerModule.graphqlClient(gh<_i25.TokenStorage>()),
@@ -98,6 +85,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i388.AuthBloc>(
       () => _i388.AuthBloc(gh<_i880.AuthRepository>()),
     );
+    gh.lazySingleton<_i491.KonspektRepository>(
+      () => _i491.KonspektRepository(gh<_i483.GraphqlClient>()),
+    );
     gh.lazySingleton<_i311.ProfileRepository>(
       () => _i311.ProfileRepository(gh<_i483.GraphqlClient>()),
     );
@@ -126,6 +116,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i880.AuthRepository>(),
         gh<_i388.AuthBloc>(),
         gh<_i426.NotificationPermissions>(),
+      ),
+    );
+    gh.factory<_i187.KonspektCatalogBloc>(
+      () => _i187.KonspektCatalogBloc(gh<_i491.KonspektRepository>()),
+    );
+    gh.factoryParam<_i198.KonspektBloc, String, String?>(
+      (categoryId, initialSection) => _i198.KonspektBloc(
+        gh<_i491.KonspektRepository>(),
+        categoryId,
+        initialSection,
       ),
     );
     gh.factory<_i515.ModerationBloc>(

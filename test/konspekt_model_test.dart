@@ -5,10 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/konspekt/models/konspekt.dart';
 
 void main() {
-  test('Bundled konspekt assets parse into the model and are internally consistent', () {
-    final dir = Directory('assets/konspekt');
+  // The konspekts themselves are served by the backend (published from these
+  // files with `konspekt_cli.py publish`); `konspekt_content/` is the authored
+  // source kept in git, so it is what there is to validate here.
+  test('Authored konspekt sources parse into the model and are internally consistent', () {
+    final dir = Directory('konspekt_content');
     final files = dir.listSync().whereType<File>().where((f) => f.path.endsWith('.json')).toList();
-    expect(files, isNotEmpty, reason: 'assets/konspekt must contain at least one konspekt');
+    expect(files, isNotEmpty, reason: 'konspekt_content must contain at least one konspekt');
 
     for (final file in files) {
       final konspekt = Konspekt.fromJson(jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);

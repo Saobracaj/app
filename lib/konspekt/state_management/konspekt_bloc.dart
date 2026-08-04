@@ -1,8 +1,10 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
+import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/konspekt/data/konspekt_repository.dart';
+import 'package:saobracaj/konspekt/models/konspekt.dart';
 import 'package:saobracaj/konspekt/state_management/konspekt_events.dart';
 import 'package:saobracaj/konspekt/state_management/konspekt_state.dart';
 
@@ -28,7 +30,22 @@ class KonspektBloc extends Bloc<KonspektEvent, KonspektState> {
 
   Future<void> _onStarted(KonspektStarted event, Emitter<KonspektState> emit) async {
     emit(state.copyWith(inProgress: true, errorMessage: null));
-    final konspekt = await _repository.load(categoryId);
+    final Konspekt? konspekt;
+    try {
+      konspekt = await _repository.load(categoryId);
+    } catch (e) {
+      // The konspekt lives on the backend now, so a download can fail: no
+      // network, or no premium entitlement (the server enforces
+      // `category_summaries` too). Both are "can't show it", not a crash.
+      final denied = e is GraphqlException && e.code == 'access_denied';
+      emit(
+        state.copyWith(
+          inProgress: false,
+          errorMessage: denied ? LocaleKeys.konspekt_unavailable.tr() : LocaleKeys.konspekt_loadFailed.tr(),
+        ),
+      );
+      return;
+    }
     if (konspekt == null) {
       emit(state.copyWith(inProgress: false, errorMessage: LocaleKeys.konspekt_notFound.tr()));
       return;

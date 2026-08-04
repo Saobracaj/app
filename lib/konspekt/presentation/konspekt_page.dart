@@ -32,6 +32,17 @@ class _KonspektPageState extends State<KonspektPage> {
 
   @override
   Widget build(BuildContext context) {
+    // The notes are premium content and reachable by deep link, so the page
+    // itself checks the flag: with it off nothing is fetched at all (the
+    // backend would refuse the query anyway).
+    return FeatureGate(
+      feature: AppFeature.categorySummaries,
+      placeholder: const _UnavailablePage(),
+      child: _content(),
+    );
+  }
+
+  Widget _content() {
     return BlocProvider(
       create: (_) => getIt<KonspektBloc>(param1: widget.categoryId, param2: widget.section),
       child: Scaffold(
@@ -112,6 +123,29 @@ class _KonspektPageState extends State<KonspektPage> {
               },
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+/// What a user without the `category_summaries` entitlement sees when they open
+/// a konspekt link.
+class _UnavailablePage extends StatelessWidget {
+  const _UnavailablePage();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(LocaleKeys.konspekt_title.tr())),
+      body: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Center(
+          child: Text(
+            LocaleKeys.konspekt_unavailable.tr(),
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
         ),
       ),
     );

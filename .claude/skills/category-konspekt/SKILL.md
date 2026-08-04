@@ -1,12 +1,14 @@
 ---
 name: category-konspekt
-description: Use when asked to create or update a "конспект" (RU study notes / cheat-sheet) for a category of Saobraćaj exam questions, or to check konspekt coverage. Produces app/assets/konspekt/<categoryId>.json from the bundled question assets; works fully offline, never touches app source code.
+description: Use when asked to create or update a "конспект" (RU study notes / cheat-sheet) for a category of Saobraćaj exam questions, to check konspekt coverage, or to publish a konspekt to the backend. Writes app/konspekt_content/<categoryId>.json from the bundled question assets and uploads it to the backend database; authoring works offline, publishing needs VPS credentials. Never touches app source code.
 ---
 
 # Category konspekt
 
 Generates a Russian-language konspekt (study cheat-sheet) for one question
-category and saves it as `app/assets/konspekt/<categoryId>.json`. The
+category, saves it as `app/konspekt_content/<categoryId>.json` and publishes it
+to the **backend database**, which is where the app reads konspekts from (they
+used to be bundled assets; see step 8). The
 konspekt's goal is that a user who read it can answer **every** question of
 the category by following simple logic chains — it is exam-oriented, not a
 law summary. Format: `reference/format.md`. Writing style (the important
@@ -46,7 +48,7 @@ never open `assets/allQuestions.json` (1.4 MB) directly with the Read tool.
    understood without the picture (e.g. "which vehicle is shown"), Read a
    few of those images directly — they are small; don't read all of them.
 
-5. **Write the konspekt JSON** to `app/assets/konspekt/<categoryId>.json`
+5. **Write the konspekt JSON** to `app/konspekt_content/<categoryId>.json`
    following `reference/format.md` exactly (localized strings are
    `{"ru": …, "sr": null}` — `sr` reserved for later). Content rules are in
    `reference/style-guide.md`; the non-negotiables:
@@ -63,7 +65,7 @@ never open `assets/allQuestions.json` (1.4 MB) directly with the Read tool.
 
 6. **Validate.**
    ```
-   python3 scripts/konspekt_cli.py validate ../../../assets/konspekt/25.json
+   python3 scripts/konspekt_cli.py validate ../../../konspekt_content/25.json
    ```
    Checks structure, slugs, that every questionId/inline link belongs to
    the category, that illustration markers match `illustrations[]`, that
@@ -76,11 +78,34 @@ never open `assets/allQuestions.json` (1.4 MB) directly with the Read tool.
    lists the qId). If a question is only answerable by rote, its section
    must state the exact fact to memorize.
 
+8. **Publish to the backend.** The app downloads konspekts from
+   `saobracaj_backend` (table `saobracaj_konspekts`, GraphQL
+   `konspektCategories` / `konspekt`), so a konspekt that is not published is
+   invisible to users. Credentials come from the environment — ask the
+   operator for them, never commit them:
+   ```
+   KONSPEKT_VPS_HOST=<ip> KONSPEKT_VPS_PASSWORD=<ssh password> \
+     python3 scripts/konspekt_cli.py publish 25
+   ```
+   `publish` re-runs `validate` first, refuses a file whose `categoryId`
+   disagrees with the argument, creates the table if it is missing and
+   upserts the row (so re-publishing just replaces the content). Bump the
+   document's `version` when you change a published konspekt — the client
+   uses it to notice that its cached copy is stale.
+
+   Related commands: `published` (what the database currently serves) and
+   `pull 25` (write the stored document back to
+   `konspekt_content/25.json`, e.g. before editing content someone else
+   published). `--dry-run` validates and reports the payload size without
+   touching the database.
+
 ## Notes
 
-- The file is not yet wired into the Flutter app (no pubspec entry, no
-  screen). Generating content is this skill's whole job; do not touch app
-  code or `pubspec.yaml` unless explicitly asked.
+- Content only: this skill writes `konspekt_content/` and the database. Do
+  not touch app source code or `pubspec.yaml`.
+- `konspekt_content/*.json` is the editable source kept in git; the database
+  copy is what users actually get. Keep them in sync by always publishing
+  after an edit (`test/konspekt_model_test.dart` validates the local files).
 - Updating an existing konspekt: dump questions again, diff against
   `questionIds` coverage (`validate` reports missing ids), extend or edit
-  only affected sections.
+  only affected sections, bump `version`, re-`publish`.
