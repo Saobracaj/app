@@ -12,6 +12,7 @@ import 'package:saobracaj/profile/presentation/display_name_page.dart';
 import 'package:saobracaj/public_comments/presentation/moderation_page.dart';
 import 'package:saobracaj/home/home_content_page.dart';
 import 'package:saobracaj/home_page.dart';
+import 'package:saobracaj/konspekt/presentation/konspekt_page.dart';
 import 'package:saobracaj/question_lists/presentation/question_list_page.dart';
 import 'package:saobracaj/questions/questions_page.dart';
 import 'package:saobracaj/test/state_management/start_test_bloc.dart';
@@ -69,6 +70,14 @@ final routes = RouteMap(
     '/about': (_) => MaterialPage(child: AboutPage()),
     '/about/privacyPolicy': (_) => MaterialPage(child: PrivacyPolicyWidget()),
     '/zakon': zakonPage,
+    // Deep link to a category konspekt, optionally straight to one section:
+    // /konspekt?category=25&section=manevri
+    '/konspekt': konspektPage,
+    // Question and law links inside a konspekt open as children of the
+    // konspekt page, so "back" returns to the konspekt (same pattern as
+    // '/quest/zakon').
+    '/konspekt/question/:id': questCommentsPage,
+    '/konspekt/zakon': zakonPage,
     '/login': (_) => const MaterialPage(child: LoginPage()),
     '/register': (_) => const MaterialPage(child: RegisterPage()),
     '/resetPassword': (_) => const MaterialPage(child: ResetPasswordPage()),
@@ -116,6 +125,13 @@ var questPage = (data) {
     ),
   );
 };
+
+MaterialPage konspektPage(dynamic params) => MaterialPage(
+  child: KonspektPage(
+    categoryId: params.queryParameters['category'] ?? '',
+    section: params.queryParameters['section'],
+  ),
+);
 
 MaterialPage zakonPage(dynamic params) => MaterialPage(
   child: Zakon(

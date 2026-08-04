@@ -295,5 +295,14 @@
         "noCustomLists": "You have no lists of your own yet",
         "signInRequired": "Sign in to create your own lists",
         "saveError": "Could not save the list"
+    },
+    "konspekt": {
+        "title": "Summary",
+        "open": "Open summary",
+        "dictionary": "Dictionary",
+        "copyLink": "Copy link to section",
+        "linkCopied": "Link copied",
+        "illustrationPlaceholder": "Illustration coming soon",
+        "notFound": "Summary not found"
     }
 }

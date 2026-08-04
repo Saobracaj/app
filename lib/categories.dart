@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/konspekt/presentation/konspekt_button.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/questions/state_management/categories_bloc.dart';
@@ -38,7 +39,10 @@ class _CategoriesState extends State<Categories> {
                     return subCategoriesIds.any((element) => (state.subCategoriesCount[element] ?? 0) > 0);
                   })) ...[
                     SizedBox(height: 16),
-                    ListTile(title: Text(category.name, style: Theme.of(context).textTheme.titleMedium!)),
+                    ListTile(
+                      title: Text(category.name, style: Theme.of(context).textTheme.titleMedium!),
+                      trailing: KonspektButton(categoryId: category.id),
+                    ),
                     for (final subCategory in category.subcategories.where((element) => (state.subCategoriesCount[element.id] ?? 0) > 0)) ...[
                       InkWell(
                         onTap: () {

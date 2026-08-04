@@ -116,6 +116,7 @@ flutter:
      - assets/dict/
      - assets/parsed_zakon.json
      - assets/md_img/
+     - assets/konspekt/
 
   # Inter, bundled rather than fetched at runtime: the quiz works offline, so
   # the type has to as well. Covers Latin, Serbian Latin and Cyrillic.

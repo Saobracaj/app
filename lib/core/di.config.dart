@@ -23,6 +23,9 @@ import '../auth/state_management/login/login_bloc.dart' as _i10;
 import '../auth/state_management/register/register_bloc.dart' as _i830;
 import '../auth/state_management/reset_password/reset_password_bloc.dart'
     as _i940;
+import '../konspekt/data/konspekt_repository.dart' as _i491;
+import '../konspekt/state_management/konspekt_bloc.dart' as _i198;
+import '../konspekt/state_management/konspekt_catalog_bloc.dart' as _i187;
 import '../notifications/data/notification_permissions.dart' as _i426;
 import '../notifications/data/push_token_service.dart' as _i875;
 import '../notifications/state_management/notifications_bloc.dart' as _i618;
@@ -47,8 +50,21 @@ extension GetItInjectableX on _i174.GetIt {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final registerModule = _$RegisterModule();
     gh.lazySingleton<_i25.TokenStorage>(() => _i25.TokenStorage());
+    gh.lazySingleton<_i491.KonspektRepository>(
+      () => _i491.KonspektRepository(),
+    );
     gh.lazySingleton<_i426.NotificationPermissions>(
       () => const _i426.NotificationPermissions(),
+    );
+    gh.factory<_i187.KonspektCatalogBloc>(
+      () => _i187.KonspektCatalogBloc(gh<_i491.KonspektRepository>()),
+    );
+    gh.factoryParam<_i198.KonspektBloc, String, String?>(
+      (categoryId, initialSection) => _i198.KonspektBloc(
+        gh<_i491.KonspektRepository>(),
+        categoryId,
+        initialSection,
+      ),
     );
     gh.lazySingleton<_i483.GraphqlClient>(
       () => registerModule.graphqlClient(gh<_i25.TokenStorage>()),
