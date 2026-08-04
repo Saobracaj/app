@@ -45,6 +45,21 @@ void main() {
         for (final match in illustrationMarker.allMatches(section.content.text)) {
           expect(declared, contains(match.group(1)));
         }
+
+        // Blocks, when present, must partition the content and reproduce the
+        // section's question mapping — the per-question excerpt relies on both.
+        if (section.blocks.isNotEmpty) {
+          expect(
+            section.blocks.map((b) => b.content.text).join('\n\n'),
+            section.content.text,
+            reason: '${section.id}: content must be the blocks joined with blank lines',
+          );
+          expect(
+            section.blocks.expand((b) => b.questionIds).toSet(),
+            section.questionIds.toSet(),
+            reason: '${section.id}: union of block questionIds must equal section questionIds',
+          );
+        }
       }
     }
   });

@@ -39,6 +39,8 @@ import '../question_lists/data/question_lists_repository.dart' as _i206;
 import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
 import '../test/quest/comment/data/comment_repository.dart' as _i359;
 import '../test/quest/comment/state_management/comment_bloc.dart' as _i213;
+import '../test/quest/question_features/state_management/question_konspekt_bloc.dart'
+    as _i192;
 import 'di.dart' as _i913;
 
 extension GetItInjectableX on _i174.GetIt {
@@ -126,6 +128,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i491.KonspektRepository>(),
         categoryId,
         initialSection,
+      ),
+    );
+    gh.factoryParam<_i192.QuestionKonspektBloc, int, String>(
+      (questionId, categoryId) => _i192.QuestionKonspektBloc(
+        gh<_i491.KonspektRepository>(),
+        questionId,
+        categoryId,
       ),
     );
     gh.factory<_i515.ModerationBloc>(

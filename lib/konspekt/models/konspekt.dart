@@ -31,14 +31,34 @@ abstract class KonspektIllustration with _$KonspektIllustration {
   factory KonspektIllustration.fromJson(Map<String, dynamic> json) => _$KonspektIllustrationFromJson(json);
 }
 
+/// One fragment of a section: a self-contained piece of its markdown mapped
+/// to the questions it answers. `questionIds` may be empty for context-only
+/// text (a section's lead-in) — such blocks appear on the full konspekt page
+/// but are never excerpted for a question.
+@freezed
+abstract class KonspektBlock with _$KonspektBlock {
+  const factory KonspektBlock({
+    required KonspektText content,
+    @Default([]) List<int> questionIds,
+  }) = _KonspektBlock;
+
+  factory KonspektBlock.fromJson(Map<String, dynamic> json) => _$KonspektBlockFromJson(json);
+}
+
 /// One deep-linkable part of a konspekt. Addressed as
 /// `/konspekt?category=<categoryId>&section=<id>`.
+///
+/// `blocks`, when present, is an ordered partition of [content]: joining the
+/// blocks' texts with blank lines reproduces it, and the union of the blocks'
+/// `questionIds` equals the section's. Documents published before schema v2
+/// have no blocks — consumers must fall back to the whole [content].
 @freezed
 abstract class KonspektSection with _$KonspektSection {
   const factory KonspektSection({
     required String id,
     required KonspektText title,
     required KonspektText content,
+    @Default([]) List<KonspektBlock> blocks,
     @Default([]) List<KonspektIllustration> illustrations,
     @Default([]) List<int> questionIds,
   }) = _KonspektSection;

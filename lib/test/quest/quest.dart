@@ -262,6 +262,7 @@ class QuestionContent extends StatelessWidget {
                 if (state.showCorrectAnswers)
                   QuestionFeaturesTabs(
                     questionId: question.id,
+                    categoryId: question.categoryId,
                     initialFeature: openComments
                         ? AppFeature.publicQuestionComments
                         : null,

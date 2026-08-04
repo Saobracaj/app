@@ -14,7 +14,9 @@ import '../../comment/comment_widget/comment_widget.dart';
 import '../state_management/question_features_bloc.dart';
 import '../state_management/question_features_events.dart';
 import '../state_management/question_features_state.dart';
+import '../state_management/question_konspekt_bloc.dart';
 import 'question_analysis_tab.dart';
+import 'question_konspekt_tab.dart';
 
 /// Tabbed panel shown under a question (only on the *questions* flow, not
 /// practice) exposing the per-question features. Each tab is gated by its
@@ -32,12 +34,17 @@ class QuestionFeaturesTabs extends StatelessWidget {
   const QuestionFeaturesTabs({
     super.key,
     required this.questionId,
+    required this.categoryId,
     this.initialFeature,
     this.commentThreadId,
     this.autoScroll = false,
   });
 
   final int questionId;
+
+  /// The category the question belongs to — the konspekt tab excerpts that
+  /// category's konspekt.
+  final String categoryId;
 
   /// Deep-link support: the tab to pre-select (e.g. the discussion), the thread
   /// to expand inside it, and whether to scroll this panel into view on open.
@@ -48,6 +55,7 @@ class QuestionFeaturesTabs extends StatelessWidget {
   /// The per-question features, in the order their tabs appear.
   static const _features = <AppFeature>[
     AppFeature.questionComments,
+    AppFeature.categorySummaries,
     AppFeature.publicQuestionComments,
     AppFeature.questionAnalysis,
     AppFeature.askAi,
@@ -56,13 +64,15 @@ class QuestionFeaturesTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final flags = context.watch<FeatureFlagsBloc>().state;
-    final visible = _features.where(flags.isEnabled).toList();
-    if (visible.isEmpty) return const SizedBox.shrink();
+    // Enabled by flags; the konspekt tab is additionally dropped below unless
+    // the category's konspekt actually has sections about this question.
+    final enabled = _features.where(flags.isEnabled).toList();
+    if (enabled.isEmpty) return const SizedBox.shrink();
 
     // Honour a deep-linked initial tab only when that feature is actually
     // visible to this user.
     final initial =
-        (initialFeature != null && visible.contains(initialFeature))
+        (initialFeature != null && enabled.contains(initialFeature))
             ? initialFeature
             : null;
 
@@ -71,14 +81,35 @@ class QuestionFeaturesTabs extends StatelessWidget {
         BlocProvider(create: (_) => QuestionFeaturesBloc(initial: initial)),
         // The tab badge only needs the scalar top-level count; kept apart from
         // the full comments Bloc scoped inside the discussion tab.
-        if (visible.contains(AppFeature.publicQuestionComments))
+        if (enabled.contains(AppFeature.publicQuestionComments))
           BlocProvider(
             create: (_) => getIt<CommentCountBloc>(param1: questionId)
               ..add(CommentCountRequested()),
           ),
+        // Loads the excerpts up front: the tab is only shown once they exist.
+        if (enabled.contains(AppFeature.categorySummaries))
+          BlocProvider(
+            create: (_) => getIt<QuestionKonspektBloc>(
+              param1: questionId,
+              param2: categoryId,
+            ),
+          ),
       ],
       child: BlocBuilder<QuestionFeaturesBloc, QuestionFeaturesState>(
         builder: (context, state) {
+          final hasKonspekt =
+              enabled.contains(AppFeature.categorySummaries) &&
+              context
+                  .watch<QuestionKonspektBloc>()
+                  .state
+                  .sections
+                  .isNotEmpty;
+          final visible = [
+            for (final feature in enabled)
+              if (feature != AppFeature.categorySummaries || hasKonspekt)
+                feature,
+          ];
+          if (visible.isEmpty) return const SizedBox.shrink();
           // Fall back to the first visible tab, and re-anchor if the previously
           // selected tab disappeared (e.g. the user logged out).
           final selected = (state.selected != null && visible.contains(state.selected)) ? state.selected! : visible.first;
@@ -108,6 +139,7 @@ class QuestionFeaturesTabs extends StatelessWidget {
                     child: _TabContent(
                       feature: selected,
                       questionId: questionId,
+                      categoryId: categoryId,
                       commentThreadId: commentThreadId,
                     ),
                   ),
@@ -212,11 +244,13 @@ class _TabContent extends StatelessWidget {
   const _TabContent({
     required this.feature,
     required this.questionId,
+    required this.categoryId,
     this.commentThreadId,
   });
 
   final AppFeature feature;
   final int questionId;
+  final String categoryId;
   final String? commentThreadId;
 
   @override
@@ -224,6 +258,8 @@ class _TabContent extends StatelessWidget {
     switch (feature) {
       case AppFeature.questionComments:
         return CommentWidget(questionId: questionId);
+      case AppFeature.categorySummaries:
+        return QuestionKonspektTab(categoryId: categoryId);
       case AppFeature.publicQuestionComments:
         return PublicCommentsWidget(
           questionId: questionId,
@@ -310,6 +346,8 @@ class _TabSpec {
 _TabSpec _specFor(AppFeature feature) => switch (feature) {
   AppFeature.questionComments =>
     _TabSpec(Icons.menu_book_outlined, LocaleKeys.questionTabs_explanation.tr()),
+  AppFeature.categorySummaries =>
+    _TabSpec(Icons.sticky_note_2_outlined, LocaleKeys.questionTabs_konspekt.tr()),
   AppFeature.publicQuestionComments =>
     _TabSpec(Icons.forum_outlined, LocaleKeys.questionTabs_discussion.tr()),
   AppFeature.questionAnalysis =>

@@ -190,7 +190,8 @@
         "comingSoon": "Coming soon",
         "attemptCorrect": "correct",
         "attemptWrong": "wrong",
-        "analysisSummary": "Correct in {} of {} attempts"
+        "analysisSummary": "Correct in {} of {} attempts",
+        "konspekt": "Summary"
     },
     "comments": {
         "write": "Write a comment",
@@ -305,6 +306,7 @@
         "illustrationPlaceholder": "Illustration coming soon",
         "notFound": "Summary not found",
         "unavailable": "Summary is not available",
-        "loadFailed": "Could not load the summary. Check your connection and try again"
+        "loadFailed": "Could not load the summary. Check your connection and try again",
+        "openFull": "Open full summary"
     }
 }
