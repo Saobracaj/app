@@ -1,6 +1,7 @@
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/routes.dart';
@@ -30,9 +31,30 @@ import 'session/session_route_observer.dart';
 import 'theme/app_theme.dart';
 import 'theme/state_management/theme_bloc.dart';
 
+/// The light and dark [ColorScheme]s of the platform's dynamic (Material You)
+/// palette, or `null` where there is none (iOS, web, Android < 12).
+///
+/// Resolved once, before [runApp]: the plugin only answers asynchronously, so
+/// querying it from inside the widget tree (`DynamicColorBuilder`) makes the
+/// first frames render with the fallback seeded scheme and then visibly snap
+/// to the dynamic palette ~a second later — worse on every hot restart.
+Future<({ColorScheme light, ColorScheme dark})?> _resolveDynamicSchemes() async {
+  try {
+    final palette = await DynamicColorPlugin.getCorePalette();
+    if (palette == null) return null;
+    return (
+      light: palette.toColorScheme().harmonized(),
+      dark: palette.toColorScheme(brightness: Brightness.dark).harmonized(),
+    );
+  } on PlatformException {
+    return null;
+  }
+}
+
 void main() async {
   usePathUrlStrategy();
   WidgetsFlutterBinding.ensureInitialized();
+  final dynamicSchemes = await _resolveDynamicSchemes();
   await EasyLocalization.ensureInitialized();
   // DateFormat throws for sr/ru until their symbol tables are loaded;
   // easy_localization does not do this on its own.
@@ -58,13 +80,16 @@ void main() async {
       fallbackLocale: Locale('ru'),
       path: 'assets/translations',
       assetLoader: CodegenLoader(),
-      child: const MyApp(),
+      child: MyApp(dynamicSchemes: dynamicSchemes),
     ),
   );
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.dynamicSchemes});
+
+  /// See [_resolveDynamicSchemes]; `null` means "no dynamic colors here".
+  final ({ColorScheme light, ColorScheme dark})? dynamicSchemes;
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -110,40 +135,37 @@ class _MyAppState extends State<MyApp> {
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, themeState) {
-          return DynamicColorBuilder(
-            builder: (lightDynamic, darkDynamic) {
-              // The "default" accent uses the platform dynamic palette when
-              // available (Android 12+); every explicit swatch — and any
-              // platform without dynamic colors — falls back to a seeded scheme.
-              final useDynamic = themeState.isDefaultAccent;
-              final lightScheme = useDynamic && lightDynamic != null
-                  ? lightDynamic.harmonized()
-                  : ColorScheme.fromSeed(seedColor: themeState.seedColor);
-              final darkScheme = useDynamic && darkDynamic != null
-                  ? darkDynamic.harmonized()
-                  : ColorScheme.fromSeed(
-                      seedColor: themeState.seedColor,
-                      brightness: Brightness.dark,
-                    );
-              return MaterialApp.router(
-                locale: context.locale,
-                supportedLocales: context.supportedLocales,
-                localizationsDelegates: context.localizationDelegates,
-                debugShowCheckedModeBanner: false,
-                builder: (context, child) => QuestionListsErrorListener(
-                  child: SessionResumeGate(
-                    delegate: _routerDelegate,
-                    child: child ?? const SizedBox.shrink(),
-                  ),
-                ),
-                routerDelegate: _routerDelegate,
-                routeInformationParser: RoutemasterParser(),
-                title: 'Saobraćaj',
-                themeMode: themeState.mode,
-                theme: buildAppTheme(lightScheme),
-                darkTheme: buildAppTheme(darkScheme),
-              );
-            },
+          // The "default" accent uses the platform dynamic palette when
+          // available (Android 12+); every explicit swatch — and any
+          // platform without dynamic colors — falls back to a seeded scheme.
+          final dynamicSchemes = widget.dynamicSchemes;
+          final useDynamic = themeState.isDefaultAccent && dynamicSchemes != null;
+          final lightScheme = useDynamic
+              ? dynamicSchemes.light
+              : ColorScheme.fromSeed(seedColor: themeState.seedColor);
+          final darkScheme = useDynamic
+              ? dynamicSchemes.dark
+              : ColorScheme.fromSeed(
+                  seedColor: themeState.seedColor,
+                  brightness: Brightness.dark,
+                );
+          return MaterialApp.router(
+            locale: context.locale,
+            supportedLocales: context.supportedLocales,
+            localizationsDelegates: context.localizationDelegates,
+            debugShowCheckedModeBanner: false,
+            builder: (context, child) => QuestionListsErrorListener(
+              child: SessionResumeGate(
+                delegate: _routerDelegate,
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
+            routerDelegate: _routerDelegate,
+            routeInformationParser: RoutemasterParser(),
+            title: 'Saobraćaj',
+            themeMode: themeState.mode,
+            theme: buildAppTheme(lightScheme),
+            darkTheme: buildAppTheme(darkScheme),
           );
         },
       ),
