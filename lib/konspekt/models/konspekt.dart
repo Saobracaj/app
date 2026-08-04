@@ -57,8 +57,9 @@ abstract class KonspektDictionary with _$KonspektDictionary {
   factory KonspektDictionary.fromJson(Map<String, dynamic> json) => _$KonspektDictionaryFromJson(json);
 }
 
-/// Study notes ("конспект") for one question category, bundled as
-/// `assets/konspekt/<categoryId>.json`.
+/// Study notes ("конспект") for one question category, downloaded from
+/// `saobracaj_backend` (see [KonspektRepository]) and authored as
+/// `konspekt_content/<categoryId>.json`.
 @freezed
 abstract class Konspekt with _$Konspekt {
   const factory Konspekt({
