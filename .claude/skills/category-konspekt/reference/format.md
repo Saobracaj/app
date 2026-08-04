@@ -24,6 +24,16 @@ markdown; every localized string is a `{"ru": ..., "sr": ...}` object — only
       "id": "ko-regulise-saobracaj",
       "title": { "ru": "Кто регулирует движение", "sr": null },
       "content": { "ru": "markdown…", "sr": null },
+      "blocks": [
+        {
+          "content": { "ru": "первый фрагмент markdown…", "sr": null },
+          "questionIds": [7921]
+        },
+        {
+          "content": { "ru": "второй фрагмент…", "sr": null },
+          "questionIds": [7923]
+        }
+      ],
       "illustrations": [
         {
           "id": "preticanje-vs-obilazenje",
@@ -53,6 +63,22 @@ markdown; every localized string is a `{"ru": ..., "sr": ...}` object — only
   helps answer. The union over all sections must cover every question of the
   category (the validator enforces this). One question may appear in several
   sections.
+- `sections[].blocks` — the section's markdown split into self-contained
+  fragments, each mapped to the questions **that exact fragment** answers.
+  This is what the app shows on a question's «Конспект» tab (only the blocks
+  listing that qId), so keep blocks small — one rule / one confusable pair /
+  one fact, обычно 300–700 символов. Invariants (validator-enforced):
+  - blocks are **authored first**; `content.ru` is generated from them —
+    run `konspekt_cli.py sync-blocks <file>` after editing blocks, the
+    validator requires `content.ru == "\n\n".join(blocks…content.ru)`;
+  - the union of the blocks' `questionIds` must equal the section's
+    `questionIds`; a block with an empty `questionIds` is allowed —
+    context-only text (вводная секции) shown on the full page but never
+    excerpted for a question;
+  - a block must read as a standalone excerpt: don't start one with «а ещё»,
+    a bare table continuation, or a pronoun referring to the previous block.
+  Sections without `blocks` are legal (pre-v2 documents): the app then falls
+  back to showing the whole section for its questions.
 - Inline example-question links in markdown: `[№7921](question?id=7921)` —
   a handful of representative examples per section, not the whole list
   (the whole list lives in `questionIds`).

@@ -52,6 +52,11 @@ never open `assets/allQuestions.json` (1.4 MB) directly with the Read tool.
    following `reference/format.md` exactly (localized strings are
    `{"ru": …, "sr": null}` — `sr` reserved for later). Content rules are in
    `reference/style-guide.md`; the non-negotiables:
+   - author each section as `blocks` — small standalone fragments (one
+     rule/fact each) with **per-block** `questionIds` — then generate
+     `content` with `konspekt_cli.py sync-blocks <file>`; the app excerpts
+     individual blocks for a question's «Конспект» tab, so a block is the
+     unit users actually see there (see `reference/format.md`);
    - logic chains ("спрашивают X → выбирай Z") over theory;
    - Serbian terms in *italics*, untranslated in running text, translation
      in brackets on first mention;
@@ -109,3 +114,9 @@ never open `assets/allQuestions.json` (1.4 MB) directly with the Read tool.
 - Updating an existing konspekt: dump questions again, diff against
   `questionIds` coverage (`validate` reports missing ids), extend or edit
   only affected sections, bump `version`, re-`publish`.
+- Migrating a pre-blocks konspekt: cut each section's existing `content.ru`
+  into `blocks` strictly at paragraph (`\n\n`) boundaries — don't rewrite the
+  text — assign per-block `questionIds` from the question dump, run
+  `sync-blocks` (must report 0 changed sections if the cut was clean), then
+  `validate`, bump `version`, re-`publish`. The app falls back to whole
+  sections until then, so migration can go category by category.

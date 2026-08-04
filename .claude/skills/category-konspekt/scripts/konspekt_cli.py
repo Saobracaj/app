@@ -126,8 +126,8 @@ def cmd_validate(args):
     if cat_id and not cat_qids:
         errors.append(f"categoryId: no questions found for category {cat_id!r}")
 
-    if k.get("version") != 1:
-        warnings.append("version: expected 1")
+    if not (isinstance(k.get("version"), int) and k["version"] >= 1):
+        errors.append("version: required positive int (bump it on every published change)")
     _check_localized(errors, "categoryName", k.get("categoryName"))
     if "intro" in k:
         _check_localized(errors, "intro", k["intro"])
@@ -176,6 +176,43 @@ def cmd_validate(args):
                 errors.append(f"{p}.questionIds: {qid} is not a question of category {cat_id}")
         referenced_qids.update(qids)
 
+        # blocks: an ordered partition of content.ru whose questionIds union
+        # equals the section's — the app's per-question excerpt relies on both.
+        blocks = s.get("blocks")
+        if blocks is not None:
+            if not isinstance(blocks, list) or not blocks:
+                errors.append(f"{p}.blocks: must be a non-empty array when present")
+                blocks = []
+            block_qids = set()
+            for j, b in enumerate(blocks):
+                bp = f"{p}.blocks[{j}]"
+                if not isinstance(b, dict):
+                    errors.append(f"{bp}: must be an object")
+                    continue
+                _check_localized(errors, f"{bp}.content", b.get("content"))
+                bq = b.get("questionIds", [])
+                if not isinstance(bq, list) or not all(isinstance(x, int) for x in bq):
+                    errors.append(f"{bp}.questionIds: must be an array of ints")
+                    bq = []
+                block_qids.update(bq)
+            if blocks:
+                joined = "\n\n".join(
+                    ((b.get("content") or {}).get("ru") or "") for b in blocks if isinstance(b, dict)
+                )
+                if joined != ((s.get("content") or {}).get("ru") or ""):
+                    errors.append(
+                        f"{p}.blocks: content.ru must equal the blocks joined with a blank "
+                        f"line — run `sync-blocks` to regenerate it"
+                    )
+                unmapped = sorted(set(qids) - block_qids)
+                if unmapped:
+                    errors.append(
+                        f"{p}.blocks: section questionIds not mapped to any block: {unmapped}"
+                    )
+                extra = sorted(block_qids - set(qids))
+                if extra:
+                    errors.append(f"{p}.blocks: block questionIds missing from the section's: {extra}")
+
         content_ru = (s.get("content") or {}).get("ru") or ""
         for m in q_link_re.finditer(content_ru):
             qid = int(m.group(1))
@@ -220,6 +257,28 @@ def cmd_validate(args):
     if errors:
         sys.exit(1)
     print("OK")
+
+
+def cmd_sync_blocks(args):
+    """Regenerate each section's content.ru from its blocks (join with a blank
+    line), so blocks stay the single авторский source and content never
+    drifts. Sections without blocks are left untouched."""
+    with open(args.file, encoding="utf-8") as f:
+        k = json.load(f)
+    changed = 0
+    for s in k.get("sections", []):
+        blocks = s.get("blocks")
+        if not blocks:
+            continue
+        joined = "\n\n".join(((b.get("content") or {}).get("ru") or "") for b in blocks)
+        content = s.setdefault("content", {"ru": None, "sr": None})
+        if content.get("ru") != joined:
+            content["ru"] = joined
+            changed += 1
+    with open(args.file, "w", encoding="utf-8") as f:
+        json.dump(k, f, ensure_ascii=False, indent=1)
+        f.write("\n")
+    print(f"synced content.ru of {changed} section(s) from blocks")
 
 
 # ---------------------------------------------------------------- database ---
@@ -397,6 +456,10 @@ def main():
     p = sub.add_parser("validate")
     p.add_argument("file")
     p.set_defaults(func=cmd_validate)
+
+    p = sub.add_parser("sync-blocks", help="regenerate sections' content.ru from their blocks")
+    p.add_argument("file")
+    p.set_defaults(func=cmd_sync_blocks)
 
     p = sub.add_parser("publish", help="upload a konspekt to the backend database")
     p.add_argument("category_id")
