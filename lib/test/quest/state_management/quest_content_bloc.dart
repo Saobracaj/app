@@ -45,16 +45,22 @@ class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
     );
   }
 
+  /// Выбор ограничен количеством верных вариантов: лишний тап ничего не
+  /// выбирает, а только увеличивает [QuesContentState.limitHits] — по этому
+  /// счётчику экран показывает подсказку с вибрацией.
   void _onAddChoise(AddChoice event, Emitter<QuesContentState> emit) {
-    if (state.choices.where((element) => element.isCorrect).length > 1) {
+    final limit = state.choices.where((element) => element.isCorrect).length;
+    if (limit > 1) {
       if (state.selectedChoices.contains(event.choice)) {
         emit(state.copyWith(
           selectedChoices: {...state.selectedChoices}..remove(event.choice),
         ));
-      } else {
+      } else if (state.selectedChoices.length < limit) {
         emit(state.copyWith(
           selectedChoices: {...state.selectedChoices, event.choice},
         ));
+      } else {
+        emit(state.copyWith(limitHits: state.limitHits + 1));
       }
     } else {
       emit(state.copyWith(selectedChoices: {event.choice}));
@@ -94,5 +100,10 @@ sealed class QuesContentState with _$QuesContentState {
     @Default({}) Set<Choice> choices,
     @Default({}) Set<Choice> selectedChoices,
     @Default(false) bool showCorrectAnswers,
+
+    /// Сколько раз пользователь пытался выбрать вариант сверх лимита. Само
+    /// значение не важно — важно, что оно меняется: каждое изменение экран
+    /// отрабатывает как разовый эффект (вибрация + подсказка).
+    @Default(0) int limitHits,
   }) = _QuesContentState;
 }

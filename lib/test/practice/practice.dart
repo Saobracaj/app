@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:saobracaj/core/selection_limit_feedback.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/test/practice/state_management/practice_bloc.dart';
@@ -252,7 +253,11 @@ class _QuestionContent extends StatelessWidget {
       create: (context) => PracticeContentBloc(choices.toSet(), answers ?? {}, question.id),
       child: BlocBuilder<PracticeBloc, PracticeState>(
         builder: (context, practiceState) {
-          return BlocBuilder<PracticeContentBloc, PracticeContentState>(
+          return BlocConsumer<PracticeContentBloc, PracticeContentState>(
+            // Лишний тап не выбирается — вместо молчаливого отказа даём
+            // вибрацию и подсказку с нужным количеством ответов.
+            listenWhen: (previous, current) => previous.limitHits != current.limitHits,
+            listener: (context, state) => showSelectionLimitFeedback(context, ExamStrings.answerLimitReached(rightAnswers)),
             builder: (context, state) {
               final bloc = context.read<PracticeContentBloc>();
 
@@ -277,7 +282,10 @@ class _QuestionContent extends StatelessWidget {
                   if (rightAnswers > 1)
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(ExamStrings.requiredAnswers(rightAnswers), style: TextStyle(color: quiz.info, fontStyle: FontStyle.italic)),
+                      child: ShakeOnTrigger(
+                        trigger: state.limitHits,
+                        child: Text(ExamStrings.requiredAnswers(rightAnswers), style: TextStyle(color: quiz.info, fontStyle: FontStyle.italic)),
+                      ),
                     ),
                   for (var c in choices)
                     if (rightAnswers > 1)
