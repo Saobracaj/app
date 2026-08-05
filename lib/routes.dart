@@ -11,6 +11,7 @@ import 'package:saobracaj/notifications/presentation/notifications_page.dart';
 import 'package:saobracaj/profile/presentation/display_name_page.dart';
 import 'package:saobracaj/public_comments/presentation/moderation_page.dart';
 import 'package:saobracaj/groups/presentation/group_feed_page.dart';
+import 'package:saobracaj/groups/presentation/invite_page.dart';
 import 'package:saobracaj/groups/presentation/group_page.dart';
 import 'package:saobracaj/home/home_content_page.dart';
 import 'package:saobracaj/home_page.dart';
@@ -62,6 +63,10 @@ final routes = RouteMap(
     // One group: its members, the owner's tools and the invite code.
     '/groups/:id': (data) => MaterialPage(
       child: GroupPage(groupId: Uri.decodeComponent(data.pathParameters['id'] ?? '')),
+    ),
+    // Where an invite link lands: https://saobracaj.gleb.at/invite/ABC-DEF-GHI
+    '/invite/:token': (data) => MaterialPage(
+      child: InvitePage(token: Uri.decodeComponent(data.pathParameters['token'] ?? '')),
     ),
     // Its activity feed: paged history, live while the screen is open.
     '/groups/:id/feed': (data) => MaterialPage(

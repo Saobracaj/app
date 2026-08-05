@@ -382,7 +382,10 @@
             "expired": "This code has expired",
             "none": "No invitation yet",
             "qrHint": "Scan the code with a phone camera",
-            "revoke": "Revoke"
+            "revoke": "Revoke",
+            "signInToJoin": "Sign in to join a group with the invite {}.",
+            "signIn": "Sign in",
+            "openApp": "Go to the home screen"
         },
         "event": {
             "memberJoined": "New member: {}",
