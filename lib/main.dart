@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -17,6 +19,7 @@ import 'auth/data/firebase_init.dart';
 import 'auth/state_management/auth/auth_bloc.dart';
 import 'auth/state_management/auth/auth_events.dart';
 import 'core/app_language.dart';
+import 'core/deep_links/deep_link_service.dart';
 import 'core/di.dart';
 import 'db/dependencies.dart';
 import 'feature_flags/state_management/feature_flags_bloc.dart';
@@ -75,6 +78,10 @@ void main() async {
   await getIt<QuizPreferencesRepository>().bootstrap();
   // Start syncing the device's FCM push token once a session is available.
   getIt<PushTokenService>().start();
+  // Listen for invite links before the first frame: a cold start from a link
+  // must not miss the link that started it (DeepLinkService holds it until the
+  // router exists).
+  await getIt<DeepLinkService>().start();
   runApp(
     EasyLocalization(
       useOnlyLangCode: true,
@@ -105,8 +112,26 @@ class _MyAppState extends State<MyApp> {
     routesBuilder: (context) => routes,
   );
 
+  StreamSubscription<String>? _deepLinks;
+
+  @override
+  void initState() {
+    super.initState();
+    final service = getIt<DeepLinkService>();
+    _deepLinks = service.paths.listen(_openDeepLink);
+    // The link the app was launched with, if any. Pushed after the first frame
+    // so the router is attached to a navigator by the time it arrives.
+    final pending = service.takePending();
+    if (pending != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _openDeepLink(pending));
+    }
+  }
+
+  void _openDeepLink(String path) => _routerDelegate.push(path);
+
   @override
   void dispose() {
+    _deepLinks?.cancel();
     _routerDelegate.dispose();
     super.dispose();
   }

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Universal Links: iOS fetches
+	     https://saobracaj.gleb.at/.well-known/apple-app-site-association
+	     (served by web_server/) and, finding this app's ID there, opens
+	     invite links in the app instead of Safari.
+
+	     Requires the "Associated Domains" capability on the App ID
+	     at.gleb.saobracaj.saobracaj in the Apple Developer portal — with
+	     automatic signing Xcode enables it on the first build; otherwise
+	     signing fails with "profile doesn't include
+	     com.apple.developer.associated-domains". -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:saobracaj.gleb.at</string>
+	</array>
+</dict>
+</plist>

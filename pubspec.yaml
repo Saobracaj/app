@@ -83,6 +83,10 @@ dependencies:
   # The share sheet for an invite link (the code and the link are also
   # copyable, so sharing never becomes the only way out).
   share_plus: ^13.3.0
+  # Incoming links (lib/core/deep_links/): an invite opened from a chat has to
+  # land inside the app, not in a browser tab. Handles both the verified
+  # https://saobracaj.gleb.at/... links and the saobracaj:// scheme.
+  app_links: ^6.4.1
   # GraphQL subscriptions (lib/auth/data/graphql_subscription_client.dart): the
   # group feed keeps itself up to date over a websocket. Was already present
   # transitively; listed here because the app now talks the protocol itself.

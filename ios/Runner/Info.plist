@@ -45,6 +45,22 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- The app's own URL scheme: saobracaj://saobracaj.gleb.at/invite/ABC-DEF-GHI.
+	     Universal Links (see Runner.entitlements) are the primary route; this
+	     one also works on a build that is not associated with the domain yet. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>at.gleb.saobracaj.saobracaj</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>saobracaj</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleLocalizations</key>
     <array>
     	<string>en</string>

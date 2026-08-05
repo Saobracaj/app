@@ -55,6 +55,7 @@ import '../test/quest/question_features/state_management/question_features_bloc.
 import '../test/quest/question_features/state_management/question_konspekt_bloc.dart'
     as _i192;
 import '../test/state_management/start_test_bloc.dart' as _i31;
+import 'deep_links/deep_link_service.dart' as _i547;
 import 'di.dart' as _i913;
 
 extension GetItInjectableX on _i174.GetIt {
@@ -66,6 +67,7 @@ extension GetItInjectableX on _i174.GetIt {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final registerModule = _$RegisterModule();
     gh.lazySingleton<_i25.TokenStorage>(() => _i25.TokenStorage());
+    gh.lazySingleton<_i547.DeepLinkService>(() => _i547.DeepLinkService());
     gh.lazySingleton<_i389.FeatureFlagsRepository>(
       () => registerModule.featureFlagsRepository(),
     );

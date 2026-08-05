@@ -27,6 +27,34 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- App Links: https://saobracaj.gleb.at/... opens the app instead
+                 of the browser. android:autoVerify makes Android fetch
+                 https://saobracaj.gleb.at/.well-known/assetlinks.json (served
+                 by web_server/) and check this app's signing certificate
+                 against it — until that file is live, the links keep opening
+                 in the browser and nothing else breaks. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="saobracaj.gleb.at" android:pathPrefix="/invite"/>
+                <data android:scheme="https" android:host="saobracaj.gleb.at" android:pathPrefix="/question"/>
+                <data android:scheme="https" android:host="saobracaj.gleb.at" android:pathPrefix="/groups"/>
+                <data android:scheme="https" android:host="saobracaj.gleb.at" android:pathPrefix="/konspekt"/>
+                <data android:scheme="https" android:host="saobracaj.gleb.at" android:pathPrefix="/zakon"/>
+            </intent-filter>
+
+            <!-- The same addresses under the app's own scheme
+                 (saobracaj://saobracaj.gleb.at/invite/ABC-DEF-GHI). No domain
+                 verification is involved, so this route works on a sideloaded
+                 build and wherever an in-app browser swallows App Links. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="saobracaj"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
