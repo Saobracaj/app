@@ -18,7 +18,40 @@ import '../../generated/locale_keys.g.dart';
 import '../state_management/firebase_login/firebase_login_bloc.dart';
 import '../state_management/firebase_login/firebase_login_events.dart';
 import '../state_management/firebase_login/firebase_login_state.dart';
+import 'error_field.dart';
 import 'widgets/social_sign_in_buttons.dart';
+
+/// Даёт всей странице авторизации доступ к [FirebaseLoginBloc]: сама секция
+/// соц-входа ([SocialLogin]) рисуется по этому состоянию, а форма
+/// логина/регистрации по нему же выключает свои поля и кнопки, пока идёт вход
+/// через Google/Apple.
+///
+/// Здесь же живут one-shot эффекты блока: сброс Firebase-сессии и уход со
+/// страницы после успеха.
+class SocialLoginScope extends StatelessWidget {
+  const SocialLoginScope({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider<FirebaseLoginBloc>(
+      create: (providerContext) {
+        // Start from a clean Firebase session; the back-end session is
+        // authoritative.
+        firebaseSignOut(providerContext);
+        return getIt<FirebaseLoginBloc>();
+      },
+      child: BlocListener<FirebaseLoginBloc, FirebaseLoginState>(
+        listener: (context, state) {
+          if (state.shouldLogOut) firebaseSignOut(context);
+          if (state.success) Routemaster.of(context).pop();
+        },
+        child: child,
+      ),
+    );
+  }
+}
 
 /// Google / Apple sign-in section. The buttons are our own brand-compliant,
 /// theme-aware widgets ([GoogleSignInButton] / [AppleSignInButton]), but the
@@ -31,49 +64,43 @@ import 'widgets/social_sign_in_buttons.dart';
 /// Firebase is used only to obtain an OAuth ID token, which the bloc exchanges
 /// for our own session. Before every attempt the Firebase session is cleared,
 /// so re-tapping never trips the `provider-already-linked` error.
+///
+/// Пока идёт вход, спиннер крутится только на нажатой кнопке — вторая просто
+/// выключается; ошибка показывается инлайново под кнопками.
+/// Требует [SocialLoginScope] выше по дереву.
 class SocialLogin extends StatelessWidget {
-  const SocialLogin({super.key});
+  const SocialLogin({super.key, this.enabled = true});
+
+  /// `false` — страница занята чем-то другим (например, входом по паролю), и
+  /// кнопки соц-входа нажимать нельзя.
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider<FirebaseLoginBloc>(
-      create: (providerContext) {
-        // Start from a clean Firebase session; the back-end session is
-        // authoritative.
-        _firebaseSignOut(providerContext);
-        return getIt<FirebaseLoginBloc>();
-      },
-      child: BlocConsumer<FirebaseLoginBloc, FirebaseLoginState>(
-        listener: (context, state) {
-          if (state.shouldLogOut) _firebaseSignOut(context);
-          if (state.success) Routemaster.of(context).pop();
-          final error = state.errorMessage;
-          if (error != null) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text(error)));
-          }
-        },
-        builder: (context, state) {
-          final bloc = context.read<FirebaseLoginBloc>();
-          return Column(
-            children: [
-              Row(
-                children: [
-                  const Expanded(child: Divider()),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(LocaleKeys.auth_or.tr()),
-                  ),
-                  const Expanded(child: Divider()),
-                ],
-              ),
-              const SizedBox(height: 16),
-              for (final button in _providerButtons(bloc, state.isBusy))
-                button,
+    return BlocBuilder<FirebaseLoginBloc, FirebaseLoginState>(
+      builder: (context, state) {
+        final bloc = context.read<FirebaseLoginBloc>();
+        return Column(
+          children: [
+            Row(
+              children: [
+                const Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text(LocaleKeys.auth_or.tr()),
+                ),
+                const Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: 16),
+            for (final button in _providerButtons(bloc, state)) button,
+            if (state.errorMessage != null) ...[
+              const SizedBox(height: 8),
+              ErrorField(message: state.errorMessage),
             ],
-          );
-        },
-      ),
+          ],
+        );
+      },
     );
   }
 
@@ -84,9 +111,14 @@ class SocialLogin extends StatelessWidget {
   ///   Firebase's `__/auth/handler` web page and reliably fails with
   ///   `missing initial state` (lost `sessionStorage` across the redirect), so it
   ///   is intentionally not offered here.
-  List<Widget> _providerButtons(FirebaseLoginBloc bloc, bool busy) {
-    Widget google() => _GoogleButton(bloc: bloc, blocBusy: busy);
-    Widget apple() => _AppleButton(bloc: bloc, blocBusy: busy);
+  List<Widget> _providerButtons(
+    FirebaseLoginBloc bloc,
+    FirebaseLoginState state,
+  ) {
+    Widget google() =>
+        _GoogleButton(bloc: bloc, state: state, pageEnabled: enabled);
+    Widget apple() =>
+        _AppleButton(bloc: bloc, state: state, pageEnabled: enabled);
 
     // all the buttons are temporarily enabled for all platforms for testing purposes
     if (true || kIsWeb) {
@@ -102,13 +134,16 @@ class SocialLogin extends StatelessWidget {
         return [google(), const SizedBox(height: 12), apple()];
     }
   }
+}
 
-  Future<void> _firebaseSignOut(BuildContext context) async {
-    try {
-      await fb_ui_auth.FirebaseUIAuth.signOut(context: context);
-    } catch (_) {
-      // best-effort
-    }
+/// Сбрасывает Firebase-сессию (best-effort): нашей сессией управляет бэкенд, а
+/// «чистая» Firebase-сессия нужна, чтобы повторный тап не пытался залинковать
+/// уже прилинкованный провайдер.
+Future<void> firebaseSignOut(BuildContext context) async {
+  try {
+    await fb_ui_auth.FirebaseUIAuth.signOut(context: context);
+  } catch (_) {
+    // best-effort
   }
 }
 
@@ -119,15 +154,21 @@ class SocialLogin extends StatelessWidget {
 class _OAuthButtonScaffold extends StatelessWidget {
   const _OAuthButtonScaffold({
     required this.bloc,
+    required this.state,
+    required this.socialProvider,
+    required this.pageEnabled,
     required this.provider,
-    required this.blocBusy,
     required this.builder,
   });
 
   final FirebaseLoginBloc bloc;
+  final FirebaseLoginState state;
+  final SocialAuthProvider socialProvider;
+  final bool pageEnabled;
   final fb_ui_oauth.OAuthProvider provider;
-  final bool blocBusy;
-  final Widget Function(VoidCallback onPressed, bool busy) builder;
+
+  /// `onPressed == null` — кнопка выключена; `busy` — на ней спиннер.
+  final Widget Function(VoidCallback? onPressed, bool busy) builder;
 
   @override
   Widget build(BuildContext context) {
@@ -138,14 +179,23 @@ class _OAuthButtonScaffold extends StatelessWidget {
       },
       child: fb_ui_auth.AuthFlowBuilder<fb_ui_auth.OAuthController>(
         provider: provider,
-        builder: (context, state, controller, child) {
+        builder: (context, authState, controller, child) {
           // Firebase-side sign-in is in flight, or the bloc is exchanging the
-          // ID token for our session: keep the tapped button spinning either way.
-          final signingIn = state is fb_ui_auth.SigningIn ||
-              state is fb_ui_auth.CredentialReceived;
+          // ID token for our session: keep the tapped button spinning either
+          // way. Обе проверки относятся только к этому провайдеру, поэтому
+          // спиннер никогда не появляется на двух кнопках сразу.
+          final busy = authState is fb_ui_auth.SigningIn ||
+              authState is fb_ui_auth.CredentialReceived ||
+              state.isBusyWith(socialProvider);
+          final locked = busy || state.isBusy || !pageEnabled;
           return builder(
-            () => controller.signIn(Theme.of(context).platform),
-            signingIn || blocBusy,
+            locked
+                ? null
+                : () {
+                    bloc.add(SocialSignInPressed(socialProvider));
+                    controller.signIn(Theme.of(context).platform);
+                  },
+            busy,
           );
         },
       ),
@@ -154,16 +204,23 @@ class _OAuthButtonScaffold extends StatelessWidget {
 }
 
 class _GoogleButton extends StatelessWidget {
-  const _GoogleButton({required this.bloc, required this.blocBusy});
+  const _GoogleButton({
+    required this.bloc,
+    required this.state,
+    required this.pageEnabled,
+  });
 
   final FirebaseLoginBloc bloc;
-  final bool blocBusy;
+  final FirebaseLoginState state;
+  final bool pageEnabled;
 
   @override
   Widget build(BuildContext context) {
     return _OAuthButtonScaffold(
       bloc: bloc,
-      blocBusy: blocBusy,
+      state: state,
+      socialProvider: SocialAuthProvider.google,
+      pageEnabled: pageEnabled,
       provider: fb_ui_oauth_google.GoogleProvider(clientId: _googleClientId),
       builder: (onPressed, busy) =>
           GoogleSignInButton(onPressed: onPressed, busy: busy),
@@ -172,16 +229,23 @@ class _GoogleButton extends StatelessWidget {
 }
 
 class _AppleButton extends StatelessWidget {
-  const _AppleButton({required this.bloc, required this.blocBusy});
+  const _AppleButton({
+    required this.bloc,
+    required this.state,
+    required this.pageEnabled,
+  });
 
   final FirebaseLoginBloc bloc;
-  final bool blocBusy;
+  final FirebaseLoginState state;
+  final bool pageEnabled;
 
   @override
   Widget build(BuildContext context) {
     return _OAuthButtonScaffold(
       bloc: bloc,
-      blocBusy: blocBusy,
+      state: state,
+      socialProvider: SocialAuthProvider.apple,
+      pageEnabled: pageEnabled,
       provider: fb_ui_oauth_apple.AppleProvider(),
       builder: (onPressed, busy) =>
           AppleSignInButton(onPressed: onPressed, busy: busy),

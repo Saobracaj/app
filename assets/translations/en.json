@@ -117,7 +117,10 @@
             "emptyPassword": "Enter your password",
             "shortPassword": "Password must be at least 6 characters",
             "passwordMismatch": "Passwords do not match",
-            "emptyCode": "Enter the code"
+            "emptyCode": "Enter the code",
+            "socialFailed": "Sign-in failed. Please try again",
+            "socialAccountExists": "An account with this email already exists. Sign in the way you registered",
+            "socialNetwork": "No connection to the server. Check your internet and try again"
         }
     },
     "settings": {

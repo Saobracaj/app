@@ -5,6 +5,7 @@ import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
 import '../../generated/locale_keys.g.dart';
+import '../state_management/firebase_login/firebase_login_bloc.dart';
 import '../state_management/login/login_bloc.dart';
 import '../state_management/login/login_events.dart';
 import '../state_management/login/login_state.dart';
@@ -22,7 +23,9 @@ class LoginPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => getIt<LoginBloc>(),
-      child: LoginView(),
+      // Соц-вход живёт над всей формой: пока он идёт, поля и кнопки ниже
+      // выключаются.
+      child: SocialLoginScope(child: LoginView()),
     );
   }
 }
@@ -68,12 +71,20 @@ class LoginView extends StatelessWidget {
                   },
                   builder: (context, state) {
                     final bloc = context.read<LoginBloc>();
+                    // Пока идёт любой вход (по паролю или через соцсеть) — вся
+                    // форма недоступна: ни полей, ни кнопок, ни ссылок.
+                    final socialBusy = context
+                        .watch<FirebaseLoginBloc>()
+                        .state
+                        .isBusy;
+                    final locked = state.inProgress || socialBusy;
                     return Form(
                       key: _formKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           TextFormField(
+                            enabled: !locked,
                             decoration: InputDecoration(
                               border: const OutlineInputBorder(),
                               labelText: LocaleKeys.auth_email.tr(),
@@ -87,13 +98,15 @@ class LoginView extends StatelessWidget {
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
+                            enabled: !locked,
                             decoration: InputDecoration(
                               border: const OutlineInputBorder(),
                               labelText: LocaleKeys.auth_password.tr(),
                               prefixIcon: const Icon(Icons.lock_outline),
                               suffixIcon: IconButton(
-                                onPressed: () =>
-                                    bloc.add(TogglePasswordVisibility()),
+                                onPressed: locked
+                                    ? null
+                                    : () => bloc.add(TogglePasswordVisibility()),
                                 icon: Icon(
                                   state.obscurePassword
                                       ? Icons.visibility_outlined
@@ -110,8 +123,10 @@ class LoginView extends StatelessWidget {
                           Align(
                             alignment: Alignment.centerRight,
                             child: TextButton(
-                              onPressed: () => Routemaster.of(context)
-                                  .push('/resetPassword'),
+                              onPressed: locked
+                                  ? null
+                                  : () => Routemaster.of(context)
+                                      .push('/resetPassword'),
                               child: Text(LocaleKeys.auth_forgotPassword.tr()),
                             ),
                           ),
@@ -119,8 +134,7 @@ class LoginView extends StatelessWidget {
                           ErrorField(message: state.errorMessage),
                           const SizedBox(height: 8),
                           FilledButton(
-                            onPressed:
-                                state.inProgress ? null : () => _submit(context),
+                            onPressed: locked ? null : () => _submit(context),
                             style: FilledButton.styleFrom(
                               minimumSize: const Size.fromHeight(48),
                             ),
@@ -134,15 +148,17 @@ class LoginView extends StatelessWidget {
                                 : Text(LocaleKeys.auth_loginSubmit.tr()),
                           ),
                           const SizedBox(height: 24),
-                          const SocialLogin(),
+                          SocialLogin(enabled: !state.inProgress),
                           const SizedBox(height: 24),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(LocaleKeys.auth_noAccount.tr()),
                               TextButton(
-                                onPressed: () => Routemaster.of(context)
-                                    .replace('/register'),
+                                onPressed: locked
+                                    ? null
+                                    : () => Routemaster.of(context)
+                                        .replace('/register'),
                                 child: Text(LocaleKeys.auth_toRegister.tr()),
                               ),
                             ],
