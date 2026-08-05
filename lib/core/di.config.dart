@@ -23,7 +23,11 @@ import '../auth/state_management/login/login_bloc.dart' as _i10;
 import '../auth/state_management/register/register_bloc.dart' as _i830;
 import '../auth/state_management/reset_password/reset_password_bloc.dart'
     as _i940;
+import '../feature_flags/data/feature_flags_repository.dart' as _i389;
 import '../feature_flags/domain/app_feature.dart' as _i392;
+import '../groups/data/groups_repository.dart' as _i685;
+import '../groups/state_management/group_bloc.dart' as _i1064;
+import '../groups/state_management/groups_bloc.dart' as _i1032;
 import '../konspekt/data/konspekt_repository.dart' as _i491;
 import '../konspekt/state_management/konspekt_bloc.dart' as _i198;
 import '../konspekt/state_management/konspekt_catalog_bloc.dart' as _i187;
@@ -60,6 +64,9 @@ extension GetItInjectableX on _i174.GetIt {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final registerModule = _$RegisterModule();
     gh.lazySingleton<_i25.TokenStorage>(() => _i25.TokenStorage());
+    gh.lazySingleton<_i389.FeatureFlagsRepository>(
+      () => registerModule.featureFlagsRepository(),
+    );
     gh.lazySingleton<_i426.NotificationPermissions>(
       () => const _i426.NotificationPermissions(),
     );
@@ -110,6 +117,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i388.AuthBloc>(
       () => _i388.AuthBloc(gh<_i880.AuthRepository>()),
     );
+    gh.lazySingleton<_i685.GroupsRepository>(
+      () => _i685.GroupsRepository(gh<_i483.GraphqlClient>()),
+    );
     gh.lazySingleton<_i491.KonspektRepository>(
       () => _i491.KonspektRepository(gh<_i483.GraphqlClient>()),
     );
@@ -141,6 +151,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i880.AuthRepository>(),
         gh<_i388.AuthBloc>(),
         gh<_i426.NotificationPermissions>(),
+      ),
+    );
+    gh.factory<_i1032.GroupsBloc>(
+      () => _i1032.GroupsBloc(
+        gh<_i685.GroupsRepository>(),
+        gh<_i311.ProfileRepository>(),
+        gh<_i388.AuthBloc>(),
+        gh<_i389.FeatureFlagsRepository>(),
       ),
     );
     gh.factory<_i187.KonspektCatalogBloc>(
@@ -180,6 +198,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factoryParam<_i213.CommentBloc, int, dynamic>(
       (questionId, _) =>
           _i213.CommentBloc(gh<_i359.CommentRepository>(), questionId),
+    );
+    gh.factoryParam<_i1064.GroupBloc, String, dynamic>(
+      (groupId, _) => _i1064.GroupBloc(
+        gh<_i685.GroupsRepository>(),
+        gh<_i389.FeatureFlagsRepository>(),
+        groupId,
+      ),
     );
     gh.factory<_i1000.QuestionListsBloc>(
       () => _i1000.QuestionListsBloc(

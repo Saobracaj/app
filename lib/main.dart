@@ -21,6 +21,9 @@ import 'core/di.dart';
 import 'db/dependencies.dart';
 import 'feature_flags/state_management/feature_flags_bloc.dart';
 import 'feature_flags/state_management/feature_flags_events.dart';
+import 'groups/presentation/groups_error_listener.dart';
+import 'groups/state_management/groups_bloc.dart';
+import 'groups/state_management/groups_events.dart';
 import 'notifications/data/push_token_service.dart';
 import 'question_lists/presentation/question_lists_error_listener.dart';
 import 'question_lists/state_management/question_lists_bloc.dart';
@@ -131,6 +134,11 @@ class _MyAppState extends State<MyApp> {
           create: (context) =>
               getIt<QuestionListsBloc>()..add(QuestionListsStarted()),
         ),
+        // App-wide as well: the home-screen cards and the group screen read one
+        // list, and membership changes have to reach both.
+        BlocProvider(
+          create: (context) => getIt<GroupsBloc>()..add(const GroupsStarted()),
+        ),
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(
         builder: (context, themeState) {
@@ -154,7 +162,9 @@ class _MyAppState extends State<MyApp> {
             localizationsDelegates: context.localizationDelegates,
             debugShowCheckedModeBanner: false,
             builder: (context, child) => QuestionListsErrorListener(
-              child: child ?? const SizedBox.shrink(),
+              child: GroupsErrorListener(
+                child: child ?? const SizedBox.shrink(),
+              ),
             ),
             routerDelegate: _routerDelegate,
             routeInformationParser: RoutemasterParser(),

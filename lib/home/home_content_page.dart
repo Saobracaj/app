@@ -2,10 +2,11 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:saobracaj/auth/presentation/auth_button.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
+import 'package:saobracaj/groups/presentation/groups_section.dart';
 import 'package:saobracaj/question_lists/presentation/question_lists_section.dart';
 
-/// Главная страница приложения. Пока содержит только раздел со списками
-/// вопросов (автоматические + пользовательские).
+/// Главная страница приложения: раздел со списками вопросов (автоматические +
+/// пользовательские) и карточки групп пользователя.
 class HomeContentPage extends StatelessWidget {
   const HomeContentPage({super.key});
 
@@ -20,6 +21,8 @@ class HomeContentPage extends StatelessWidget {
         children: const [
           SizedBox(height: 8),
           QuestionListsSection(),
+          SizedBox(height: 8),
+          GroupsSection(),
         ],
       ),
     );

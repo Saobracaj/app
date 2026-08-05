@@ -3,6 +3,8 @@ import 'package:injectable/injectable.dart';
 
 import '../auth/data/graphql_client.dart';
 import '../auth/data/token_storage.dart';
+import '../db/dependencies.dart' show featureFlags;
+import '../feature_flags/data/feature_flags_repository.dart';
 import 'app_language.dart';
 import 'di.config.dart';
 
@@ -28,4 +30,11 @@ abstract class RegisterModule {
   @lazySingleton
   GraphqlClient graphqlClient(TokenStorage storage) =>
       GraphqlClient(storage, languageProvider: () => appLanguageCode);
+
+  /// Feature availability. The repository is a global built in
+  /// `lib/db/dependencies.dart` and bootstrapped in `main()` before the widget
+  /// tree exists; exposing that same instance here lets Blocs depend on it like
+  /// on any other repository instead of reaching for the global themselves.
+  @lazySingleton
+  FeatureFlagsRepository featureFlagsRepository() => featureFlags;
 }
