@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
@@ -224,5 +225,69 @@ void main() {
     await tester.drag(body, const Offset(0, -120));
     await tester.pumpAndSettle();
     expect(tester.getSize(segmentOf('2')).height, 6);
+  });
+
+  testWidgets('нельзя выбрать больше нужного: лишний тап не выбирается, '
+      'даёт вибрацию и подсказку', (tester) async {
+    // Ловим обращения к платформе, чтобы проверить вибрацию.
+    final platformCalls = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        platformCalls.add(call.method);
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    // Вопрос с двумя верными вариантами из четырёх.
+    await tester.pumpWidget(_screen(_question()));
+    await tester.pumpAndSettle();
+
+    bool selected(String text) => tester
+        .widget<AnswerOptionCard>(
+          find.ancestor(
+            of: find.text(text),
+            matching: find.byType(AnswerOptionCard),
+          ),
+        )
+        .selected;
+
+    await tester.tap(find.text('Одговор број 0'));
+    await tester.pump();
+    await tester.tap(find.text('Одговор број 1'));
+    await tester.pump();
+    expect(selected('Одговор број 0'), isTrue);
+    expect(selected('Одговор број 1'), isTrue);
+
+    // Третий тап — лимит исчерпан: вариант не выбирается, выбранные не
+    // сбрасываются.
+    await tester.tap(find.text('Одговор број 2'));
+    await tester.pump();
+    expect(selected('Одговор број 2'), isFalse);
+    expect(selected('Одговор број 0'), isTrue);
+    expect(selected('Одговор број 1'), isTrue);
+
+    // Вибрация и подсказка с сербской плюральной формой few.
+    expect(platformCalls, contains('HapticFeedback.vibrate'));
+    await tester.pump();
+    expect(
+      find.text('Можете изабрати само 2 одговора. Поништите сувишни избор.'),
+      findsOneWidget,
+    );
+
+    // Снятие выбора освобождает место — теперь третий вариант выбирается.
+    await tester.tap(find.text('Одговор број 0'));
+    await tester.pump();
+    await tester.tap(find.text('Одговор број 2'));
+    await tester.pump();
+    expect(selected('Одговор број 2'), isTrue);
+    expect(selected('Одговор број 0'), isFalse);
+    await tester.pumpAndSettle();
   });
 }

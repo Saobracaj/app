@@ -31,6 +31,8 @@ abstract final class ExamStrings {
   // Validation.
   static const String wrongAnswerCount =
       'Нисте означили потребан број одговора';
+  static String answerLimitReached(int count) =>
+      'Можете изабрати само $count одговора. Поништите сувишни избор.';
 
   // "Really finish?" dialog.
   static const String finishTitle =

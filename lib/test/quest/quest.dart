@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:saobracaj/core/selection_limit_feedback.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
@@ -250,19 +251,29 @@ class QuestionContent extends StatelessWidget {
               ),
             ),
             SizedBox(height: 10),
-            if (rightAnswers > 1) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: _RequiredAnswersChip(count: rightAnswers),
+            BlocConsumer<QuestContentBloc, QuesContentState>(
+              // Тап сверх лимита ничего не выбирает — вместо этого подсказка
+              // с вибрацией, чтобы отказ не выглядел «залипанием» интерфейса.
+              listenWhen: (prev, curr) => prev.limitHits != curr.limitHits,
+              listener: (context, state) => showSelectionLimitFeedback(
+                context,
+                LocaleKeys.quest_answerLimitReached.plural(rightAnswers),
               ),
-              SizedBox(height: 12),
-            ],
-            BlocBuilder<QuestContentBloc, QuesContentState>(
               builder: (context, state) {
                 final bloc = context.read<QuestContentBloc>();
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (rightAnswers > 1) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: ShakeOnTrigger(
+                          trigger: state.limitHits,
+                          child: _RequiredAnswersChip(count: rightAnswers),
+                        ),
+                      ),
+                      SizedBox(height: 12),
+                    ],
                     for (var c in question.choices)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),

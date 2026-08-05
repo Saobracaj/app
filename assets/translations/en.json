@@ -66,6 +66,10 @@
             "one": "{} answer required",
             "other": "{} answers required"
         },
+        "answerLimitReached": {
+            "one": "You can select only {} answer. Deselect one first.",
+            "other": "You can select only {} answers. Deselect one first."
+        },
         "wrongAnswerCount": "You haven’t selected the required number of answers",
         "showAnswer": "Show answer",
         "next": "Next",
