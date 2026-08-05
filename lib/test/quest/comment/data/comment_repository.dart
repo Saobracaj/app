@@ -31,6 +31,32 @@ class QuestionCommentDetails {
   final String? draftRu;
 
   bool get isReady => status == 'READY';
+
+  /// Есть ли у комментария неопубликованный черновик: непустой и отличающийся
+  /// от применённого текста. Сравниваются именно RU-фрагменты — редактор
+  /// правит и сохраняет RU, поэтому расхождение возникает только там.
+  ///
+  /// Ключевой случай — уже опубликованный (`READY`) комментарий: правка
+  /// уходит в `draft`, `text` остаётся прежним, и без этого признака редактор
+  /// не видел бы ни своей правки, ни способа её опубликовать.
+  bool get hasUnpublishedDraft {
+    final draft = draftRu?.trim() ?? '';
+    if (draft.isEmpty) return false;
+    return draft != (textRu?.trim() ?? '');
+  }
+
+  /// Есть ли у комментария хоть какое-то содержимое (черновик или текст).
+  bool get hasContent =>
+      (draft?.isNotEmpty ?? false) || (text?.isNotEmpty ?? false);
+
+  /// Показывать ли редактору черновик вместо применённого текста: только
+  /// когда черновик действительно расходится с опубликованным текстом.
+  bool get showsDraft => hasUnpublishedDraft && (draft?.isNotEmpty ?? false);
+
+  /// Доступно ли действие «Опубликовать»: либо есть неопубликованный черновик
+  /// (в том числе поверх `READY`-комментария), либо комментарий с содержимым
+  /// ещё не переведён в `READY`.
+  bool get canPublish => hasUnpublishedDraft || (!isReady && hasContent);
 }
 
 /// Reads the moderated explanation ("comment") for a question from the backend.
@@ -96,7 +122,10 @@ class CommentRepository {
   }
 
   /// Moves the comment to `READY`; the backend applies the pending draft over
-  /// the live text as part of this transition. Requires `edit_comments`.
+  /// the live text as part of this transition (archiving the previous text in
+  /// `history`). A comment that is already `READY` stays `READY` — the call is
+  /// then a "publish the draft over the published text" action, which is how an
+  /// editor republishes an edited comment. Requires `edit_comments`.
   Future<QuestionCommentDetails?> publish(int questionId) async {
     final data = await _client.run(
       _publishMutation,
