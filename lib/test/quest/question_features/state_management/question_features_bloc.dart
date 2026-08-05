@@ -1,19 +1,33 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:injectable/injectable.dart';
 
 import '../../../../feature_flags/domain/app_feature.dart';
+import '../../../data/quiz_preferences_repository.dart';
 import 'question_features_events.dart';
 import 'question_features_state.dart';
 
-/// Holds the selected per-question feature tab. Built with no dependencies
-/// (screen-local UI state only), so it is constructed directly in
-/// `BlocProvider(create:)` rather than resolved from `getIt`. An [initial] tab
-/// (e.g. from a deep link into the discussion) pre-selects that feature.
+/// Holds the selected per-question feature tab, and remembers it across
+/// questions and launches via [QuizPreferencesRepository].
+///
+/// An explicit [initial] tab (a deep link into the discussion) wins over the
+/// remembered one and is not itself remembered — it says where *this* link
+/// points, not what the user usually reads. Whether the resulting tab is
+/// actually available is decided by the widget, which falls back to the first
+/// visible tab when it isn't.
+@injectable
 class QuestionFeaturesBloc
     extends Bloc<QuestionFeaturesEvent, QuestionFeaturesState> {
-  QuestionFeaturesBloc({AppFeature? initial})
-      : super(QuestionFeaturesState(selected: initial)) {
-    on<TabSelected>(
-      (event, emit) => emit(QuestionFeaturesState(selected: event.feature)),
-    );
+  QuestionFeaturesBloc(
+    this._preferences,
+    @factoryParam AppFeature? initial,
+  ) : super(
+        QuestionFeaturesState(selected: initial ?? _preferences.questionTab),
+      ) {
+    on<TabSelected>((event, emit) {
+      _preferences.setQuestionTab(event.feature);
+      emit(QuestionFeaturesState(selected: event.feature));
+    });
   }
+
+  final QuizPreferencesRepository _preferences;
 }

@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 
@@ -16,7 +17,7 @@ class StartTest extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(LocaleKeys.quest_start.tr())),
       body: BlocProvider(
-        create: (context) => StartTestBloc(),
+        create: (context) => getIt<StartTestBloc>(),
         child: BlocBuilder<StartTestBloc, StartTestState>(
           builder: (context, state) {
             final bloc = context.read<StartTestBloc>();

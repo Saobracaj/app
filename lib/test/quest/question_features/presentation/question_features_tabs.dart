@@ -78,7 +78,9 @@ class QuestionFeaturesTabs extends StatelessWidget {
 
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (_) => QuestionFeaturesBloc(initial: initial)),
+        BlocProvider(
+          create: (_) => getIt<QuestionFeaturesBloc>(param1: initial),
+        ),
         // The tab badge only needs the scalar top-level count; kept apart from
         // the full comments Bloc scoped inside the discussion tab.
         if (enabled.contains(AppFeature.publicQuestionComments))

@@ -5,6 +5,7 @@ import 'package:get_time_ago/get_time_ago.dart';
 import 'package:routemaster/routemaster.dart';
 
 import 'package:saobracaj/auth/presentation/auth_button.dart';
+import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/practice/finalize_practice.dart';
 import 'package:saobracaj/test/practice/practice.dart' show formatDuration;
@@ -20,7 +21,7 @@ class PracticePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => PracticePageBloc(),
+      create: (context) => getIt<PracticePageBloc>(),
       child: BlocBuilder<PracticePageBloc, PracticeParams>(
         builder: (context, state) {
           return Scaffold(
