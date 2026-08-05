@@ -1,0 +1,141 @@
+name: Build & Deploy web
+
+# Builds the Flutter web bundle, bakes it into the Rust static server's image
+# (see Dockerfile / web_server/) and rolls it out on the OVH VPS that already
+# runs the backend — the `web` service of ~/app/docker-compose.yml, which lives
+# in the saobracaj_backend repository.
+#
+# Result: https://saobracaj.gleb.at
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web-production
+  cancel-in-progress: false
+
+env:
+  # Pinned to the version the project is developed against; bump deliberately.
+  FLUTTER_VERSION: "3.44.7"
+
+jobs:
+  # Gate the release: a red analyzer or test suite stops the deploy.
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # Freezed/Drift/injectable/localization output is gitignored (see
+      # .gitignore), so CI has to generate it before anything compiles.
+      - name: Generate code
+        run: bash codegen.sh
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Test the web server
+        working-directory: web_server
+        run: cargo test --locked
+
+  build-and-push:
+    needs: checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write        # push the image to GHCR
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Generate code
+        run: bash codegen.sh
+
+      # --wasm compiles Dart to WebAssembly and keeps the JS build as the
+      # fallback for browsers without WasmGC, so one bundle serves both.
+      - name: Build the web bundle
+        run: flutter build web --wasm --release
+
+      - name: Compute image name (GHCR requires lowercase owner)
+        id: meta
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "repo=ghcr.io/${owner}/saobracaj_web" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${owner}/saobracaj_web:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.repo }}:${{ github.sha }}
+            ${{ steps.meta.outputs.repo }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      # The compose file and the nginx config for saobracaj.gleb.at are part of
+      # the backend's deploy stack (saobracaj_backend/deploy). This job only
+      # points the `web` service at the freshly built image and restarts it.
+      - name: Roll out on the server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          IMAGE: ${{ needs.build-and-push.outputs.image }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ vars.VPS_HOST }}
+          username: ${{ vars.VPS_USER }}
+          password: ${{ vars.VPS_SSH_PASSWORD }}
+          envs: IMAGE,GHCR_USER,GHCR_TOKEN
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd ~/app
+
+            # Pin the exact image in .env, keeping every other line as it is —
+            # the backend's deploy writes the rest of this file.
+            umask 077
+            touch .env
+            grep -v '^WEB_IMAGE=' .env > .env.next || true
+            printf 'WEB_IMAGE=%s\n' "$IMAGE" >> .env.next
+            mv .env.next .env
+
+            echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            sudo docker compose pull web
+            sudo docker compose up -d web
+            sudo docker image prune -f
+          command_timeout: 20m

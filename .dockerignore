@@ -1,0 +1,15 @@
+# The image needs exactly two things: the server's sources and the built web
+# bundle. Everything else (the Flutter project itself, 800 question images that
+# are already inside build/web, Xcode and Gradle output) stays out of the
+# context — it would only make every deploy slower.
+*
+
+!web_server/Cargo.toml
+!web_server/Cargo.lock
+!web_server/src
+!web_server/well_known
+
+!build/web
+
+web_server/target
+**/.DS_Store
