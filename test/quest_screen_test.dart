@@ -100,15 +100,14 @@ Widget _screen(Question question, {ValueChanged<int>? onQuestionSelected}) {
                 points: question.points,
                 questionId: question.id,
               ),
-              body: ListView(
-                children: [
-                  QuestionProgressStrip(
-                    entries: entries,
-                    currentQuestionId: question.id,
-                    onQuestionSelected: onQuestionSelected ?? (_) {},
-                  ),
-                  QuestionContent(question: question),
-                ],
+              body: QuestionProgressHeader(
+                entries: entries,
+                currentQuestionId: question.id,
+                onQuestionSelected: onQuestionSelected ?? (_) {},
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [QuestionContent(question: question)],
+                ),
               ),
               bottomNavigationBar: QuestBottomBar(
                 question: question,
@@ -199,6 +198,32 @@ void main() {
     await tester.tap(segmentOf('2'), warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(picked, 2);
+    expect(tester.getSize(segmentOf('2')).height, 6);
+  });
+
+  testWidgets('потяг тела вниз у самого верха раскрывает полосу, прокрутка '
+      'вверх — сворачивает', (tester) async {
+    await tester.pumpWidget(_screen(_question()));
+    await tester.pumpAndSettle();
+
+    Finder segmentOf(String number) => find
+        .ancestor(of: find.text(number), matching: find.byType(AnimatedContainer))
+        .first;
+    // Внешний ListView тела: вложенные списки (разметка вопроса) не скроллятся.
+    final body = find.byType(ListView).first;
+
+    // Изначально свёрнута.
+    expect(tester.getSize(segmentOf('2')).height, 6);
+
+    // Тянем содержимое вниз, находясь на самом верху, — полоса раскрывается
+    // сама, без тапа.
+    await tester.drag(body, const Offset(0, 120));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(segmentOf('2')).height, 32);
+
+    // Прокрутка вверх сворачивает её обратно.
+    await tester.drag(body, const Offset(0, -120));
+    await tester.pumpAndSettle();
     expect(tester.getSize(segmentOf('2')).height, 6);
   });
 

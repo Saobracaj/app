@@ -122,23 +122,27 @@ class Quest extends StatelessWidget {
                       points: question.points,
                       questionId: currentId,
                     ),
-                    body: ListView(
-                      children: [
-                        SizedBox(height: 4),
-                        QuestionProgressStrip(
-                          entries: entries,
-                          currentQuestionId: currentId,
-                          onQuestionSelected: (picked) =>
-                              questBloc.add(MoveToQuestion(picked)),
-                        ),
-                        SizedBox(height: 14),
-                        QuestionContent(
-                          key: ValueKey(currentId),
-                          question: question,
-                          openComments: openComments,
-                          commentThreadId: commentThreadId,
-                        ),
-                      ],
+                    // Полоса закреплена под шапкой, а её раскрытием управляют
+                    // жесты тела: потяг вниз у самого верха раскрывает
+                    // навигатор, прокрутка вверх — сворачивает.
+                    body: QuestionProgressHeader(
+                      entries: entries,
+                      currentQuestionId: currentId,
+                      onQuestionSelected: (picked) =>
+                          questBloc.add(MoveToQuestion(picked)),
+                      child: ListView(
+                        // Короткий вопрос тоже должен отзываться на потяг —
+                        // иначе полосу не раскрыть жестом.
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        children: [
+                          QuestionContent(
+                            key: ValueKey(currentId),
+                            question: question,
+                            openComments: openComments,
+                            commentThreadId: commentThreadId,
+                          ),
+                        ],
+                      ),
                     ),
                     bottomNavigationBar: QuestBottomBar(
                       question: question,
