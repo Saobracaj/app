@@ -26,6 +26,7 @@ import '../../../generated/locale_keys.g.dart';
 const double _buttonHeight = 48;
 const double _logoSize = 20;
 const double _spinnerSize = 22;
+const double _disabledOpacity = 0.5;
 
 /// "Continue with Google" button.
 class GoogleSignInButton extends StatelessWidget {
@@ -114,45 +115,52 @@ class _SocialPillButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final border = borderColor;
-    return SizedBox(
-      height: _buttonHeight,
-      width: double.infinity,
-      child: Material(
-        color: backgroundColor,
-        clipBehavior: Clip.antiAlias,
-        shape: StadiumBorder(
-          side: border != null ? BorderSide(color: border) : BorderSide.none,
-        ),
-        child: InkWell(
-          onTap: busy ? null : onPressed,
-          child: Center(
-            child: busy
-                ? SizedBox.square(
-                    dimension: _spinnerSize,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(foregroundColor),
-                    ),
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      logo,
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: foregroundColor,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
+    // Выключенная (но не «крутящаяся») кнопка приглушается, чтобы было видно:
+    // сейчас ей воспользоваться нельзя — идёт другой вход.
+    final disabled = onPressed == null && !busy;
+    return Opacity(
+      opacity: disabled ? _disabledOpacity : 1,
+      child: SizedBox(
+        height: _buttonHeight,
+        width: double.infinity,
+        child: Material(
+          color: backgroundColor,
+          clipBehavior: Clip.antiAlias,
+          shape: StadiumBorder(
+            side: border != null ? BorderSide(color: border) : BorderSide.none,
+          ),
+          child: InkWell(
+            onTap: busy ? null : onPressed,
+            child: Center(
+              child: busy
+                  ? SizedBox.square(
+                      dimension: _spinnerSize,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(foregroundColor),
+                      ),
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        logo,
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: Text(
+                            label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: foregroundColor,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),
