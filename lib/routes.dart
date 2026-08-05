@@ -10,6 +10,7 @@ import 'package:saobracaj/theme/presentation/appearance_page.dart';
 import 'package:saobracaj/notifications/presentation/notifications_page.dart';
 import 'package:saobracaj/profile/presentation/display_name_page.dart';
 import 'package:saobracaj/public_comments/presentation/moderation_page.dart';
+import 'package:saobracaj/groups/presentation/group_page.dart';
 import 'package:saobracaj/home/home_content_page.dart';
 import 'package:saobracaj/home_page.dart';
 import 'package:saobracaj/konspekt/presentation/konspekt_page.dart';
@@ -56,6 +57,10 @@ final routes = RouteMap(
       child: QuestionListPage(
         listId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
       ),
+    ),
+    // One group: its members, the owner's tools and the invite code.
+    '/groups/:id': (data) => MaterialPage(
+      child: GroupPage(groupId: Uri.decodeComponent(data.pathParameters['id'] ?? '')),
     ),
     '/lists/:id/q': questPage,
     '/lists/:id/q/zakon': zakonPage,

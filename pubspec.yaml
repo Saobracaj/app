@@ -77,6 +77,12 @@ dependencies:
   # lib/notifications/). Mirrors owncup's notification-permission handling.
   permission_handler: ^12.0.3
   firebase_messaging: ^16.4.3
+  # Group invitations (lib/groups/): the QR code an owner shows is *generated*
+  # here — there is no scanner in the app, a phone's own camera reads it.
+  qr_flutter: ^4.1.0
+  # The share sheet for an invite link (the code and the link are also
+  # copyable, so sharing never becomes the only way out).
+  share_plus: ^13.3.0
 
 dev_dependencies:
   flutter_test:
