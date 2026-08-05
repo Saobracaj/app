@@ -24,6 +24,9 @@ class PracticeContentBloc
     on<ShowCorrectAnswers>(_onShowCorrectAnswers);
   }
 
+  /// Лишний тап (сверх количества верных вариантов) не выбирается, но и не
+  /// пропадает бесследно: он поднимает [PracticeContentState.limitHits], по
+  /// которому экран даёт вибрацию и подсказку.
   void _onAddChoise(AddChoice event, Emitter<PracticeContentState> emit) {
     var correctChoices = state.choices.where((element) => element.isCorrect);
     if (correctChoices.length > 1) {
@@ -35,6 +38,8 @@ class PracticeContentBloc
         emit(state.copyWith(
           selectedChoices: {...state.selectedChoices, event.choice},
         ));
+      } else {
+        emit(state.copyWith(limitHits: state.limitHits + 1));
       }
     } else {
       emit(state.copyWith(selectedChoices: {event.choice}));
@@ -66,5 +71,9 @@ sealed class PracticeContentState with _$PracticeContentState {
     @Default({}) Set<Choice> selectedChoices,
     @Default(false) bool showCorrectAnswers,
     @Default([]) List<bool> previousTries,
+
+    /// Счётчик отклонённых «лишних» тапов; меняется — значит нужно показать
+    /// разовую подсказку с вибрацией.
+    @Default(0) int limitHits,
   }) = _PracticeContentState;
 }
