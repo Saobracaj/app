@@ -16,7 +16,16 @@ class KonspektCatalogBloc extends Bloc<KonspektCatalogEvent, KonspektCatalogStat
   final KonspektRepository _repository;
 
   Future<void> _onStarted(KonspektCatalogStarted event, Emitter<KonspektCatalogState> emit) async {
-    final categories = await _repository.availableCategories();
+    final Set<String> categories;
+    try {
+      categories = await _repository.availableCategories();
+    } catch (_) {
+      // The catalog is unknown (offline with nothing cached): leave the button
+      // out rather than promising a konspekt we can't open. The repository no
+      // longer latches the failure, so the next screen that asks retries.
+      return;
+    }
+    if (emit.isDone) return;
     emit(state.copyWith(categories: categories));
   }
 }

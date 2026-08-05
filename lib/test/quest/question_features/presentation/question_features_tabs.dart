@@ -99,13 +99,15 @@ class QuestionFeaturesTabs extends StatelessWidget {
       ],
       child: BlocBuilder<QuestionFeaturesBloc, QuestionFeaturesState>(
         builder: (context, state) {
+          // The konspekt tab appears once there is something to show — or once
+          // the excerpts failed to load, so the failure is visible and
+          // retryable instead of looking like a question without notes.
+          final konspekt = enabled.contains(AppFeature.categorySummaries)
+              ? context.watch<QuestionKonspektBloc>().state
+              : null;
           final hasKonspekt =
-              enabled.contains(AppFeature.categorySummaries) &&
-              context
-                  .watch<QuestionKonspektBloc>()
-                  .state
-                  .sections
-                  .isNotEmpty;
+              konspekt != null &&
+              (konspekt.sections.isNotEmpty || konspekt.failed);
           final visible = [
             for (final feature in enabled)
               if (feature != AppFeature.categorySummaries || hasKonspekt)

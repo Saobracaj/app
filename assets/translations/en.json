@@ -324,6 +324,7 @@
         "notFound": "Summary not found",
         "unavailable": "Summary is not available",
         "loadFailed": "Could not load the summary. Check your connection and try again",
+        "retry": "Retry",
         "openFull": "Open full summary"
     }
 }

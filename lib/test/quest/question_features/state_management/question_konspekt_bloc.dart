@@ -9,8 +9,12 @@ import 'package:saobracaj/test/quest/question_features/state_management/question
 /// whose `questionIds` include this question — the excerpts shown on the
 /// "Конспект" tab. Sections that carry `blocks` are narrowed further, to just
 /// the blocks mapped to this question. An empty result (no konspekt for the
-/// category, none of its sections reference the question, or the document
-/// could not be fetched) hides the tab.
+/// category, or none of its sections reference the question) hides the tab.
+///
+/// A *failure* is not an empty result: no network, no premium entitlement or a
+/// server error set [QuestionKonspektState.failed], and the tab offers a retry.
+/// Reporting those as "nothing to show" is what made the konspekt disappear
+/// silently and irrecoverably mid-run.
 @injectable
 class QuestionKonspektBloc extends Bloc<QuestionKonspektEvent, QuestionKonspektState> {
   QuestionKonspektBloc(
@@ -30,12 +34,14 @@ class QuestionKonspektBloc extends Bloc<QuestionKonspektEvent, QuestionKonspektS
   final String categoryId;
 
   Future<void> _onRequested(QuestionKonspektRequested event, Emitter<QuestionKonspektState> emit) async {
+    emit(state.copyWith(inProgress: true, failed: false));
     try {
       // Consult the catalog first: most categories have no konspekt, and this
       // avoids a doomed document query for them.
       final available = await _repository.availableCategories();
       if (!available.contains(categoryId)) {
-        emit(state.copyWith(inProgress: false));
+        if (emit.isDone) return;
+        emit(state.copyWith(inProgress: false, sections: const []));
         return;
       }
       final konspekt = await _repository.load(categoryId);
@@ -43,12 +49,15 @@ class QuestionKonspektBloc extends Bloc<QuestionKonspektEvent, QuestionKonspektS
               .where((s) => s.questionIds.contains(questionId))
               .map(_excerpt)
               .toList() ??
-          const [];
+          const <KonspektSection>[];
+      if (emit.isDone) return;
       emit(state.copyWith(inProgress: false, sections: sections));
     } catch (_) {
-      // Offline with nothing cached, or no premium entitlement: the tab just
-      // stays hidden — the full konspekt page is where failures are explained.
-      emit(state.copyWith(inProgress: false));
+      // Offline with nothing cached, no premium entitlement, or a server
+      // error. The user gets a "couldn't load, retry" tab instead of a
+      // question that silently looks like it has no notes.
+      if (emit.isDone) return;
+      emit(state.copyWith(inProgress: false, failed: true, sections: const []));
     }
   }
 
