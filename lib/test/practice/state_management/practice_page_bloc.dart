@@ -1,15 +1,23 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:injectable/injectable.dart';
 import 'package:saobracaj/db/db.dart' show PracticeRecord;
 import 'package:saobracaj/db/dependencies.dart' show repository;
+import 'package:saobracaj/test/data/quiz_preferences_repository.dart';
+import 'package:saobracaj/test/domain/quiz_option.dart';
 
 part 'practice_page_bloc.freezed.dart';
 
 /// Backs the practice-setup screen: the exam-simulation options the user picks
 /// ([PracticeParams], also passed on to the running practice session) plus the
 /// list of previous attempts loaded from the local DB.
+///
+/// The options start out at the user's last choice
+/// ([QuizPreferencesRepository]) and each toggle is remembered for the next
+/// simulation.
+@injectable
 class PracticePageBloc extends Bloc<PracticePageEvent, PracticeParams> {
-  PracticePageBloc() : super(PracticeParams()) {
+  PracticePageBloc(this._preferences) : super(_initialParams(_preferences)) {
     on<ToggleRightAnswers>(_onToggleRightAnswers);
     on<ToggleShowStats>(_onToggleShowStats);
     on<ToggleButtonsLikeInExam>(_onToggleButtonsLikeInExam);
@@ -17,22 +25,42 @@ class PracticePageBloc extends Bloc<PracticePageEvent, PracticeParams> {
     add(LoadPrevTries());
   }
 
+  final QuizPreferencesRepository _preferences;
+
+  static PracticeParams _initialParams(
+    QuizPreferencesRepository preferences,
+  ) => PracticeParams(
+    showRightAnswers: preferences.isEnabled(
+      QuizOption.practiceShowRightAnswers,
+    ),
+    showStats: preferences.isEnabled(QuizOption.practiceShowStats),
+    buttonsLikeInExam: preferences.isEnabled(
+      QuizOption.practiceButtonsLikeInExam,
+    ),
+  );
+
   void _onToggleRightAnswers(
     ToggleRightAnswers event,
     Emitter<PracticeParams> emit,
   ) {
-    emit(state.copyWith(showRightAnswers: !state.showRightAnswers));
+    final value = !state.showRightAnswers;
+    _preferences.setEnabled(QuizOption.practiceShowRightAnswers, value);
+    emit(state.copyWith(showRightAnswers: value));
   }
 
   void _onToggleShowStats(ToggleShowStats event, Emitter<PracticeParams> emit) {
-    emit(state.copyWith(showStats: !state.showStats));
+    final value = !state.showStats;
+    _preferences.setEnabled(QuizOption.practiceShowStats, value);
+    emit(state.copyWith(showStats: value));
   }
 
   void _onToggleButtonsLikeInExam(
     ToggleButtonsLikeInExam event,
     Emitter<PracticeParams> emit,
   ) {
-    emit(state.copyWith(buttonsLikeInExam: !state.buttonsLikeInExam));
+    final value = !state.buttonsLikeInExam;
+    _preferences.setEnabled(QuizOption.practiceButtonsLikeInExam, value);
+    emit(state.copyWith(buttonsLikeInExam: value));
   }
 
   void _onLoadPrevTries(

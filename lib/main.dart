@@ -24,6 +24,7 @@ import 'feature_flags/state_management/feature_flags_events.dart';
 import 'notifications/data/push_token_service.dart';
 import 'question_lists/presentation/question_lists_error_listener.dart';
 import 'question_lists/state_management/question_lists_bloc.dart';
+import 'test/data/quiz_preferences_repository.dart';
 import 'question_lists/state_management/question_lists_events.dart';
 import 'generated/codegen_loader.g.dart';
 import 'theme/app_theme.dart';
@@ -66,6 +67,9 @@ void main() async {
   // Load persisted feature toggles / cached premium grants and refresh from the
   // backend if a session exists.
   await featureFlags.bootstrap();
+  // Load the run options and the per-question tab the user picked last time, so
+  // the setup screens and the question tabs render them on their first frame.
+  await getIt<QuizPreferencesRepository>().bootstrap();
   // Start syncing the device's FCM push token once a session is available.
   getIt<PushTokenService>().start();
   runApp(

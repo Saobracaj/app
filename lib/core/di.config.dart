@@ -23,6 +23,7 @@ import '../auth/state_management/login/login_bloc.dart' as _i10;
 import '../auth/state_management/register/register_bloc.dart' as _i830;
 import '../auth/state_management/reset_password/reset_password_bloc.dart'
     as _i940;
+import '../feature_flags/domain/app_feature.dart' as _i392;
 import '../konspekt/data/konspekt_repository.dart' as _i491;
 import '../konspekt/state_management/konspekt_bloc.dart' as _i198;
 import '../konspekt/state_management/konspekt_catalog_bloc.dart' as _i187;
@@ -37,12 +38,17 @@ import '../public_comments/state_management/comments_bloc.dart' as _i405;
 import '../public_comments/state_management/moderation_bloc.dart' as _i515;
 import '../question_lists/data/question_lists_repository.dart' as _i206;
 import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
+import '../test/data/quiz_preferences_repository.dart' as _i442;
+import '../test/practice/state_management/practice_page_bloc.dart' as _i790;
 import '../test/quest/comment/data/comment_repository.dart' as _i359;
 import '../test/quest/comment/editor/state_management/comment_editor_bloc.dart'
     as _i658;
 import '../test/quest/comment/state_management/comment_bloc.dart' as _i213;
+import '../test/quest/question_features/state_management/question_features_bloc.dart'
+    as _i269;
 import '../test/quest/question_features/state_management/question_konspekt_bloc.dart'
     as _i192;
+import '../test/state_management/start_test_bloc.dart' as _i31;
 import 'di.dart' as _i913;
 
 extension GetItInjectableX on _i174.GetIt {
@@ -57,6 +63,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i426.NotificationPermissions>(
       () => const _i426.NotificationPermissions(),
     );
+    gh.lazySingleton<_i442.QuizPreferencesRepository>(
+      () => _i442.QuizPreferencesRepository(),
+    );
+    gh.factory<_i790.PracticePageBloc>(
+      () => _i790.PracticePageBloc(gh<_i442.QuizPreferencesRepository>()),
+    );
+    gh.factory<_i31.StartTestBloc>(
+      () => _i31.StartTestBloc(gh<_i442.QuizPreferencesRepository>()),
+    );
     gh.lazySingleton<_i483.GraphqlClient>(
       () => registerModule.graphqlClient(gh<_i25.TokenStorage>()),
     );
@@ -69,6 +84,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factoryParam<_i892.ConfirmCodeBloc, String, dynamic>(
       (email, _) => _i892.ConfirmCodeBloc(gh<_i880.AuthRepository>(), email),
+    );
+    gh.factoryParam<_i269.QuestionFeaturesBloc, _i392.AppFeature?, dynamic>(
+      (initial, _) => _i269.QuestionFeaturesBloc(
+        gh<_i442.QuizPreferencesRepository>(),
+        initial,
+      ),
     );
     gh.factory<_i531.FirebaseLoginBloc>(
       () => _i531.FirebaseLoginBloc(gh<_i880.AuthRepository>()),
