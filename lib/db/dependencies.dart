@@ -2,7 +2,6 @@ import '../auth/data/graphql_client.dart';
 import '../auth/data/token_storage.dart';
 import '../core/di.dart';
 import '../feature_flags/data/feature_flags_repository.dart';
-import '../session/session_sync_service.dart';
 import '../statistics/statistics_sync_service.dart';
 import 'answer_repository.dart';
 import 'db.dart';
@@ -21,14 +20,6 @@ TokenStorage get _syncTokenStorage => getIt<TokenStorage>();
 // after each finished test.
 final StatisticsSyncService statisticsSync = StatisticsSyncService(
   db,
-  _client,
-  _syncTokenStorage,
-);
-
-// Cross-device active-session sync: mirrors the current route across the user's
-// devices. Pushed on navigation (SessionRouteObserver) and pulled on
-// login/startup to offer "continue where you left off" (SessionResumeGate).
-final SessionSyncService sessionSync = SessionSyncService(
   _client,
   _syncTokenStorage,
 );

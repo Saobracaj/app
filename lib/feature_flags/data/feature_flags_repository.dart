@@ -16,9 +16,9 @@ import 'feature_flags_snapshot.dart';
 ///     launch), and
 ///   * the user's **local toggles** (also in shared preferences).
 ///
-/// Mirrors the cross-cutting-service pattern of `StatisticsSyncService` /
-/// `SessionSyncService` (constructed as a global in `lib/db/dependencies.dart`,
-/// driven from `AuthBloc` on session changes). Widgets consume it through
+/// Mirrors the cross-cutting-service pattern of `StatisticsSyncService`
+/// (constructed as a global in `lib/db/dependencies.dart`, driven from
+/// `AuthBloc` on session changes). Widgets consume it through
 /// `FeatureFlagsBloc`.
 class FeatureFlagsRepository {
   FeatureFlagsRepository(this._client, this._storage);

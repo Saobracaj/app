@@ -152,10 +152,6 @@
         "pushBlockedHint": "Notifications are turned off in the system settings. Enable them to receive push.",
         "pushBlockedInBrowser": "Notifications are blocked for this site. Allow them in your browser settings and try again."
     },
-    "session": {
-        "resume_prompt": "Continue where you left off on your other device?",
-        "resume_action": "Continue"
-    },
     "featureFlags": {
         "title": "Features",
         "localSection": "Available features",

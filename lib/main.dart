@@ -26,8 +26,6 @@ import 'question_lists/presentation/question_lists_error_listener.dart';
 import 'question_lists/state_management/question_lists_bloc.dart';
 import 'question_lists/state_management/question_lists_events.dart';
 import 'generated/codegen_loader.g.dart';
-import 'session/session_resume_gate.dart';
-import 'session/session_route_observer.dart';
 import 'theme/app_theme.dart';
 import 'theme/state_management/theme_bloc.dart';
 
@@ -96,11 +94,8 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  // Hoisted so the same delegate drives the router and the resume gate's
-  // navigation. The observer mirrors every route change to the back-end.
   final RoutemasterDelegate _routerDelegate = RoutemasterDelegate(
     routesBuilder: (context) => routes,
-    observers: [SessionRouteObserver()],
   );
 
   @override
@@ -155,10 +150,7 @@ class _MyAppState extends State<MyApp> {
             localizationsDelegates: context.localizationDelegates,
             debugShowCheckedModeBanner: false,
             builder: (context, child) => QuestionListsErrorListener(
-              child: SessionResumeGate(
-                delegate: _routerDelegate,
-                child: child ?? const SizedBox.shrink(),
-              ),
+              child: child ?? const SizedBox.shrink(),
             ),
             routerDelegate: _routerDelegate,
             routeInformationParser: RoutemasterParser(),
