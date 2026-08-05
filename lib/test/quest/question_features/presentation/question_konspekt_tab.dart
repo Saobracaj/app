@@ -1,10 +1,11 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:routemaster/routemaster.dart';
 
+import '../../../../core/navigation.dart';
 import '../../../../generated/locale_keys.g.dart';
 import '../../../../konspekt/presentation/konspekt_markdown.dart';
+import '../../../../konspekt/presentation/konspekt_page.dart';
 import '../state_management/question_konspekt_bloc.dart';
 import '../state_management/question_konspekt_events.dart';
 import '../state_management/question_konspekt_state.dart';
@@ -51,10 +52,21 @@ class QuestionKonspektTab extends StatelessWidget {
               child: TextButton.icon(
                 icon: const Icon(Icons.menu_book_outlined, size: 18),
                 label: Text(LocaleKeys.konspekt_openFull.tr()),
-                onPressed: () => Routemaster.of(context).push('/konspekt', queryParameters: {
-                  'category': categoryId,
-                  'section': state.sections.first.id,
-                }),
+                // Relative, so the konspekt opens on top of this question and
+                // "back" comes back to it. Pushing '/konspekt' used to replace
+                // the whole stack, which sent "back" to the home screen.
+                onPressed: () => pushScreen(
+                  context,
+                  path: 'konspekt',
+                  queryParameters: {
+                    'category': categoryId,
+                    'section': state.sections.first.id,
+                  },
+                  screen: () => KonspektPage(
+                    categoryId: categoryId,
+                    section: state.sections.first.id,
+                  ),
+                ),
               ),
             ),
           ],

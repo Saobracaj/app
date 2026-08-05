@@ -30,6 +30,20 @@ import 'package:saobracaj/test/quest/quest.dart';
 import 'package:saobracaj/test/start_test.dart';
 import 'package:saobracaj/zakon/zakon.dart';
 
+/// The screens a question can be opened on: every one of them hosts the same
+/// set of child screens (law, konspekt, the admin draft editor), because the
+/// question screen's own links have to open *on top of it* — Routemaster builds
+/// the page stack from the URL, so "on top of" has to exist as a path.
+const _questionHosts = [
+  '/quest',
+  '/quest/q',
+  '/statistics/q',
+  '/lists/:id/q',
+  '/questPractice/q',
+  '/question/:id',
+  '/konspekt/question/:id',
+];
+
 final routes = RouteMap(
   routes: {
     '/': (_) => IndexedPage(child: HomePage(), paths: ['/home', '/questions', '/practice', '/statistics', '/settings']),
@@ -92,26 +106,22 @@ final routes = RouteMap(
     // Deep link to a category konspekt, optionally straight to one section:
     // /konspekt?category=25&section=manevri
     '/konspekt': konspektPage,
-    // Question and law links inside a konspekt open as children of the
-    // konspekt page, so "back" returns to the konspekt (same pattern as
-    // '/quest/zakon').
+    // Law links inside a konspekt open as its children, so "back" returns to
+    // the konspekt (same pattern as '/quest/zakon'). A question link opens the
+    // preview sheet over the text instead — the full-screen route stays for the
+    // links that are already out there.
     '/konspekt/question/:id': questCommentsPage,
     '/konspekt/question/:id/zakon': zakonPage,
     '/konspekt/zakon': zakonPage,
-    // The admin draft editor opens as a child of whichever question screen it
-    // was launched from, so "back" (and the pop after saving) returns there;
-    // its own '/zakon' child keeps law links working from the preview.
-    for (final host in [
-      '/quest',
-      '/quest/q',
-      '/statistics/q',
-      '/lists/:id/q',
-      '/questPractice/q',
-      '/question/:id',
-      '/konspekt/question/:id',
-    ]) ...{
+    // Everything a question screen can open sits under it, so "back" (and the
+    // pop after saving a draft) returns to the question instead of dropping the
+    // stack: the admin draft editor with its own '/zakon' child for law links
+    // in the preview, and the full konspekt reached from the konspekt tab.
+    for (final host in _questionHosts) ...{
       '$host/commentEdit': commentEditPage,
       '$host/commentEdit/zakon': zakonPage,
+      '$host/konspekt': konspektPage,
+      '$host/konspekt/zakon': zakonPage,
     },
     '/login': (_) => const MaterialPage(child: LoginPage()),
     '/register': (_) => const MaterialPage(child: RegisterPage()),
@@ -161,12 +171,25 @@ var questPage = (data) {
   );
 };
 
-MaterialPage konspektPage(dynamic params) => MaterialPage(
-  child: KonspektPage(
-    categoryId: params.queryParameters['category'] ?? '',
-    section: params.queryParameters['section'],
-  ),
-);
+/// A konspekt page; `category` says which one.
+///
+/// Without a category there is nothing to show. That happens when the path is
+/// built as the *parent* of a deep link like `/konspekt/question/7921`:
+/// Routemaster instantiates every segment of the path, so the konspekt below
+/// the question used to be created with an empty category and greeted the user
+/// with "Не удалось загрузить конспект" as soon as they pressed back. A
+/// [Redirect] on a parent route drops it from the stack entirely, which is
+/// exactly what should happen here.
+RouteSettings konspektPage(RouteData params) {
+  final categoryId = params.queryParameters['category'] ?? '';
+  if (categoryId.isEmpty) return const Redirect('/questions');
+  return MaterialPage(
+    child: KonspektPage(
+      categoryId: categoryId,
+      section: params.queryParameters['section'],
+    ),
+  );
+}
 
 /// The admin-only comment draft editor; `id` is the question id.
 MaterialPage commentEditPage(dynamic data) => MaterialPage(

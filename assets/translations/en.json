@@ -71,6 +71,13 @@
             "other": "You can select only {} answers. Deselect one first."
         },
         "wrongAnswerCount": "You haven’t selected the required number of answers",
+        "preview": {
+            "title": "Question",
+            "answer": "Answer",
+            "close": "Close",
+            "expand": "Expand",
+            "notFound": "Question not found"
+        },
         "showAnswer": "Show answer",
         "next": "Next",
         "previous": "Previous question",

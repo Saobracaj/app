@@ -3,15 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/core/deep_links.dart';
+import 'package:saobracaj/core/navigation.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
+import 'package:saobracaj/konspekt/presentation/konspekt_page.dart';
 import 'package:saobracaj/test/animations/animations_map.dart';
 import 'package:saobracaj/test/quest/presentation/quest_markdown.dart';
+import 'package:saobracaj/test/quest/preview/question_preview_sheet.dart';
 import 'package:saobracaj/util/nav_to_url.dart';
 
 /// Markdown renderer for konspekt content. On top of the shared markdown
 /// styling it understands konspekt link schemes:
 ///
-/// - `question?id=7921` — opens the question screen;
+/// - `question?id=7921` — opens the question in a preview sheet over the text;
 /// - `konspekt?category=25&section=slug` — same-konspekt links scroll in place
 ///   (via [onSectionLink]), links to another category push a new page;
 /// - `zakon?...`, `dict/...`, `https://<deep-link-host>/...` — same handling
@@ -83,24 +86,27 @@ class KonspektMarkdown extends StatelessWidget {
     final uri = Uri.parse(link);
     switch (uri.path.replaceFirst('/', '')) {
       case 'question':
-        final id = uri.queryParameters['id'];
-        if (id != null) {
-          // Child route of /konspekt, so popping returns to the konspekt.
-          Routemaster.of(context).push('/konspekt/question/$id');
-        }
+        final id = int.tryParse(uri.queryParameters['id'] ?? '');
+        // A question referenced from a text opens over that text, not instead
+        // of it: reading continues right where it stopped.
+        if (id != null) showQuestionPreview(context, id);
       case 'konspekt':
         final category = uri.queryParameters['category'];
         final section = uri.queryParameters['section'];
         if (section != null && category == categoryId && onSectionLink != null) {
           onSectionLink!(section);
         } else if (category != null) {
-          Routemaster.of(context).push('/konspekt', queryParameters: {
-            'category': category,
-            'section': ?section,
-          });
+          pushScreen(
+            context,
+            path: 'konspekt',
+            queryParameters: {'category': category, 'section': ?section},
+            screen: () => KonspektPage(categoryId: category, section: section),
+          );
         }
       case 'zakon':
-        Routemaster.of(context).push('/konspekt/zakon', queryParameters: uri.queryParameters);
+        // Relative: the law opens on top of whatever screen this text is on
+        // (a konspekt, a question, the preview sheet), so "back" returns here.
+        Routemaster.of(context).push('zakon', queryParameters: uri.queryParameters);
       default:
         navigateToUri(context, Uri.parse(href));
     }
