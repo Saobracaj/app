@@ -200,8 +200,10 @@
     "commentAdmin": {
         "draft": "Draft",
         "moderation": "In moderation",
+        "unpublishedDraft": "Unpublished draft",
         "noComment": "No comment yet",
         "publish": "Publish",
+        "publishDraft": "Publish draft",
         "edit": "Edit",
         "editorTitle": "Comment for question {}",
         "save": "Save",

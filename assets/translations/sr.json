@@ -204,8 +204,10 @@
     "commentAdmin": {
         "draft": "Нацрт",
         "moderation": "На модерацији",
+        "unpublishedDraft": "Нацрт није објављен",
         "noComment": "Коментар још не постоји",
         "publish": "Објави",
+        "publishDraft": "Објави нацрт",
         "edit": "Уреди",
         "editorTitle": "Коментар за питање {}",
         "save": "Сачувај",
