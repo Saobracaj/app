@@ -33,6 +33,8 @@ class Quest extends StatelessWidget {
     this.subcategory,
     this.openComments = false,
     this.commentThreadId,
+    this.revealAnswers = false,
+    this.answers,
   });
 
   final List<int> questions;
@@ -43,6 +45,12 @@ class Quest extends StatelessWidget {
   /// feature tabs) and, optionally, expand/scroll to a specific thread.
   final bool openComments;
   final String? commentThreadId;
+
+  /// Start with the answers already revealed, and with [answers] preselected —
+  /// how the question preview sheet hands a question it has already been
+  /// answered in over to the full screen.
+  final bool revealAnswers;
+  final Set<Choice>? answers;
 
   @override
   Widget build(BuildContext context) {
@@ -96,9 +104,9 @@ class Quest extends StatelessWidget {
                   BlocProvider(
                     create: (context) => QuestContentBloc(
                       {...question.choices},
-                      state.answers[currentId] ?? {},
+                      state.answers[currentId] ?? answers ?? {},
                       currentId,
-                      revealAnswers: openComments,
+                      revealAnswers: openComments || revealAnswers,
                     ),
                   ),
                 ],
