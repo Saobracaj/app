@@ -1,101 +1,117 @@
+import 'dart:collection';
+
 import 'package:collection/collection.dart';
 
 extension MdExt on String {
   String get dict {
-   return replaceWithZakonLinks(_zakonDictionary);
+    // `.dict` вызывается в build() текста вопроса и каждого варианта ответа на
+    // каждый ребилд (в т.ч. на каждый тап по варианту), а сам текст неизменен —
+    // без кэша каждый кадр заново сканирует весь словарь терминов.
+    return _dictCache.putIfAbsent(this, () => _replaceWithZakonLinks(this));
   }
 }
 
+final _dictCache = HashMap<String, String>();
 
-extension ZakonStringExtension on String {
-  String replaceWithZakonLinks(List<Map<String, dynamic>> dictionary) {
-    final wordToTitle = <String, String>{};
-
-    for (final entry in dictionary) {
-      final title = entry['title'] as String;
-      final words = entry['words'] as List<dynamic>;
-      for (final word in words) {
-        wordToTitle[word.toLowerCase()] = title;
-      }
+/// Слово словаря (в нижнем регистре) → заголовок термина.
+final Map<String, String> _wordToTitle = () {
+  final map = <String, String>{};
+  for (final entry in _zakonDictionary) {
+    final title = entry['title'] as String;
+    for (final word in entry['words'] as List<dynamic>) {
+      map[(word as String).toLowerCase()] = title;
     }
-
-    final sortedPhrases = wordToTitle.keys.toList()
-      ..sort((a, b) => b.split(' ').length.compareTo(a.split(' ').length));
-
-    final tokens = <String>[];
-    final regex = RegExp(r'(\s+|\S+)');
-    for (final match in regex.allMatches(this)) {
-      tokens.add(match.group(0)!);
-    }
-
-    // Знаки препинания, «прилипшие» к слову (напр. «аутопут:», «насеље.»,
-    // «штета,»), не должны мешать сопоставлению термина.
-    final leadingPunct = RegExp(r'^[^\p{L}\p{N}]+', unicode: true);
-    final trailingPunct = RegExp(r'[^\p{L}\p{N}]+$', unicode: true);
-    String stripPunct(String s) =>
-        s.replaceAll(leadingPunct, '').replaceAll(trailingPunct, '');
-
-    final buffer = StringBuffer();
-    int i = 0;
-
-    while (i < tokens.length) {
-      // Пробел — просто добавим и идем дальше
-      if (tokens[i].trim().isEmpty) {
-        buffer.write(tokens[i]);
-        i++;
-        continue;
-      }
-
-      bool matched = false;
-
-      for (final phrase in sortedPhrases) {
-        final phraseWords = phrase.split(' ');
-        final candidate = <String>[];
-        int tokenIndex = i;
-        int wordsMatched = 0;
-
-        while (tokenIndex < tokens.length && wordsMatched < phraseWords.length) {
-          final token = tokens[tokenIndex];
-
-          candidate.add(token);
-          tokenIndex++;
-
-          if (token.trim().isNotEmpty) {
-            wordsMatched++;
-          }
-        }
-
-        final candidateWords = candidate
-            .where((t) => t.trim().isNotEmpty)
-            .map(stripPunct)
-            .join(' ')
-            .toLowerCase();
-
-        if (candidateWords == phrase) {
-          final visibleText = candidate.join();
-          // Ведущие/замыкающие знаки препинания оставляем за пределами ссылки,
-          // чтобы кликабельным было именно слово.
-          final lead = leadingPunct.firstMatch(visibleText)?.group(0) ?? '';
-          final withoutLead = visibleText.substring(lead.length);
-          final trail = trailingPunct.firstMatch(withoutLead)?.group(0) ?? '';
-          final core = withoutLead.substring(0, withoutLead.length - trail.length);
-          final title = wordToTitle[phrase]!;
-          final encoded = Uri.encodeComponent(title);
-          buffer.write('$lead[$core](dict/$encoded)$trail');
-          i = tokenIndex;
-          matched = true;
-          break;
-        }
-      }
-
-      if (!matched) {
-        buffer.write(tokens[i]);
-        i++;
-      }
-    }
-
-    return buffer.toString();
   }
+  return map;
+}();
+
+/// Фразы словаря, разбитые на слова и сгруппированные по первому слову; внутри
+/// группы более длинные фразы идут первыми (жадное сопоставление, как раньше).
+/// Так для каждого токена перебираются только фразы, способные с него начаться.
+final Map<String, List<List<String>>> _phrasesByFirstWord = () {
+  final phrases = _wordToTitle.keys.map((p) => p.split(' ')).toList()
+    ..sort((a, b) => b.length.compareTo(a.length));
+  final map = <String, List<List<String>>>{};
+  for (final words in phrases) {
+    map.putIfAbsent(words.first, () => []).add(words);
+  }
+  return map;
+}();
+
+// Знаки препинания, «прилипшие» к слову (напр. «аутопут:», «насеље.»,
+// «штета,»), не должны мешать сопоставлению термина.
+final _leadingPunct = RegExp(r'^[^\p{L}\p{N}]+', unicode: true);
+final _trailingPunct = RegExp(r'[^\p{L}\p{N}]+$', unicode: true);
+String _stripPunct(String s) =>
+    s.replaceAll(_leadingPunct, '').replaceAll(_trailingPunct, '');
+
+String _replaceWithZakonLinks(String text) {
+  final tokens = <String>[];
+  final regex = RegExp(r'(\s+|\S+)');
+  for (final match in regex.allMatches(text)) {
+    tokens.add(match.group(0)!);
+  }
+
+  final buffer = StringBuffer();
+  int i = 0;
+
+  while (i < tokens.length) {
+    // Пробел — просто добавим и идем дальше
+    if (tokens[i].trim().isEmpty) {
+      buffer.write(tokens[i]);
+      i++;
+      continue;
+    }
+
+    bool matched = false;
+
+    final firstWord = _stripPunct(tokens[i]).toLowerCase();
+    for (final phraseWords in _phrasesByFirstWord[firstWord] ?? const <List<String>>[]) {
+      final candidate = <String>[];
+      int tokenIndex = i;
+      int wordsMatched = 0;
+
+      while (tokenIndex < tokens.length && wordsMatched < phraseWords.length) {
+        final token = tokens[tokenIndex];
+
+        candidate.add(token);
+        tokenIndex++;
+
+        if (token.trim().isNotEmpty) {
+          wordsMatched++;
+        }
+      }
+
+      final candidateWords = candidate
+          .where((t) => t.trim().isNotEmpty)
+          .map(_stripPunct)
+          .join(' ')
+          .toLowerCase();
+
+      if (candidateWords == phraseWords.join(' ')) {
+        final visibleText = candidate.join();
+        // Ведущие/замыкающие знаки препинания оставляем за пределами ссылки,
+        // чтобы кликабельным было именно слово.
+        final lead = _leadingPunct.firstMatch(visibleText)?.group(0) ?? '';
+        final withoutLead = visibleText.substring(lead.length);
+        final trail = _trailingPunct.firstMatch(withoutLead)?.group(0) ?? '';
+        final core = withoutLead.substring(0, withoutLead.length - trail.length);
+        final title = _wordToTitle[candidateWords]!;
+        final encoded = Uri.encodeComponent(title);
+        buffer.write('$lead[$core](dict/$encoded)$trail');
+        i = tokenIndex;
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched) {
+      buffer.write(tokens[i]);
+      i++;
+    }
+  }
+
+  return buffer.toString();
 }
 
 Map<String, dynamic>? getDictByTitle(String title) {

@@ -157,6 +157,12 @@ class QuestionFeaturesTabs extends StatelessWidget {
 }
 
 /// The stateless pill-style tab row, driven entirely by [QuestionFeaturesBloc].
+///
+/// Five text labels never fit one row, so the tabs are icon-first: an
+/// unselected tab is just its icon (with a tooltip, and an unread-style count
+/// badge on the discussion), while the selected tab expands into an
+/// icon + label pill. The label growing/shrinking is animated, so selection
+/// slides the row rather than snapping it.
 class _PillTabs extends StatelessWidget {
   const _PillTabs({required this.features, required this.selected});
 
@@ -165,47 +171,101 @@ class _PillTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 0),
       child: Row(
         children: [
           for (final feature in features)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => context.read<QuestionFeaturesBloc>().add(
-                    TabSelected(feature),
-                  ),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(vertical: 7),
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      color: feature == selected
-                          ? scheme.secondaryContainer
-                          : null,
-                    ),
-                    child: _TabLabel(
-                      feature: feature,
-                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        fontWeight: feature == selected
-                            ? FontWeight.w600
-                            : null,
-                        color: feature == selected
-                            ? scheme.onSecondaryContainer
-                            : scheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
+            // Only the expanded pill may shrink (its label ellipsizes); the
+            // icon-only pills keep their natural size.
+            if (feature == selected)
+              Flexible(child: _TabPill(feature: feature, selected: true))
+            else
+              _TabPill(feature: feature, selected: false),
         ],
       ),
+    );
+  }
+}
+
+/// One tab of the row: icon-only when idle, icon + label when selected.
+class _TabPill extends StatelessWidget {
+  const _TabPill({required this.feature, required this.selected});
+
+  final AppFeature feature;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final spec = _specFor(feature);
+    final color = selected
+        ? scheme.onSecondaryContainer
+        : scheme.onSurface.withValues(alpha: 0.6);
+
+    // Separate variables: the closure below must capture the plain icon, not
+    // the wrapped widget it is being assigned to (that reads the variable at
+    // call time and recurses into itself).
+    final baseIcon = Icon(spec.icon, size: 18, color: color);
+    Widget icon = baseIcon;
+    // The collapsed discussion tab still shows how much is inside it.
+    if (feature == AppFeature.publicQuestionComments && !selected) {
+      icon = BlocBuilder<CommentCountBloc, CommentCountState>(
+        builder: (context, state) => Badge.count(
+          count: state.count,
+          isLabelVisible: state.count > 0,
+          child: baseIcon,
+        ),
+      );
+    }
+
+    final pill = InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () =>
+          context.read<QuestionFeaturesBloc>().add(TabSelected(feature)),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: selected ? scheme.secondaryContainer : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            icon,
+            Flexible(
+              child: AnimatedSize(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.centerLeft,
+                child: selected
+                    ? Padding(
+                        padding: const EdgeInsets.only(left: 7),
+                        child: _TabLabel(
+                          feature: feature,
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelMedium
+                              ?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: color,
+                              ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      // The icon alone doesn't say what the tab is — the tooltip does.
+      child: selected ? pill : Tooltip(message: spec.label, child: pill),
     );
   }
 }

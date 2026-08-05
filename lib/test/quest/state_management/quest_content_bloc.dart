@@ -6,8 +6,13 @@ part 'quest_content_bloc.freezed.dart';
 
 /// Per-question state for the exam ("quest") flow: which choices are selected
 /// and whether the correct answers are revealed.
+///
+/// One instance lives for the whole run; [QuestionChanged] swaps it to the next
+/// question (the bloc used to be recreated per question via a keyed provider,
+/// but that also recreated the progress strip and killed its collapse
+/// animation).
 class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
-  final int questionId;
+  int questionId;
 
   QuestContentBloc(
     Set<Choice> choices,
@@ -25,6 +30,19 @@ class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
        ) {
     on<AddChoice>(_onAddChoise);
     on<ShowCorrectAnswers>(_onShowCorrectAnswers);
+    on<QuestionChanged>(_onQuestionChanged);
+  }
+
+  /// Full reset for the newly shown question: selection must not leak between
+  /// questions, and a previously recorded answer comes back pre-selected.
+  void _onQuestionChanged(QuestionChanged event, Emitter<QuesContentState> emit) {
+    questionId = event.questionId;
+    emit(
+      QuesContentState(
+        choices: event.choices,
+        selectedChoices: event.currentAnswers,
+      ),
+    );
   }
 
   void _onAddChoise(AddChoice event, Emitter<QuesContentState> emit) {
@@ -60,6 +78,15 @@ class AddChoice extends QuestContentEvent {
 }
 
 class ShowCorrectAnswers extends QuestContentEvent {}
+
+/// The run moved to another question — reset the bloc to it.
+class QuestionChanged extends QuestContentEvent {
+  final Set<Choice> choices;
+  final Set<Choice> currentAnswers;
+  final int questionId;
+
+  QuestionChanged(this.choices, this.currentAnswers, this.questionId);
+}
 
 @freezed
 sealed class QuesContentState with _$QuesContentState {

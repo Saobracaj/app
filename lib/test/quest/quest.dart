@@ -21,7 +21,6 @@ import 'presentation/quest_app_bar.dart';
 import 'presentation/quest_bottom_bar.dart';
 import 'presentation/quest_markdown.dart';
 import 'presentation/question_image_card.dart';
-import 'presentation/question_navigator_sheet.dart';
 import 'presentation/question_progress_strip.dart';
 import 'question_features/presentation/question_features_tabs.dart';
 
@@ -67,7 +66,7 @@ class Quest extends StatelessWidget {
             builder: (context, state) {
               final questBloc = context.read<QuestBloc>();
               // One description of the run, shared by the progress strip and
-              // the navigator sheet so they cannot drift apart.
+              // whoever else needs it, so they cannot drift apart.
               final entries = [
                 for (var i = 0; i < state.questions.length; i++)
                   _entryFor(state, qs, i),
@@ -84,9 +83,11 @@ class Quest extends StatelessWidget {
                 (element) => element.id == currentId,
               );
               return MultiBlocProvider(
-                // Recreated per question: selection state must not leak
-                // between questions (and the RU toggle deliberately resets).
-                key: ValueKey('question_$currentId'),
+                // Deliberately NOT keyed by question: the blocs live for the
+                // whole run and are reset through QuestionChanged /
+                // ResetTranslation below. Recreating the subtree per question
+                // (the old approach) also recreated the progress strip, which
+                // killed its collapse animation on every jump.
                 providers: [
                   BlocProvider(create: (context) => TranslationsBloc()),
                   // Hoisted above the Scaffold so the app bar and the pinned
@@ -100,44 +101,51 @@ class Quest extends StatelessWidget {
                     ),
                   ),
                 ],
-                child: Scaffold(
-                  appBar: QuestAppBar(
-                    questionNumber: state.currentQuestionIndex + 1,
-                    questionCount: state.questions.length,
-                    points: question.points,
-                    questionId: currentId,
-                    onOpenNavigator: () async {
-                      final picked = await showQuestionNavigator(
-                        context,
-                        entries: entries,
-                        currentQuestionId: currentId,
-                      );
-                      if (picked != null) {
-                        questBloc.add(MoveToQuestion(picked));
-                      }
-                    },
-                  ),
-                  body: ListView(
-                    children: [
-                      SizedBox(height: 4),
-                      QuestionProgressStrip(
-                        entries: entries,
-                        currentQuestionId: currentId,
-                      ),
-                      SizedBox(height: 14),
-                      QuestionContent(
-                        key: ValueKey(currentId),
-                        question: question,
-                        openComments: openComments,
-                        commentThreadId: commentThreadId,
-                      ),
-                    ],
-                  ),
-                  bottomNavigationBar: QuestBottomBar(
-                    question: question,
-                    last:
-                        state.currentQuestionIndex ==
-                        state.questions.length - 1,
+                child: BlocListener<QuestBloc, QuestState>(
+                  listenWhen: (prev, curr) =>
+                      prev.currentQuestionIndex != curr.currentQuestionIndex,
+                  listener: (context, state) {
+                    // Selection state must not leak between questions (and the
+                    // RU toggle deliberately resets).
+                    final id = state.questions[state.currentQuestionIndex];
+                    final q = qs.firstWhere((element) => element.id == id);
+                    context.read<QuestContentBloc>().add(
+                      QuestionChanged({...q.choices}, state.answers[id] ?? {}, id),
+                    );
+                    context.read<TranslationsBloc>().add(ResetTranslation());
+                  },
+                  child: Scaffold(
+                    appBar: QuestAppBar(
+                      questionNumber: state.currentQuestionIndex + 1,
+                      questionCount: state.questions.length,
+                      points: question.points,
+                      questionId: currentId,
+                    ),
+                    body: ListView(
+                      children: [
+                        SizedBox(height: 4),
+                        QuestionProgressStrip(
+                          entries: entries,
+                          currentQuestionId: currentId,
+                          onQuestionSelected: (picked) =>
+                              questBloc.add(MoveToQuestion(picked)),
+                        ),
+                        SizedBox(height: 14),
+                        QuestionContent(
+                          key: ValueKey(currentId),
+                          question: question,
+                          openComments: openComments,
+                          commentThreadId: commentThreadId,
+                        ),
+                      ],
+                    ),
+                    bottomNavigationBar: QuestBottomBar(
+                      question: question,
+                      first: state.currentQuestionIndex == 0,
+                      last:
+                          state.currentQuestionIndex ==
+                          state.questions.length - 1,
+                    ),
                   ),
                 ),
               );
@@ -200,79 +208,86 @@ class QuestionContent extends StatelessWidget {
         .where((element) => element.isCorrect)
         .length;
 
-    return BlocBuilder<QuestContentBloc, QuesContentState>(
-      builder: (context, state) {
-        final bloc = context.read<QuestContentBloc>();
-
-        return BlocBuilder<TranslationsBloc, TranslationsState>(
-          builder: (context, translationState) {
-            final showTranslation = translationState.showTranslation;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (question.hasImage) ...[
-                  QuestionImageCard(imageId: question.imageId),
-                  SizedBox(height: 14),
-                ],
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      QuestMarkdown(
-                        text: question.text.trim().dict,
-                        pStyle: theme.textTheme.titleMedium,
-                      ),
-                      if (showTranslation && question.translation != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            question.translation!,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface.withValues(
-                                alpha: 0.6,
-                              ),
-                            ),
+    return BlocBuilder<TranslationsBloc, TranslationsState>(
+      builder: (context, translationState) {
+        final showTranslation = translationState.showTranslation;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // The header (image + statement) deliberately sits outside the
+            // QuestContentBloc builder: markdown parsing is not free, and the
+            // statement does not change when a choice is tapped.
+            if (question.hasImage) ...[
+              QuestionImageCard(imageId: question.imageId),
+              SizedBox(height: 14),
+            ],
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  QuestMarkdown(
+                    text: question.text.trim().dict,
+                    pStyle: theme.textTheme.titleMedium,
+                  ),
+                  if (showTranslation && question.translation != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        question.translation!,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.6,
                           ),
                         ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 10),
-                if (rightAnswers > 1) ...[
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: _RequiredAnswersChip(count: rightAnswers),
-                  ),
-                  SizedBox(height: 12),
-                ],
-                for (var c in question.choices)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: AnswerOptionCard(
-                      choice: c,
-                      selected: state.selectedChoices.contains(c),
-                      revealed: state.showCorrectAnswers,
-                      showTranslation: showTranslation,
-                      onTap: state.showCorrectAnswers
-                          ? null
-                          : () => bloc.add(AddChoice(c)),
+                      ),
                     ),
-                  ),
-                if (state.showCorrectAnswers)
-                  QuestionFeaturesTabs(
-                    questionId: question.id,
-                    categoryId: question.categoryId,
-                    initialFeature: openComments
-                        ? AppFeature.publicQuestionComments
-                        : null,
-                    commentThreadId: openComments ? commentThreadId : null,
-                    autoScroll: openComments,
-                  ),
-                SizedBox(height: 24),
-              ],
-            );
-          },
+                ],
+              ),
+            ),
+            SizedBox(height: 10),
+            if (rightAnswers > 1) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: _RequiredAnswersChip(count: rightAnswers),
+              ),
+              SizedBox(height: 12),
+            ],
+            BlocBuilder<QuestContentBloc, QuesContentState>(
+              builder: (context, state) {
+                final bloc = context.read<QuestContentBloc>();
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (var c in question.choices)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: AnswerOptionCard(
+                          choice: c,
+                          selected: state.selectedChoices.contains(c),
+                          revealed: state.showCorrectAnswers,
+                          showTranslation: showTranslation,
+                          onTap: state.showCorrectAnswers
+                              ? null
+                              : () => bloc.add(AddChoice(c)),
+                        ),
+                      ),
+                    if (state.showCorrectAnswers)
+                      QuestionFeaturesTabs(
+                        questionId: question.id,
+                        categoryId: question.categoryId,
+                        initialFeature: openComments
+                            ? AppFeature.publicQuestionComments
+                            : null,
+                        commentThreadId: openComments ? commentThreadId : null,
+                        autoScroll: openComments,
+                      ),
+                  ],
+                );
+              },
+            ),
+            SizedBox(height: 24),
+          ],
         );
       },
     );

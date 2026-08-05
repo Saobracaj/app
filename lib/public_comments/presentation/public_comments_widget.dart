@@ -16,13 +16,15 @@ import 'relative_time.dart';
 
 /// Public, social comments for one exam question (the "Дискусија" tab).
 ///
-/// Reading-first per the redesign: a comment row carries only the author, the
-/// time, the body and the like control; everything else — reply, report,
-/// thread subscription, copy, delete — lives in a long-press context menu.
-/// One composer is pinned at the bottom of the section; replying targets it
-/// via a chip. Rendered as a plain column inside the question's own scroll
-/// view, so pagination is a "load more" affordance rather than an inner
-/// scroll. Reading is open to everyone.
+/// Laid out the way social feeds do it, so nothing important hides behind a
+/// long-press: avatar on the left, author + time above the body, and a visible
+/// action row (like, "Ответить") below it; the rarer actions — report, thread
+/// subscription, copy, delete — sit behind the "⋯" button on every row (a
+/// long-press opens the same menu as a shortcut). One composer is pinned at
+/// the bottom of the section; replying targets it via a chip. Rendered as a
+/// plain column inside the question's own scroll view, so pagination is a
+/// "load more" affordance rather than an inner scroll. Reading is open to
+/// everyone.
 class PublicCommentsWidget extends StatelessWidget {
   const PublicCommentsWidget({
     super.key,
@@ -156,7 +158,8 @@ class _Thread extends StatelessWidget {
           _CommentTile(comment: comment, state: state),
           if (hiddenCount > 0)
             Padding(
-              padding: const EdgeInsets.only(left: 20),
+              // Aligned with the replies' column, under the parent's text.
+              padding: const EdgeInsets.only(left: 42),
               child: TextButton(
                 onPressed: () => bloc.add(RepliesExpanded(comment.id)),
                 style: TextButton.styleFrom(
@@ -173,18 +176,11 @@ class _Thread extends StatelessWidget {
               ),
             ),
           for (final reply in visibleReplies)
-            Container(
-              margin: const EdgeInsets.only(left: 20, top: 8),
-              padding: const EdgeInsets.only(left: 12),
-              decoration: BoxDecoration(
-                border: Border(
-                  left: BorderSide(
-                    width: 2,
-                    color: Theme.of(context).colorScheme.outlineVariant,
-                  ),
-                ),
-              ),
-              child: _CommentTile(comment: reply, state: state),
+            Padding(
+              // The smaller avatar carries the "this is a reply" signal, so no
+              // thread line is needed.
+              padding: const EdgeInsets.only(left: 42, top: 2),
+              child: _CommentTile(comment: reply, state: state, isReply: true),
             ),
         ],
       ),
@@ -192,17 +188,27 @@ class _Thread extends StatelessWidget {
   }
 }
 
-/// What the long-press menu can do with a comment.
-enum _CommentAction { reply, report, subscribe, copy, delete }
+/// What the "⋯" / long-press menu can do with a comment. Reply and like are
+/// not here — they are visible on the row itself.
+enum _CommentAction { report, subscribe, copy, delete }
 
-/// One comment row: author, time, body, like. All other actions live in the
-/// long-press menu. The only widget state is the last press position, needed
-/// to anchor the menu at the finger (the sanctioned purely-visual exception).
+/// One comment row, social-feed style: avatar, author + time with the "⋯"
+/// menu button on the far right, the body, and a visible action row (like,
+/// reply). A long-press anywhere on the row opens the same menu as "⋯"; the
+/// only widget state is the last press position, needed to anchor that menu
+/// at the finger (the sanctioned purely-visual exception).
 class _CommentTile extends StatefulWidget {
-  const _CommentTile({required this.comment, required this.state});
+  const _CommentTile({
+    required this.comment,
+    required this.state,
+    this.isReply = false,
+  });
 
   final PublicComment comment;
   final CommentsState state;
+
+  /// Replies are drawn with a smaller avatar under their parent.
+  final bool isReply;
 
   @override
   State<_CommentTile> createState() => _CommentTileState();
@@ -215,30 +221,97 @@ class _CommentTileState extends State<_CommentTile> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final comment = widget.comment;
+    final bloc = context.read<CommentsBloc>();
+    final topLevelId = comment.parentId ?? comment.id;
     return InkWell(
       borderRadius: BorderRadius.circular(12),
       onTapDown: (details) => _pressPosition = details.globalPosition,
-      onLongPress: () => _showActionsMenu(context),
+      onLongPress: () => _showActionsMenu(context, _pressPosition),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _AuthorLine(comment: comment),
-            const SizedBox(height: 4),
-            Text(
-              comment.body,
-              style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+            _Avatar(
+              displayName: comment.authorDisplayName,
+              size: widget.isReply ? 26 : 32,
             ),
-            const SizedBox(height: 4),
-            _LikeButton(comment: comment),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(child: _AuthorLine(comment: comment)),
+                      // Anchors the shared actions menu right under itself.
+                      Builder(
+                        builder: (buttonContext) => InkResponse(
+                          radius: 16,
+                          onTap: () {
+                            final box =
+                                buttonContext.findRenderObject()! as RenderBox;
+                            _showActionsMenu(
+                              context,
+                              box.localToGlobal(
+                                Offset(box.size.width, box.size.height),
+                              ),
+                            );
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.more_horiz,
+                              size: 18,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    comment.body,
+                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+                  ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      _LikeButton(comment: comment),
+                      if (widget.state.canWrite) ...[
+                        const SizedBox(width: 14),
+                        InkResponse(
+                          radius: 20,
+                          onTap: () =>
+                              bloc.add(ReplyFocusRequested(topLevelId)),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 4,
+                              horizontal: 2,
+                            ),
+                            child: Text(
+                              LocaleKeys.comments_reply.tr(),
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Future<void> _showActionsMenu(BuildContext context) async {
+  Future<void> _showActionsMenu(BuildContext context, Offset anchor) async {
     final bloc = context.read<CommentsBloc>();
     final state = widget.state;
     final comment = widget.comment;
@@ -254,18 +327,12 @@ class _CommentTileState extends State<_CommentTile> {
     final action = await showMenu<_CommentAction>(
       context: context,
       position: RelativeRect.fromRect(
-        _pressPosition & Size.zero,
+        anchor & Size.zero,
         Offset.zero & overlay.size,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       color: Theme.of(context).colorScheme.surfaceContainerHigh,
       items: [
-        if (state.canWrite)
-          _menuItem(
-            _CommentAction.reply,
-            Icons.reply,
-            LocaleKeys.comments_reply.tr(),
-          ),
         if (state.isAuthenticated && !isOwn)
           reported
               ? _menuItem(
@@ -305,8 +372,6 @@ class _CommentTileState extends State<_CommentTile> {
     if (action == null || !context.mounted) return;
 
     switch (action) {
-      case _CommentAction.reply:
-        bloc.add(ReplyFocusRequested(topLevelId));
       case _CommentAction.report:
         await _confirmReport(context, bloc, comment);
       case _CommentAction.subscribe:
@@ -564,11 +629,17 @@ class _ComposerSection extends StatelessWidget {
   }
 }
 
-/// The 34px initials circle next to the composer.
+/// The initials circle: next to the composer and on every comment row.
+///
+/// The background is picked from the scheme's container colours by a stable
+/// hash of the name, so different authors read apart at a glance while staying
+/// inside the app's palette. Anonymous (or empty) names get the neutral circle
+/// with a person icon.
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.displayName});
+  const _Avatar({required this.displayName, this.size = 34});
 
   final String? displayName;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
@@ -579,21 +650,31 @@ class _Avatar extends StatelessWidget {
         .where((w) => w.isNotEmpty)
         .take(2);
     final initials = words.map((w) => w[0].toUpperCase()).join();
+    final palette = [
+      (scheme.primaryContainer, scheme.onPrimaryContainer),
+      (scheme.secondaryContainer, scheme.onSecondaryContainer),
+      (scheme.tertiaryContainer, scheme.onTertiaryContainer),
+    ];
+    // String.hashCode is not stable across runs; a code-unit sum is.
+    final hash = (displayName ?? '')
+        .codeUnits
+        .fold<int>(0, (sum, unit) => sum + unit);
+    final (background, foreground) = initials.isEmpty
+        ? (scheme.surfaceContainerHighest, scheme.onSurfaceVariant)
+        : palette[hash % palette.length];
     return Container(
-      width: 34,
-      height: 34,
+      width: size,
+      height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: scheme.secondaryContainer,
-        shape: BoxShape.circle,
-      ),
+      decoration: BoxDecoration(color: background, shape: BoxShape.circle),
       child: initials.isEmpty
-          ? Icon(Icons.person_outline, size: 18, color: scheme.onSecondaryContainer)
+          ? Icon(Icons.person_outline, size: size * 0.55, color: foreground)
           : Text(
               initials,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w600,
-                color: scheme.onSecondaryContainer,
+                fontSize: size * 0.38,
+                color: foreground,
               ),
             ),
     );

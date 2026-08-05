@@ -11,7 +11,6 @@ import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/test/quest/presentation/answer_option_card.dart';
 import 'package:saobracaj/test/quest/presentation/quest_app_bar.dart';
 import 'package:saobracaj/test/quest/presentation/quest_bottom_bar.dart';
-import 'package:saobracaj/test/quest/presentation/question_navigator_sheet.dart';
 import 'package:saobracaj/test/quest/presentation/question_progress_strip.dart';
 import 'package:saobracaj/test/quest/quest.dart';
 import 'package:saobracaj/test/quest/state_management/quest_bloc.dart';
@@ -39,7 +38,7 @@ Question _question({int correct = 2, int options = 4}) => Question(
   subcategoryId: 1,
 );
 
-Widget _screen(Question question) {
+Widget _screen(Question question, {ValueChanged<int>? onQuestionSelected}) {
   final entries = [
     QuestionNavigatorEntry(
       questionId: question.id,
@@ -99,23 +98,20 @@ Widget _screen(Question question) {
                 questionCount: 2,
                 points: question.points,
                 questionId: question.id,
-                onOpenNavigator: () => showQuestionNavigator(
-                  context,
-                  entries: entries,
-                  currentQuestionId: question.id,
-                ),
               ),
               body: ListView(
                 children: [
                   QuestionProgressStrip(
                     entries: entries,
                     currentQuestionId: question.id,
+                    onQuestionSelected: onQuestionSelected ?? (_) {},
                   ),
                   QuestionContent(question: question),
                 ],
               ),
               bottomNavigationBar: QuestBottomBar(
                 question: question,
+                first: true,
                 last: false,
               ),
             ),
@@ -177,15 +173,31 @@ void main() {
     expect(reveal.onPressed, isNull);
   });
 
-  testWidgets('тап по заголовку открывает лист навигации', (tester) async {
-    await tester.pumpWidget(_screen(_question()));
+  testWidgets('полоса прогресса раскрывается в чипы, чип выбирает вопрос '
+      'и схлопывает полосу', (tester) async {
+    int? picked;
+    await tester.pumpWidget(
+      _screen(_question(), onQuestionSelected: (id) => picked = id),
+    );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Питање 1 / 2'));
-    await tester.pumpAndSettle();
+    Finder segmentOf(String number) => find
+        .ancestor(of: find.text(number), matching: find.byType(AnimatedContainer))
+        .first;
 
-    expect(find.text('Питање 1'), findsOneWidget);
-    expect(find.text('Питање 2'), findsOneWidget);
-    expect(find.text('Број поена: 3'), findsOneWidget);
+    // Свёрнуто: сегмент — тонкая полоска.
+    expect(tester.getSize(segmentOf('2')).height, 6);
+
+    // Первый тап раскрывает полосу в чипы, ничего не выбирая.
+    await tester.tap(segmentOf('2'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(picked, isNull);
+    expect(tester.getSize(segmentOf('2')).height, 32);
+
+    // Тап по чипу другого вопроса выбирает его и схлопывает полосу обратно.
+    await tester.tap(segmentOf('2'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    expect(picked, 2);
+    expect(tester.getSize(segmentOf('2')).height, 6);
   });
 }

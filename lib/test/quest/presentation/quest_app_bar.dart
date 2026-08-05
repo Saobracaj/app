@@ -9,9 +9,10 @@ import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/question_lists/presentation/add_to_lists_button.dart';
 import 'package:saobracaj/test/quest/state_management/translations_bloc.dart';
 
-/// Top app bar of the training quiz: back, a tappable "question N of M" title
-/// that opens the navigator sheet, and the three always-visible actions —
-/// translation toggle, add to list, share. No overflow menu by design.
+/// Top app bar of the training quiz: back, the "question N of M" title
+/// (jumping between questions happens on the progress strip below, not here)
+/// and the three always-visible actions — translation toggle, add to list,
+/// share. No overflow menu by design.
 class QuestAppBar extends StatelessWidget implements PreferredSizeWidget {
   const QuestAppBar({
     super.key,
@@ -19,7 +20,6 @@ class QuestAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.questionCount,
     required this.points,
     required this.questionId,
-    required this.onOpenNavigator,
   });
 
   /// 1-based position of the current question in the run.
@@ -27,10 +27,6 @@ class QuestAppBar extends StatelessWidget implements PreferredSizeWidget {
   final int questionCount;
   final int points;
   final int questionId;
-
-  /// Jumping between questions (including backwards) goes only through the
-  /// navigator sheet, which this opens.
-  final VoidCallback onOpenNavigator;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -40,16 +36,16 @@ class QuestAppBar extends StatelessWidget implements PreferredSizeWidget {
     final theme = Theme.of(context);
     return AppBar(
       titleSpacing: 0,
-      title: InkWell(
-        onTap: onOpenNavigator,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
+      title: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            // "N / M" is navigation chrome — with a single question there is
+            // nothing to count through, so only the points remain.
+            if (questionCount > 1) ...[
               Text(
                 LocaleKeys.quest_title.tr(
                   args: ['$questionNumber', '$questionCount'],
@@ -57,14 +53,14 @@ class QuestAppBar extends StatelessWidget implements PreferredSizeWidget {
                 style: theme.textTheme.titleMedium,
               ),
               const SizedBox(width: 8),
-              Text(
-                LocaleKeys.quest_points.plural(points),
-                style: theme.textTheme.labelMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
             ],
-          ),
+            Text(
+              LocaleKeys.quest_points.plural(points),
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       ),
       actions: [

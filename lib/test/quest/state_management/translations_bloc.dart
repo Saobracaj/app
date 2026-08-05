@@ -10,17 +10,25 @@ class TranslationsBloc extends Bloc<TranslationsEvent, TranslationsState> {
 
   TranslationsBloc() : super(TranslationsState()) {
     on<ToggleShowTranslation>(_onToggleShowTranslation);
+    on<ResetTranslation>(_onResetTranslation);
   }
 
 
   void _onToggleShowTranslation(ToggleShowTranslation event, Emitter<TranslationsState> emit) {
     emit(state.copyWith(showTranslation: !state.showTranslation));
   }
+
+  // Смена вопроса намеренно сбрасывает переключатель «РУ».
+  void _onResetTranslation(ResetTranslation event, Emitter<TranslationsState> emit) {
+    emit(state.copyWith(showTranslation: false));
+  }
 }
 
 sealed class TranslationsEvent {}
 
 class ToggleShowTranslation extends TranslationsEvent {}
+
+class ResetTranslation extends TranslationsEvent {}
 
 @freezed
 abstract class TranslationsState with _$TranslationsState {

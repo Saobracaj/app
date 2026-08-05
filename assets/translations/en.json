@@ -69,6 +69,7 @@
         "wrongAnswerCount": "You haven’t selected the required number of answers",
         "showAnswer": "Show answer",
         "next": "Next",
+        "previous": "Previous question",
         "finish": "Finish test",
         "ruToggle": "RU",
         "share": "Share question",

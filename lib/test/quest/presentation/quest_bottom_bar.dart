@@ -9,12 +9,22 @@ import '../state_management/quest_bloc.dart';
 import '../state_management/quest_content_bloc.dart';
 
 /// The pinned action bar of the question screen: "show answer" on the left,
-/// the confirm-then-advance primary button on the right (morphing into
-/// "finish" on the last question).
+/// and on the right the back step-button next to the confirm-then-advance
+/// primary button (morphing into "finish" on the last question).
+///
+/// Going back is pure navigation — nothing is submitted or recorded — so it
+/// stays enabled even with a selection in progress. In a single-question run
+/// there is nowhere to step back to and the button disappears entirely.
 class QuestBottomBar extends StatelessWidget {
-  const QuestBottomBar({super.key, required this.question, required this.last});
+  const QuestBottomBar({
+    super.key,
+    required this.question,
+    required this.first,
+    required this.last,
+  });
 
   final Question question;
+  final bool first;
   final bool last;
 
   @override
@@ -39,6 +49,20 @@ class QuestBottomBar extends StatelessWidget {
                     child: Text(LocaleKeys.quest_showAnswer.tr()),
                   ),
                   const Spacer(),
+                  if (!(first && last)) ...[
+                    IconButton.filledTonal(
+                      tooltip: LocaleKeys.quest_previous.tr(),
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size(46, 46),
+                      ),
+                      onPressed: first
+                          ? null
+                          : () =>
+                              context.read<QuestBloc>().add(PrevQuestion()),
+                      icon: const Icon(Icons.chevron_left),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
                   FilledButton(
                     style: FilledButton.styleFrom(
                       minimumSize: const Size(64, 46),
