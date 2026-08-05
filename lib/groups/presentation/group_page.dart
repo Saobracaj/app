@@ -118,7 +118,21 @@ class _GroupBody extends StatelessWidget {
               ),
             ),
         ],
-        _SectionTitle(LocaleKeys.groups_activity.tr()),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _SectionTitle(LocaleKeys.groups_activity.tr()),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextButton(
+                onPressed: () => Routemaster.of(
+                  context,
+                ).push('/groups/${group.id}/feed'),
+                child: Text(LocaleKeys.groups_openFeed.tr()),
+              ),
+            ),
+          ],
+        ),
         if (group.feedPreview.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),

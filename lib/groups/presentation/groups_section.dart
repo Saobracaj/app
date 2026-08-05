@@ -192,14 +192,13 @@ class GroupCard extends StatelessWidget {
                       ],
                     ),
                   ),
-              // "See everything that happened" — the group screen carries the
-              // activity today; the dedicated, live-updating feed screen takes
-              // over this link when it lands.
+              // "See everything that happened" — the full feed, which pages
+              // through the history and keeps itself up to date while open.
               Align(
                 alignment: AlignmentDirectional.centerEnd,
                 child: TextButton(
                   onPressed: () =>
-                      Routemaster.of(context).push('/groups/${group.id}'),
+                      Routemaster.of(context).push('/groups/${group.id}/feed'),
                   child: Text(LocaleKeys.groups_openFeed.tr()),
                 ),
               ),

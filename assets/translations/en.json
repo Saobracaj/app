@@ -397,6 +397,20 @@
             "flawlessSubcategory": "{} — block “{}” without a mistake",
             "almostFlawlessSubcategory": "{} — block “{}” almost without mistakes",
             "practiceStreak": "{} — mock exams passed in a row: {}"
+        },
+        "feed": {
+            "title": "Group activity",
+            "subcategoryTitle": "{} — block “{}”",
+            "score": "{} correct out of {}",
+            "improved": "Better than last time ({} of {})",
+            "worsened": "Worse than last time ({} of {})",
+            "practiceTitle": "{} — mock exam",
+            "practicePassed": "Passed, {} pts",
+            "practiceFailed": "Failed, {} pts",
+            "mistakes": "Questions that gave trouble: {}",
+            "noMistakes": "No mistakes",
+            "openMistakes": "Practise these questions",
+            "offline": "No connection to the server — refresh"
         }
     }
 }

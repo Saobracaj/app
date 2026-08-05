@@ -22,4 +22,14 @@ class AuthConfig {
 
   /// Full GraphQL endpoint.
   static String get graphqlUrl => '$baseUrl/graphql';
+
+  /// Websocket endpoint for GraphQL subscriptions (`/ws` on the same host,
+  /// `http` → `ws` and `https` → `wss`).
+  static Uri get websocketUrl {
+    final base = Uri.parse(baseUrl);
+    return base.replace(
+      scheme: base.scheme == 'https' ? 'wss' : 'ws',
+      path: '${base.path.replaceAll(RegExp(r'/+$'), '')}/ws',
+    );
+  }
 }

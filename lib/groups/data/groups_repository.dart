@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import '../../auth/data/graphql_client.dart';
+import '../../auth/data/graphql_subscription_client.dart';
 import '../models/group.dart';
+import '../models/group_event.dart';
 import '../models/group_feed_page.dart';
+import '../models/group_feed_update.dart';
 
 /// Everything the client knows about the user's groups, straight from
 /// `saobracaj_backend` (the `groups` module).
@@ -20,9 +23,10 @@ import '../models/group_feed_page.dart';
 /// error message.
 @lazySingleton
 class GroupsRepository {
-  GroupsRepository(this._client);
+  GroupsRepository(this._client, this._subscriptions);
 
   final GraphqlClient _client;
+  final GraphqlSubscriptionClient _subscriptions;
 
   /// The scalar fields of a group. `members` / `bannedMembers` / `invite` are
   /// resolved lazily by the server, so they are only asked for on the group
@@ -299,6 +303,40 @@ class GroupsRepository {
     final raw = data['groupFeed'];
     if (raw is! Map) return const GroupFeedPage();
     return GroupFeedPage.fromJson(raw.cast<String, dynamic>());
+  }
+
+  /// The group's feed as it grows, over the websocket.
+  ///
+  /// Only events that happen *while the stream is open* arrive here — the first
+  /// page still comes from [feed]. After a dropped connection the server has no
+  /// backlog to replay, which is why a reconnect surfaces as
+  /// [GroupFeedResumed]: the reader re-reads the head and closes the gap itself.
+  Stream<GroupFeedUpdate> feedChanges(String groupId) {
+    return _subscriptions
+        .subscribe(
+          '''
+        subscription GroupFeedChanged(\$groupId: ID!) {
+          groupFeedChanged(groupId: \$groupId) { $_eventFields }
+        }
+      ''',
+          variables: {'groupId': groupId},
+        )
+        .map<GroupFeedUpdate?>((message) {
+          switch (message) {
+            case GraphqlSubscriptionResumed(:final firstConnect):
+              return GroupFeedResumed(firstConnect: firstConnect);
+            case GraphqlSubscriptionInterrupted():
+              return const GroupFeedInterrupted();
+            case GraphqlSubscriptionData(:final data):
+              final raw = data['groupFeedChanged'];
+              if (raw is! Map) return null;
+              return GroupFeedEventReceived(
+                GroupEvent.fromJson(raw.cast<String, dynamic>()),
+              );
+          }
+        })
+        .where((update) => update != null)
+        .cast<GroupFeedUpdate>();
   }
 
   /// Run a mutation that answers with a group and parse it.

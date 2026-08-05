@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 
 import '../auth/data/graphql_client.dart';
+import '../auth/data/graphql_subscription_client.dart';
 import '../auth/data/token_storage.dart';
 import '../db/dependencies.dart' show featureFlags;
 import '../feature_flags/data/feature_flags_repository.dart';
@@ -30,6 +31,19 @@ abstract class RegisterModule {
   @lazySingleton
   GraphqlClient graphqlClient(TokenStorage storage) =>
       GraphqlClient(storage, languageProvider: () => appLanguageCode);
+
+  /// GraphQL subscriptions over the websocket endpoint. Shares the HTTP
+  /// client's token handling — a subscription is authenticated with the same
+  /// (freshly refreshed) access token.
+  @lazySingleton
+  GraphqlSubscriptionClient graphqlSubscriptionClient(
+    GraphqlClient client,
+    TokenStorage storage,
+  ) => GraphqlSubscriptionClient(
+    client,
+    storage,
+    languageProvider: () => appLanguageCode,
+  );
 
   /// Feature availability. The repository is a global built in
   /// `lib/db/dependencies.dart` and bootstrapped in `main()` before the widget

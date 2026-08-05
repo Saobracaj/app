@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/groups/data/groups_repository.dart';
 import 'package:saobracaj/groups/domain/invite_code.dart';
@@ -47,7 +48,9 @@ class _FakeAdapter implements HttpClientAdapter {
 
 GroupsRepository _repository(_FakeAdapter adapter) {
   final dio = Dio()..httpClientAdapter = adapter;
-  return GroupsRepository(GraphqlClient(TokenStorage(), dio: dio));
+  final storage = TokenStorage();
+  final client = GraphqlClient(storage, dio: dio);
+  return GroupsRepository(client, GraphqlSubscriptionClient(client, storage));
 }
 
 Map<String, dynamic> _group({

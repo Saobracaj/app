@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../db/dependencies.dart';
 import '../../data/auth_repository.dart';
+import '../../data/graphql_subscription_client.dart';
 import 'auth_events.dart';
 import 'auth_state.dart';
 
@@ -16,7 +17,7 @@ import 'auth_state.dart';
 /// their own feature (`lib/notifications/`).
 @lazySingleton
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  AuthBloc(this.repository) : super(const AuthState()) {
+  AuthBloc(this.repository, this.subscriptions) : super(const AuthState()) {
     on<AuthBootstrapRequested>(_onBootstrap);
     on<SessionStatusChanged>(_onSessionStatusChanged);
     on<LogoutRequested>(_onLogout);
@@ -27,6 +28,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   final AuthRepository repository;
+
+  /// The websocket transport, closed when the session ends — a live
+  /// subscription belongs to the user who opened it.
+  final GraphqlSubscriptionClient subscriptions;
+
   late final StreamSubscription<AuthStatus> _sub;
 
   @override
@@ -78,6 +84,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         );
         // Premium features are tied to the session — drop the cached grants.
         featureFlags.onLoggedOut();
+        // Same for anything listening over the websocket: the token it
+        // authenticated with is no longer valid.
+        unawaited(subscriptions.reset());
       case AuthStatus.unknown:
         emit(state.copyWith(status: AuthStatus.unknown));
     }

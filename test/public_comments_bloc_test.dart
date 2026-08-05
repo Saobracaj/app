@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
 import 'package:saobracaj/notifications/data/notification_permissions.dart';
@@ -103,7 +104,7 @@ PublicComment _comment({
     bloc: CommentsBloc(
       comments,
       _FakeProfileRepository(client),
-      AuthBloc(authRepo),
+      AuthBloc(authRepo, GraphqlSubscriptionClient(client, storage)),
       authRepo,
       _FakePermissions(),
       42,

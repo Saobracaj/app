@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
 import 'package:saobracaj/notifications/data/notification_permissions.dart';
@@ -62,7 +63,10 @@ class _FakePermissions extends NotificationPermissions {
 NotificationsBloc _buildBloc(NotificationPermissions permissions) {
   final storage = TokenStorage();
   final repository = AuthRepository(_FakeClient(storage), storage);
-  final authBloc = AuthBloc(repository); // состояние по умолчанию — не авторизован
+  final authBloc = AuthBloc(
+    repository,
+    GraphqlSubscriptionClient(_FakeClient(storage), storage),
+  ); // состояние по умолчанию — не авторизован
   return NotificationsBloc(repository, authBloc, permissions);
 }
 

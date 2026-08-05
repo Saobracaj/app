@@ -112,6 +112,19 @@ class GraphqlClient {
     }
   }
 
+  /// An access token good enough to open an authenticated connection with,
+  /// refreshed first when it has (nearly) run out.
+  ///
+  /// Exists for the websocket transport, which authenticates once at
+  /// `connection_init` and then holds the connection open — it cannot retry a
+  /// request the way [run] does, so the token has to be fresh up front. Throws
+  /// [AuthExpiredException] when the session can no longer be renewed; answers
+  /// `null` for a guest.
+  Future<String?> freshAccessToken() async {
+    await _ensureFreshAccessToken();
+    return _storage.accessToken;
+  }
+
   /// Refreshes and reports whether it worked, so a failed retry can surface the
   /// server's original error. An [AuthExpiredException] is *not* swallowed —
   /// "the session is over" outranks whatever the request itself failed on.

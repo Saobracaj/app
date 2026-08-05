@@ -14,6 +14,7 @@ import 'package:injectable/injectable.dart' as _i526;
 
 import '../auth/data/auth_repository.dart' as _i880;
 import '../auth/data/graphql_client.dart' as _i483;
+import '../auth/data/graphql_subscription_client.dart' as _i966;
 import '../auth/data/token_storage.dart' as _i25;
 import '../auth/state_management/auth/auth_bloc.dart' as _i388;
 import '../auth/state_management/confirm_code/confirm_code_bloc.dart' as _i892;
@@ -27,6 +28,7 @@ import '../feature_flags/data/feature_flags_repository.dart' as _i389;
 import '../feature_flags/domain/app_feature.dart' as _i392;
 import '../groups/data/groups_repository.dart' as _i685;
 import '../groups/state_management/group_bloc.dart' as _i1064;
+import '../groups/state_management/group_feed_bloc.dart' as _i481;
 import '../groups/state_management/groups_bloc.dart' as _i1032;
 import '../konspekt/data/konspekt_repository.dart' as _i491;
 import '../konspekt/state_management/konspekt_bloc.dart' as _i198;
@@ -114,11 +116,11 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i875.PushTokenService(gh<_i880.AuthRepository>()),
       dispose: (i) => i.dispose(),
     );
-    gh.lazySingleton<_i388.AuthBloc>(
-      () => _i388.AuthBloc(gh<_i880.AuthRepository>()),
-    );
-    gh.lazySingleton<_i685.GroupsRepository>(
-      () => _i685.GroupsRepository(gh<_i483.GraphqlClient>()),
+    gh.lazySingleton<_i966.GraphqlSubscriptionClient>(
+      () => registerModule.graphqlSubscriptionClient(
+        gh<_i483.GraphqlClient>(),
+        gh<_i25.TokenStorage>(),
+      ),
     );
     gh.lazySingleton<_i491.KonspektRepository>(
       () => _i491.KonspektRepository(gh<_i483.GraphqlClient>()),
@@ -135,15 +137,10 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i359.CommentRepository>(
       () => _i359.CommentRepository(gh<_i483.GraphqlClient>()),
     );
-    gh.factoryParam<_i405.CommentsBloc, int, String?>(
-      (questionId, threadId) => _i405.CommentsBloc(
-        gh<_i989.PublicCommentsRepository>(),
-        gh<_i311.ProfileRepository>(),
-        gh<_i388.AuthBloc>(),
+    gh.lazySingleton<_i388.AuthBloc>(
+      () => _i388.AuthBloc(
         gh<_i880.AuthRepository>(),
-        gh<_i426.NotificationPermissions>(),
-        questionId,
-        threadId,
+        gh<_i966.GraphqlSubscriptionClient>(),
       ),
     );
     gh.factory<_i618.NotificationsBloc>(
@@ -151,14 +148,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i880.AuthRepository>(),
         gh<_i388.AuthBloc>(),
         gh<_i426.NotificationPermissions>(),
-      ),
-    );
-    gh.factory<_i1032.GroupsBloc>(
-      () => _i1032.GroupsBloc(
-        gh<_i685.GroupsRepository>(),
-        gh<_i311.ProfileRepository>(),
-        gh<_i388.AuthBloc>(),
-        gh<_i389.FeatureFlagsRepository>(),
       ),
     );
     gh.factory<_i187.KonspektCatalogBloc>(
@@ -180,6 +169,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i515.ModerationBloc>(
       () => _i515.ModerationBloc(gh<_i989.PublicCommentsRepository>()),
+    );
+    gh.lazySingleton<_i685.GroupsRepository>(
+      () => _i685.GroupsRepository(
+        gh<_i483.GraphqlClient>(),
+        gh<_i966.GraphqlSubscriptionClient>(),
+      ),
     );
     gh.factoryParam<_i955.CommentCountBloc, int, dynamic>(
       (questionId, _) => _i955.CommentCountBloc(
@@ -211,6 +206,29 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i206.QuestionListsRepository>(),
         gh<_i388.AuthBloc>(),
       ),
+    );
+    gh.factoryParam<_i405.CommentsBloc, int, String?>(
+      (questionId, threadId) => _i405.CommentsBloc(
+        gh<_i989.PublicCommentsRepository>(),
+        gh<_i311.ProfileRepository>(),
+        gh<_i388.AuthBloc>(),
+        gh<_i880.AuthRepository>(),
+        gh<_i426.NotificationPermissions>(),
+        questionId,
+        threadId,
+      ),
+    );
+    gh.factory<_i1032.GroupsBloc>(
+      () => _i1032.GroupsBloc(
+        gh<_i685.GroupsRepository>(),
+        gh<_i311.ProfileRepository>(),
+        gh<_i388.AuthBloc>(),
+        gh<_i389.FeatureFlagsRepository>(),
+      ),
+    );
+    gh.factoryParam<_i481.GroupFeedBloc, String, dynamic>(
+      (groupId, _) =>
+          _i481.GroupFeedBloc(gh<_i685.GroupsRepository>(), groupId),
     );
     return this;
   }
