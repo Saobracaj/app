@@ -16,7 +16,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   Future<int> insertAnswer(AnswerRecordsCompanion entry) => into(answerRecords).insert(entry);
 
@@ -76,6 +76,12 @@ class AppDatabase extends _$AppDatabase {
           await customStatement('UPDATE answer_records SET uuid = lower(hex(randomblob(16))) WHERE uuid IS NULL');
           await customStatement('UPDATE sub_category_records SET uuid = lower(hex(randomblob(16))) WHERE uuid IS NULL');
           await customStatement('UPDATE practice_records SET uuid = lower(hex(randomblob(16))) WHERE uuid IS NULL');
+        }
+        // v6: sub_category_records gained `occurred_at` — when the quiz was
+        // finished. Existing rows keep NULL: nothing on the device records when
+        // they happened, and guessing a time would make the group feed lie.
+        if (from < 6) {
+          await m.addColumn(subCategoryRecords, subCategoryRecords.occurredAt);
         }
       },
     );

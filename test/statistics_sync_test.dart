@@ -84,7 +84,10 @@ void main() {
     expect(answer['answeredAt'], '2026-01-02T03:04:05.000Z'); // UTC ISO-8601
     expect((answer['id'] as String).isNotEmpty, true);
 
-    expect((input['subcategories'] as List).single['subcategory'], 'signs');
+    final subcategory = (input['subcategories'] as List).single as Map<String, dynamic>;
+    expect(subcategory['subcategory'], 'signs');
+    // Stamped by the column's clientDefault when the quiz was finished.
+    expect(subcategory['occurredAt'], isNotNull);
     final practice = (input['practices'] as List).single as Map<String, dynamic>;
     expect(practice['points'], 90);
     expect(practice['wrongAnswers'], [7]);
@@ -136,6 +139,45 @@ void main() {
     expect(await db.getAllAnswers(), hasLength(1));
     expect(await db.getAllSubcategoryRecords(), hasLength(1));
     expect(await db.getPracticeRecords(), hasLength(1));
+  });
+
+  test('keeps subcategory timestamps as the server reports them', () async {
+    client.response = {
+      'syncStatistics': {
+        'answers': <dynamic>[],
+        'subcategories': [
+          {
+            'id': 'server-timed',
+            'subcategory': 'priority',
+            'rightAnswers': 3,
+            'allAnswers': 4,
+            'occurredAt': '2026-02-01T10:00:00.000Z',
+          },
+          // A record synced by a client older than schema v6: it has no time at
+          // all, and inventing one would date it to the moment of this download.
+          {
+            'id': 'server-untimed',
+            'subcategory': 'signs',
+            'rightAnswers': 9,
+            'allAnswers': 10,
+            'occurredAt': null,
+          },
+        ],
+        'practices': <dynamic>[],
+      },
+    };
+
+    await service.sync();
+
+    final records = {for (final r in await db.getAllSubcategoryRecords()) r.uuid: r};
+    expect(records['server-timed']!.occurredAt, DateTime.utc(2026, 2, 1, 10).toLocal());
+    expect(records['server-untimed']!.occurredAt, isNull);
+
+    // The untimed record must stay untimed (and un-duplicated) on a re-sync.
+    await service.sync();
+    expect(await db.getAllSubcategoryRecords(), hasLength(2));
+    final again = {for (final r in await db.getAllSubcategoryRecords()) r.uuid: r};
+    expect(again['server-untimed']!.occurredAt, isNull);
   });
 
   test('does nothing when signed out', () async {

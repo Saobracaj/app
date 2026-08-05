@@ -36,7 +36,7 @@ class StatisticsSyncService {
     mutation SyncStatistics($input: StatisticsInput!) {
       syncStatistics(input: $input) {
         answers { id questionId answeredAt isWrong }
-        subcategories { id subcategory rightAnswers allAnswers }
+        subcategories { id subcategory rightAnswers allAnswers occurredAt }
         practices { id points occurredAt mistakes durationSeconds wrongAnswers }
       }
     }''';
@@ -88,6 +88,9 @@ class StatisticsSyncService {
               'subcategory': s.subcategory,
               'rightAnswers': s.rightAnswers,
               'allAnswers': s.allAnswers,
+              // Null for rows written before schema v6 — the server keeps them
+              // untimed rather than pretending they happened at sync time.
+              'occurredAt': s.occurredAt?.toUtc().toIso8601String(),
             },
       ],
       'practices': [
@@ -138,11 +141,15 @@ class StatisticsSyncService {
       final s = raw as Map<String, dynamic>;
       final id = s['id'] as String;
       if (knownSubs.contains(id)) continue;
+      final occurredAt = s['occurredAt'] as String?;
       await _db.insertSubCategory(
         SubCategoryRecordsCompanion.insert(
           subcategory: s['subcategory'] as String,
           rightAnswers: (s['rightAnswers'] as num).toInt(),
           allAnswers: (s['allAnswers'] as num).toInt(),
+          // Passed explicitly (even when null) so the column's clientDefault
+          // does not stamp a downloaded record with the time of the download.
+          occurredAt: Value(occurredAt == null ? null : DateTime.parse(occurredAt).toLocal()),
           uuid: Value(id),
         ),
       );

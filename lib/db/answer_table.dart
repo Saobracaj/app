@@ -29,6 +29,12 @@ class SubCategoryRecords extends Table {
   IntColumn get rightAnswers => integer()();
   IntColumn get allAnswers => integer()();
 
+  /// When the quiz was finished. Nullable because the column was added by a
+  /// migration and rows written before it have no timestamp — the sync's
+  /// `created_at` on the server is the moment of the *sync*, not of the quiz,
+  /// so consumers that need real times (the group feed) skip such rows.
+  DateTimeColumn get occurredAt => dateTime().nullable().clientDefault(DateTime.now)();
+
   TextColumn get uuid => text().nullable().clientDefault(genRecordId)();
 }
 
