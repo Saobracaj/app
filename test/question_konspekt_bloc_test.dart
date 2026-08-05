@@ -2,14 +2,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/konspekt/data/konspekt_repository.dart';
 import 'package:saobracaj/konspekt/models/konspekt.dart';
 import 'package:saobracaj/test/quest/question_features/state_management/question_konspekt_bloc.dart';
+import 'package:saobracaj/test/quest/question_features/state_management/question_konspekt_events.dart';
 
 class _FakeRepository implements KonspektRepository {
-  _FakeRepository(this.konspekt);
+  _FakeRepository(this.konspekt, {this.failures = 0});
 
   final Konspekt? konspekt;
 
+  /// How many of the next reads throw before the repository starts answering —
+  /// stands in for "offline" / "not entitled" / "server hiccup".
+  int failures;
+
   @override
-  Future<Set<String>> availableCategories() async => konspekt == null ? {} : {konspekt!.categoryId};
+  Future<Set<String>> availableCategories() async {
+    if (failures > 0) {
+      failures--;
+      throw Exception('catalog unavailable');
+    }
+    return konspekt == null ? {} : {konspekt!.categoryId};
+  }
 
   @override
   Future<Konspekt?> load(String categoryId) async => konspekt;
@@ -103,5 +114,34 @@ void main() {
 
     final bloc = await _settled(QuestionKonspektBloc(repository, 7001, '25'));
     expect(bloc.state.sections.single.content.text, 'Всё.\n\nСодержимое.');
+  });
+
+  test('a category without a konspekt is empty, not failed', () async {
+    final bloc = await _settled(QuestionKonspektBloc(_FakeRepository(null), 7001, '25'));
+    expect(bloc.state.sections, isEmpty);
+    expect(bloc.state.failed, isFalse, reason: 'the tab is simply hidden for such a question');
+  });
+
+  test('a failed load is reported as a failure and retries successfully', () async {
+    final repository = _FakeRepository(
+      _konspekt([
+        const KonspektSection(
+          id: 'a',
+          title: KonspektText(ru: 'Секция'),
+          content: KonspektText(ru: 'Целиком.'),
+          questionIds: [7001],
+        ),
+      ]),
+      failures: 1,
+    );
+
+    final bloc = await _settled(QuestionKonspektBloc(repository, 7001, '25'));
+    expect(bloc.state.failed, isTrue);
+    expect(bloc.state.sections, isEmpty);
+
+    bloc.add(QuestionKonspektRequested());
+    await _settled(bloc);
+    expect(bloc.state.failed, isFalse);
+    expect(bloc.state.sections.single.content.text, 'Целиком.');
   });
 }

@@ -19,6 +19,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// a konspekt the user has already opened still opens offline. A cached
 /// document is reused only while its version matches the catalog; a bumped
 /// version re-downloads it.
+///
+/// Failures are never remembered as answers: a catalog request that did not
+/// come back leaves the session unresolved (the next caller retries) instead of
+/// pinning "no category has a konspekt" for as long as the app runs.
 @lazySingleton
 class KonspektRepository {
   KonspektRepository(this._client);
@@ -33,11 +37,16 @@ class KonspektRepository {
   /// `categoryId` → published document version, from the backend catalog.
   Map<String, int> _versions = {};
   bool _catalogLoaded = false;
+  Future<Map<String, int>>? _catalogInFlight;
 
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
 
-  /// Ids of the categories that have a konspekt. Refreshed from the backend
-  /// once per session; an offline start falls back to the cached catalog.
+  /// Ids of the categories that have a konspekt. Fetched from the backend once
+  /// per session; an offline start falls back to the cached catalog.
+  ///
+  /// Throws when the catalog could neither be fetched nor read from the cache —
+  /// "we don't know" must not be reported as "no category has notes", which is
+  /// what used to hide the konspekt everywhere after a single failed request.
   Future<Set<String>> availableCategories() async => (await _catalog()).keys.toSet();
 
   /// The konspekt for [categoryId], or `null` if the backend has none.
@@ -49,11 +58,19 @@ class KonspektRepository {
     final loaded = _documents[categoryId];
     if (loaded != null) return loaded;
 
-    final catalog = await _catalog();
+    // A catalog we could not obtain only costs us the freshness check — the
+    // document itself is still worth trying (and a cached copy is still worth
+    // showing), so this failure is not fatal here.
+    Map<String, int>? catalog;
+    try {
+      catalog = await _catalog();
+    } catch (_) {
+      catalog = null;
+    }
     final cached = await _readCachedDocument(categoryId);
     // The catalog is the freshness oracle: an unchanged version means the
     // cached copy is still exactly what the backend would send.
-    if (cached != null && cached.version == catalog[categoryId]) {
+    if (cached != null && catalog != null && cached.version == catalog[categoryId]) {
       _documents[categoryId] = cached.konspekt;
       return cached.konspekt;
     }
@@ -87,31 +104,48 @@ class KonspektRepository {
     }
   }
 
-  /// The catalog, fetched once per session and cached across launches.
-  Future<Map<String, int>> _catalog() async {
-    if (_catalogLoaded) return _versions;
-    _versions = await _readCachedCatalog();
+  /// The catalog, fetched once per **successful** session read and cached
+  /// across launches.
+  ///
+  /// Only a fetch that actually answered is remembered: a failed one leaves the
+  /// door open, so the next konspekt consumer retries instead of the whole
+  /// feature staying dark until the app is restarted. Concurrent callers (every
+  /// question on screen asks) share one request.
+  Future<Map<String, int>> _catalog() {
+    if (_catalogLoaded) return Future.value(_versions);
+    return _catalogInFlight ??= _fetchCatalog().whenComplete(() {
+      _catalogInFlight = null;
+    });
+  }
+
+  Future<Map<String, int>> _fetchCatalog() async {
     try {
       final data = await _client.run(
         'query KonspektCategories { konspektCategories { categoryId version } }',
       );
       final raw = data['konspektCategories'];
-      if (raw is List) {
-        final versions = <String, int>{};
-        for (final entry in raw) {
-          if (entry is! Map) continue;
-          final id = entry['categoryId']?.toString();
-          final version = entry['version'];
-          if (id != null) versions[id] = version is int ? version : 1;
-        }
-        _versions = versions;
-        unawaited(_cacheCatalog(versions));
+      if (raw is! List) throw GraphqlException('Malformed konspekt catalog');
+      final versions = <String, int>{};
+      for (final entry in raw) {
+        if (entry is! Map) continue;
+        final id = entry['categoryId']?.toString();
+        final version = entry['version'];
+        if (id != null) versions[id] = version is int ? version : 1;
       }
+      _versions = versions;
+      _catalogLoaded = true;
+      unawaited(_cacheCatalog(versions));
+      return versions;
     } catch (_) {
-      // Offline / server down — keep whatever the last launch saw.
+      // Offline / server down: the last launch's catalog is still a usable
+      // answer, but an empty cache is not — it is indistinguishable from "no
+      // category has a konspekt", so say we don't know and let the caller
+      // retry.
+      final cached = await _readCachedCatalog();
+      if (cached.isEmpty) rethrow;
+      _versions = cached;
+      return cached;
     }
-    _catalogLoaded = true;
-    return _versions;
   }
 
   Future<Map<String, int>> _readCachedCatalog() async {

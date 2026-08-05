@@ -147,4 +147,56 @@ void main() {
 
     expect(() => _repository(adapter).load('25'), throwsA(isA<GraphqlException>()));
   });
+
+  test('an unknown catalog is reported as a failure, not as "no category has notes"', () async {
+    final offline = DioException(
+      requestOptions: RequestOptions(path: '/graphql'),
+      type: DioExceptionType.connectionError,
+    );
+    final adapter = _FakeAdapter([offline]);
+
+    // Answering `{}` here is what silently hid the konspekt everywhere.
+    expect(() => _repository(adapter).availableCategories(), throwsA(isA<GraphqlException>()));
+  });
+
+  test('a failed catalog fetch is retried by the next caller', () async {
+    final offline = DioException(
+      requestOptions: RequestOptions(path: '/graphql'),
+      type: DioExceptionType.connectionError,
+    );
+    final adapter = _FakeAdapter([offline, _catalogResponse(1)]);
+    final repository = _repository(adapter);
+
+    await expectLater(repository.availableCategories(), throwsA(isA<GraphqlException>()));
+    // The failure must not latch: the network came back, so must the konspekt.
+    expect(await repository.availableCategories(), {'25'});
+    expect(adapter.operations, ['catalog', 'catalog']);
+  });
+
+  test('the last known catalog carries an offline session', () async {
+    final first = _FakeAdapter([_catalogResponse(1)]);
+    await _repository(first).availableCategories();
+
+    final offline = DioException(
+      requestOptions: RequestOptions(path: '/graphql'),
+      type: DioExceptionType.connectionError,
+    );
+    final second = _FakeAdapter([offline]);
+    expect(await _repository(second).availableCategories(), {'25'});
+  });
+
+  test('concurrent callers share one catalog request', () async {
+    final adapter = _FakeAdapter([_catalogResponse(1)]);
+    final repository = _repository(adapter);
+
+    // Every question on screen asks at once; one request must answer them all.
+    final results = await Future.wait([
+      repository.availableCategories(),
+      repository.availableCategories(),
+      repository.availableCategories(),
+    ]);
+
+    expect(results, everyElement({'25'}));
+    expect(adapter.operations, ['catalog']);
+  });
 }
