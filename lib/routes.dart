@@ -22,6 +22,7 @@ import 'package:saobracaj/test/about/privacy_policy.dart';
 import 'package:saobracaj/test/practice/practice.dart';
 import 'package:saobracaj/test/practice/practice_page.dart';
 import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
+import 'package:saobracaj/test/quest/comment/editor/presentation/comment_editor_page.dart';
 import 'package:saobracaj/test/quest/quest.dart';
 import 'package:saobracaj/test/start_test.dart';
 import 'package:saobracaj/zakon/zakon.dart';
@@ -44,10 +45,12 @@ final routes = RouteMap(
     // Deep link to a single question's discussion:
     // saobracaj://question/{id}?comments=1&thread={topCommentId}
     '/question/:id': questCommentsPage,
+    '/question/:id/zakon': zakonPage,
     '/quest/zakon': zakonPage,
     '/quest/q': questPage,
     '/quest/q/zakon': zakonPage,
     '/statistics/q': questPage,
+    '/statistics/q/zakon': zakonPage,
     // A single question list (automatic or custom) and the questions opened from it.
     '/lists/:id': (data) => MaterialPage(
       child: QuestionListPage(
@@ -55,6 +58,7 @@ final routes = RouteMap(
       ),
     ),
     '/lists/:id/q': questPage,
+    '/lists/:id/q/zakon': zakonPage,
     '/questPractice/q': questPage,
     '/questPractice/q/zakon': zakonPage,
     '/questPractice':
@@ -77,7 +81,23 @@ final routes = RouteMap(
     // konspekt page, so "back" returns to the konspekt (same pattern as
     // '/quest/zakon').
     '/konspekt/question/:id': questCommentsPage,
+    '/konspekt/question/:id/zakon': zakonPage,
     '/konspekt/zakon': zakonPage,
+    // The admin draft editor opens as a child of whichever question screen it
+    // was launched from, so "back" (and the pop after saving) returns there;
+    // its own '/zakon' child keeps law links working from the preview.
+    for (final host in [
+      '/quest',
+      '/quest/q',
+      '/statistics/q',
+      '/lists/:id/q',
+      '/questPractice/q',
+      '/question/:id',
+      '/konspekt/question/:id',
+    ]) ...{
+      '$host/commentEdit': commentEditPage,
+      '$host/commentEdit/zakon': zakonPage,
+    },
     '/login': (_) => const MaterialPage(child: LoginPage()),
     '/register': (_) => const MaterialPage(child: RegisterPage()),
     '/resetPassword': (_) => const MaterialPage(child: ResetPasswordPage()),
@@ -130,6 +150,13 @@ MaterialPage konspektPage(dynamic params) => MaterialPage(
   child: KonspektPage(
     categoryId: params.queryParameters['category'] ?? '',
     section: params.queryParameters['section'],
+  ),
+);
+
+/// The admin-only comment draft editor; `id` is the question id.
+MaterialPage commentEditPage(dynamic data) => MaterialPage(
+  child: CommentEditorPage(
+    questionId: int.tryParse(data.queryParameters['id'] ?? '') ?? 0,
   ),
 );
 

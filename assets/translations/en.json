@@ -194,6 +194,19 @@
         "analysisSummary": "Correct in {} of {} attempts",
         "konspekt": "Summary"
     },
+    "commentAdmin": {
+        "draft": "Draft",
+        "moderation": "In moderation",
+        "noComment": "No comment yet",
+        "publish": "Publish",
+        "edit": "Edit",
+        "editorTitle": "Comment for question {}",
+        "save": "Save",
+        "cancel": "Cancel",
+        "preview": "Preview",
+        "backToEditing": "Back to editing",
+        "hint": "Comment text (Markdown)"
+    },
     "comments": {
         "write": "Write a comment",
         "reply": "Reply",

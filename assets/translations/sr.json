@@ -198,6 +198,19 @@
         "analysisSummary": "Тачно у {} од {} покушаја",
         "konspekt": "Конспект"
     },
+    "commentAdmin": {
+        "draft": "Нацрт",
+        "moderation": "На модерацији",
+        "noComment": "Коментар још не постоји",
+        "publish": "Објави",
+        "edit": "Уреди",
+        "editorTitle": "Коментар за питање {}",
+        "save": "Сачувај",
+        "cancel": "Откажи",
+        "preview": "Преглед",
+        "backToEditing": "Назад на уређивање",
+        "hint": "Текст коментара (Markdown)"
+    },
     "comments": {
         "write": "Напишите коментар",
         "reply": "Одговори",

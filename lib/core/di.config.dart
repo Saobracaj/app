@@ -38,6 +38,8 @@ import '../public_comments/state_management/moderation_bloc.dart' as _i515;
 import '../question_lists/data/question_lists_repository.dart' as _i206;
 import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
 import '../test/quest/comment/data/comment_repository.dart' as _i359;
+import '../test/quest/comment/editor/state_management/comment_editor_bloc.dart'
+    as _i658;
 import '../test/quest/comment/state_management/comment_bloc.dart' as _i213;
 import '../test/quest/question_features/state_management/question_konspekt_bloc.dart'
     as _i192;
@@ -149,6 +151,10 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i957.DisplayNameBloc>(
       () => _i957.DisplayNameBloc(gh<_i311.ProfileRepository>()),
+    );
+    gh.factoryParam<_i658.CommentEditorBloc, int, dynamic>(
+      (questionId, _) =>
+          _i658.CommentEditorBloc(gh<_i359.CommentRepository>(), questionId),
     );
     gh.factoryParam<_i213.CommentBloc, int, dynamic>(
       (questionId, _) =>
