@@ -8,6 +8,7 @@ import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/konspekt/models/konspekt.dart';
+import 'package:saobracaj/konspekt/presentation/konspekt_inline_text.dart';
 import 'package:saobracaj/konspekt/presentation/konspekt_markdown.dart';
 import 'package:saobracaj/konspekt/state_management/konspekt_bloc.dart';
 import 'package:saobracaj/konspekt/state_management/konspekt_events.dart';
@@ -169,7 +170,10 @@ class _SectionItem extends StatelessWidget {
           child: Row(
             children: [
               Expanded(
-                child: Text(section.title.text, style: Theme.of(context).textTheme.titleLarge),
+                child: KonspektInlineText(
+                  text: section.title.text,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
               ),
               IconButton(
                 tooltip: LocaleKeys.konspekt_copyLink.tr(),
@@ -217,7 +221,10 @@ Future<void> _showDictionary(BuildContext context, KonspektDictionary dictionary
           controller: controller,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
           children: [
-            Text(dictionary.title.text, style: Theme.of(context).textTheme.headlineSmall),
+            KonspektInlineText(
+              text: dictionary.title.text,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
             const SizedBox(height: 16),
             KonspektMarkdown(text: dictionary.content.text),
           ],
