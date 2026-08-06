@@ -409,9 +409,9 @@ class _TabSpec {
 
 _TabSpec _specFor(AppFeature feature) => switch (feature) {
   AppFeature.questionComments =>
-    _TabSpec(Icons.menu_book_outlined, LocaleKeys.questionTabs_explanation.tr()),
+    _TabSpec(Icons.sticky_note_2_outlined, LocaleKeys.questionTabs_explanation.tr()),
   AppFeature.categorySummaries =>
-    _TabSpec(Icons.sticky_note_2_outlined, LocaleKeys.questionTabs_konspekt.tr()),
+    _TabSpec(Icons.menu_book_outlined, LocaleKeys.questionTabs_konspekt.tr()),
   AppFeature.publicQuestionComments =>
     _TabSpec(Icons.forum_outlined, LocaleKeys.questionTabs_discussion.tr()),
   AppFeature.questionAnalysis =>
