@@ -12,6 +12,7 @@ class FeatureFlagsSnapshot {
     required this.localOverrides,
     required this.grants,
     required this.authenticated,
+    this.shouldAskRussianContent = false,
   });
 
   /// The empty starting point: guest tier on, nothing granted, signed out.
@@ -28,6 +29,7 @@ class FeatureFlagsSnapshot {
     required Map<String, bool> localOverrides,
     required Set<String> grants,
     required bool authenticated,
+    bool askRussianContent = false,
   }) {
     final resolved = <AppFeature, bool>{};
     for (final f in AppFeature.values) {
@@ -44,6 +46,7 @@ class FeatureFlagsSnapshot {
       localOverrides: Map.unmodifiable(localOverrides),
       grants: Set.unmodifiable(grants),
       authenticated: authenticated,
+      shouldAskRussianContent: askRussianContent,
     );
   }
 
@@ -58,6 +61,11 @@ class FeatureFlagsSnapshot {
 
   /// Whether a session is currently active.
   final bool authenticated;
+
+  /// Whether the user still has to answer the Russian-content question — set
+  /// while no decision is stored *and* the device language is not Russian.
+  /// `RussianContentPrompt` shows the dialog while this is `true`.
+  final bool shouldAskRussianContent;
 
   /// Whether [feature] is available to the user right now.
   bool isEnabled(AppFeature feature) => enabled[feature] ?? false;

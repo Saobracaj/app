@@ -22,6 +22,7 @@ import 'core/app_language.dart';
 import 'core/deep_links/deep_link_service.dart';
 import 'core/di.dart';
 import 'db/dependencies.dart';
+import 'feature_flags/presentation/russian_content_prompt.dart';
 import 'feature_flags/state_management/feature_flags_bloc.dart';
 import 'feature_flags/state_management/feature_flags_events.dart';
 import 'groups/presentation/groups_error_listener.dart';
@@ -188,7 +189,11 @@ class _MyAppState extends State<MyApp> {
             debugShowCheckedModeBanner: false,
             builder: (context, child) => QuestionListsErrorListener(
               child: GroupsErrorListener(
-                child: child ?? const SizedBox.shrink(),
+                // Above the router, so the one-time question about Russian
+                // materials covers whatever screen the app started on.
+                child: RussianContentPrompt(
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             ),
             routerDelegate: _routerDelegate,

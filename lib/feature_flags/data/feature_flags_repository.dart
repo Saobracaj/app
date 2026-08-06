@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,19 +17,29 @@ import 'feature_flags_snapshot.dart';
 ///     launch), and
 ///   * the user's **local toggles** (also in shared preferences).
 ///
+/// [AppFeature.russianContent] is the one feature the user is asked about
+/// explicitly — see [_russianDefault] and [shouldAskRussianContent].
+///
 /// Mirrors the cross-cutting-service pattern of `StatisticsSyncService`
 /// (constructed as a global in `lib/db/dependencies.dart`, driven from
 /// `AuthBloc` on session changes). Widgets consume it through
 /// `FeatureFlagsBloc`.
 class FeatureFlagsRepository {
-  FeatureFlagsRepository(this._client, this._storage);
+  FeatureFlagsRepository(this._client, this._storage, {String? deviceLanguage})
+    : _deviceLanguage =
+          deviceLanguage ?? PlatformDispatcher.instance.locale.languageCode;
 
   final GraphqlClient _client;
   final TokenStorage _storage;
 
+  /// The device's primary language (`ru`, `sr`, `en`, …). Only decides whether
+  /// the Russian-content question is asked at all; injectable for tests.
+  final String _deviceLanguage;
+
   static const _localPrefix = 'feature.';
   static const _localSuffix = '.enabled';
   static const _grantsKey = 'feature_grants';
+  static const _russianAskedKey = 'russian_content_asked';
 
   final StreamController<FeatureFlagsSnapshot> _controller =
       StreamController<FeatureFlagsSnapshot>.broadcast();
@@ -36,7 +47,22 @@ class FeatureFlagsRepository {
   Map<String, bool> _localOverrides = {};
   Set<String> _grants = {};
   bool _authenticated = false;
+  bool _russianAsked = false;
   FeatureFlagsSnapshot _snapshot = FeatureFlagsSnapshot.initial();
+
+  /// Whether the device runs in Russian. Such a user is never asked — Russian
+  /// materials are simply on for them.
+  bool get _deviceIsRussian => _deviceLanguage == 'ru';
+
+  /// The value [AppFeature.russianContent] takes while the user has not
+  /// answered the question: **off** for everyone but a Russian device. The
+  /// backend grant alone never shows Russian content — the answer does.
+  bool get _russianDefault => _deviceIsRussian;
+
+  /// Whether the Russian-content dialog still has to be shown: no stored
+  /// answer and a non-Russian device language. Mirrored into the snapshot as
+  /// `shouldAskRussianContent`.
+  bool get shouldAskRussianContent => !_russianAsked && !_deviceIsRussian;
 
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
 
@@ -57,6 +83,7 @@ class FeatureFlagsRepository {
     final prefs = await _prefs;
     _localOverrides = _readLocalOverrides(prefs);
     _grants = prefs.getStringList(_grantsKey)?.toSet() ?? {};
+    _russianAsked = prefs.getBool(_russianAskedKey) ?? false;
     _authenticated = (await _storage.accessToken)?.isNotEmpty ?? false;
     _recompute();
     if (_authenticated) {
@@ -110,9 +137,18 @@ class FeatureFlagsRepository {
 
   /// Turn a feature's local toggle on/off (persisted). This only removes a
   /// feature the user opted out of — it can't unlock a tier the user lacks.
+  ///
+  /// Answering the Russian-content dialog goes through here too: any explicit
+  /// choice for [AppFeature.russianContent] also records that the question has
+  /// been answered, so it is never asked again.
   Future<void> setLocalEnabled(AppFeature feature, bool enabled) async {
     _localOverrides = {..._localOverrides, feature.key: enabled};
-    (await _prefs).setBool('$_localPrefix${feature.key}$_localSuffix', enabled);
+    final prefs = await _prefs;
+    await prefs.setBool('$_localPrefix${feature.key}$_localSuffix', enabled);
+    if (feature == AppFeature.russianContent) {
+      _russianAsked = true;
+      await prefs.setBool(_russianAskedKey, true);
+    }
     _recompute();
   }
 
@@ -126,10 +162,18 @@ class FeatureFlagsRepository {
   }
 
   void _recompute() {
+    // Unanswered Russian-content question → the feature behaves as locally
+    // switched off (unless the device speaks Russian), whatever the backend
+    // granted.
+    final russianKey = AppFeature.russianContent.key;
+    final overrides = _localOverrides.containsKey(russianKey)
+        ? _localOverrides
+        : {..._localOverrides, russianKey: _russianDefault};
     _snapshot = FeatureFlagsSnapshot.resolve(
-      localOverrides: _localOverrides,
+      localOverrides: overrides,
       grants: _grants,
       authenticated: _authenticated,
+      askRussianContent: shouldAskRussianContent,
     );
     _controller.add(_snapshot);
   }
