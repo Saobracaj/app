@@ -51,6 +51,16 @@ class _SupportChatView extends StatelessWidget {
                   ? (state.thread?.title ?? 'support.threadTitle'.tr())
                   : 'support.title'.tr(),
             ),
+            actions: [
+              // Honest about the live connection: while it is down the chat is
+              // still readable, it just stops updating by itself.
+              if (state.loaded && !state.live)
+                IconButton(
+                  tooltip: 'support.offline'.tr(),
+                  icon: const Icon(Icons.cloud_off_outlined),
+                  onPressed: () => bloc.add(SupportChatRefreshed()),
+                ),
+            ],
             bottom: state.loading
                 ? const PreferredSize(
                     preferredSize: Size.fromHeight(2),

@@ -10,6 +10,14 @@ part 'support_chat_state.freezed.dart';
 abstract class SupportChatState with _$SupportChatState {
   const factory SupportChatState({
     @Default(true) bool loading,
+
+    /// The conversation has been read at least once, so what is on screen is
+    /// real and not just an empty start.
+    @Default(false) bool loaded,
+
+    /// The realtime subscription is up: new messages and read receipts arrive by
+    /// themselves. While it is down the chat is readable but stale.
+    @Default(false) bool live,
     SupportThread? thread,
     @Default(<SupportMessage>[]) List<SupportMessage> messages,
 

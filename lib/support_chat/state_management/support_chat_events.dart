@@ -38,6 +38,20 @@ class SupportChatNotificationsAccepted extends SupportChatEvent {}
 /// Clear the inline error banner.
 class SupportChatErrorDismissed extends SupportChatEvent {}
 
+/// The backend says the conversation changed (a message was added, or somebody
+/// read one). Not dispatched by the UI — it comes off the subscription.
+class SupportChatChangedRemotely extends SupportChatEvent {}
+
+/// The realtime connection came up or went down. [missed] is set when it is a
+/// reconnect: the server keeps no backlog, so whatever happened while the socket
+/// was down has to be re-read.
+class SupportChatLiveChanged extends SupportChatEvent {
+  SupportChatLiveChanged({required this.live, this.missed = false});
+
+  final bool live;
+  final bool missed;
+}
+
 /// Upload progress, fed back in from Dio's callback rather than dispatched by
 /// the UI. It lives here only because the event hierarchy is sealed.
 class SupportChatUploadProgress extends SupportChatEvent {

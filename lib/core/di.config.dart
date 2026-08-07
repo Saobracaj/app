@@ -148,9 +148,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i206.QuestionListsRepository>(
       () => _i206.QuestionListsRepository(gh<_i483.GraphqlClient>()),
     );
-    gh.lazySingleton<_i968.SupportChatRepository>(
-      () => _i968.SupportChatRepository(gh<_i483.GraphqlClient>()),
-    );
     gh.lazySingleton<_i359.CommentRepository>(
       () => _i359.CommentRepository(gh<_i483.GraphqlClient>()),
     );
@@ -200,6 +197,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i685.GroupsRepository>(
       () => _i685.GroupsRepository(
+        gh<_i483.GraphqlClient>(),
+        gh<_i966.GraphqlSubscriptionClient>(),
+      ),
+    );
+    gh.lazySingleton<_i968.SupportChatRepository>(
+      () => _i968.SupportChatRepository(
         gh<_i483.GraphqlClient>(),
         gh<_i966.GraphqlSubscriptionClient>(),
       ),

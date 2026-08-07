@@ -482,6 +482,7 @@
     "attach": "Attach a file",
     "download": "Download",
     "refresh": "Refresh",
+    "offline": "No connection to the server — refresh",
     "onlyUnread": "Unread only",
     "noThreads": "No requests yet",
     "unknownUser": "No name",

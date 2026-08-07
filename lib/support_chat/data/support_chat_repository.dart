@@ -1,7 +1,9 @@
 import 'package:injectable/injectable.dart';
 
 import '../../auth/data/graphql_client.dart';
+import '../../auth/data/graphql_subscription_client.dart';
 import '../models/support_chat.dart';
+import '../models/support_chat_update.dart';
 
 /// Data access for the **support chat** — the user's conversation with the
 /// developers (`saobracaj_backend`, `src/support_chat/`).
@@ -12,11 +14,15 @@ import '../models/support_chat.dart';
 ///
 /// Attachment URLs come back signed and short-lived (15 minutes); a stale one is
 /// re-signed through [attachmentUrl] rather than by re-reading the whole thread.
+///
+/// An open conversation follows the backend live through [changes], over the
+/// app's single subscription socket.
 @lazySingleton
 class SupportChatRepository {
-  SupportChatRepository(this._client);
+  SupportChatRepository(this._client, this._subscriptions);
 
   final GraphqlClient _client;
+  final GraphqlSubscriptionClient _subscriptions;
 
   static const _attachmentFields = r'''
     id kind fileName contentType sizeBytes questionId url createdAt
@@ -116,6 +122,12 @@ class SupportChatRepository {
   static const _attachmentUrlQuery = r'''
     query SupportAttachmentUrl($attachmentId: ID!) {
       supportAttachmentUrl(attachmentId: $attachmentId)
+    }
+  ''';
+
+  static const _eventsSubscription = r'''
+    subscription SupportChatEvents($threadId: ID) {
+      supportChatEvents(threadId: $threadId) { threadId kind messageId }
     }
   ''';
 
@@ -272,6 +284,40 @@ class SupportChatRepository {
     return SupportAttachment.parse(
       (data['uploadSupportAttachment'] as Map).cast<String, dynamic>(),
     );
+  }
+
+  /// Live changes in one conversation — [threadId] `null` for the caller's own,
+  /// exactly as everywhere else here.
+  ///
+  /// The stream starts the subscription on its first listener and stops it when
+  /// the listener leaves, so a chat that is not on screen holds nothing open.
+  /// Events that are not about this thread never arrive: the server filters
+  /// them, and the subscription is authorised once, when it opens.
+  Stream<SupportChatUpdate> changes({String? threadId}) {
+    return _subscriptions
+        .subscribe(_eventsSubscription, variables: {'threadId': threadId})
+        .map<SupportChatUpdate?>((message) {
+          switch (message) {
+            case GraphqlSubscriptionResumed(:final firstConnect):
+              return SupportChatLive(firstConnect: firstConnect);
+            case GraphqlSubscriptionInterrupted():
+              return const SupportChatOffline();
+            case GraphqlSubscriptionData(:final data):
+              final raw = data['supportChatEvents'];
+              if (raw is! Map) return null;
+              final kind = SupportChangeKind.parse(raw['kind']?.toString());
+              // An unknown kind is a newer server talking about something this
+              // build has no idea what to do with — ignoring it is safer than
+              // guessing, and the screen still refreshes on the next event.
+              if (kind == null) return null;
+              return SupportChatChanged(
+                kind: kind,
+                messageId: raw['messageId']?.toString(),
+              );
+          }
+        })
+        .where((update) => update != null)
+        .cast<SupportChatUpdate>();
   }
 
   /// Re-sign an attachment's download URL after the previous one expired.
