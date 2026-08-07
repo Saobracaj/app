@@ -92,7 +92,9 @@
     "finish": "Завершить тест",
     "ruToggle": "РУ",
     "share": "Поделиться вопросом",
-    "linkCopied": "Ссылка скопирована"
+    "linkCopied": "Ссылка скопирована",
+    "questionNotFound": "Вопрос не найден",
+    "toHome": "На главную"
   },
   "auth": {
     "loginNav": "Войти",

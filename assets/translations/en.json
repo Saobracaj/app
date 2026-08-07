@@ -84,7 +84,9 @@
     "finish": "Finish test",
     "ruToggle": "RU",
     "share": "Share question",
-    "linkCopied": "Link copied"
+    "linkCopied": "Link copied",
+    "questionNotFound": "Question not found",
+    "toHome": "Go to the home screen"
   },
   "auth": {
     "loginNav": "Log in",

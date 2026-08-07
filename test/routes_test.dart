@@ -50,6 +50,23 @@ void main() {
     expect(stack, ['/', '/quest', '/quest/konspekt']);
   });
 
+  test('экран вопросов без параметра q не роняет первый кадр', () {
+    // Так выглядит набранный руками URL /quest (или /start) без q=1,2,3:
+    // раньше `queryParameters['q']!` кидал исключение прямо в билдере роута,
+    // и вся страница умирала в серый экран. Теперь — редирект на главную.
+    expect(_build('/quest'), isA<Redirect>());
+    expect(_build('/quest?q=abc'), isA<Redirect>());
+    expect(_build('/quest?q=8084'), isA<MaterialPage>());
+    expect(_build('/start'), isA<Redirect>());
+    expect(_build('/start?q=8084'), isA<MaterialPage>());
+  });
+
+  test('диплинк /question/{id} строится без загруженных вопросов', () {
+    // https://saobracaj.gleb.at/question/8084 — билдер роута не должен
+    // требовать ничего, кроме пути: данные подтянет сам экран.
+    expect(_build('/question/8084'), isA<MaterialPage>());
+  });
+
   test('конспект без категории не превращается в экран с ошибкой', () {
     // Так выглядит родитель диплинка `/konspekt/question/7921`: категории в
     // пути нет, показывать нечего. Redirect выкидывает такую страницу из

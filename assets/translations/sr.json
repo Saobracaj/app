@@ -88,7 +88,9 @@
     "finish": "Заврши тест",
     "ruToggle": "РУ",
     "share": "Подели питање",
-    "linkCopied": "Линк је копиран"
+    "linkCopied": "Линк је копиран",
+    "questionNotFound": "Питање није пронађено",
+    "toHome": "На почетну"
   },
   "auth": {
     "loginNav": "Пријава",
