@@ -53,13 +53,16 @@ final routes = RouteMap(
     '/questions': (_) => MaterialPage(child: QuestionsPage()),
     '/statistics': (_) => MaterialPage(child: StatisticsPage()),
     '/practice': (_) => MaterialPage(child: PracticePage()),
-    '/start':
-        (data) => MaterialPage(
-          child: StartTest(
-            questionIds: data.queryParameters['q']!.split(',').map(int.parse).toList(),
-            subcategory: data.queryParameters['subcategory'],
-          ),
+    '/start': (data) {
+      final ids = _questionIdsParam(data.queryParameters['q']);
+      if (ids.isEmpty) return const Redirect('/home');
+      return MaterialPage(
+        child: StartTest(
+          questionIds: ids,
+          subcategory: data.queryParameters['subcategory'],
         ),
+      );
+    },
     '/quest': questPage,
     // Deep link to a single question's discussion:
     // saobracaj://question/{id}?comments=1&thread={topCommentId}
@@ -171,18 +174,27 @@ MaterialPage questCommentsPage(dynamic data) {
   );
 }
 
-var questPage = (data) {
+/// The question ids of a `q=1,2,3` query parameter. A URL typed or mangled by
+/// hand can miss the parameter or hold garbage — those ids are simply dropped,
+/// and the routes above redirect instead of crashing the first frame into a
+/// grey screen when nothing is left.
+List<int> _questionIdsParam(String? q) =>
+    (q ?? '').split(',').map(int.tryParse).whereType<int>().toList();
+
+RouteSettings questPage(RouteData data) {
+  final ids = _questionIdsParam(data.queryParameters['q']);
+  if (ids.isEmpty) return const Redirect('/home');
   return MaterialPage(
     child: Quest(
       options: StartTestState(
         random: data.queryParameters['random'] == 'true',
         randomOptionsOrder: data.queryParameters['randomOptionsOrder'] == 'true',
       ),
-      questions: data.queryParameters['q']!.split(',').map<int>(int.parse).toList(),
+      questions: ids,
       subcategory: data.queryParameters['subcategory'],
     ),
   );
-};
+}
 
 /// A konspekt page; `category` says which one.
 ///

@@ -85,7 +85,9 @@
     "ruToggle": "RU",
     "share": "Share question",
     "linkCopied": "Link copied",
-    "wideTabsPlaceholder": "The explanation, notes and discussion will appear here once you answer the question."
+    "wideTabsPlaceholder": "The explanation, notes and discussion will appear here once you answer the question.",
+    "questionNotFound": "Question not found",
+    "toHome": "Go to the home screen"
   },
   "auth": {
     "loginNav": "Log in",

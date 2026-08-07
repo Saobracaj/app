@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
@@ -57,7 +58,22 @@ class Quest extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AllQuestionsBloc, AllQuestionsBlocState>(
       builder: (context, state) {
-        final qqs = [...state.questionsData!.questions];
+        // A cold start straight on a deep link (`/question/8084` pasted into
+        // the browser's address bar) builds this screen before the question
+        // bank has loaded from the assets — `questionsData` is still null and
+        // must not be dereferenced, or the first frame dies into a grey screen.
+        final data = state.questionsData;
+        if (data == null) {
+          return Scaffold(
+            appBar: AppBar(),
+            body: Center(
+              child: state.errorMessage == null
+                  ? const CircularProgressIndicator()
+                  : Text(state.errorMessage!),
+            ),
+          );
+        }
+        final qqs = [...data.questions];
         final qs = <Question>[];
         for (var q in qqs) {
           if (options.randomOptionsOrder) {
@@ -66,10 +82,16 @@ class Quest extends StatelessWidget {
             qs.add(q.copyWith());
           }
         }
+        // A link can name a question that does not exist (a typo, a stale id):
+        // running with it would crash the `firstWhere` below, so keep only the
+        // ids the bank actually has and say so when nothing is left.
+        final known = {for (final q in qs) q.id};
+        final requested = questions.where(known.contains).toList();
+        if (requested.isEmpty) return const _QuestionNotFound();
         return BlocProvider(
           create: (context) => QuestBloc(
-            state.questionsData!.copyWith(questions: qs),
-            options.random ? ([...questions]..shuffle()) : [...questions],
+            data.copyWith(questions: qs),
+            options.random ? (requested..shuffle()) : requested,
             subcategory,
           ),
           child: BlocBuilder<QuestBloc, QuestState>(
@@ -448,6 +470,38 @@ class QuestionContent extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+/// What a deep link to a nonexistent question id lands on instead of a crash.
+class _QuestionNotFound extends StatelessWidget {
+  const _QuestionNotFound();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                LocaleKeys.quest_questionNotFound.tr(),
+                style: Theme.of(context).textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => Routemaster.of(context).replace('/home'),
+                child: Text(LocaleKeys.quest_toHome.tr()),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
