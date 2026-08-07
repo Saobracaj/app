@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:saobracaj/core/deep_links.dart';
+import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/data/zakon_o_bezbednosti_data_source.dart';
 import 'package:saobracaj/zakon/state_management/zakon_bloc.dart';
 import 'package:flutter/services.dart';
@@ -21,12 +22,14 @@ class Zakon extends StatefulWidget {
 
 class _ZakonState extends State<Zakon> {
   final ItemScrollController _itemScrollController = ItemScrollController();
-  final ItemPositionsListener _itemPositionsListener = ItemPositionsListener.create();
+  final ItemPositionsListener _itemPositionsListener =
+      ItemPositionsListener.create();
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => ZakonBloc(widget.paragraph, widget.chlan, widget.chapter),
+      create: (context) =>
+          ZakonBloc(widget.paragraph, widget.chlan, widget.chapter),
       child: Scaffold(
         appBar: AppBar(
           title: Text('ЗАКОН о безбедности саобраћаја на путевима'),
@@ -48,8 +51,10 @@ class _ZakonState extends State<Zakon> {
             return FloatingActionButton.extended(
               onPressed: () async {
                 final res = await _showTableOfContents(context, state);
-                if(res != null && context.mounted) {
-                  context.read<ZakonBloc>().add(ScrollTo(res.$1, res.$2, res.$3));
+                if (res != null && context.mounted) {
+                  context.read<ZakonBloc>().add(
+                    ScrollTo(res.$1, res.$2, res.$3),
+                  );
                 }
               },
               label: Icon(Icons.list_alt_outlined),
@@ -69,13 +74,20 @@ class _ZakonState extends State<Zakon> {
             }
           },
           builder: (context, state) {
-            return ScrollablePositionedList.builder(
-              itemCount: state.zakon.length,
-              itemScrollController: _itemScrollController,
-              itemPositionsListener: _itemPositionsListener,
-              itemBuilder: (context, index) {
-                return _Paragraph(paragraph: state.zakon[index], isSerbian: state.isSr);
-              },
+            // Строки закона на всю ширину планшета/окна нечитаемы — колонка
+            // ограничена шириной комфортного чтения.
+            return ReadableWidth(
+              child: ScrollablePositionedList.builder(
+                itemCount: state.zakon.length,
+                itemScrollController: _itemScrollController,
+                itemPositionsListener: _itemPositionsListener,
+                itemBuilder: (context, index) {
+                  return _Paragraph(
+                    paragraph: state.zakon[index],
+                    isSerbian: state.isSr,
+                  );
+                },
+              ),
             );
           },
         ),
@@ -92,7 +104,9 @@ class _Paragraph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String text = isSerbian ? (paragraph.sr ?? '') : (paragraph.ru ?? paragraph.sr ?? '');
+    String text = isSerbian
+        ? (paragraph.sr ?? '')
+        : (paragraph.ru ?? paragraph.sr ?? '');
 
     if (paragraph.isTitle) {
       return InkWell(
@@ -102,7 +116,9 @@ class _Paragraph extends StatelessWidget {
           child: Text(
             text.split('<sup>').join('').split('</sup>').join(''),
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
         ),
       );
@@ -144,57 +160,71 @@ class _Paragraph extends StatelessWidget {
 
     Clipboard.setData(ClipboardData(text: uri.toString())).then((_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Link is copied to clipboard')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Link is copied to clipboard')));
     });
   }
 }
 
-Future<(String?, String?, String?)?> _showTableOfContents(BuildContext context, ZakonState state) async {
+Future<(String?, String?, String?)?> _showTableOfContents(
+  BuildContext context,
+  ZakonState state,
+) async {
   final res = await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     isDismissible: true,
     showDragHandle: true,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-    builder:
-        (context) => DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.3,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (_, controller) {
-            final List<BezbParagraph> paragraphs = state.zakon.where((element) => element.isTitle || element.isChapter || element.isChlan).toList();
-            List<List<BezbParagraph>> list = [];
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (context) => DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.3,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, controller) {
+        final List<BezbParagraph> paragraphs = state.zakon
+            .where(
+              (element) =>
+                  element.isTitle || element.isChapter || element.isChlan,
+            )
+            .toList();
+        List<List<BezbParagraph>> list = [];
 
-            var i = 0;
-            while (i < paragraphs.length) {
-              final p = paragraphs[i];
+        var i = 0;
+        while (i < paragraphs.length) {
+          final p = paragraphs[i];
 
-              if (!p.isChlan) {
-                list.add([p]);
+          if (!p.isChlan) {
+            list.add([p]);
+            i++;
+          } else {
+            final chlans = <BezbParagraph>[];
+
+            BezbParagraph chlan = p;
+
+            while (chlan.isChlan && i < paragraphs.length) {
+              chlan = paragraphs[i];
+              if (chlan.isChlan) {
+                chlans.add(chlan);
                 i++;
-              } else {
-                final chlans = <BezbParagraph>[];
-
-                BezbParagraph chlan = p;
-
-                while (chlan.isChlan && i < paragraphs.length) {
-                  chlan = paragraphs[i];
-                  if (chlan.isChlan) {
-                    chlans.add(chlan);
-                    i++;
-                  }
-                }
-                list.add(chlans);
               }
             }
+            list.add(chlans);
+          }
+        }
 
-            return ListView.builder(
-              controller: controller,
-              itemCount: list.length,
-              itemBuilder: (context, index) => _TableOfContentsItem(paragraphs: list[index], isSerbian: state.isSr),
-            );
-            /*
+        return ListView.builder(
+          controller: controller,
+          itemCount: list.length,
+          itemBuilder: (context, index) => _TableOfContentsItem(
+            paragraphs: list[index],
+            isSerbian: state.isSr,
+          ),
+        );
+        /*
         final allQuestions = context.read<AllQuestionsBloc>().state.questionsData?.questions ?? [];
         List<TableEntry> entries = [];
         for (var i = 0; i < state.questions.length; i++) {
@@ -209,8 +239,8 @@ Future<(String?, String?, String?)?> _showTableOfContents(BuildContext context, 
           entries.add(t);
         }
         return SingleChildScrollView(controller: controller, child: QuestionsTable(entries: entries, onAnswerToggle: (index, value) {}));*/
-          },
-        ),
+      },
+    ),
   );
   return res;
 }
@@ -222,7 +252,10 @@ extension _ParagraphExt on BezbParagraph {
 }
 
 class _TableOfContentsItem extends StatelessWidget {
-  const _TableOfContentsItem({required this.paragraphs, required this.isSerbian});
+  const _TableOfContentsItem({
+    required this.paragraphs,
+    required this.isSerbian,
+  });
 
   final List<BezbParagraph> paragraphs;
   final bool isSerbian;
@@ -231,7 +264,9 @@ class _TableOfContentsItem extends StatelessWidget {
   Widget build(BuildContext context) {
     if (paragraphs.isNotEmpty && !paragraphs.first.isChlan) {
       final paragraph = paragraphs.first;
-      String text = isSerbian ? (paragraph.sr ?? '') : (paragraph.ru ?? paragraph.sr ?? '');
+      String text = isSerbian
+          ? (paragraph.sr ?? '')
+          : (paragraph.ru ?? paragraph.sr ?? '');
 
       return InkWell(
         onTap: () => _onTap(context, paragraph),
@@ -240,7 +275,9 @@ class _TableOfContentsItem extends StatelessWidget {
           child: Text(
             text.fixMd,
             // textAlign: TextAlign.center,
-            style: paragraph.isTitle ? Theme.of(context).textTheme.titleMedium : Theme.of(context).textTheme.titleLarge,
+            style: paragraph.isTitle
+                ? Theme.of(context).textTheme.titleMedium
+                : Theme.of(context).textTheme.titleLarge,
           ),
         ),
       );
@@ -248,17 +285,18 @@ class _TableOfContentsItem extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
         child: Wrap(
-          children:
-              paragraphs.map((e) {
-                var text = Text((isSerbian ? (e.sr ?? '') : (e.ru ?? e.sr ?? '')).fixMd);
+          children: paragraphs.map((e) {
+            var text = Text(
+              (isSerbian ? (e.sr ?? '') : (e.ru ?? e.sr ?? '')).fixMd,
+            );
 
-                return TextButton(
-                  onPressed: () {
-                    _onTap(context, e);
-                  },
-                  child: text,
-                );
-              }).toList(),
+            return TextButton(
+              onPressed: () {
+                _onTap(context, e);
+              },
+              child: text,
+            );
+          }).toList(),
         ),
       );
     }
@@ -270,5 +308,10 @@ class _TableOfContentsItem extends StatelessWidget {
 }
 
 extension _FixChlan on String {
-  String get fixMd => replaceAll('*', '').replaceAll('<sup>', '').replaceAll('</sup>', '').replaceAll('\\', '').replaceAll('_', '').trim();
+  String get fixMd => replaceAll('*', '')
+      .replaceAll('<sup>', '')
+      .replaceAll('</sup>', '')
+      .replaceAll('\\', '')
+      .replaceAll('_', '')
+      .trim();
 }

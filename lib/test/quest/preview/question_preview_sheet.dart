@@ -52,13 +52,14 @@ class QuestionPreviewRoute extends PageRouteBuilder<void> {
             QuestionPreviewSheet(questionId: questionId),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(
-            position: Tween(begin: const Offset(0, 1), end: Offset.zero).animate(
-              CurvedAnimation(
-                parent: animation,
-                curve: Curves.easeOutCubic,
-                reverseCurve: Curves.easeInCubic,
-              ),
-            ),
+            position: Tween(begin: const Offset(0, 1), end: Offset.zero)
+                .animate(
+                  CurvedAnimation(
+                    parent: animation,
+                    curve: Curves.easeOutCubic,
+                    reverseCurve: Curves.easeInCubic,
+                  ),
+                ),
             child: child,
           );
         },
@@ -78,16 +79,25 @@ class QuestionPreviewSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final data = context.watch<AllQuestionsBloc>().state.questionsData;
-    final question = data?.questions.firstWhereOrNull((q) => q.id == questionId);
+    final question = data?.questions.firstWhereOrNull(
+      (q) => q.id == questionId,
+    );
     final categoryName = question == null
         ? null
-        : data?.categories.firstWhereOrNull((c) => c.id == question.categoryId)?.name;
+        : data?.categories
+              .firstWhereOrNull((c) => c.id == question.categoryId)
+              ?.name;
 
     return Align(
       alignment: Alignment.bottomCenter,
       child: ConstrainedBox(
-        // A sheet, not a screen: whatever it takes, but never the whole height.
-        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.9),
+        // A sheet, not a screen: whatever it takes, but never the whole height —
+        // and on wide windows never the whole width either, or the bottom sheet
+        // degenerates into a full-width band.
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.9,
+          maxWidth: 640,
+        ),
         child: Material(
           color: Theme.of(context).colorScheme.surface,
           clipBehavior: Clip.antiAlias,
@@ -104,7 +114,10 @@ class QuestionPreviewSheet extends StatelessWidget {
                       const {},
                       question.id,
                     ),
-                    child: _Content(question: question, categoryName: categoryName),
+                    child: _Content(
+                      question: question,
+                      categoryName: categoryName,
+                    ),
                   ),
           ),
         ),
@@ -160,7 +173,9 @@ class _Content extends StatelessWidget {
         GestureDetector(
           behavior: HitTestBehavior.opaque,
           onVerticalDragEnd: (details) {
-            if ((details.primaryVelocity ?? 0) > 250) Navigator.of(context).pop();
+            if ((details.primaryVelocity ?? 0) > 250) {
+              Navigator.of(context).pop();
+            }
           },
           child: Column(
             children: [
@@ -169,7 +184,9 @@ class _Content extends StatelessWidget {
                 height: 4,
                 margin: const EdgeInsets.only(top: 12, bottom: 10),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  color: theme.colorScheme.onSurfaceVariant.withValues(
+                    alpha: 0.4,
+                  ),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -316,7 +333,10 @@ class _Actions extends StatelessWidget {
       MaterialPageRoute(
         builder: (_) => Quest(
           questions: [question.id],
-          options: const StartTestState(random: false, randomOptionsOrder: false),
+          options: const StartTestState(
+            random: false,
+            randomOptionsOrder: false,
+          ),
           // Whatever was already answered in the preview stays answered.
           revealAnswers: state.showCorrectAnswers,
           answers: state.selectedChoices,

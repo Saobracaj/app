@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/core/di.dart';
+import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 
@@ -21,33 +22,46 @@ class StartTest extends StatelessWidget {
         child: BlocBuilder<StartTestBloc, StartTestState>(
           builder: (context, state) {
             final bloc = context.read<StartTestBloc>();
-            return ListView(
-              children: [
-                CheckboxListTile(title: Text(LocaleKeys.quest_options_shuffleQuestions.tr()), value: state.random, onChanged: (value) => bloc.add(ToggleRandom())),
-                CheckboxListTile(
-                  title: Text(LocaleKeys.quest_options_shuffleOptions.tr()),
-                  value: state.randomOptionsOrder,
-                  onChanged: (value) => bloc.add(ToggleRandomOptionsOrder()),
-                ),
-                /* CheckboxListTile(
+            return ReadableWidth(
+              child: ListView(
+                children: [
+                  CheckboxListTile(
+                    title: Text(LocaleKeys.quest_options_shuffleQuestions.tr()),
+                    value: state.random,
+                    onChanged: (value) => bloc.add(ToggleRandom()),
+                  ),
+                  CheckboxListTile(
+                    title: Text(LocaleKeys.quest_options_shuffleOptions.tr()),
+                    value: state.randomOptionsOrder,
+                    onChanged: (value) => bloc.add(ToggleRandomOptionsOrder()),
+                  ),
+                  /* CheckboxListTile(
                   title: Text('Перемешивать варианты ответов'),
                   value: state.randomOptionsOrder,
                   onChanged: (value) => bloc.add(ToggleRandomOptionsOrder()),
                 ),*/
-                ListTile(title: Text(LocaleKeys.quest_questions.tr(args: ['${questionIds.length}']), style: TextStyle(fontStyle: FontStyle.italic))),
-                // SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Routemaster.of(context).push(
-                        '/quest?q=${questionIds.join(',')}&randomOptionsOrder=${state.randomOptionsOrder}&random=${state.random}&subcategory=$subcategory',
-                      );
-                    },
-                    child: Text(LocaleKeys.quest_start.tr()),
+                  ListTile(
+                    title: Text(
+                      LocaleKeys.quest_questions.tr(
+                        args: ['${questionIds.length}'],
+                      ),
+                      style: TextStyle(fontStyle: FontStyle.italic),
+                    ),
                   ),
-                ),
-              ],
+                  // SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Routemaster.of(context).push(
+                          '/quest?q=${questionIds.join(',')}&randomOptionsOrder=${state.randomOptionsOrder}&random=${state.random}&subcategory=$subcategory',
+                        );
+                      },
+                      child: Text(LocaleKeys.quest_start.tr()),
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         ),
