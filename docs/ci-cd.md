@@ -98,7 +98,8 @@ debug-ключом (Gradle пишет предупреждение) — так `
    *Test and release → Setup → App signing* → «Request upload key reset».
    Приложить сертификат нового ключа:
    ```bash
-   keytool -export -rfc -keystore saobracaj-upload.jks -alias saobracaj \
+   # пароль — storePassword из key.properties (спросит интерактивно)
+   keytool -exportcert -rfc -keystore saobracaj-upload.jks -alias saobracaj \
            -file upload_certificate.pem
    ```
    Гугл обрабатывает заявку до 1–2 рабочих дней.
