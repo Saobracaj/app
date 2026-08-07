@@ -2,9 +2,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/core/deep_links/deep_link_path.dart';
 import 'package:saobracaj/routes.dart';
 import 'package:saobracaj/support_chat/models/support_chat.dart';
+import 'package:saobracaj/support_chat/presentation/linked_text.dart';
+import 'package:saobracaj/support_chat/presentation/support_chat_page.dart';
 
 /// Тесты «чата с разработчиком» (lib/support_chat/): разбор ответа бэкенда,
-/// маршруты и диплинки из пуша.
+/// распознавание картинок и ссылок, маршруты и диплинки из пуша.
 void main() {
   group('SupportAttachment', () {
     test('тип вложения приходит с сервера в верхнем регистре', () {
@@ -121,6 +123,114 @@ void main() {
       final messages = SupportMessagePage.parse({'nodes': null});
       expect(messages.nodes, isEmpty);
       expect(messages.hasNextPage, isFalse);
+    });
+  });
+
+  group('картинки в сообщениях', () {
+    SupportAttachment attachment({
+      SupportAttachmentKind kind = SupportAttachmentKind.file,
+      String fileName = '',
+      String contentType = '',
+    }) => SupportAttachment(
+      id: 'a1',
+      kind: kind,
+      fileName: fileName,
+      contentType: contentType,
+      createdAt: DateTime(2026),
+    );
+
+    test('картинка узнаётся по типу с сервера', () {
+      expect(attachment(kind: SupportAttachmentKind.image).isImage, isTrue);
+    });
+
+    test('старое вложение без MIME-типа узнаётся по расширению', () {
+      // Пока приложение не подставляло content-type, скриншот с телефона
+      // приезжал как FILE + application/octet-stream и не показывался вовсе.
+      expect(
+        attachment(
+          fileName: 'IMG_0042.HEIC',
+          contentType: 'application/octet-stream',
+        ).isImage,
+        isTrue,
+      );
+      expect(attachment(contentType: 'image/png').isImage, isTrue);
+    });
+
+    test('файл и ссылка на вопрос картинками не считаются', () {
+      expect(attachment(fileName: 'отчёт.pdf').isImage, isFalse);
+      expect(attachment(fileName: 'без расширения').isImage, isFalse);
+      expect(
+        attachment(
+          kind: SupportAttachmentKind.question,
+          fileName: 'x.png',
+        ).isImage,
+        isFalse,
+      );
+    });
+
+    test('тип содержимого угадывается по имени файла', () {
+      expect(contentTypeForFileName('shot.PNG'), 'image/png');
+      expect(contentTypeForFileName('фото.jpeg'), 'image/jpeg');
+      expect(contentTypeForFileName('doc.pdf'), 'application/pdf');
+      // Незнакомое расширение — пусть транспорт ставит octet-stream сам.
+      expect(contentTypeForFileName('dump.bin'), isNull);
+      expect(contentTypeForFileName('README'), isNull);
+    });
+  });
+
+  group('ссылки в сообщениях', () {
+    test('находит ссылку и не забирает знак препинания', () {
+      final links = findLinks('смотри https://example.com/a. и всё');
+      expect(links, hasLength(1));
+      expect(links.single.uri.toString(), 'https://example.com/a');
+    });
+
+    test('голый www превращается в https', () {
+      final links = findLinks('зайди на www.example.com');
+      expect(links.single.uri.toString(), 'https://www.example.com');
+    });
+
+    test('незакрытая скобка не попадает в адрес, закрытая — попадает', () {
+      expect(
+        findLinks('(см. https://example.com/x)').single.uri.toString(),
+        'https://example.com/x',
+      );
+      expect(
+        findLinks('https://ru.wikipedia.org/wiki/Знак_(значения)')
+            .single
+            .uri
+            .toString(),
+        contains('(%D0%B7%D0%BD%D0%B0%D1%87%D0%B5%D0%BD%D0%B8%D1%8F)'),
+      );
+    });
+
+    test('текст без ссылок остаётся текстом', () {
+      expect(findLinks('просто сообщение про http и www'), isEmpty);
+    });
+
+    test('свои ссылки — только хост приложения и его поддомены', () {
+      expect(isInternalLink(Uri.parse('https://saobracaj.gleb.at/q/1')), isTrue);
+      expect(
+        isInternalLink(Uri.parse('https://api.saobracaj.gleb.at/graphql')),
+        isTrue,
+      );
+      expect(isInternalLink(Uri.parse('https://example.com')), isFalse);
+      // Подделка под свой хост чужим доменом второго уровня.
+      expect(
+        isInternalLink(Uri.parse('https://saobracaj.gleb.at.evil.com')),
+        isFalse,
+      );
+    });
+  });
+
+  group('имя автора сообщения', () {
+    test('display name показывается как есть', () {
+      final message = SupportMessage(
+        id: 'm1',
+        authorDisplayName: '  Ана  ',
+        createdAt: DateTime(2026),
+      );
+      expect(authorName(message), 'Ана');
     });
   });
 

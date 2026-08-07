@@ -292,10 +292,18 @@ class SupportChatBloc extends Bloc<SupportChatEvent, SupportChatState> {
         );
         return;
       }
+      final mimeType = file.mimeType;
       final attachment = await _chat.uploadAttachment(
         bytes: bytes,
         fileName: file.name,
-        contentType: file.mimeType,
+        // The backend decides whether an attachment is a picture purely from
+        // the MIME type it is told, and `XFile.mimeType` is null on every
+        // platform except the web — without the fallback every screenshot sent
+        // from a phone arrived as `application/octet-stream` and was filed away
+        // as a plain download instead of being shown in the bubble.
+        contentType: mimeType == null || mimeType.isEmpty
+            ? contentTypeForFileName(file.name)
+            : mimeType,
         threadId: threadId,
         // Progress ticks arrive from Dio, outside this handler's emit window,
         // so they come back in as their own event.

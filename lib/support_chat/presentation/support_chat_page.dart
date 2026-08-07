@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
@@ -8,6 +9,7 @@ import '../models/support_chat.dart';
 import '../state_management/support_chat_bloc.dart';
 import '../state_management/support_chat_events.dart';
 import '../state_management/support_chat_state.dart';
+import 'linked_text.dart';
 import 'support_attachment_views.dart';
 
 /// One support conversation.
@@ -207,6 +209,20 @@ class _MessageList extends StatelessWidget {
   }
 }
 
+/// Who wrote a message, as it is shown above the bubble.
+///
+/// The display name whenever the account has one; failing that the side it came
+/// from — a nameless user is «Без имени» rather than a blank line, so the
+/// authorship of every message is always stated.
+String authorName(SupportMessage message) {
+  if (message.authorDisplayName.trim().isNotEmpty) {
+    return message.authorDisplayName.trim();
+  }
+  return message.fromStaff
+      ? 'support.staffName'.tr()
+      : 'support.unknownUser'.tr();
+}
+
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({required this.message, required this.mine});
 
@@ -234,20 +250,23 @@ class _MessageBubble extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (!mine)
-                  Text(
-                    message.fromStaff
-                        ? 'support.staffName'.tr()
-                        : (message.authorDisplayName.isEmpty
-                              ? 'support.userName'.tr()
-                              : message.authorDisplayName),
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.bold,
-                    ),
+                // Both sides are named, not just the other one: a moderator
+                // reading a thread needs to see whose words these are, and the
+                // user's own name is what tells them the account they wrote
+                // from.
+                Text(
+                  authorName(message),
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: mine ? foreground.withValues(alpha: 0.8) : scheme.primary,
+                    fontWeight: FontWeight.bold,
                   ),
+                ),
                 if (message.body.isNotEmpty)
-                  Text(message.body, style: TextStyle(color: foreground)),
+                  LinkedText(
+                    text: message.body,
+                    style: TextStyle(color: foreground),
+                    linkColor: mine ? foreground : scheme.primary,
+                  ),
                 for (final attachment in message.attachments)
                   SupportAttachmentView(
                     attachment: attachment,
@@ -290,12 +309,17 @@ class _Composer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bloc = context.read<SupportChatBloc>();
+    void send() {
+      if (state.canSend) bloc.add(SupportChatSendPressed());
+    }
+
     return Material(
       elevation: 2,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          spacing: 10,
           children: [
             if (state.uploading)
               LinearProgressIndicator(
@@ -306,11 +330,12 @@ class _Composer extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: [
                     for (final attachment in state.pending)
                       Chip(
                         avatar: Icon(
-                          attachment.kind == SupportAttachmentKind.image
+                          attachment.isImage
                               ? Icons.image_outlined
                               : Icons.insert_drive_file_outlined,
                           size: 18,
@@ -325,6 +350,7 @@ class _Composer extends StatelessWidget {
               ),
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
+              spacing: 8,
               children: [
                 IconButton(
                   tooltip: 'support.attach'.tr(),
@@ -338,10 +364,11 @@ class _Composer extends StatelessWidget {
                     text: state.body,
                     onChanged: (value) =>
                         bloc.add(SupportChatBodyChanged(value)),
+                    onSend: send,
                   ),
                 ),
                 IconButton.filled(
-                  tooltip: 'support.send'.tr(),
+                  tooltip: 'support.sendTooltip'.tr(),
                   icon: state.sending
                       ? const SizedBox(
                           height: 18,
@@ -349,9 +376,7 @@ class _Composer extends StatelessWidget {
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
                       : const Icon(Icons.send),
-                  onPressed: state.canSend
-                      ? () => bloc.add(SupportChatSendPressed())
-                      : null,
+                  onPressed: state.canSend ? send : null,
                 ),
               ],
             ),
@@ -366,10 +391,19 @@ class _Composer extends StatelessWidget {
 /// itself lives in the Bloc, and the controller is re-synced when the Bloc
 /// clears it after a send.
 class _ComposerField extends StatefulWidget {
-  const _ComposerField({required this.text, required this.onChanged});
+  const _ComposerField({
+    required this.text,
+    required this.onChanged,
+    required this.onSend,
+  });
 
   final String text;
   final ValueChanged<String> onChanged;
+
+  /// Fired by ⌘/Ctrl+Enter. Plain Enter stays a newline — a chat message here is
+  /// often several lines of a bug report, and losing them to a stray Enter is
+  /// worse than one extra keystroke.
+  final VoidCallback onSend;
 
   @override
   State<_ComposerField> createState() => _ComposerFieldState();
@@ -394,17 +428,33 @@ class _ComposerFieldState extends State<_ComposerField> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: _controller,
-      onChanged: widget.onChanged,
-      minLines: 1,
-      maxLines: 5,
-      textInputAction: TextInputAction.newline,
-      keyboardType: TextInputType.multiline,
-      decoration: InputDecoration(
-        hintText: 'support.hint'.tr(),
-        border: const OutlineInputBorder(),
-        isDense: true,
+    return CallbackShortcuts(
+      // Both modifiers, and both Enters: whichever keyboard the writer has in
+      // front of them, the combination they already know sends the message.
+      bindings: {
+        for (final key in const [
+          LogicalKeyboardKey.enter,
+          LogicalKeyboardKey.numpadEnter,
+        ]) ...{
+          SingleActivator(key, meta: true): widget.onSend,
+          SingleActivator(key, control: true): widget.onSend,
+        },
+      },
+      child: TextField(
+        controller: _controller,
+        onChanged: widget.onChanged,
+        minLines: 3,
+        maxLines: 8,
+        textInputAction: TextInputAction.newline,
+        keyboardType: TextInputType.multiline,
+        decoration: InputDecoration(
+          hintText: 'support.hint'.tr(),
+          border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 12,
+          ),
+        ),
       ),
     );
   }
