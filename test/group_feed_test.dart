@@ -143,7 +143,17 @@ Map<String, dynamic> _page(
   );
 }
 
-Future<void> _settle() => Future<void>.delayed(const Duration(milliseconds: 40));
+/// Yields long enough for the bloc to drain the work an event kicked off.
+///
+/// Deliberately a loop of short waits rather than one fixed delay: a single
+/// 40 ms sleep is plenty on an idle laptop but not on a busy CI runner, where
+/// it made these tests fail at random. Each iteration also drains the microtask
+/// queue, so an idle machine still finishes in the first few milliseconds.
+Future<void> _settle() async {
+  for (var i = 0; i < 10; i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+  }
+}
 
 /// Bring the subscription up: connect, acknowledge, subscribe.
 Future<void> _goLive(_Connector connector) async {

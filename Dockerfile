@@ -7,10 +7,10 @@
 # slow layer to every deploy. CI runs `flutter build web --wasm` first and this
 # image copies the result, so the build context must contain `build/web`:
 #
-#   flutter build web --wasm --release
+#   flutter build web --wasm --release --target lib/main_prod.dart
 #   docker build -t saobracaj_web .
 #
-# See .github/workflows/deploy-web.yml for the pipeline and
+# See .github/workflows/build-and-deploy.yml (jobs build-web / deploy-web) and
 # web_server/README.md for how the server behaves.
 
 FROM rust:1-bookworm AS builder

@@ -63,10 +63,11 @@ curl -s http://127.0.0.1:8080/question/7935 -H 'Accept-Language: ru' | grep og:
 
 `app/Dockerfile` собирает этот крейт и кладёт рядом уже готовый `build/web` —
 Flutter внутри образа не запускается (это +2 ГБ и минуты на каждый деплой).
-Пайплайн `.github/workflows/deploy-web.yml` при пуше в `main`:
+Джобы `build-web` / `deploy-web` общего пайплайна
+`.github/workflows/build-and-deploy.yml` (см. `docs/ci-cd.md`) при пуше в `main`:
 
 1. `flutter analyze`, `flutter test`, `cargo test`;
-2. `flutter build web --wasm --release`;
+2. `flutter build web --wasm --release --target lib/main_prod.dart`;
 3. сборка образа `ghcr.io/saobracaj/saobracaj_web` и пуш в GHCR;
 4. по SSH на OVH VPS: `WEB_IMAGE=<тег>` в `~/app/.env`, `docker compose pull web`,
    `docker compose up -d web`.

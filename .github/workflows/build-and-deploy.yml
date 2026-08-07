@@ -1,0 +1,594 @@
+name: Build & Deploy
+
+# Single pipeline for all three shipping targets:
+#
+#   * Android — signed APK + AAB (artifacts), optional Google Play upload
+#   * iOS     — signed IPA (artifact), App Store Connect validation, TestFlight upload
+#   * Web     — Flutter web bundle baked into the Rust static server image and
+#               rolled out on the OVH VPS → https://saobracaj.gleb.at
+#
+# It replaces the former deploy-web.yml, whose jobs live on unchanged as
+# `build-web` / `deploy-web` below.
+#
+# Which secrets/variables each part needs, and where to get them, is documented
+# in docs/ci-cd.md. Anything whose secrets are missing is SKIPPED with a notice
+# instead of failing the run, so the pipeline stays green while the App Store
+# credentials are still being collected.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      build_android:
+        description: 'Build Android (APK + AAB)'
+        required: false
+        default: true
+        type: boolean
+      build_ios:
+        description: 'Build iOS (needs the distribution signing secrets)'
+        required: false
+        default: true
+        type: boolean
+      build_web:
+        description: 'Build the web bundle'
+        required: false
+        default: true
+        type: boolean
+      deploy_ios:
+        description: 'Upload the IPA to TestFlight / App Store Connect'
+        required: false
+        default: false
+        type: boolean
+      deploy_android:
+        description: 'Upload the AAB to Google Play (also needs the PLAY_UPLOAD_ENABLED variable — currently OFF)'
+        required: false
+        default: false
+        type: boolean
+      deploy_web:
+        description: 'Roll the web bundle out on the VPS'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  # Pinned to the version the project is developed against; bump deliberately.
+  FLUTTER_VERSION: '3.44.7'
+  # Apple Developer team and the App Store bundle identifier
+  # (ios/Runner.xcodeproj — Runner target).
+  APPLE_TEAM_ID: 'BHH5379JU2'
+  IOS_BUNDLE_ID: 'at.gleb.saobracaj.saobracaj'
+  # Google Play application id (android/app/build.gradle.kts — applicationId).
+  ANDROID_PACKAGE_NAME: 'at.gleb.saobracaj'
+  # Production entry point: every store/web build must run the prod flavor,
+  # otherwise the app talks to http://localhost:8080 (see lib/flavor.dart).
+  FLUTTER_TARGET: 'lib/main_prod.dart'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Version + capability detection. Later jobs read these outputs instead of
+  # touching `secrets` directly, because the `secrets` context is not available
+  # in a job-level `if:`.
+  # ---------------------------------------------------------------------------
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-latest
+    outputs:
+      version_name: ${{ steps.version.outputs.version_name }}
+      build_number: ${{ steps.version.outputs.build_number }}
+      has_android_signing: ${{ steps.flags.outputs.has_android_signing }}
+      has_ios_signing: ${{ steps.flags.outputs.has_ios_signing }}
+      has_appstore_api: ${{ steps.flags.outputs.has_appstore_api }}
+      has_play_api: ${{ steps.flags.outputs.has_play_api }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute version
+        id: version
+        run: |
+          set -euo pipefail
+          # The version NAME is owned by a human and only changes when pubspec.yaml
+          # is edited. The build NUMBER is derived from github.run_number, a counter
+          # shared by every run of this workflow, so builds can never collide and
+          # never go backwards. Nothing is committed back to the branch — the number
+          # is passed to `flutter build` via --build-number.
+          #
+          # IMPORTANT: bump the version name in pubspec.yaml before shipping a
+          # release. Once a version is approved on the App Store its train closes and
+          # Apple rejects every further build for it (error 90186), however high the
+          # build number is.
+          VERSION_NAME=$(grep '^version:' pubspec.yaml | sed 's/^version: *//' | cut -d'+' -f1)
+          # The offset keeps the generated number above the historical value (4) —
+          # this workflow's run_number starts at 1.
+          BUILD_NUMBER=$(( ${{ github.run_number }} + 100 ))
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "build_number=$BUILD_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "Building $VERSION_NAME+$BUILD_NUMBER"
+
+      - name: Detect available credentials
+        id: flags
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          # A capability is available only when EVERY secret it needs is set;
+          # a half-configured target must skip rather than fail mid-build.
+          flag() {
+            local name=$1; shift
+            local missing=""
+            for var in "$@"; do
+              [ -n "${!var}" ] || missing="$missing $var"
+            done
+            if [ -z "$missing" ]; then
+              echo "$name=true" >> "$GITHUB_OUTPUT"
+              echo "  ✓ $name"
+            else
+              echo "$name=false" >> "$GITHUB_OUTPUT"
+              echo "  ✗ $name — the matching job will be skipped; missing:$missing"
+              echo "- \`$name\` is off — missing secrets:$missing" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          }
+          echo "### Build ${{ steps.version.outputs.version_name }}+${{ steps.version.outputs.build_number }}" >> "$GITHUB_STEP_SUMMARY"
+          flag has_android_signing ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS
+          flag has_ios_signing APPLE_CERTIFICATE_BASE64 APPLE_PROVISIONING_PROFILE_BASE64
+          flag has_appstore_api APP_STORE_CONNECT_API_KEY_ID APP_STORE_CONNECT_ISSUER_ID APP_STORE_CONNECT_API_KEY_CONTENT
+          flag has_play_api GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "See \`docs/ci-cd.md\` for where each credential is obtained." >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # Gate the whole release: a red analyzer or test suite stops every build.
+  # ---------------------------------------------------------------------------
+  checks:
+    name: Analyze & test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      # Freezed/Drift/injectable/localization output is gitignored (see
+      # .gitignore), so CI has to generate it before anything compiles.
+      - name: Generate code
+        run: bash codegen.sh
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Test
+        run: flutter test
+
+      - name: Test the web server
+        working-directory: web_server
+        run: cargo test --locked
+
+      # Cheap guard against ios/ci/set_manual_signing.py silently no-op'ing after
+      # someone renames the bundle id or regenerates the Xcode project.
+      - name: Check the iOS manual-signing patch still applies
+        run: python3 ios/ci/set_manual_signing.py --check --profile-name "CI check"
+
+  # ---------------------------------------------------------------------------
+  # Android: a signed APK for direct distribution and a signed AAB for the store.
+  # ---------------------------------------------------------------------------
+  build-android:
+    name: Build Android
+    needs: [preflight, checks]
+    # Pull requests only run `checks` — store builds cost runner minutes and
+    # publish nothing.
+    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.build_android) && needs.preflight.outputs.has_android_signing == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Generate code
+        run: bash codegen.sh
+
+      # The upload keystore is never committed. android/app/build.gradle.kts reads
+      # android/key.properties; storeFile is resolved relative to android/app.
+      - name: Set up the upload keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          mkdir -p android/app/sign_cert
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/sign_cert/saobracaj-upload.jks
+          chmod 600 android/app/sign_cert/saobracaj-upload.jks
+          {
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyPassword=${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "storeFile=sign_cert/saobracaj-upload.jks"
+          } > android/key.properties
+          chmod 600 android/key.properties
+
+      - name: Build the signed APK
+        run: |
+          flutter build apk --release \
+            --target "$FLUTTER_TARGET" \
+            --build-name "${{ needs.preflight.outputs.version_name }}" \
+            --build-number "${{ needs.preflight.outputs.build_number }}"
+
+      - name: Build the signed App Bundle
+        run: |
+          flutter build appbundle --release \
+            --target "$FLUTTER_TARGET" \
+            --build-name "${{ needs.preflight.outputs.version_name }}" \
+            --build-number "${{ needs.preflight.outputs.build_number }}"
+
+      # Catches the "release build silently fell back to the debug key" case,
+      # which Google Play would otherwise reject after a ten-minute upload.
+      - name: Verify the APK signature
+        run: |
+          set -euo pipefail
+          APK=build/app/outputs/flutter-apk/app-release.apk
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          CERTS=$("$BUILD_TOOLS/apksigner" verify --print-certs "$APK")
+          echo "$CERTS"
+          if echo "$CERTS" | grep -qi "CN=Android Debug"; then
+            echo "::error::The APK is signed with the DEBUG key — the upload keystore was not picked up."
+            exit 1
+          fi
+
+      - name: Upload the APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-${{ needs.preflight.outputs.version_name }}+${{ needs.preflight.outputs.build_number }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30
+
+      - name: Upload the AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-aab-${{ needs.preflight.outputs.version_name }}+${{ needs.preflight.outputs.build_number }}
+          path: build/app/outputs/bundle/release/app-release.aab
+          retention-days: 30
+
+      # DISABLED ON PURPOSE. The historical Play App Signing certificate was lost,
+      # so the new upload key (this pipeline's keystore) is not yet the one Google
+      # accepts for at.gleb.saobracaj — an upload would be rejected with
+      # "Your Android App Bundle is signed with the wrong key".
+      #
+      # To switch it on, once Google has reset the upload key (docs/ci-cd.md):
+      #   1. add the GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret;
+      #   2. set the repository variable PLAY_UPLOAD_ENABLED to `true`;
+      #   3. run the workflow manually with `deploy_android` ticked (or merge to
+      #      main, which then uploads to the `internal` track automatically).
+      - name: Upload to Google Play (internal track)
+        if: ${{ vars.PLAY_UPLOAD_ENABLED == 'true' && needs.preflight.outputs.has_play_api == 'true' && (inputs.deploy_android || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.ANDROID_PACKAGE_NAME }}
+          releaseFiles: build/app/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
+
+      - name: Note that the Play upload is off
+        if: ${{ vars.PLAY_UPLOAD_ENABLED != 'true' }}
+        run: |
+          echo "::notice::Google Play upload is disabled (PLAY_UPLOAD_ENABLED is not 'true'). The AAB is available as a build artifact."
+
+  # ---------------------------------------------------------------------------
+  # iOS: signed IPA → App Store Connect validation → TestFlight.
+  # ---------------------------------------------------------------------------
+  build-ios:
+    name: Build iOS
+    needs: [preflight, checks]
+    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.build_ios) && needs.preflight.outputs.has_ios_signing == 'true' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Generate code
+        run: bash codegen.sh
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Import the distribution certificate and provisioning profile
+        id: signing
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_PROVISIONING_PROFILE_BASE64: ${{ secrets.APPLE_PROVISIONING_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+          PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          # A throwaway keychain needs a password, but it need not be a secret.
+          KEYCHAIN_PASSWORD=${KEYCHAIN_PASSWORD:-$(uuidgen)}
+
+          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          echo "$APPLE_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PP_PATH"
+
+          # Dedicated keychain, unlocked for the life of the job. `-A` is deliberately
+          # avoided: set-key-partition-list below grants access to codesign only.
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -t cert -f pkcs12 -k "$KEYCHAIN_PATH" -T /usr/bin/codesign -T /usr/bin/security
+          # Keep the login keychain in the search list so Xcode still resolves system roots.
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH" >/dev/null
+
+          # Fail loudly here rather than deep inside xcodebuild if the p12 holds the
+          # wrong kind of certificate — a development cert can never reach the App Store.
+          IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN_PATH" \
+                     | grep -o '"[^"]*"' | tr -d '"' | head -1)
+          case "$IDENTITY" in
+            "Apple Distribution"*|"iPhone Distribution"*) echo "Signing identity: $IDENTITY" ;;
+            "")
+              echo "::error::No codesigning identity found in the imported certificate."
+              exit 1 ;;
+            *)
+              echo "::error::'$IDENTITY' is not a distribution certificate. App Store builds require an Apple Distribution certificate."
+              exit 1 ;;
+          esac
+
+          # Xcode locates provisioning profiles by their UUID filename.
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          PROFILE_PLIST=$RUNNER_TEMP/profile.plist
+          security cms -D -i "$PP_PATH" > "$PROFILE_PLIST"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" "$PROFILE_PLIST")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" "$PROFILE_PLIST")
+          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
+
+          # An App Store profile has no ProvisionedDevices and get-task-allow=false.
+          if /usr/libexec/PlistBuddy -c "Print :ProvisionedDevices" "$PROFILE_PLIST" >/dev/null 2>&1; then
+            echo "::error::'$PROFILE_NAME' is a development/ad-hoc profile (it lists provisioned devices). An App Store profile is required."
+            exit 1
+          fi
+
+          echo "Provisioning profile: $PROFILE_NAME ($PROFILE_UUID)"
+          echo "profile_name=$PROFILE_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Switch the Release configuration to manual signing
+        env:
+          PROFILE_NAME: ${{ steps.signing.outputs.profile_name }}
+        run: python3 ios/ci/set_manual_signing.py
+
+      - name: Write ExportOptions.plist
+        env:
+          PROFILE_NAME: ${{ steps.signing.outputs.profile_name }}
+        run: |
+          cat > ios/ExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>teamID</key>
+            <string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>signingCertificate</key>
+            <string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>${IOS_BUNDLE_ID}</key>
+              <string>${PROFILE_NAME}</string>
+            </dict>
+            <key>uploadSymbols</key>
+            <true/>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>destination</key>
+            <string>export</string>
+          </dict>
+          </plist>
+          EOF
+          cat ios/ExportOptions.plist
+
+      - name: Install CocoaPods dependencies
+        working-directory: ios
+        run: pod install
+
+      - name: Build the IPA
+        run: |
+          set -euo pipefail
+          flutter build ipa --release \
+            --target "$FLUTTER_TARGET" \
+            --build-name "${{ needs.preflight.outputs.version_name }}" \
+            --build-number "${{ needs.preflight.outputs.build_number }}" \
+            --export-options-plist=ios/ExportOptions.plist
+
+          if ! ls build/ios/ipa/*.ipa >/dev/null 2>&1; then
+            echo "::error::IPA file not found"
+            ls -la build/ios/ipa/ || echo "Directory does not exist"
+            exit 1
+          fi
+          ls -lh build/ios/ipa/*.ipa
+
+      - name: Upload the IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa-${{ needs.preflight.outputs.version_name }}+${{ needs.preflight.outputs.build_number }}
+          path: build/ios/ipa/*.ipa
+          retention-days: 30
+
+      # Runs on every iOS build. Validation asks App Store Connect whether it would
+      # accept this binary — wrong entitlements, a bad signature or a duplicate build
+      # number all surface here — without publishing anything. That keeps the deploy
+      # path continuously exercised instead of only being discovered on a release.
+      # It is a hard gate only when this run would actually upload.
+      - name: Validate the IPA against App Store Connect
+        if: ${{ needs.preflight.outputs.has_appstore_api == 'true' }}
+        continue-on-error: ${{ !(inputs.deploy_ios || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+        run: |
+          set -euo pipefail
+          # altool resolves the key by ID from this well-known directory.
+          mkdir -p ~/private_keys
+          echo "$APP_STORE_CONNECT_API_KEY_CONTENT" > ~/private_keys/AuthKey_$APP_STORE_CONNECT_API_KEY_ID.p8
+          chmod 600 ~/private_keys/AuthKey_$APP_STORE_CONNECT_API_KEY_ID.p8
+
+          IPA_FILE=$(find build/ios/ipa -name "*.ipa" | head -1)
+          [ -n "$IPA_FILE" ] || { echo "::error::IPA file not found"; exit 1; }
+          xcrun altool --validate-app --type ios --file "$IPA_FILE" \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
+      # The build lands in TestFlight; App Store submission stays a manual step in
+      # App Store Connect.
+      - name: Upload to TestFlight
+        if: ${{ needs.preflight.outputs.has_appstore_api == 'true' && (inputs.deploy_ios || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          IPA_FILE=$(find build/ios/ipa -name "*.ipa" | head -1)
+          [ -n "$IPA_FILE" ] || { echo "::error::IPA file not found"; exit 1; }
+          xcrun altool --upload-app --type ios --file "$IPA_FILE" \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
+
+  # ---------------------------------------------------------------------------
+  # Web: Flutter bundle → Rust static server image → GHCR.
+  # ---------------------------------------------------------------------------
+  build-web:
+    name: Build web image
+    needs: [preflight, checks]
+    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.build_web) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write        # push the image to GHCR
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Generate code
+        run: bash codegen.sh
+
+      # --wasm compiles Dart to WebAssembly and keeps the JS build as the
+      # fallback for browsers without WasmGC, so one bundle serves both.
+      - name: Build the web bundle
+        run: |
+          flutter build web --wasm --release \
+            --target "$FLUTTER_TARGET" \
+            --build-name "${{ needs.preflight.outputs.version_name }}" \
+            --build-number "${{ needs.preflight.outputs.build_number }}"
+
+      - name: Compute the image name (GHCR requires a lowercase owner)
+        id: meta
+        run: |
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "repo=ghcr.io/${owner}/saobracaj_web" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${owner}/saobracaj_web:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.repo }}:${{ github.sha }}
+            ${{ steps.meta.outputs.repo }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-web:
+    name: Deploy web
+    needs: build-web
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' || inputs.deploy_web }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    concurrency:
+      group: deploy-web-production
+      cancel-in-progress: false
+    steps:
+      # The compose file and the nginx config for saobracaj.gleb.at are part of
+      # the backend's deploy stack (saobracaj_backend/deploy). This job only
+      # points the `web` service at the freshly built image and restarts it.
+      - name: Roll out on the server
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          IMAGE: ${{ needs.build-web.outputs.image }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          host: ${{ vars.VPS_HOST }}
+          username: ${{ vars.VPS_USER }}
+          password: ${{ vars.VPS_SSH_PASSWORD }}
+          envs: IMAGE,GHCR_USER,GHCR_TOKEN
+          script_stop: true
+          script: |
+            set -euo pipefail
+            cd ~/app
+
+            # Pin the exact image in .env, keeping every other line as it is —
+            # the backend's deploy writes the rest of this file.
+            umask 077
+            touch .env
+            grep -v '^WEB_IMAGE=' .env > .env.next || true
+            printf 'WEB_IMAGE=%s\n' "$IMAGE" >> .env.next
+            mv .env.next .env
+
+            echo "$GHCR_TOKEN" | sudo docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            sudo docker compose pull web
+            sudo docker compose up -d web
+            sudo docker image prune -f
+          command_timeout: 20m
