@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
+import '../../feature_flags/domain/app_feature.dart';
+import '../../feature_flags/state_management/feature_flags_bloc.dart';
 import '../../generated/locale_keys.g.dart';
 import '../state_management/auth/auth_bloc.dart';
 import '../state_management/auth/auth_events.dart';
@@ -72,6 +74,36 @@ class ProfilePage extends StatelessWidget {
                         Text(LocaleKeys.settings_notificationsSubtitle.tr()),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Routemaster.of(context).push('/notifications'),
+                  ),
+                ],
+                // The chat with the developers: signed-in only (the thread is
+                // keyed by the account) and behind the `support_chat` flag,
+                // which is what the catalog already reserved it for.
+                if (auth.isAuthenticated &&
+                    context.watch<FeatureFlagsBloc>().state.isEnabled(
+                      AppFeature.supportChat,
+                    )) ...[
+                  const Divider(height: 0),
+                  ListTile(
+                    leading: const Icon(Icons.support_agent_outlined),
+                    title: Text('support.title'.tr()),
+                    subtitle: Text('support.settingsSubtitle'.tr()),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Routemaster.of(context).push('/support'),
+                  ),
+                ],
+                // The list of обращения, gated on the backend
+                // `moderate_support` permission, so only support staff see it.
+                if (auth.viewer?.permissions.contains('moderate_support') ==
+                    true) ...[
+                  const Divider(height: 0),
+                  ListTile(
+                    leading: const Icon(Icons.inbox_outlined),
+                    title: Text('support.threadsTitle'.tr()),
+                    subtitle: Text('support.threadsSubtitle'.tr()),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () =>
+                        Routemaster.of(context).push('/support/threads'),
                   ),
                 ],
                 // Moderation is gated on the backend `moderate_comments`

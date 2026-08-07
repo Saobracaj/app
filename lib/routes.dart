@@ -20,6 +20,8 @@ import 'package:saobracaj/question_lists/presentation/question_list_page.dart';
 import 'package:saobracaj/questions/questions_page.dart';
 import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 import 'package:saobracaj/statistics/statistics_page.dart';
+import 'package:saobracaj/support_chat/presentation/support_chat_page.dart';
+import 'package:saobracaj/support_chat/presentation/support_threads_page.dart';
 import 'package:saobracaj/test/about/about_page.dart';
 import 'package:saobracaj/test/about/privacy_policy.dart';
 import 'package:saobracaj/test/practice/practice.dart';
@@ -139,6 +141,17 @@ final routes = RouteMap(
     '/notifications': (_) => const MaterialPage(child: NotificationsPage()),
     '/displayName': (_) => const MaterialPage(child: DisplayNamePage()),
     '/moderation': (_) => const MaterialPage(child: ModerationPage()),
+    // The support chat ("чат с разработчиком"). The user's own conversation
+    // needs no id — the backend resolves it from the token; the moderator's
+    // list and the conversations opened from it sit under it, so "back" from a
+    // conversation returns to the list.
+    '/support': (_) => const MaterialPage(child: SupportChatPage()),
+    '/support/threads': (_) => const MaterialPage(child: SupportThreadsPage()),
+    '/support/threads/:id': (data) => MaterialPage(
+      child: SupportChatPage(
+        threadId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+      ),
+    ),
   },
 );
 

@@ -33,6 +33,10 @@ const _linkableRoots = {
   'practice',
   'about',
   'home',
+  // The support chat: `saobracaj://support` for one's own conversation and
+  // `saobracaj://support/threads/<id>` for the moderator's view of one — both
+  // are what the backend puts in a support notification.
+  'support',
 };
 
 /// The in-app path for [uri], or `null` when the link is not ours to handle.

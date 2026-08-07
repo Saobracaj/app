@@ -44,6 +44,9 @@ import '../public_comments/state_management/comments_bloc.dart' as _i405;
 import '../public_comments/state_management/moderation_bloc.dart' as _i515;
 import '../question_lists/data/question_lists_repository.dart' as _i206;
 import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
+import '../support_chat/data/support_chat_repository.dart' as _i968;
+import '../support_chat/state_management/support_chat_bloc.dart' as _i639;
+import '../support_chat/state_management/support_threads_bloc.dart' as _i252;
 import '../test/data/quiz_preferences_repository.dart' as _i442;
 import '../test/practice/state_management/practice_page_bloc.dart' as _i790;
 import '../test/quest/comment/data/comment_repository.dart' as _i359;
@@ -198,11 +201,28 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i966.GraphqlSubscriptionClient>(),
       ),
     );
+    gh.lazySingleton<_i968.SupportChatRepository>(
+      () => _i968.SupportChatRepository(
+        gh<_i483.GraphqlClient>(),
+        gh<_i966.GraphqlSubscriptionClient>(),
+      ),
+    );
     gh.factoryParam<_i955.CommentCountBloc, int, dynamic>(
       (questionId, _) => _i955.CommentCountBloc(
         gh<_i989.PublicCommentsRepository>(),
         gh<_i388.AuthBloc>(),
         questionId,
+      ),
+    );
+    gh.factory<_i252.SupportThreadsBloc>(
+      () => _i252.SupportThreadsBloc(gh<_i968.SupportChatRepository>()),
+    );
+    gh.factoryParam<_i639.SupportChatBloc, String?, dynamic>(
+      (threadId, _) => _i639.SupportChatBloc(
+        gh<_i968.SupportChatRepository>(),
+        gh<_i426.NotificationPermissions>(),
+        gh<_i880.AuthRepository>(),
+        threadId,
       ),
     );
     gh.factory<_i957.DisplayNameBloc>(
