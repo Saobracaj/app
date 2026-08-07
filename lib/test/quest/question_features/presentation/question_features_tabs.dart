@@ -10,6 +10,8 @@ import '../../../../public_comments/presentation/public_comments_widget.dart';
 import '../../../../public_comments/state_management/comment_count_bloc.dart';
 import '../../../../public_comments/state_management/comment_count_events.dart';
 import '../../../../public_comments/state_management/comment_count_state.dart';
+import '../../../../question_feedback/domain/question_feedback_source.dart';
+import '../../../../question_feedback/presentation/report_problem_button.dart';
 import '../../comment/comment_widget/comment_widget.dart';
 import '../state_management/question_features_bloc.dart';
 import '../state_management/question_features_events.dart';
@@ -322,18 +324,53 @@ class _TabContent extends StatelessWidget {
     switch (feature) {
       case AppFeature.questionComments:
         return CommentWidget(questionId: questionId);
+      // Конспект и обсуждение — единственные вкладки с чужим содержимым, в
+      // котором пользователю есть на что пожаловаться, поэтому кнопка «Сообщить
+      // об ошибке» живёт под ними (и только под ними).
       case AppFeature.categorySummaries:
-        return QuestionKonspektTab(categoryId: categoryId);
-      case AppFeature.publicQuestionComments:
-        return PublicCommentsWidget(
+        return _WithReportButton(
           questionId: questionId,
-          threadId: commentThreadId,
+          source: QuestionFeedbackSource.summary,
+          child: QuestionKonspektTab(categoryId: categoryId),
+        );
+      case AppFeature.publicQuestionComments:
+        return _WithReportButton(
+          questionId: questionId,
+          source: QuestionFeedbackSource.discussion,
+          child: PublicCommentsWidget(
+            questionId: questionId,
+            threadId: commentThreadId,
+          ),
         );
       case AppFeature.questionAnalysis:
         return QuestionAnalysisTab(questionId: questionId);
       default:
         return _ComingSoon(feature: feature);
     }
+  }
+}
+
+/// Содержимое вкладки с кнопкой «Сообщить об ошибке» под ним.
+class _WithReportButton extends StatelessWidget {
+  const _WithReportButton({
+    required this.questionId,
+    required this.source,
+    required this.child,
+  });
+
+  final int questionId;
+  final QuestionFeedbackSource source;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        child,
+        ReportProblemButton(questionId: questionId, source: source),
+      ],
+    );
   }
 }
 

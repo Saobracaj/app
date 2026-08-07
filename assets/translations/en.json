@@ -503,5 +503,19 @@
       "one": "{} request",
       "other": "{} requests"
     }
+  },
+  "questionFeedback": {
+    "report": "Report a problem",
+    "title": "Report a problem",
+    "whatIsWrong": "What is wrong?",
+    "hint": "Describe what is wrong here",
+    "send": "Send",
+    "cancel": "Cancel",
+    "notify": "Notify me about the reply",
+    "notifyHint": "Notifications apply to the whole chat with the developer",
+    "notifyBlocked": "Notifications are blocked in the system settings",
+    "signInRequired": "Sign in to send a message",
+    "signIn": "Sign in",
+    "sent": "Sent to the developer"
   }
 }
