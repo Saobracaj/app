@@ -2,6 +2,14 @@
 
 Serbian traffic-exam trainer. Quiz content ships as bundled JSON assets; user answer history and stats are persisted locally via Drift (SQLite).
 
+## Shipping
+
+One pipeline builds all three targets — `.github/workflows/build-and-deploy.yml`
+(Android APK/AAB, iOS IPA → TestFlight, web → GHCR image → VPS). Which secrets it
+needs, where to get them, and how to turn the Google Play upload back on is in
+**`docs/ci-cd.md`**. Every store/web build must pass `--target lib/main_prod.dart`
+— without it the app runs the debug flavor and talks to `http://localhost:8080`.
+
 ## Code generation is required after editing generated-source inputs
 
 `./codegen.sh` runs, in order:
