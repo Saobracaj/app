@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saobracaj/auth/presentation/auth_button.dart';
 import 'package:saobracaj/categories.dart';
 import 'package:saobracaj/core/di.dart';
+import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
@@ -15,15 +16,22 @@ class QuestionsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final searchEnabled = context.select((FeatureFlagsBloc bloc) => bloc.state.isEnabled(AppFeature.questionSearch));
+    final searchEnabled = context.select(
+      (FeatureFlagsBloc bloc) =>
+          bloc.state.isEnabled(AppFeature.questionSearch),
+    );
     return Scaffold(
       appBar: AppBar(
         title: Text(LocaleKeys.home_questions.tr()),
         actions: const [AuthButton()],
       ),
-      body: BlocProvider(
-        create: (_) => getIt<KonspektCatalogBloc>(),
-        child: searchEnabled ? const SearchableQuestions() : const Categories(),
+      body: ReadableWidth(
+        child: BlocProvider(
+          create: (_) => getIt<KonspektCatalogBloc>(),
+          child: searchEnabled
+              ? const SearchableQuestions()
+              : const Categories(),
+        ),
       ),
     );
   }

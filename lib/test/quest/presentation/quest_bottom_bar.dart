@@ -21,11 +21,17 @@ class QuestBottomBar extends StatelessWidget {
     required this.question,
     required this.first,
     required this.last,
+    this.inline = false,
   });
 
   final Question question;
   final bool first;
   final bool last;
+
+  /// The wide layout places this bar in the scroll flow right under the
+  /// answers instead of pinning it to the bottom of the window — inline it
+  /// drops the bar surface and the bottom SafeArea inset.
+  final bool inline;
 
   @override
   Widget build(BuildContext context) {
@@ -33,11 +39,14 @@ class QuestBottomBar extends StatelessWidget {
     return BlocBuilder<QuestContentBloc, QuesContentState>(
       builder: (context, state) {
         return ColoredBox(
-          color: scheme.surfaceContainerHigh,
+          color: inline ? Colors.transparent : scheme.surfaceContainerHigh,
           child: SafeArea(
             top: false,
+            bottom: !inline,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
+              padding: inline
+                  ? const EdgeInsets.fromLTRB(16, 14, 16, 0)
+                  : const EdgeInsets.fromLTRB(16, 10, 16, 14),
               child: Row(
                 children: [
                   TextButton(
@@ -57,8 +66,7 @@ class QuestBottomBar extends StatelessWidget {
                       ),
                       onPressed: first
                           ? null
-                          : () =>
-                              context.read<QuestBloc>().add(PrevQuestion()),
+                          : () => context.read<QuestBloc>().add(PrevQuestion()),
                       icon: const Icon(Icons.chevron_left),
                     ),
                     const SizedBox(width: 10),
@@ -68,9 +76,8 @@ class QuestBottomBar extends StatelessWidget {
                       minimumSize: const Size(64, 46),
                       shape: const StadiumBorder(),
                     ),
-                    onPressed: () => last
-                        ? _finish(context, state)
-                        : _next(context, state),
+                    onPressed: () =>
+                        last ? _finish(context, state) : _next(context, state),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [

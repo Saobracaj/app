@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:saobracaj/auth/presentation/auth_button.dart';
+import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/groups/presentation/groups_section.dart';
 import 'package:saobracaj/question_lists/presentation/question_lists_section.dart';
@@ -17,13 +18,18 @@ class HomeContentPage extends StatelessWidget {
         title: Text(LocaleKeys.home_home.tr()),
         actions: const [AuthButton()],
       ),
-      body: ListView(
-        children: const [
-          SizedBox(height: 8),
-          QuestionListsSection(),
-          SizedBox(height: 8),
-          GroupsSection(),
-        ],
+      // Карточки групп и лента списков шире читабельной колонки смотрятся
+      // разъехавшимися — на широких экранах контент собран по центру.
+      body: ReadableWidth(
+        maxWidth: 840,
+        child: ListView(
+          children: const [
+            SizedBox(height: 8),
+            QuestionListsSection(),
+            SizedBox(height: 8),
+            GroupsSection(),
+          ],
+        ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
@@ -119,46 +120,72 @@ class Quest extends StatelessWidget {
                     final id = state.questions[state.currentQuestionIndex];
                     final q = qs.firstWhere((element) => element.id == id);
                     context.read<QuestContentBloc>().add(
-                      QuestionChanged({...q.choices}, state.answers[id] ?? {}, id),
+                      QuestionChanged(
+                        {...q.choices},
+                        state.answers[id] ?? {},
+                        id,
+                      ),
                     );
                     context.read<TranslationsBloc>().add(ResetTranslation());
                   },
-                  child: Scaffold(
-                    appBar: QuestAppBar(
-                      questionNumber: state.currentQuestionIndex + 1,
-                      questionCount: state.questions.length,
-                      points: question.points,
-                      questionId: currentId,
-                    ),
-                    // Полоса закреплена под шапкой, а её раскрытием управляют
-                    // жесты тела: потяг вниз у самого верха раскрывает
-                    // навигатор, прокрутка вверх — сворачивает.
-                    body: QuestionProgressHeader(
-                      entries: entries,
-                      currentQuestionId: currentId,
-                      onQuestionSelected: (picked) =>
-                          questBloc.add(MoveToQuestion(picked)),
-                      child: ListView(
-                        // Короткий вопрос тоже должен отзываться на потяг —
-                        // иначе полосу не раскрыть жестом.
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: [
-                          QuestionContent(
-                            key: ValueKey(currentId),
-                            question: question,
-                            openComments: openComments,
-                            commentThreadId: commentThreadId,
-                          ),
-                        ],
-                      ),
-                    ),
-                    bottomNavigationBar: QuestBottomBar(
-                      question: question,
-                      first: state.currentQuestionIndex == 0,
-                      last:
+                  child: Builder(
+                    builder: (context) {
+                      final wide = context.isExpandedScreen;
+                      final first = state.currentQuestionIndex == 0;
+                      final last =
                           state.currentQuestionIndex ==
-                          state.questions.length - 1,
-                    ),
+                          state.questions.length - 1;
+                      return Scaffold(
+                        appBar: QuestAppBar(
+                          questionNumber: state.currentQuestionIndex + 1,
+                          questionCount: state.questions.length,
+                          points: question.points,
+                          questionId: currentId,
+                        ),
+                        // Полоса закреплена под шапкой, а её раскрытием
+                        // управляют жесты тела: потяг вниз у самого верха
+                        // раскрывает навигатор, прокрутка вверх — сворачивает.
+                        body: QuestionProgressHeader(
+                          entries: entries,
+                          currentQuestionId: currentId,
+                          onQuestionSelected: (picked) =>
+                              questBloc.add(MoveToQuestion(picked)),
+                          child: wide
+                              ? _WideQuestBody(
+                                  key: ValueKey(currentId),
+                                  question: question,
+                                  first: first,
+                                  last: last,
+                                  openComments: openComments,
+                                  commentThreadId: commentThreadId,
+                                )
+                              : ListView(
+                                  // Короткий вопрос тоже должен отзываться на
+                                  // потяг — иначе полосу не раскрыть жестом.
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  children: [
+                                    QuestionContent(
+                                      key: ValueKey(currentId),
+                                      question: question,
+                                      openComments: openComments,
+                                      commentThreadId: commentThreadId,
+                                    ),
+                                  ],
+                                ),
+                        ),
+                        // На широком экране действия стоят прямо под
+                        // вариантами ответа (см. _WideQuestBody) — мышью до
+                        // прибитой к низу окна панели тянуться неудобно.
+                        bottomNavigationBar: wide
+                            ? null
+                            : QuestBottomBar(
+                                question: question,
+                                first: first,
+                                last: last,
+                              ),
+                      );
+                    },
                   ),
                 ),
               );
@@ -195,6 +222,109 @@ QuestionNavigatorEntry _entryFor(
   );
 }
 
+/// The wide-screen (tablet landscape / web) body of a question: the question
+/// itself on the left with the actions right under the answers, and the
+/// feature tabs (explanation, discussion, …) in their own scrollable pane on
+/// the right — long texts are unreadable at full window width, and this way
+/// they don't push the answers off screen either.
+class _WideQuestBody extends StatelessWidget {
+  const _WideQuestBody({
+    super.key,
+    required this.question,
+    required this.first,
+    required this.last,
+    required this.openComments,
+    required this.commentThreadId,
+  });
+
+  final Question question;
+  final bool first;
+  final bool last;
+  final bool openComments;
+  final String? commentThreadId;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The tabs pane takes what a comfortable reading column needs and no
+        // more; the question keeps the rest.
+        final paneWidth = (constraints.maxWidth * 0.42)
+            .clamp(360.0, 520.0)
+            .toDouble();
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: ReadableWidth(
+                maxWidth: 640,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    QuestionContent(
+                      question: question,
+                      openComments: openComments,
+                      commentThreadId: commentThreadId,
+                      showFeatureTabs: false,
+                    ),
+                    QuestBottomBar(
+                      question: question,
+                      first: first,
+                      last: last,
+                      inline: true,
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
+              ),
+            ),
+            const VerticalDivider(width: 1, thickness: 1),
+            SizedBox(
+              width: paneWidth,
+              child: BlocBuilder<QuestContentBloc, QuesContentState>(
+                buildWhen: (prev, curr) =>
+                    prev.showCorrectAnswers != curr.showCorrectAnswers,
+                builder: (context, state) {
+                  if (!state.showCorrectAnswers) {
+                    // The pane fills with the feature tabs on reveal; until
+                    // then an empty surface would read as something broken.
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Text(
+                          LocaleKeys.quest_wideTabsPlaceholder.tr(),
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                      ),
+                    );
+                  }
+                  return ListView(
+                    children: [
+                      QuestionFeaturesTabs(
+                        questionId: question.id,
+                        categoryId: question.categoryId,
+                        initialFeature: openComments
+                            ? AppFeature.publicQuestionComments
+                            : null,
+                        commentThreadId: openComments ? commentThreadId : null,
+                        autoScroll: openComments,
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 /// The scrolling body of one question: image, text (with the optional RU
 /// interlinear line), the required-answers chip, the answer cards and — once
 /// the answers are revealed — the feature tabs. The actions live in the
@@ -205,6 +335,7 @@ class QuestionContent extends StatelessWidget {
     required this.question,
     this.openComments = false,
     this.commentThreadId,
+    this.showFeatureTabs = true,
   });
 
   final Question question;
@@ -213,6 +344,10 @@ class QuestionContent extends StatelessWidget {
   /// comments tab and scroll to it).
   final bool openComments;
   final String? commentThreadId;
+
+  /// The wide layout hosts the tabs in its own right-hand pane and switches
+  /// them off here.
+  final bool showFeatureTabs;
 
   @override
   Widget build(BuildContext context) {
@@ -295,7 +430,7 @@ class QuestionContent extends StatelessWidget {
                               : () => bloc.add(AddChoice(c)),
                         ),
                       ),
-                    if (state.showCorrectAnswers)
+                    if (state.showCorrectAnswers && showFeatureTabs)
                       QuestionFeaturesTabs(
                         questionId: question.id,
                         categoryId: question.categoryId,

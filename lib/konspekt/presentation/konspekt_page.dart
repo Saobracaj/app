@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saobracaj/core/deep_links.dart';
 import 'package:saobracaj/core/di.dart';
+import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
@@ -45,12 +46,18 @@ class _KonspektPageState extends State<KonspektPage> {
 
   Widget _content() {
     return BlocProvider(
-      create: (_) => getIt<KonspektBloc>(param1: widget.categoryId, param2: widget.section),
+      create: (_) => getIt<KonspektBloc>(
+        param1: widget.categoryId,
+        param2: widget.section,
+      ),
       child: Scaffold(
         appBar: AppBar(
           title: BlocBuilder<KonspektBloc, KonspektState>(
             builder: (context, state) {
-              return Text(state.konspekt?.categoryName.text ?? LocaleKeys.konspekt_title.tr());
+              return Text(
+                state.konspekt?.categoryName.text ??
+                    LocaleKeys.konspekt_title.tr(),
+              );
             },
           ),
           actions: [
@@ -88,7 +95,9 @@ class _KonspektPageState extends State<KonspektPage> {
               return Center(
                 child: Text(
                   state.errorMessage!,
-                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(color: Theme.of(context).colorScheme.error),
+                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
               );
             }
@@ -96,32 +105,41 @@ class _KonspektPageState extends State<KonspektPage> {
             if (state.inProgress || konspekt == null) {
               return const Center(child: CircularProgressIndicator());
             }
-            return ScrollablePositionedList.builder(
-              itemCount: state.itemCount,
-              itemScrollController: _itemScrollController,
-              itemBuilder: (context, index) {
-                if (state.hasIntro && index == 0) {
+            // Markdown конспекта на всю ширину окна нечитаем — колонка
+            // ограничена шириной комфортного чтения.
+            return ReadableWidth(
+              child: ScrollablePositionedList.builder(
+                itemCount: state.itemCount,
+                itemScrollController: _itemScrollController,
+                itemBuilder: (context, index) {
+                  if (state.hasIntro && index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: KonspektMarkdown(
+                        text: konspekt.intro!.text,
+                        categoryId: konspekt.categoryId,
+                        onSectionLink: (sectionId) => context
+                            .read<KonspektBloc>()
+                            .add(KonspektSectionRequested(sectionId)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                    );
+                  }
+                  final section =
+                      konspekt.sections[index - (state.hasIntro ? 1 : 0)];
+                  final isLast = index == state.itemCount - 1;
                   return Padding(
-                    padding: const EdgeInsets.only(top: 16),
-                    child: KonspektMarkdown(
-                      text: konspekt.intro!.text,
+                    padding: EdgeInsets.only(bottom: isLast ? 32 : 0),
+                    child: _SectionItem(
+                      section: section,
                       categoryId: konspekt.categoryId,
-                      onSectionLink: (sectionId) => context.read<KonspektBloc>().add(KonspektSectionRequested(sectionId)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      onSectionLink: (sectionId) => context
+                          .read<KonspektBloc>()
+                          .add(KonspektSectionRequested(sectionId)),
                     ),
                   );
-                }
-                final section = konspekt.sections[index - (state.hasIntro ? 1 : 0)];
-                final isLast = index == state.itemCount - 1;
-                return Padding(
-                  padding: EdgeInsets.only(bottom: isLast ? 32 : 0),
-                  child: _SectionItem(
-                    section: section,
-                    categoryId: konspekt.categoryId,
-                    onSectionLink: (sectionId) => context.read<KonspektBloc>().add(KonspektSectionRequested(sectionId)),
-                  ),
-                );
-              },
+                },
+              ),
             );
           },
         ),
@@ -154,7 +172,11 @@ class _UnavailablePage extends StatelessWidget {
 }
 
 class _SectionItem extends StatelessWidget {
-  const _SectionItem({required this.section, required this.categoryId, required this.onSectionLink});
+  const _SectionItem({
+    required this.section,
+    required this.categoryId,
+    required this.onSectionLink,
+  });
 
   final KonspektSection section;
   final String categoryId;
@@ -177,7 +199,10 @@ class _SectionItem extends StatelessWidget {
               ),
               IconButton(
                 tooltip: LocaleKeys.konspekt_copyLink.tr(),
-                icon: Icon(Icons.link, color: Theme.of(context).colorScheme.secondary),
+                icon: Icon(
+                  Icons.link,
+                  color: Theme.of(context).colorScheme.secondary,
+                ),
                 onPressed: () => _copyLink(context),
               ),
             ],
@@ -194,15 +219,23 @@ class _SectionItem extends StatelessWidget {
   }
 
   void _copyLink(BuildContext context) {
-    final uri = appLink('/konspekt', {'category': categoryId, 'section': section.id});
+    final uri = appLink('/konspekt', {
+      'category': categoryId,
+      'section': section.id,
+    });
     Clipboard.setData(ClipboardData(text: uri.toString())).then((_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(LocaleKeys.konspekt_linkCopied.tr())));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(LocaleKeys.konspekt_linkCopied.tr())),
+      );
     });
   }
 }
 
-Future<void> _showDictionary(BuildContext context, KonspektDictionary dictionary) {
+Future<void> _showDictionary(
+  BuildContext context,
+  KonspektDictionary dictionary,
+) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,

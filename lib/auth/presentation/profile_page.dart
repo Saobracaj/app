@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
+import '../../core/responsive.dart';
 import '../../feature_flags/domain/app_feature.dart';
 import '../../feature_flags/state_management/feature_flags_bloc.dart';
 import '../../generated/locale_keys.g.dart';
@@ -23,121 +24,126 @@ class ProfilePage extends StatelessWidget {
       body: SafeArea(
         child: BlocBuilder<AuthBloc, AuthState>(
           builder: (context, auth) {
-            return ListView(
-              children: [
-                _SectionHeader(LocaleKeys.settings_account.tr()),
-                if (auth.isAuthenticated)
-                  ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.person)),
-                    title: Text(
-                      LocaleKeys.settings_signedInAs.tr(
-                        args: [auth.viewer?.email ?? ''],
+            return ReadableWidth(
+              child: ListView(
+                children: [
+                  _SectionHeader(LocaleKeys.settings_account.tr()),
+                  if (auth.isAuthenticated)
+                    ListTile(
+                      leading: const CircleAvatar(child: Icon(Icons.person)),
+                      title: Text(
+                        LocaleKeys.settings_signedInAs.tr(
+                          args: [auth.viewer?.email ?? ''],
+                        ),
+                      ),
+                      // Tapping the account row opens the profile screen (display
+                      // name + delete account).
+                      onTap: () => Routemaster.of(context).push('/displayName'),
+                      trailing: TextButton.icon(
+                        onPressed: () => _confirmLogout(context),
+                        icon: const Icon(Icons.logout),
+                        label: Text(LocaleKeys.settings_logout.tr()),
+                      ),
+                    )
+                  else
+                    ListTile(
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.person_outline),
+                      ),
+                      title: Text(LocaleKeys.settings_notAuthorized.tr()),
+                      subtitle: Text(LocaleKeys.settings_loginPrompt.tr()),
+                      trailing: FilledButton(
+                        onPressed: () => Routemaster.of(context).push('/login'),
+                        child: Text(LocaleKeys.settings_loginButton.tr()),
                       ),
                     ),
-                    // Tapping the account row opens the profile screen (display
-                    // name + delete account).
-                    onTap: () => Routemaster.of(context).push('/displayName'),
-                    trailing: TextButton.icon(
-                      onPressed: () => _confirmLogout(context),
-                      icon: const Icon(Icons.logout),
-                      label: Text(LocaleKeys.settings_logout.tr()),
+                  const Divider(height: 0),
+                  ListTile(
+                    leading: const Icon(Icons.palette_outlined),
+                    title: Text(LocaleKeys.settings_appearance.tr()),
+                    subtitle: Text(LocaleKeys.settings_appearanceSubtitle.tr()),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Routemaster.of(context).push('/appearance'),
+                  ),
+                  // Notifications only make sense for a signed-in account, so the
+                  // entry is hidden while signed out.
+                  if (auth.isAuthenticated) ...[
+                    const Divider(height: 0),
+                    ListTile(
+                      leading: const Icon(Icons.notifications_outlined),
+                      title: Text(LocaleKeys.settings_notifications.tr()),
+                      subtitle: Text(
+                        LocaleKeys.settings_notificationsSubtitle.tr(),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () =>
+                          Routemaster.of(context).push('/notifications'),
                     ),
-                  )
-                else
-                  ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.person_outline),
+                  ],
+                  // The chat with the developers: signed-in only (the thread is
+                  // keyed by the account) and behind the `support_chat` flag,
+                  // which is what the catalog already reserved it for.
+                  if (auth.isAuthenticated &&
+                      context.watch<FeatureFlagsBloc>().state.isEnabled(
+                        AppFeature.supportChat,
+                      )) ...[
+                    const Divider(height: 0),
+                    ListTile(
+                      leading: const Icon(Icons.support_agent_outlined),
+                      title: Text('support.title'.tr()),
+                      subtitle: Text('support.settingsSubtitle'.tr()),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Routemaster.of(context).push('/support'),
                     ),
-                    title: Text(LocaleKeys.settings_notAuthorized.tr()),
-                    subtitle: Text(LocaleKeys.settings_loginPrompt.tr()),
-                    trailing: FilledButton(
-                      onPressed: () => Routemaster.of(context).push('/login'),
-                      child: Text(LocaleKeys.settings_loginButton.tr()),
+                  ],
+                  // The list of обращения, gated on the backend
+                  // `moderate_support` permission, so only support staff see it.
+                  if (auth.viewer?.permissions.contains('moderate_support') ==
+                      true) ...[
+                    const Divider(height: 0),
+                    ListTile(
+                      leading: const Icon(Icons.inbox_outlined),
+                      title: Text('support.threadsTitle'.tr()),
+                      subtitle: Text('support.threadsSubtitle'.tr()),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () =>
+                          Routemaster.of(context).push('/support/threads'),
                     ),
-                  ),
-                const Divider(height: 0),
-                ListTile(
-                  leading: const Icon(Icons.palette_outlined),
-                  title: Text(LocaleKeys.settings_appearance.tr()),
-                  subtitle: Text(LocaleKeys.settings_appearanceSubtitle.tr()),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Routemaster.of(context).push('/appearance'),
-                ),
-                // Notifications only make sense for a signed-in account, so the
-                // entry is hidden while signed out.
-                if (auth.isAuthenticated) ...[
+                  ],
+                  // Moderation is gated on the backend `moderate_comments`
+                  // permission, so the entry only appears for moderators.
+                  if (auth.viewer?.permissions.contains('moderate_comments') ==
+                      true) ...[
+                    const Divider(height: 0),
+                    ListTile(
+                      leading: const Icon(Icons.shield_outlined),
+                      title: Text(LocaleKeys.comments_moderation_title.tr()),
+                      subtitle: Text(
+                        LocaleKeys.comments_moderation_subtitle.tr(),
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Routemaster.of(context).push('/moderation'),
+                    ),
+                  ],
                   const Divider(height: 0),
                   ListTile(
-                    leading: const Icon(Icons.notifications_outlined),
-                    title: Text(LocaleKeys.settings_notifications.tr()),
-                    subtitle:
-                        Text(LocaleKeys.settings_notificationsSubtitle.tr()),
+                    leading: const Icon(Icons.tune),
+                    title: Text('settings.features'.tr()),
+                    subtitle: Text('settings.featuresSubtitle'.tr()),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Routemaster.of(context).push('/notifications'),
+                    onTap: () => Routemaster.of(context).push('/features'),
                   ),
-                ],
-                // The chat with the developers: signed-in only (the thread is
-                // keyed by the account) and behind the `support_chat` flag,
-                // which is what the catalog already reserved it for.
-                if (auth.isAuthenticated &&
-                    context.watch<FeatureFlagsBloc>().state.isEnabled(
-                      AppFeature.supportChat,
-                    )) ...[
                   const Divider(height: 0),
                   ListTile(
-                    leading: const Icon(Icons.support_agent_outlined),
-                    title: Text('support.title'.tr()),
-                    subtitle: Text('support.settingsSubtitle'.tr()),
+                    leading: const Icon(Icons.info_outline_rounded),
+                    title: Text(LocaleKeys.settings_about.tr()),
+                    subtitle: Text(LocaleKeys.settings_aboutSubtitle.tr()),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Routemaster.of(context).push('/support'),
+                    onTap: () => Routemaster.of(context).push('/about'),
                   ),
+                  const SizedBox(height: 24),
                 ],
-                // The list of обращения, gated on the backend
-                // `moderate_support` permission, so only support staff see it.
-                if (auth.viewer?.permissions.contains('moderate_support') ==
-                    true) ...[
-                  const Divider(height: 0),
-                  ListTile(
-                    leading: const Icon(Icons.inbox_outlined),
-                    title: Text('support.threadsTitle'.tr()),
-                    subtitle: Text('support.threadsSubtitle'.tr()),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () =>
-                        Routemaster.of(context).push('/support/threads'),
-                  ),
-                ],
-                // Moderation is gated on the backend `moderate_comments`
-                // permission, so the entry only appears for moderators.
-                if (auth.viewer?.permissions.contains('moderate_comments') ==
-                    true) ...[
-                  const Divider(height: 0),
-                  ListTile(
-                    leading: const Icon(Icons.shield_outlined),
-                    title: Text(LocaleKeys.comments_moderation_title.tr()),
-                    subtitle:
-                        Text(LocaleKeys.comments_moderation_subtitle.tr()),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Routemaster.of(context).push('/moderation'),
-                  ),
-                ],
-                const Divider(height: 0),
-                ListTile(
-                  leading: const Icon(Icons.tune),
-                  title: Text('settings.features'.tr()),
-                  subtitle: Text('settings.featuresSubtitle'.tr()),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Routemaster.of(context).push('/features'),
-                ),
-                const Divider(height: 0),
-                ListTile(
-                  leading: const Icon(Icons.info_outline_rounded),
-                  title: Text(LocaleKeys.settings_about.tr()),
-                  subtitle: Text(LocaleKeys.settings_aboutSubtitle.tr()),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Routemaster.of(context).push('/about'),
-                ),
-                const SizedBox(height: 24),
-              ],
+              ),
             );
           },
         ),
