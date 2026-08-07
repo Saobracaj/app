@@ -171,6 +171,13 @@
         "premiumSection": "Premium features",
         "premiumSectionSubtitle": "Determined by your subscription",
         "russianSection": "Russian language",
+        "russianPrompt": {
+            "title": "Russian materials",
+            "message": "The app ships extra materials, explanations and translations in Russian. Would you like to see them?",
+            "hint": "You can change this at any time: Settings → Features.",
+            "accept": "Show them",
+            "decline": "Don't show"
+        },
         "lockedAuth": "Sign in to use",
         "lockedPremium": "Available with a subscription",
         "features": {
