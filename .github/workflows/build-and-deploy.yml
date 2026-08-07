@@ -487,6 +487,39 @@ jobs:
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID"
 
   # ---------------------------------------------------------------------------
+  # TestFlight distribution. altool only delivers the binary — a build with no
+  # group is invisible to every tester, and the legacy "Saobracai internal"
+  # group only auto-accepts Xcode uploads (its distribution mode is frozen by
+  # Apple). This job waits for App Store Connect to finish processing and then
+  # attaches the build to the manually managed internal group, which is what
+  # actually makes it show up in the TestFlight app. Runs on Linux so the
+  # ~10-minute processing wait does not burn macOS minutes.
+  # ---------------------------------------------------------------------------
+  distribute-testflight:
+    name: Add the build to the TestFlight group
+    needs: [preflight, build-ios]
+    if: ${{ needs.preflight.outputs.has_appstore_api == 'true' && (inputs.deploy_ios || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install script dependencies
+        run: pip install --quiet PyJWT cryptography
+
+      - name: Wait for processing and assign the internal group
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          VERSION_NAME: ${{ needs.preflight.outputs.version_name }}
+          BUILD_NUMBER: ${{ needs.preflight.outputs.build_number }}
+          # The manually managed internal group in App Store Connect
+          # (TestFlight → Internal Testing). Must exist before the run.
+          TESTFLIGHT_GROUP_NAME: 'Internal manual'
+        run: python3 ios/ci/assign_testflight_group.py
+
+  # ---------------------------------------------------------------------------
   # Web: Flutter bundle → Rust static server image → GHCR.
   # ---------------------------------------------------------------------------
   build-web:

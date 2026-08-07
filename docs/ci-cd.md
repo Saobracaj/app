@@ -10,6 +10,7 @@
 | `checks` | `flutter analyze`, `flutter test`, `cargo test` в `web_server`, проверка патчера подписи iOS | всегда (в т.ч. на PR) |
 | `build-android` | подписанные APK + AAB → артефакты; загрузка в Google Play (**выключена**) | push в `main`, ручной запуск |
 | `build-ios` | подписанный IPA → артефакт, валидация в App Store Connect, заливка в TestFlight | push в `main`, ручной запуск |
+| `distribute-testflight` | ждёт обработки сборки в App Store Connect и добавляет её во внутреннюю группу TestFlight | вместе с заливкой в TestFlight |
 | `build-web` | `flutter build web --wasm` → Docker-образ Rust-сервера → GHCR | push в `main`, ручной запуск |
 | `deploy-web` | раскатка образа на OVH VPS → https://saobracaj.gleb.at | push в `main`, ручной запуск с `deploy_web` |
 
@@ -205,6 +206,23 @@ Certificate From a Certificate Authority*) → скачать `.cer`, откры
 Заливка попадёт в TestFlight, только если запись приложения уже создана:
 App Store Connect → **Apps** → «+» → New App, платформа iOS, Bundle ID
 `at.gleb.saobracaj.saobracaj`, SKU — любой.
+
+#### Шаг 5. Внутренняя группа TestFlight
+
+Сама по себе заливка (`altool --upload-app`) делает сборку невидимой для
+тестировщиков: пока сборка не добавлена хотя бы в одну группу, её нет в
+приложении TestFlight. Поэтому после заливки джоба `distribute-testflight`
+дожидается конца обработки сборки (обычно 5–15 минут) и через App Store
+Connect API добавляет её во внутреннюю группу **Internal manual**
+(`ios/ci/assign_testflight_group.py`; имя группы задаётся переменной
+`TESTFLIGHT_GROUP_NAME` в workflow).
+
+Группа создана 2026-08-08 (TestFlight → Internal Testing) именно с **ручной**
+раздачей. Старая группа «Saobracai internal» для CI непригодна: она создана с
+галочкой «Enable automatic distribution», которая принимает только загрузки из
+Xcode, запрещает ручное/API-добавление сборок и **не может быть изменена после
+создания группы**. Beta App Review для внутренних групп не нужен — сборка
+становится доступна тестировщикам сразу после добавления в группу.
 
 ### Веб — уже работает ✅
 
