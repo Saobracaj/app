@@ -42,6 +42,9 @@ import '../public_comments/data/public_comments_repository.dart' as _i989;
 import '../public_comments/state_management/comment_count_bloc.dart' as _i955;
 import '../public_comments/state_management/comments_bloc.dart' as _i405;
 import '../public_comments/state_management/moderation_bloc.dart' as _i515;
+import '../question_feedback/domain/question_feedback_source.dart' as _i7;
+import '../question_feedback/state_management/question_feedback_bloc.dart'
+    as _i751;
 import '../question_lists/data/question_lists_repository.dart' as _i206;
 import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
 import '../support_chat/data/support_chat_repository.dart' as _i968;
@@ -271,6 +274,20 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factoryParam<_i481.GroupFeedBloc, String, dynamic>(
       (groupId, _) =>
           _i481.GroupFeedBloc(gh<_i685.GroupsRepository>(), groupId),
+    );
+    gh.factoryParam<
+      _i751.QuestionFeedbackBloc,
+      int,
+      _i7.QuestionFeedbackSource
+    >(
+      (questionId, source) => _i751.QuestionFeedbackBloc(
+        gh<_i968.SupportChatRepository>(),
+        gh<_i426.NotificationPermissions>(),
+        gh<_i880.AuthRepository>(),
+        gh<_i388.AuthBloc>(),
+        questionId,
+        source,
+      ),
     );
     return this;
   }
