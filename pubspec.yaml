@@ -126,6 +126,9 @@ flutter:
      - assets/allQuestions_ru.json
      - assets/categories.json
      - assets/practice.json
+     # Derived from the two above by tool/question_analytics.py — re-run it when
+     # either changes.
+     - assets/question_analytics.json
      - assets/translations/
      - assets/dict/
      - assets/parsed_zakon.json

@@ -50,6 +50,12 @@ import '../test/quest/comment/data/comment_repository.dart' as _i359;
 import '../test/quest/comment/editor/state_management/comment_editor_bloc.dart'
     as _i658;
 import '../test/quest/comment/state_management/comment_bloc.dart' as _i213;
+import '../test/quest/question_features/data/question_analytics_repository.dart'
+    as _i1002;
+import '../test/quest/question_features/data/question_difficulty_repository.dart'
+    as _i147;
+import '../test/quest/question_features/state_management/question_analytics_bloc.dart'
+    as _i480;
 import '../test/quest/question_features/state_management/question_features_bloc.dart'
     as _i269;
 import '../test/quest/question_features/state_management/question_konspekt_bloc.dart'
@@ -76,6 +82,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i442.QuizPreferencesRepository>(
       () => _i442.QuizPreferencesRepository(),
+    );
+    gh.lazySingleton<_i1002.QuestionAnalyticsRepository>(
+      () => _i1002.QuestionAnalyticsRepository(),
     );
     gh.factory<_i790.PracticePageBloc>(
       () => _i790.PracticePageBloc(gh<_i442.QuizPreferencesRepository>()),
@@ -139,6 +148,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i359.CommentRepository>(
       () => _i359.CommentRepository(gh<_i483.GraphqlClient>()),
     );
+    gh.lazySingleton<_i147.QuestionDifficultyRepository>(
+      () => _i147.QuestionDifficultyRepository(gh<_i483.GraphqlClient>()),
+    );
     gh.lazySingleton<_i388.AuthBloc>(
       () => _i388.AuthBloc(
         gh<_i880.AuthRepository>(),
@@ -150,6 +162,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i880.AuthRepository>(),
         gh<_i388.AuthBloc>(),
         gh<_i426.NotificationPermissions>(),
+      ),
+    );
+    gh.factoryParam<_i480.QuestionAnalyticsBloc, int, dynamic>(
+      (questionId, _) => _i480.QuestionAnalyticsBloc(
+        gh<_i1002.QuestionAnalyticsRepository>(),
+        gh<_i147.QuestionDifficultyRepository>(),
+        gh<_i388.AuthBloc>(),
+        questionId,
       ),
     );
     gh.factory<_i187.KonspektCatalogBloc>(
