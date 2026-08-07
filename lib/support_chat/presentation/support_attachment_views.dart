@@ -1,9 +1,22 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/di.dart';
 import '../../test/quest/preview/question_preview_sheet.dart';
 import '../models/support_chat.dart';
+import '../state_management/support_image_bloc.dart';
+import '../state_management/support_image_events.dart';
+import '../state_management/support_image_state.dart';
+
+/// The box every inline picture occupies, whatever it turns out to contain.
+///
+/// A fixed size is the whole point: the bubble is laid out before a single byte
+/// of the image has arrived, so a conversation no longer jumps around under the
+/// reader's finger as pictures decode one after another.
+const double kSupportImageWidth = 240;
+const double kSupportImageHeight = 180;
 
 /// How one attachment is rendered inside a message bubble.
 ///
@@ -26,17 +39,18 @@ class SupportAttachmentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return switch (attachment.kind) {
-      SupportAttachmentKind.question => _QuestionChip(
+    if (attachment.kind == SupportAttachmentKind.question) {
+      return _QuestionChip(
         questionId: attachment.questionId,
         onSurface: onSurface,
-      ),
-      SupportAttachmentKind.image => _ImageAttachment(attachment: attachment),
-      SupportAttachmentKind.file => _FileAttachment(
-        attachment: attachment,
-        onSurface: onSurface,
-      ),
-    };
+      );
+    }
+    // Deliberately `isImage` and not `kind`: a picture uploaded before the app
+    // reported MIME types is stored as a plain file and would otherwise stay
+    // hidden behind a download row forever.
+    return attachment.isImage
+        ? _ImageAttachment(attachment: attachment)
+        : _FileAttachment(attachment: attachment, onSurface: onSurface);
   }
 }
 
@@ -69,30 +83,81 @@ class _ImageAttachment extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final url = attachment.url;
-    if (url == null || url.isEmpty) return const SizedBox.shrink();
+    return BlocProvider(
+      // Keyed by attachment, so a re-read of the thread (which hands out freshly
+      // signed links) starts the tile over instead of reusing a dead one.
+      key: ValueKey(attachment.id),
+      create: (_) {
+        final bloc = getIt<SupportImageBloc>(param1: attachment);
+        // No link at all is the same situation as an expired one: ask the
+        // backend to sign one rather than showing a placeholder for good.
+        final url = attachment.url;
+        if (url == null || url.isEmpty) bloc.add(SupportImageLoadFailed());
+        return bloc;
+      },
+      child: const _ImageTile(),
+    );
+  }
+}
+
+class _ImageTile extends StatelessWidget {
+  const _ImageTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final attachment = context.read<SupportImageBloc>().attachment;
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: () => _openFullScreen(context, attachment),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 220, maxWidth: 260),
-            child: Image.network(
-              url,
-              fit: BoxFit.cover,
-              errorBuilder: (context, _, _) => _BrokenImage(
-                fileName: attachment.fileName,
-              ),
-              loadingBuilder: (context, child, progress) => progress == null
-                  ? child
-                  : const SizedBox(
-                      height: 120,
-                      width: 160,
-                      child: Center(child: CircularProgressIndicator()),
-                    ),
-            ),
+        child: SizedBox(
+          width: kSupportImageWidth,
+          height: kSupportImageHeight,
+          child: BlocBuilder<SupportImageBloc, SupportImageState>(
+            builder: (context, state) {
+              if (!state.hasUrl) {
+                return _ImagePlaceholder(
+                  fileName: attachment.fileName,
+                  loading: !state.failed,
+                );
+              }
+              return InkWell(
+                onTap: () => _openFullScreen(
+                  context,
+                  attachment.copyWith(url: state.url),
+                ),
+                child: Image.network(
+                  state.url,
+                  // A re-signed link is a different image to Flutter's cache
+                  // only if the widget is told so.
+                  key: ValueKey(state.url),
+                  width: kSupportImageWidth,
+                  height: kSupportImageHeight,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, _, _) {
+                    // Reporting during a build is not allowed; the Bloc ignores
+                    // everything after the one retry, so repeats are harmless.
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (context.mounted) {
+                        context.read<SupportImageBloc>().add(
+                          SupportImageLoadFailed(),
+                        );
+                      }
+                    });
+                    return _ImagePlaceholder(
+                      fileName: attachment.fileName,
+                      loading: !state.refreshed,
+                    );
+                  },
+                  loadingBuilder: (context, child, progress) => progress == null
+                      ? child
+                      : _ImagePlaceholder(
+                          fileName: attachment.fileName,
+                          loading: true,
+                        ),
+                ),
+              );
+            },
           ),
         ),
       ),
@@ -100,25 +165,45 @@ class _ImageAttachment extends StatelessWidget {
   }
 }
 
-class _BrokenImage extends StatelessWidget {
-  const _BrokenImage({required this.fileName});
+/// What fills the picture's box before it arrives, and instead of it when it
+/// never does — the same size either way, so nothing moves.
+class _ImagePlaceholder extends StatelessWidget {
+  const _ImagePlaceholder({required this.fileName, this.loading = false});
+
   final String fileName;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 120,
-      width: 160,
+      width: kSupportImageWidth,
+      height: kSupportImageHeight,
       color: Theme.of(context).colorScheme.surfaceContainerHighest,
       alignment: Alignment.center,
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Text(
-          fileName.isEmpty ? 'support.imageUnavailable'.tr() : fileName,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ),
+      child: loading
+          ? const CircularProgressIndicator()
+          : Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.broken_image_outlined,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    fileName.isEmpty
+                        ? 'support.imageUnavailable'.tr()
+                        : fileName,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
     );
   }
 }

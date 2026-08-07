@@ -48,7 +48,9 @@ import '../question_feedback/state_management/question_feedback_bloc.dart'
 import '../question_lists/data/question_lists_repository.dart' as _i206;
 import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
 import '../support_chat/data/support_chat_repository.dart' as _i968;
+import '../support_chat/models/support_chat.dart' as _i163;
 import '../support_chat/state_management/support_chat_bloc.dart' as _i639;
+import '../support_chat/state_management/support_image_bloc.dart' as _i681;
 import '../support_chat/state_management/support_threads_bloc.dart' as _i252;
 import '../test/data/quiz_preferences_repository.dart' as _i442;
 import '../test/practice/state_management/practice_page_bloc.dart' as _i790;
@@ -227,6 +229,10 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i880.AuthRepository>(),
         threadId,
       ),
+    );
+    gh.factoryParam<_i681.SupportImageBloc, _i163.SupportAttachment, dynamic>(
+      (attachment, _) =>
+          _i681.SupportImageBloc(gh<_i968.SupportChatRepository>(), attachment),
     );
     gh.factory<_i957.DisplayNameBloc>(
       () => _i957.DisplayNameBloc(gh<_i311.ProfileRepository>()),

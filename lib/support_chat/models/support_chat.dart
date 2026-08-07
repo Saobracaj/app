@@ -21,6 +21,61 @@ enum SupportAttachmentKind {
   };
 }
 
+/// Extensions the app treats as pictures when nothing else says so.
+const _imageExtensions = {
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'webp',
+  'bmp',
+  'heic',
+  'heif',
+};
+
+/// MIME types by file extension — enough to cover what people actually attach.
+const _contentTypesByExtension = <String, String>{
+  'png': 'image/png',
+  'jpg': 'image/jpeg',
+  'jpeg': 'image/jpeg',
+  'gif': 'image/gif',
+  'webp': 'image/webp',
+  'bmp': 'image/bmp',
+  'heic': 'image/heic',
+  'heif': 'image/heif',
+  'pdf': 'application/pdf',
+  'txt': 'text/plain',
+  'csv': 'text/csv',
+  'json': 'application/json',
+  'zip': 'application/zip',
+  'mp4': 'video/mp4',
+  'mov': 'video/quicktime',
+  'doc': 'application/msword',
+  'docx':
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'xls': 'application/vnd.ms-excel',
+  'xlsx':
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};
+
+/// The lower-case extension of [fileName], without the dot, or `''`.
+String _extensionOf(String fileName) {
+  final dot = fileName.lastIndexOf('.');
+  if (dot < 0 || dot == fileName.length - 1) return '';
+  return fileName.substring(dot + 1).toLowerCase();
+}
+
+/// The MIME type an upload should be labelled with when the platform reported
+/// none.
+///
+/// `XFile.mimeType` is null everywhere except the web, and the backend decides
+/// an attachment's kind purely from what the uploader claims — so without this
+/// every screenshot sent from the phone was stored as a plain file and never
+/// shown inline. Returns `null` for an unknown extension, which lets the
+/// transport fall back to `application/octet-stream` as before.
+String? contentTypeForFileName(String fileName) =>
+    _contentTypesByExtension[_extensionOf(fileName)];
+
 /// One attachment of a support message.
 ///
 /// [url] is a **short-lived** signed link the backend hands only to a
@@ -55,6 +110,20 @@ abstract class SupportAttachment with _$SupportAttachment {
             DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ??
             DateTime.now(),
       );
+
+  /// Whether to render this attachment as an inline picture.
+  ///
+  /// The server's [kind] is the answer whenever it has one, but it is derived
+  /// from the MIME type the uploader reported — and messages sent before the
+  /// app learned to report one stored their screenshots as plain files, so
+  /// anything still marked `file` is given a second chance by its content type
+  /// and its extension.
+  bool get isImage {
+    if (kind == SupportAttachmentKind.question) return false;
+    if (kind == SupportAttachmentKind.image) return true;
+    return contentType.toLowerCase().startsWith('image/') ||
+        _imageExtensions.contains(_extensionOf(fileName));
+  }
 
   /// A human-readable size ("1,2 МБ"), empty for a question reference.
   String get readableSize {
