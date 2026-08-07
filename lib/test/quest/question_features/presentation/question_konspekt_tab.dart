@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/navigation.dart';
 import '../../../../generated/locale_keys.g.dart';
+import '../../../../konspekt/presentation/konspekt_inline_text.dart';
 import '../../../../konspekt/presentation/konspekt_markdown.dart';
 import '../../../../konspekt/presentation/konspekt_page.dart';
 import '../state_management/question_konspekt_bloc.dart';
@@ -37,7 +38,10 @@ class QuestionKonspektTab extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(state.sections[i].title.text, style: theme.textTheme.titleSmall),
+                    KonspektInlineText(
+                      text: state.sections[i].title.text,
+                      style: theme.textTheme.titleSmall,
+                    ),
                     const SizedBox(height: 6),
                     KonspektMarkdown(
                       text: state.sections[i].content.text,

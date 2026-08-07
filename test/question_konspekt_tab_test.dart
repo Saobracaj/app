@@ -39,7 +39,9 @@ class _StubKonspektRepository extends KonspektRepository {
     sections: [
       KonspektSection(
         id: 'a',
-        title: KonspektText(ru: 'Секция'),
+        // Заголовки секций содержат инлайновую разметку — вкладка обязана её
+        // отрисовать, а не показать звёздочки.
+        title: KonspektText(ru: '*Коловоз* и трака'),
         content: KonspektText(ru: 'Правило.'),
         questionIds: [7001],
       ),
@@ -99,6 +101,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Правило.'), findsOneWidget);
+    // Разметка заголовка отрисована, а не показана как есть.
+    expect(find.text('Коловоз и трака'), findsOneWidget);
+    expect(find.textContaining('*'), findsNothing);
     expect(find.text('konspekt.loadFailed'), findsNothing);
   });
 
