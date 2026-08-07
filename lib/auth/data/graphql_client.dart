@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
@@ -109,6 +110,50 @@ class GraphqlClient {
       if (e.network || !e.isAuthError) rethrow;
       if (!await _tryRefresh()) rethrow;
       return _send(query, variables, true);
+    }
+  }
+
+  /// Runs [query] with one file attached, using the GraphQL multipart request
+  /// spec (an `operations` part, a `map` part and the file itself under `0`).
+  ///
+  /// Always authenticated — the only upload the app has is a support-chat
+  /// attachment, which a guest cannot make. Auth handling mirrors [run]: the
+  /// token is refreshed beforehand and once more if the server still rejects
+  /// it, which is safe here because a rejected request never stored anything.
+  Future<Map<String, dynamic>> upload(
+    String query, {
+    Map<String, dynamic> variables = const {},
+    required List<int> bytes,
+    required String fileName,
+    String? contentType,
+    String fileVariable = 'file',
+    void Function(int sent, int total)? onProgress,
+  }) async {
+    await _ensureFreshAccessToken();
+    try {
+      return await _sendUpload(
+        query,
+        variables,
+        bytes,
+        fileName,
+        contentType,
+        fileVariable,
+        onProgress,
+      );
+    } on AuthExpiredException {
+      rethrow;
+    } on GraphqlException catch (e) {
+      if (e.network || !e.isAuthError) rethrow;
+      if (!await _tryRefresh()) rethrow;
+      return _sendUpload(
+        query,
+        variables,
+        bytes,
+        fileName,
+        contentType,
+        fileVariable,
+        onProgress,
+      );
     }
   }
 
@@ -241,11 +286,17 @@ class GraphqlClient {
       throw GraphqlException(_networkMessage(e), network: true);
     }
 
-    final data = response.data;
-    if (data is! Map) {
+    return _unwrap(response.data);
+  }
+
+  /// Turn a GraphQL response body into its `data` payload, raising the server's
+  /// first error (with its stable `extensions.code`) when there is one. Shared
+  /// by the JSON and multipart transports.
+  Map<String, dynamic> _unwrap(dynamic body) {
+    if (body is! Map) {
       throw GraphqlException('Unexpected server response');
     }
-    final errors = data['errors'];
+    final errors = body['errors'];
     if (errors is List && errors.isNotEmpty) {
       final first = errors.first;
       String? message;
@@ -257,11 +308,69 @@ class GraphqlClient {
       }
       throw GraphqlException(message ?? 'Request failed', code: code);
     }
-    final payload = data['data'];
+    final payload = body['data'];
     if (payload is! Map<String, dynamic>) {
       throw GraphqlException('Empty server response');
     }
     return payload;
+  }
+
+  /// The multipart half of [_send]: same headers, same error envelope, but the
+  /// body is `multipart/form-data` and the file variable is sent as `null` in
+  /// `operations` and pointed at by `map`, per the GraphQL multipart spec.
+  Future<Map<String, dynamic>> _sendUpload(
+    String query,
+    Map<String, dynamic> variables,
+    List<int> bytes,
+    String fileName,
+    String? contentType,
+    String fileVariable,
+    void Function(int sent, int total)? onProgress,
+  ) async {
+    final headers = <String, String>{
+      'X-Device-Id': await _storage.deviceId(),
+    };
+    final lang = languageProvider?.call();
+    if (lang != null && lang.isNotEmpty) headers['Accept-Language'] = lang;
+    final token = await _storage.accessToken;
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+
+    final formData = FormData.fromMap({
+      'operations': jsonEncode({
+        'query': query,
+        'variables': {...variables, fileVariable: null},
+      }),
+      'map': jsonEncode({
+        '0': ['variables.$fileVariable'],
+      }),
+      '0': MultipartFile.fromBytes(
+        bytes,
+        filename: fileName,
+        contentType:
+            contentType == null ? null : DioMediaType.parse(contentType),
+      ),
+    });
+
+    final Response<dynamic> response;
+    try {
+      response = await _dio.post<dynamic>(
+        AuthConfig.graphqlUrl,
+        data: formData,
+        options: Options(
+          headers: headers,
+          // A 20 MB attachment on a slow connection needs longer than the
+          // client's default response window.
+          sendTimeout: const Duration(minutes: 3),
+          receiveTimeout: const Duration(minutes: 3),
+        ),
+        onSendProgress: onProgress,
+      );
+    } on DioException catch (e) {
+      throw GraphqlException(_networkMessage(e), network: true);
+    }
+    return _unwrap(response.data);
   }
 
   String _networkMessage(DioException e) {

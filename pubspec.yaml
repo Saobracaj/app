@@ -91,6 +91,10 @@ dependencies:
   # group feed keeps itself up to date over a websocket. Was already present
   # transitively; listed here because the app now talks the protocol itself.
   web_socket_channel: ^3.0.3
+  # Picking an attachment for the support chat (lib/support_chat/). The
+  # flutter.dev package rather than file_picker: the latter pins win32 ^5, which
+  # cannot coexist with share_plus/package_info_plus here.
+  file_selector: ^1.1.0
 
 dev_dependencies:
   flutter_test:
