@@ -83,7 +83,7 @@ jobs:
       has_appstore_api: ${{ steps.flags.outputs.has_appstore_api }}
       has_play_api: ${{ steps.flags.outputs.has_play_api }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Compute version
         id: version
@@ -153,7 +153,7 @@ jobs:
     name: Analyze & test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:
@@ -192,9 +192,9 @@ jobs:
     if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.build_android) && needs.preflight.outputs.has_android_signing == 'true' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -258,14 +258,14 @@ jobs:
           fi
 
       - name: Upload the APK artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: android-apk-${{ needs.preflight.outputs.version_name }}+${{ needs.preflight.outputs.build_number }}
           path: build/app/outputs/flutter-apk/app-release.apk
           retention-days: 30
 
       - name: Upload the AAB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: android-aab-${{ needs.preflight.outputs.version_name }}+${{ needs.preflight.outputs.build_number }}
           path: build/app/outputs/bundle/release/app-release.aab
@@ -305,7 +305,7 @@ jobs:
     if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.build_ios) && needs.preflight.outputs.has_ios_signing == 'true' }}
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:
@@ -440,7 +440,7 @@ jobs:
           ls -lh build/ios/ipa/*.ipa
 
       - name: Upload the IPA artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ios-ipa-${{ needs.preflight.outputs.version_name }}+${{ needs.preflight.outputs.build_number }}
           path: build/ios/ipa/*.ipa
@@ -500,7 +500,7 @@ jobs:
     outputs:
       image: ${{ steps.meta.outputs.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:
