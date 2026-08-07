@@ -19,14 +19,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Сервер: отвечает на запросы чата и помнит, о чём его спрашивали.
 class _FakeApi implements HttpClientAdapter {
-  _FakeApi({this.messages = const [], this.messagesCount, this.unreadCount = 0});
+  _FakeApi({this.messages = const []});
 
   /// Вся переписка на сервере, от старых к новым.
   List<Map<String, dynamic>> messages;
 
   /// Сколько сообщений в треде — по умолчанию столько же, сколько в [messages].
   int? messagesCount;
-  int unreadCount;
+  int unreadCount = 0;
 
   final List<String> operations = [];
   int markReadCalls = 0;
