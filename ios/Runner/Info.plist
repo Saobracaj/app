@@ -67,5 +67,9 @@
     	<string>ru</string>
     	<string>sr</string>
     </array>
+	<!-- Only exempt (HTTPS) encryption is used; without this every TestFlight
+	     build waits in "Missing Compliance" and cannot be distributed. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

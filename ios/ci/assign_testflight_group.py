@@ -68,17 +68,22 @@ def request(method: str, path: str, query: dict | None = None,
         "Authorization": f"Bearer {token()}",
         "Content-Type": "application/json",
     })
+    with urllib.request.urlopen(req) as resp:
+        raw = resp.read()
+        return json.loads(raw) if raw else {}
+
+
+def request_or_exit(method: str, path: str, query: dict | None = None,
+                    body: dict | None = None) -> dict:
     try:
-        with urllib.request.urlopen(req) as resp:
-            raw = resp.read()
-            return json.loads(raw) if raw else {}
+        return request(method, path, query, body)
     except urllib.error.HTTPError as e:
         sys.exit(f"::error::{method} {path} failed with HTTP {e.code}: "
                  f"{e.read().decode(errors='replace')[:2000]}")
 
 
 def single(kind: str, path: str, query: dict) -> dict:
-    items = request("GET", path, query).get("data", [])
+    items = request_or_exit("GET", path, query).get("data", [])
     if not items:
         sys.exit(f"::error::No {kind} found for {query}")
     return items[0]
@@ -97,7 +102,7 @@ def main() -> None:
     deadline = time.monotonic() + PROCESSING_TIMEOUT_S
     build = None
     while time.monotonic() < deadline:
-        builds = request("GET", "/v1/builds", {
+        builds = request_or_exit("GET", "/v1/builds", {
             "filter[app]": app_id,
             "filter[version]": build_number,
             "filter[preReleaseVersion.version]": version_name,
@@ -117,14 +122,41 @@ def main() -> None:
         sys.exit(f"::error::Build {version_name}({build_number}) was still "
                  f"processing after {PROCESSING_TIMEOUT_S // 60} minutes")
 
+    # A build whose export-compliance question is unanswered sits in "Missing
+    # Compliance" and is not distributable to any group. Info.plist ships
+    # ITSAppUsesNonExemptEncryption=false, but answer here too so builds made
+    # before that key (or with a stripped plist) don't wedge the job.
+    if build["attributes"].get("usesNonExemptEncryption") is None:
+        print("Export compliance unanswered; declaring exempt encryption.",
+              flush=True)
+        request_or_exit("PATCH", f"/v1/builds/{build['id']}", body={
+            "data": {"type": "builds", "id": build["id"],
+                     "attributes": {"usesNonExemptEncryption": False}},
+        })
+
     group = single("beta group", "/v1/betaGroups", {
         "filter[app]": app_id,
         "filter[name]": group_name,
     })
 
-    # Adding an already-linked build is a no-op, so reruns are safe.
-    request("POST", f"/v1/betaGroups/{group['id']}/relationships/builds",
-            body={"data": [{"type": "builds", "id": build["id"]}]})
+    # TestFlight readiness lags processingState=VALID (and the compliance
+    # answer takes a moment to apply), so a 422 "not in an internally testable
+    # state" is retried until the deadline. Adding an already-linked build is
+    # a no-op, so reruns are safe.
+    while True:
+        try:
+            request("POST",
+                    f"/v1/betaGroups/{group['id']}/relationships/builds",
+                    body={"data": [{"type": "builds", "id": build["id"]}]})
+            break
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode(errors="replace")[:2000]
+            if e.code != 422 or time.monotonic() >= deadline:
+                sys.exit(f"::error::Adding the build to the group failed "
+                         f"with HTTP {e.code}: {detail}")
+            print(f"Build not assignable yet ({detail.strip()[:200]}…); "
+                  f"waiting…", flush=True)
+            time.sleep(POLL_INTERVAL_S)
     print(f"Build {version_name}({build_number}) is now available to "
           f"the internal group “{group_name}”.")
 
