@@ -80,7 +80,10 @@ Future<void> showQuestionFeedbackDialog(
   );
 }
 
-class _QuestionFeedbackDialog extends StatelessWidget {
+// Stateful ради одного FocusNode: `autofocus` на поле не срабатывает, потому
+// что в момент первого кадра оно ещё disabled (signedIn приходит из блока
+// асинхронно) — фокус ставится вручную, как только поле становится доступным.
+class _QuestionFeedbackDialog extends StatefulWidget {
   const _QuestionFeedbackDialog({
     required this.messenger,
     required this.onSignIn,
@@ -90,12 +93,31 @@ class _QuestionFeedbackDialog extends StatelessWidget {
   final VoidCallback onSignIn;
 
   @override
+  State<_QuestionFeedbackDialog> createState() =>
+      _QuestionFeedbackDialogState();
+}
+
+class _QuestionFeedbackDialogState extends State<_QuestionFeedbackDialog> {
+  final _focus = FocusNode();
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BlocConsumer<QuestionFeedbackBloc, QuestionFeedbackState>(
-      listenWhen: (prev, curr) => curr.sent && !prev.sent,
+      listenWhen: (prev, curr) =>
+          (curr.sent && !prev.sent) || (curr.signedIn && !prev.signedIn),
       listener: (context, state) {
+        if (state.signedIn && !state.sent) {
+          _focus.requestFocus();
+          return;
+        }
         Navigator.of(context).pop();
-        messenger.showSnackBar(
+        widget.messenger.showSnackBar(
           SnackBar(content: Text(LocaleKeys.questionFeedback_sent.tr())),
         );
       },
@@ -111,6 +133,7 @@ class _QuestionFeedbackDialog extends StatelessWidget {
               children: [
                 TextField(
                   autofocus: true,
+                  focusNode: _focus,
                   enabled: state.signedIn && !state.sending,
                   minLines: 3,
                   maxLines: 6,
@@ -178,7 +201,7 @@ class _QuestionFeedbackDialog extends StatelessWidget {
                     child: TextButton(
                       onPressed: () {
                         Navigator.of(context).pop();
-                        onSignIn();
+                        widget.onSignIn();
                       },
                       child: Text(LocaleKeys.questionFeedback_signIn.tr()),
                     ),

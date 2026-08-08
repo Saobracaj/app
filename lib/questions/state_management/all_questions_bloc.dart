@@ -22,6 +22,14 @@ class AllQuestionsBloc extends Bloc<AllQuestionsBlocEvent, AllQuestionsBlocState
     add(LoadStatistics());
   }
 
+  StreamSubscription<void>? _syncSubscription;
+
+  @override
+  Future<void> close() {
+    _syncSubscription?.cancel();
+    return super.close();
+  }
+
   void _onLoad(Load event, Emitter<AllQuestionsBlocState> emit) async {
     emit(state.copyWith(errorMessage: null, questionsData: null));
 
@@ -55,6 +63,19 @@ class AllQuestionsBloc extends Bloc<AllQuestionsBlocEvent, AllQuestionsBlocState
   }
 
   void _onLoadStatistics(LoadStatistics event, Emitter<AllQuestionsBlocState> emit) async {
+    // Login triggers a statistics sync (AuthBloc); the merged records land in
+    // the local DB after this handler's one-shot read, so re-read on every
+    // completed sync — otherwise the questions screen shows stale (empty)
+    // stats until a test is finished or the app restarts. Subscribed here and
+    // not in the constructor: the handler already touches the same globals,
+    // while test stubs that swallow events never reach them.
+    try {
+      _syncSubscription ??=
+          statisticsSync.synced.listen((_) => add(LoadStatistics()));
+    } catch (_) {
+      // `statisticsSync` needs the DI container; widget tests run without one,
+      // and they don't sync — the refresh is best-effort anyway.
+    }
     final allStats = await repository.getAllRecords();
     final res = <String, SubStats>{};
     for (var s in allStats) {

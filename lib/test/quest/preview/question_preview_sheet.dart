@@ -154,11 +154,64 @@ class _MissingQuestion extends StatelessWidget {
   }
 }
 
-class _Content extends StatelessWidget {
+// Stateful only for the drag-to-dismiss accumulator below — everything else is
+// still driven by the blocs.
+class _Content extends StatefulWidget {
   const _Content({required this.question, this.categoryName});
 
   final Question question;
   final String? categoryName;
+
+  @override
+  State<_Content> createState() => _ContentState();
+}
+
+class _ContentState extends State<_Content> {
+  Question get question => widget.question;
+
+  /// Downward travel accumulated while the content is already at its top, so a
+  /// continued pull closes the sheet — without this, the inner scroll view
+  /// swallowed the drag and the sheet could only be dismissed from the header.
+  double _pullDown = 0;
+  bool _dismissing = false;
+
+  static const _dismissThreshold = 48.0;
+
+  bool _onScroll(ScrollNotification notification) {
+    if (_dismissing || notification.depth != 0) return false;
+    if (notification is ScrollStartNotification ||
+        notification is ScrollEndNotification) {
+      _pullDown = 0;
+      return false;
+    }
+
+    final double delta;
+    if (notification is OverscrollNotification) {
+      if (notification.dragDetails == null) return false;
+      delta = notification.overscroll;
+    } else if (notification is ScrollUpdateNotification) {
+      if (notification.dragDetails == null) return false;
+      // Only a pull past the top counts; ordinary scrolling resets the travel.
+      if (notification.metrics.pixels > notification.metrics.minScrollExtent) {
+        _pullDown = 0;
+        return false;
+      }
+      delta = notification.scrollDelta ?? 0;
+    } else {
+      return false;
+    }
+
+    if (delta < 0) {
+      _pullDown -= delta;
+      if (_pullDown >= _dismissThreshold) {
+        _dismissing = true;
+        Navigator.of(context).pop();
+      }
+    } else if (delta > 0) {
+      _pullDown = 0;
+    }
+    return false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -196,7 +249,8 @@ class _Content extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        categoryName ?? LocaleKeys.quest_preview_title.tr(),
+                        widget.categoryName ??
+                            LocaleKeys.quest_preview_title.tr(),
                         style: theme.textTheme.titleMedium,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -216,47 +270,56 @@ class _Content extends StatelessWidget {
           ),
         ),
         Flexible(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: BlocConsumer<QuestContentBloc, QuesContentState>(
-              listenWhen: (prev, curr) => prev.limitHits != curr.limitHits,
-              listener: (context, state) => showSelectionLimitFeedback(
-                context,
-                LocaleKeys.quest_answerLimitReached.plural(rightAnswers),
+          child: NotificationListener<ScrollNotification>(
+            onNotification: _onScroll,
+            child: SingleChildScrollView(
+              // Bouncing physics so the pull past the top emits drag updates on
+              // every platform (clamping physics reports them as overscrolls —
+              // _onScroll handles both).
+              physics: const BouncingScrollPhysics(
+                parent: AlwaysScrollableScrollPhysics(),
               ),
-              builder: (context, state) {
-                final bloc = context.read<QuestContentBloc>();
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (question.hasImage) ...[
-                      QuestionImageCard(imageId: question.imageId),
-                      const SizedBox(height: 14),
-                    ],
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: QuestMarkdown(
-                        text: question.text.trim().dict,
-                        pStyle: theme.textTheme.titleMedium,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    for (final choice in question.choices)
+              padding: const EdgeInsets.only(bottom: 8),
+              child: BlocConsumer<QuestContentBloc, QuesContentState>(
+                listenWhen: (prev, curr) => prev.limitHits != curr.limitHits,
+                listener: (context, state) => showSelectionLimitFeedback(
+                  context,
+                  LocaleKeys.quest_answerLimitReached.plural(rightAnswers),
+                ),
+                builder: (context, state) {
+                  final bloc = context.read<QuestContentBloc>();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (question.hasImage) ...[
+                        QuestionImageCard(imageId: question.imageId),
+                        const SizedBox(height: 14),
+                      ],
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                        child: AnswerOptionCard(
-                          choice: choice,
-                          selected: state.selectedChoices.contains(choice),
-                          revealed: state.showCorrectAnswers,
-                          showTranslation: false,
-                          onTap: state.showCorrectAnswers
-                              ? null
-                              : () => bloc.add(AddChoice(choice)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: QuestMarkdown(
+                          text: question.text.trim().dict,
+                          pStyle: theme.textTheme.titleMedium,
                         ),
                       ),
-                  ],
-                );
-              },
+                      const SizedBox(height: 12),
+                      for (final choice in question.choices)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                          child: AnswerOptionCard(
+                            choice: choice,
+                            selected: state.selectedChoices.contains(choice),
+                            revealed: state.showCorrectAnswers,
+                            showTranslation: false,
+                            onTap: state.showCorrectAnswers
+                                ? null
+                                : () => bloc.add(AddChoice(choice)),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
             ),
           ),
         ),

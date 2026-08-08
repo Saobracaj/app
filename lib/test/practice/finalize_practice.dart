@@ -355,15 +355,21 @@ class _ErrorCard extends StatelessWidget {
                 child: SizedBox(
                   width: 52,
                   height: 52,
-                  child: Image.asset(
-                    'assets/img/${question.imageId}.jpeg',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => Icon(
-                      Icons.car_crash,
-                      size: 36,
-                      color: theme.colorScheme.secondary.withAlpha(50),
-                    ),
-                  ),
+                  child: question.hasImage
+                      ? Image.asset(
+                          'assets/img/${question.imageId}.jpeg',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => Icon(
+                            Icons.car_crash,
+                            size: 36,
+                            color: theme.colorScheme.secondary.withAlpha(50),
+                          ),
+                        )
+                      : Icon(
+                          Icons.quiz_outlined,
+                          size: 32,
+                          color: theme.colorScheme.secondary.withAlpha(50),
+                        ),
                 ),
               ),
               const SizedBox(width: 11),

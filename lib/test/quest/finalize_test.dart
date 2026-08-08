@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/core/responsive.dart';
+import 'package:saobracaj/questions/presentation/question_list_tile.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/test/quest/state_management/quest_bloc.dart';
 
@@ -86,26 +87,9 @@ class FinalizeTestWidget extends StatelessWidget {
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
-                            trailing: SizedBox(
-                              width: 60,
-                              height: 48,
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: Image.asset(
-                                  'assets/img/${qs.firstWhere((element) => element.id == a.key).id}.jpeg',
-                                  // fit: BoxFit.cover,
-                                  width: 48,
-                                  height: 48,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Icon(
-                                      Icons.car_crash,
-                                      size: 48,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.secondary.withAlpha(50),
-                                    );
-                                  },
-                                ),
+                            trailing: QuestionThumbnail(
+                              question: qs.firstWhere(
+                                (element) => element.id == a.key,
                               ),
                             ),
                           ),

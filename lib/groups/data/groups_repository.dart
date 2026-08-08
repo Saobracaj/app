@@ -44,7 +44,7 @@ class GroupsRepository {
       subcategory rightAnswers allAnswers delta
       previousRightAnswers previousAllAnswers
     }
-    practice { points mistakes passed wrongAnswers }
+    practice { points mistakes passed durationSeconds wrongAnswers }
     achievement { achievement streak subcategory }
     rename { name previousName }
   ''';

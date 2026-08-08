@@ -8,6 +8,8 @@ import '../../generated/locale_keys.g.dart';
 import '../../models/models.dart';
 import '../../public_comments/presentation/relative_time.dart';
 import '../../questions/state_management/all_questions_bloc.dart';
+import '../../test/practice/practice.dart' show formatDuration;
+import '../../test/quest/preview/question_preview_sheet.dart';
 import '../../theme/quiz_colors.dart';
 import '../models/group_event.dart';
 import '../state_management/group_feed_bloc.dart';
@@ -35,13 +37,15 @@ class GroupFeedPage extends StatelessWidget {
     return BlocProvider(
       create: (_) =>
           getIt<GroupFeedBloc>(param1: groupId)..add(const GroupFeedOpened()),
-      child: const _FeedView(),
+      child: _FeedView(groupId: groupId),
     );
   }
 }
 
 class _FeedView extends StatelessWidget {
-  const _FeedView();
+  const _FeedView({required this.groupId});
+
+  final String groupId;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +77,20 @@ class _FeedView extends StatelessWidget {
                   ),
                   icon: const Icon(Icons.cloud_off_outlined),
                 ),
+              // Управление группой (участники, приглашение, переименование)
+              // вынесено в меню — сама карточка группы теперь открывает ленту.
+              // Навигация через onSelected: контекст пункта меню к моменту
+              // срабатывания уже снят с дерева вместе с самим меню.
+              PopupMenuButton<String>(
+                onSelected: (_) =>
+                    Routemaster.of(context).push('/groups/$groupId'),
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'manage',
+                    child: Text(LocaleKeys.groups_manage.tr()),
+                  ),
+                ],
+              ),
             ],
             bottom: state.loading && state.loaded
                 ? const PreferredSize(
@@ -122,6 +140,7 @@ class _FeedList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final events = state.events.where(groupEventIsWorthShowing).toList();
     return NotificationListener<ScrollNotification>(
       // Ask for the next page a screenful before the end, so scrolling does not
       // stop to wait for it.
@@ -135,22 +154,38 @@ class _FeedList extends StatelessWidget {
         }
         return false;
       },
-      child: ListView.separated(
+      child: ListView.builder(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: state.events.length + (state.hasMore ? 1 : 0),
-        separatorBuilder: (_, _) => const Divider(height: 1),
+        itemCount: events.length + (state.hasMore ? 1 : 0),
         itemBuilder: (context, index) {
-          if (index >= state.events.length) {
+          if (index >= events.length) {
             return const Padding(
               padding: EdgeInsets.all(24),
               child: Center(child: CircularProgressIndicator()),
             );
           }
-          return GroupFeedTile(event: state.events[index]);
+          return GroupFeedTile(event: events[index]);
         },
       ),
     );
   }
+}
+
+/// В симуляции экзамена всегда 41 вопрос — размера выборки в событии нет,
+/// поэтому число правильных ответов восстанавливается из числа ошибок.
+const _practiceQuestionCount = 41;
+
+/// Результаты, где правильных ответов меньше пяти, в ленту не попадают: это
+/// почти всегда брошенный на первых вопросах прогон, а не результат, которым
+/// имеет смысл делиться с группой.
+bool groupEventIsWorthShowing(GroupEvent event) {
+  return switch (event.kind) {
+    GroupEventKind.subcategoryCompleted when event.subcategory != null =>
+      event.subcategory!.rightAnswers >= 5,
+    GroupEventKind.practiceFinished when event.practice != null =>
+      _practiceQuestionCount - event.practice!.mistakes >= 5,
+    _ => true,
+  };
 }
 
 /// One event. What it shows depends on the kind: a block result carries its
@@ -182,7 +217,9 @@ class _SimpleTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(_icon, color: Theme.of(context).colorScheme.outline),
+      leading: _LeadingBox(
+        child: Icon(_icon, color: Theme.of(context).colorScheme.outline),
+      ),
       title: Text(groupEventSummary(context, event)),
       subtitle: _EventTime(event.occurredAt),
     );
@@ -217,13 +254,20 @@ class _SubcategoryTile extends StatelessWidget {
         right: details.rightAnswers,
         all: details.allAnswers,
       ),
-      title: Text(
-        LocaleKeys.groups_feed_subcategoryTitle.tr(
-          args: [
-            event.actor.displayName,
-            subcategoryTitle(context, details.subcategory),
-          ],
-        ),
+      // Имя участника и рядом чип с усечённым названием блока — целиком
+      // название видно на экране блока, здесь оно только загромождало строку.
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              event.actor.displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 8),
+          _BlockChip(label: subcategoryTitle(context, details.subcategory)),
+        ],
       ),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,10 +292,13 @@ class _SubcategoryTile extends StatelessWidget {
       trailing: questions.isEmpty
           ? null
           : const Icon(Icons.chevron_right, size: 20),
+      // Относительный путь: вопросы открываются как '/groups/:id/feed/q', так
+      // что «назад» (и завершение прохождения) возвращает в ленту, а не на
+      // главную.
       onTap: questions.isEmpty
           ? null
           : () => Routemaster.of(context).push(
-              '/start?q=${questions.join(',')}'
+              'q?q=${questions.join(',')}'
               '&subcategory=${details.subcategory}',
             ),
     );
@@ -287,12 +334,19 @@ class _PracticeTile extends StatelessWidget {
     final theme = Theme.of(context);
     final quiz = theme.quiz;
     final wrong = _knownQuestions(context, details.wrongAnswers);
+    // Максимум за прогон нет в событии — он восстанавливается как набранные
+    // баллы плюс стоимость вопросов с ошибками (в экзамене вопрос либо
+    // засчитан целиком, либо нет).
+    final maxPoints =
+        details.points + wrong.fold<int>(0, (sum, q) => sum + q.points);
     return ExpansionTile(
       shape: const Border(),
       collapsedShape: const Border(),
-      leading: Icon(
-        details.passed ? Icons.verified_outlined : Icons.error_outline,
-        color: details.passed ? quiz.correct : quiz.wrong,
+      leading: _LeadingBox(
+        child: Icon(
+          details.passed ? Icons.verified_outlined : Icons.error_outline,
+          color: details.passed ? quiz.correct : quiz.wrong,
+        ),
       ),
       title: Text(
         LocaleKeys.groups_feed_practiceTitle.tr(
@@ -306,11 +360,22 @@ class _PracticeTile extends StatelessWidget {
             (details.passed
                     ? LocaleKeys.groups_feed_practicePassed
                     : LocaleKeys.groups_feed_practiceFailed)
-                .tr(args: ['${details.points}']),
+                .tr(args: ['${details.points}', '$maxPoints']),
             style: theme.textTheme.bodyMedium?.copyWith(
               color: details.passed ? quiz.correct : quiz.wrong,
             ),
           ),
+          // Сколько времени заняла симуляция. Событий, записанных до того, как
+          // сервер стал хранить длительность, это не касается — там её нет.
+          if (details.durationSeconds != null)
+            Text(
+              LocaleKeys.groups_feed_practiceDuration.tr(
+                args: [
+                  formatDuration(Duration(seconds: details.durationSeconds!)),
+                ],
+              ),
+              style: theme.textTheme.bodySmall,
+            ),
           _EventTime(event.occurredAt),
         ],
       ),
@@ -335,25 +400,31 @@ class _PracticeTile extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          for (final question in wrong)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  question.text,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall,
-                ),
-              ),
+          // Только номера вопросов; чип открывает тот же bottom sheet
+          // предпросмотра, что и ссылки на вопросы в конспекте.
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final id in details.wrongAnswers)
+                  ActionChip(
+                    label: Text('$id'),
+                    labelStyle: theme.textTheme.labelMedium,
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => showQuestionPreview(context, id),
+                  ),
+              ],
             ),
+          ),
           if (wrong.isNotEmpty)
             Align(
               alignment: AlignmentDirectional.centerStart,
               child: TextButton.icon(
+                // Относительный путь — см. комментарий в _SubcategoryTile.
                 onPressed: () => Routemaster.of(context).push(
-                  '/start?q=${wrong.map((q) => q.id).join(',')}',
+                  'q?q=${wrong.map((q) => q.id).join(',')}',
                 ),
                 icon: const Icon(Icons.play_arrow_outlined),
                 label: Text(LocaleKeys.groups_feed_openMistakes.tr()),
@@ -361,6 +432,47 @@ class _PracticeTile extends StatelessWidget {
             ),
         ],
       ],
+    );
+  }
+}
+
+/// Одинаковая по размеру область слева у всех событий — как у [_ScoreBadge]
+/// (44×44), иначе иконки «уже» бейджа и текст в ленте прыгает по горизонтали.
+class _LeadingBox extends StatelessWidget {
+  const _LeadingBox({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(width: 44, height: 44, child: Center(child: child));
+  }
+}
+
+/// Чип с усечённым названием блока в заголовке события.
+class _BlockChip extends StatelessWidget {
+  const _BlockChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 140),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 }

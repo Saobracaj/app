@@ -80,6 +80,7 @@ class ResetPasswordView extends StatelessWidget {
                           const SizedBox(height: 24),
                           TextFormField(
                             enabled: !state.codeSent,
+                            autofocus: true,
                             decoration: InputDecoration(
                               border: const OutlineInputBorder(),
                               labelText: LocaleKeys.auth_email.tr(),

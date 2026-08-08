@@ -70,15 +70,18 @@ class _CategoriesState extends State<Categories> {
                             height: 48,
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(48),
-                              child: Image.asset(
-                                'assets/img/${data.questions.where((q) => q.subcategoryId == subCategory.id && q.hasImage).firstOrNull?.id}.jpeg',
-                                fit: BoxFit.cover,
-                                width: 48,
-                                height: 48,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Icon(Icons.car_crash, size: 48, color: Theme.of(context).colorScheme.secondary.withAlpha(50));
-                                },
-                              ),
+                              child: switch (data.questions.where((q) => q.subcategoryId == subCategory.id && q.hasImage).firstOrNull) {
+                                final cover? => Image.asset(
+                                  'assets/img/${cover.imageId}.jpeg',
+                                  fit: BoxFit.cover,
+                                  width: 48,
+                                  height: 48,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Icon(Icons.car_crash, size: 48, color: Theme.of(context).colorScheme.secondary.withAlpha(50));
+                                  },
+                                ),
+                                null => Icon(Icons.car_crash, size: 48, color: Theme.of(context).colorScheme.secondary.withAlpha(50)),
+                              },
                             ),
                           ),
                         ),

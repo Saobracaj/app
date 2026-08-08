@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:saobracaj/core/deep_links.dart';
+import 'package:saobracaj/core/presentation/translation_chip.dart';
 import 'package:saobracaj/core/responsive.dart';
+import 'package:saobracaj/feature_flags/domain/app_feature.dart';
+import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
 import 'package:saobracaj/data/zakon_o_bezbednosti_data_source.dart';
 import 'package:saobracaj/zakon/state_management/zakon_bloc.dart';
 import 'package:flutter/services.dart';
@@ -34,16 +37,20 @@ class _ZakonState extends State<Zakon> {
         appBar: AppBar(
           title: Text('ЗАКОН о безбедности саобраћаја на путевима'),
           actions: [
-            BlocBuilder<ZakonBloc, ZakonState>(
-              builder: (context, state) {
-                return IconButton(
-                  onPressed: () {
-                    context.read<ZakonBloc>().add(ToggleLang());
-                  },
-                  icon: Icon(Icons.translate_outlined),
-                );
-              },
+            // Та же кнопка «РУ», что и на экране вопроса (вместо прежней
+            // безликой иконки translate); isSr — сербский, т.е. перевод выкл.
+            FeatureGate(
+              feature: AppFeature.russianContent,
+              child: BlocBuilder<ZakonBloc, ZakonState>(
+                builder: (context, state) {
+                  return TranslationChip(
+                    on: !state.isSr,
+                    onTap: () => context.read<ZakonBloc>().add(ToggleLang()),
+                  );
+                },
+              ),
             ),
+            const SizedBox(width: 8),
           ],
         ),
         floatingActionButton: BlocBuilder<ZakonBloc, ZakonState>(

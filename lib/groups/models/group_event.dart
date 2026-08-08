@@ -142,6 +142,10 @@ abstract class PracticeFinishedDetails with _$PracticeFinishedDetails {
     /// Whether the score reached the exam's pass mark.
     @Default(false) bool passed,
 
+    /// How long the exam took; `null` for events recorded before the server
+    /// started keeping it — the feed then leaves the time out.
+    int? durationSeconds,
+
     /// The questions that gave them trouble.
     @Default(<int>[]) List<int> wrongAnswers,
   }) = _PracticeFinishedDetails;
@@ -152,6 +156,7 @@ abstract class PracticeFinishedDetails with _$PracticeFinishedDetails {
       points: _int(json['points']) ?? 0,
       mistakes: _int(json['mistakes']) ?? 0,
       passed: json['passed'] == true,
+      durationSeconds: _int(json['durationSeconds']),
       wrongAnswers: wrong is List
           ? wrong.map(_int).whereType<int>().toList()
           : const [],

@@ -28,6 +28,7 @@ import 'package:saobracaj/test/practice/practice.dart';
 import 'package:saobracaj/test/practice/practice_page.dart';
 import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
 import 'package:saobracaj/test/quest/comment/editor/presentation/comment_editor_page.dart';
+import 'package:saobracaj/core/presentation/not_found_page.dart';
 import 'package:saobracaj/test/quest/quest.dart';
 import 'package:saobracaj/test/start_test.dart';
 import 'package:saobracaj/zakon/zakon.dart';
@@ -41,14 +42,20 @@ const _questionHosts = [
   '/quest/q',
   '/statistics/q',
   '/lists/:id/q',
+  '/groups/:id/feed/q',
   '/questPractice/q',
   '/question/:id',
   '/konspekt/question/:id',
 ];
 
 final routes = RouteMap(
+  // A mistyped or outdated address gets a designed screen with a way home
+  // instead of routemaster's bare default one.
+  onUnknownRoute: (path) => MaterialPage(child: NotFoundPage(path: path)),
   routes: {
-    '/': (_) => IndexedPage(child: HomePage(), paths: ['/home', '/questions', '/practice', '/statistics', '/settings']),
+    // «История» ('/statistics') временно скрыта из нижней навигации; сам
+    // маршрут ниже остаётся рабочим для прямых ссылок.
+    '/': (_) => IndexedPage(child: HomePage(), paths: ['/home', '/questions', '/practice', '/settings']),
     '/home': (_) => MaterialPage(child: HomeContentPage()),
     '/questions': (_) => MaterialPage(child: QuestionsPage()),
     '/statistics': (_) => MaterialPage(child: StatisticsPage()),
@@ -91,6 +98,10 @@ final routes = RouteMap(
     '/groups/:id/feed': (data) => MaterialPage(
       child: GroupFeedPage(groupId: Uri.decodeComponent(data.pathParameters['id'] ?? '')),
     ),
+    // Questions opened from a feed event sit under the feed, so finishing the
+    // run (or pressing back) returns to the feed rather than to the home tab.
+    '/groups/:id/feed/q': questPage,
+    '/groups/:id/feed/q/zakon': zakonPage,
     '/lists/:id/q': questPage,
     '/lists/:id/q/zakon': zakonPage,
     '/questPractice/q': questPage,

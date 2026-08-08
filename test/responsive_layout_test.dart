@@ -223,7 +223,9 @@ void main() {
       await tester.tap(find.byIcon(Icons.settings_outlined));
       await tester.pumpAndSettle();
       final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-      expect(rail.selectedIndex, 4);
+      // «Настройки» — последняя вкладка; «История» временно скрыта, поэтому
+      // это индекс 3, а не 4.
+      expect(rail.selectedIndex, 3);
     });
   });
 

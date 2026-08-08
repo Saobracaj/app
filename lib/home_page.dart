@@ -39,11 +39,8 @@ class _HomePageState extends State<HomePage> {
         Icons.car_crash_outlined,
         Icons.car_crash,
       ),
-      _Destination(
-        LocaleKeys.home_history.tr(),
-        Icons.insights_outlined,
-        Icons.insights,
-      ),
+      // «История» временно скрыта из навигации (задача 1217292094173343);
+      // экран и его маршруты остаются доступными по прямой ссылке /statistics.
       _Destination(
         LocaleKeys.home_settings.tr(),
         Icons.settings_outlined,

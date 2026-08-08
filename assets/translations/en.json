@@ -428,13 +428,15 @@
       "improved": "Better than last time ({} of {})",
       "worsened": "Worse than last time ({} of {})",
       "practiceTitle": "{} — mock exam",
-      "practicePassed": "Passed, {} pts",
-      "practiceFailed": "Failed, {} pts",
+      "practicePassed": "Passed, {} of {} pts",
+      "practiceFailed": "Failed, {} of {} pts",
+      "practiceDuration": "Took {}",
       "mistakes": "Questions that gave trouble: {}",
       "noMistakes": "No mistakes",
       "openMistakes": "Practise these questions",
       "offline": "No connection to the server — refresh"
-    }
+    },
+    "manage": "Members & invite"
   },
   "questionAnalysis": {
     "valueTitle": "Question value",
@@ -525,5 +527,10 @@
     "signInRequired": "Sign in to send a message",
     "signIn": "Sign in",
     "sent": "Sent to the developer"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "message": "This address doesn't exist in the app — the link may be outdated.",
+    "home": "Go home"
   }
 }

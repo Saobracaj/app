@@ -66,7 +66,9 @@ class _QuestionProgressHeaderState extends State<QuestionProgressHeader> {
   double _pullDown = 0;
   double _pushUp = 0;
 
-  static const _expandThreshold = 24.0;
+  // Expanding takes a long deliberate pull — with a low threshold any careless
+  // touch on the question opened the strip (task 1217292094173343).
+  static const _expandThreshold = 72.0;
   static const _collapseThreshold = 12.0;
 
   bool _onScroll(ScrollNotification notification) {

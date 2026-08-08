@@ -41,7 +41,11 @@ const _linkableRoots = {
 
 /// The in-app path for [uri], or `null` when the link is not ours to handle.
 String? deepLinkPathFor(Uri uri) {
-  final segments = _routeSegments(uri);
+  // A trailing slash ('/question/10913/') is common in links pasted or built
+  // by other apps; the empty segment it produces would miss every route and
+  // land on "page not found", so it is dropped here.
+  final segments =
+      _routeSegments(uri)?.where((s) => s.isNotEmpty).toList();
   if (segments == null) return null;
   if (segments.isEmpty) return '/';
   if (!_linkableRoots.contains(segments.first)) return null;

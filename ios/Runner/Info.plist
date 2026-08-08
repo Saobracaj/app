@@ -60,6 +60,17 @@
 				<string>saobracaj</string>
 			</array>
 		</dict>
+		<!-- Google Sign-In OAuth callback: the REVERSED_CLIENT_ID from
+		     GoogleService-Info.plist. Without it the GoogleSignIn SDK
+		     aborts (crash) because it cannot receive the redirect. -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.1039935330316-rnhorhr3nqrmpoi7cpfrppdfcbichn2b</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleLocalizations</key>
     <array>

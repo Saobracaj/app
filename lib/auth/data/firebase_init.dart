@@ -28,9 +28,16 @@ Future<void> initFirebase() async {
   }
 
   try {
-    final googleClientId = DefaultFirebaseOptions.currentPlatform.appId;
+    // The OAuth client id, NOT options.appId (the Firebase app id) — passing
+    // the app id makes the native GoogleSignIn SDK fail on iOS.
+    final options = DefaultFirebaseOptions.currentPlatform;
+    final googleClientId = switch (defaultTargetPlatform) {
+      TargetPlatform.iOS || TargetPlatform.macOS => options.iosClientId,
+      TargetPlatform.android => options.androidClientId,
+      _ => null,
+    };
     FirebaseUIAuth.configureProviders([
-      GoogleProvider(clientId: googleClientId),
+      GoogleProvider(clientId: googleClientId ?? ''),
       fb_ui_oauth_apple.AppleProvider(),
     ]);
   } catch (e) {

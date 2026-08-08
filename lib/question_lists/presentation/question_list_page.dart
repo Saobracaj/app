@@ -173,6 +173,7 @@ class _EditableQuestions extends StatelessWidget {
           ),
           child: ListTile(
             onTap: () => _openQuestion(context, question.id),
+            leading: QuestionThumbnail(question: question),
             title: Text(
               question.text,
               maxLines: 2,

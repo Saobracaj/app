@@ -76,9 +76,15 @@ class _SupportChatView extends StatelessWidget {
                 if (state.errorMessage != null)
                   _ErrorBanner(message: state.errorMessage!),
                 Expanded(
-                  child: state.isEmpty
-                      ? _EmptyState(isModerator: isModerator)
-                      : _MessageList(messages: state.messages),
+                  // A tap on the free space around the messages dismisses the
+                  // keyboard, same as on the auth screens.
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => FocusScope.of(context).unfocus(),
+                    child: state.isEmpty
+                        ? _EmptyState(isModerator: isModerator)
+                        : _MessageList(messages: state.messages),
+                  ),
                 ),
                 _Composer(state: state),
               ],

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saobracaj/core/deep_links.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
+import 'package:saobracaj/core/presentation/translation_chip.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/question_lists/presentation/add_to_lists_button.dart';
@@ -90,43 +91,18 @@ class QuestAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-/// The "РУ" toggle: outlined while off, filled with primary while on.
+/// The "РУ" toggle wired to the question run's [TranslationsBloc].
 class _TranslationChip extends StatelessWidget {
   const _TranslationChip();
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return BlocBuilder<TranslationsBloc, TranslationsState>(
       builder: (context, state) {
-        final on = state.showTranslation;
-        return Center(
-          child: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () =>
-                context.read<TranslationsBloc>().add(ToggleShowTranslation()),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              height: 26,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: on ? scheme.primary : null,
-                border: on
-                    ? null
-                    : Border.all(color: scheme.onSurfaceVariant, width: 1.5),
-              ),
-              child: Text(
-                LocaleKeys.quest_ruToggle.tr(),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: on ? scheme.onPrimary : scheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ),
+        return TranslationChip(
+          on: state.showTranslation,
+          onTap: () =>
+              context.read<TranslationsBloc>().add(ToggleShowTranslation()),
         );
       },
     );

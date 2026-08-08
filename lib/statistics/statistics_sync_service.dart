@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 
@@ -32,6 +34,14 @@ class StatisticsSyncService {
   // more afterwards to pick up records added in the meantime.
   bool _pending = false;
 
+  final _synced = StreamController<void>.broadcast();
+
+  /// Fires after every completed sync that may have pulled new records into the
+  /// local DB — listeners holding stats in memory (e.g. `AllQuestionsBloc`)
+  /// re-read on it, so the numbers appear right after login instead of after
+  /// the next finished test.
+  Stream<void> get synced => _synced.stream;
+
   static const _mutation = r'''
     mutation SyncStatistics($input: StatisticsInput!) {
       syncStatistics(input: $input) {
@@ -57,6 +67,7 @@ class StatisticsSyncService {
         _pending = false;
         await _syncOnce();
       } while (_pending);
+      _synced.add(null);
     } catch (e) {
       debugPrint('Statistics sync failed: $e');
     } finally {

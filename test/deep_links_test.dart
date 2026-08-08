@@ -36,6 +36,13 @@ void main() {
       expect(deepLinkPathFor(Uri.parse('https://www.saobracaj.gleb.at')), '/');
     });
 
+    test('хвостовой слэш не ломает маршрут', () {
+      expect(
+        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/question/10913/')),
+        '/question/10913',
+      );
+    });
+
     test('links that are not ours are ignored', () {
       // Someone else's domain, however similar.
       expect(deepLinkPathFor(Uri.parse('https://saobracaj.example.com/invite/A')), isNull);

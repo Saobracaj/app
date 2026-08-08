@@ -13,6 +13,7 @@ import '../state_management/groups_events.dart';
 import '../state_management/groups_state.dart';
 import 'group_dialogs.dart';
 import 'group_event_summary.dart';
+import 'group_feed_page.dart' show groupEventIsWorthShowing;
 
 /// The "groups" block of the home screen: one card per group the user belongs
 /// to, plus the two entry points — create a group, or join one with a code.
@@ -132,12 +133,15 @@ class GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final events = group.feedPreview;
+    final events =
+        group.feedPreview.where(groupEventIsWorthShowing).toList();
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: () => Routemaster.of(context).push('/groups/${group.id}'),
+        // Карточка ведёт сразу в ленту событий; управление группой (участники,
+        // приглашение) — в меню на экране ленты.
+        onTap: () => Routemaster.of(context).push('/groups/${group.id}/feed'),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(

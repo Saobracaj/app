@@ -16,5 +16,13 @@
 	<array>
 		<string>applinks:saobracaj.gleb.at</string>
 	</array>
+
+	<!-- Sign in with Apple: without this entitlement (and the matching
+	     capability on the App ID) the native flow ends with
+	     ASAuthorizationError 1000 → "Sign in failed. Please try again." -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
 </dict>
 </plist>

@@ -1,4 +1,7 @@
+import 'dart:ui' as ui;
+
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -106,9 +109,7 @@ class GroupInviteCard extends StatelessWidget {
                     label: Text(LocaleKeys.groups_invite_link.tr()),
                   ),
                   TextButton.icon(
-                    onPressed: () => SharePlus.instance.share(
-                      ShareParams(text: invite.link),
-                    ),
+                    onPressed: () => _shareInvite(invite.link),
                     icon: const Icon(Icons.ios_share_outlined),
                     label: Text(LocaleKeys.groups_invite_share.tr()),
                   ),
@@ -152,5 +153,51 @@ class GroupInviteCard extends StatelessWidget {
   String _formatDate(BuildContext context, DateTime? date) {
     if (date == null) return '';
     return DateFormat.yMMMd(context.locale.languageCode).add_Hm().format(date);
+  }
+
+  /// Шарит и ссылку, и QR-код с ней: получателю без установленного приложения
+  /// удобнее ссылка, а стоящему рядом человеку — картинка. Если платформа не
+  /// умеет делиться файлами (часть браузеров), уходит только текст.
+  Future<void> _shareInvite(String link) async {
+    try {
+      final image = await _renderQr(link);
+      await SharePlus.instance.share(
+        ShareParams(
+          text: link,
+          files: [
+            XFile.fromData(
+              image,
+              mimeType: 'image/png',
+              name: 'saobracaj_invite.png',
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      await SharePlus.instance.share(ShareParams(text: link));
+    }
+  }
+
+  /// PNG с QR-кодом ссылки на белом фоне (сам [QrPainter] рисует на
+  /// прозрачном, что в тёмных мессенджерах нечитаемо).
+  Future<Uint8List> _renderQr(String link) async {
+    const size = 600.0;
+    const padding = 32.0;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    canvas.drawRect(
+      const Rect.fromLTWH(0, 0, size, size),
+      Paint()..color = Colors.white,
+    );
+    canvas.translate(padding, padding);
+    QrPainter(
+      data: link,
+      version: QrVersions.auto,
+      gapless: true,
+    ).paint(canvas, const Size.square(size - 2 * padding));
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(size.toInt(), size.toInt());
+    final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+    return bytes!.buffer.asUint8List();
   }
 }
