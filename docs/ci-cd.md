@@ -174,8 +174,13 @@ Certificate From a Certificate Authority*) → скачать `.cer`, откры
 
 1. https://developer.apple.com/account → **Certificates, Identifiers & Profiles**
    → **Identifiers** — убедиться, что App ID `at.gleb.saobracaj.saobracaj`
-   существует и в нём включены нужные capabilities (Push Notifications,
-   Sign in with Apple — они используются приложением).
+   существует и в нём включены нужные capabilities. Их ровно три, по числу
+   ключей в `ios/Runner/Runner.entitlements`: **Push Notifications**
+   (`aps-environment`), **Sign in with Apple** (`com.apple.developer.applesignin`)
+   и **Associated Domains** (`com.apple.developer.associated-domains` —
+   Universal Links на `saobracaj.gleb.at`). Подпись в CI ручная, поэтому
+   профиль, в котором не хватает хотя бы одного из них, роняет сборку с
+   «Provisioning profile doesn't include the … entitlement».
 2. **Profiles** → «+» → **App Store Connect** (раздел *Distribution*) → выбрать
    этот App ID → выбрать сертификат из шага 1 → задать имя (например
    `Saobracaj App Store`) → Generate → Download.
