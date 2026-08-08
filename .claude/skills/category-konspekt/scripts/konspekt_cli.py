@@ -204,6 +204,20 @@ def cmd_validate(args):
                         f"{p}.blocks: content.ru must equal the blocks joined with a blank "
                         f"line — run `sync-blocks` to regenerate it"
                     )
+                sr_blocks = [
+                    ((b.get("content") or {}).get("sr") or "") for b in blocks if isinstance(b, dict)
+                ]
+                if any(t.strip() for t in sr_blocks):
+                    if not all(t.strip() for t in sr_blocks):
+                        warnings.append(
+                            f"{p}.blocks: only some blocks carry content.sr — the Serbian "
+                            f"version of this section will have gaps"
+                        )
+                    if "\n\n".join(sr_blocks) != ((s.get("content") or {}).get("sr") or ""):
+                        errors.append(
+                            f"{p}.blocks: content.sr must equal the sr blocks joined with a "
+                            f"blank line — run `sync-blocks` to regenerate it"
+                        )
                 unmapped = sorted(set(qids) - block_qids)
                 if unmapped:
                     errors.append(
@@ -260,9 +274,10 @@ def cmd_validate(args):
 
 
 def cmd_sync_blocks(args):
-    """Regenerate each section's content.ru from its blocks (join with a blank
-    line), so blocks stay the single авторский source and content never
-    drifts. Sections without blocks are left untouched."""
+    """Regenerate each section's content.ru (and content.sr, once any block
+    carries a Serbian fragment) from its blocks (join with a blank line), so
+    blocks stay the single авторский source and content never drifts. Sections
+    without blocks are left untouched."""
     with open(args.file, encoding="utf-8") as f:
         k = json.load(f)
     changed = 0
@@ -270,15 +285,26 @@ def cmd_sync_blocks(args):
         blocks = s.get("blocks")
         if not blocks:
             continue
-        joined = "\n\n".join(((b.get("content") or {}).get("ru") or "") for b in blocks)
         content = s.setdefault("content", {"ru": None, "sr": None})
-        if content.get("ru") != joined:
-            content["ru"] = joined
+        section_changed = False
+        for lang in ("ru", "sr"):
+            # A language is authored per-section: sr stays null until at least
+            # one block of the section carries it (partial sr would render as a
+            # mixed-language section, which is worse than the ru fallback).
+            if lang == "sr" and not any(
+                ((b.get("content") or {}).get("sr") or "").strip() for b in blocks
+            ):
+                continue
+            joined = "\n\n".join(((b.get("content") or {}).get(lang) or "") for b in blocks)
+            if content.get(lang) != joined:
+                content[lang] = joined
+                section_changed = True
+        if section_changed:
             changed += 1
     with open(args.file, "w", encoding="utf-8") as f:
         json.dump(k, f, ensure_ascii=False, indent=1)
         f.write("\n")
-    print(f"synced content.ru of {changed} section(s) from blocks")
+    print(f"synced content of {changed} section(s) from blocks")
 
 
 # ---------------------------------------------------------------- database ---

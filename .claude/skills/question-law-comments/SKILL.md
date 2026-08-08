@@ -116,6 +116,28 @@ entries) directly with the Read tool, that burns context for nothing.
   separate local progress file is needed (the `comments` GraphQL query is
   cheap — id + status only).
 
+## Serbian comments (`lang: SR`)
+
+The app shows a question's explanation in Serbian for everyone **except**
+users with the `russian_content` feature resolved on — a comment fragment in
+Serbian is first-class content, not a translation extra. When asked to
+produce Serbian explanations:
+
+- **Serbian Cyrillic only** (ћирилица), never Latin or a mix.
+- **Same principles as RU** (style guide, law citations, `zakon?…` links),
+  but **adapt, don't translate**: the RU comments assume a Russian-speaking
+  reader — they translate Serbian exam terms in brackets and lean on
+  RU/SR word similarities. In the SR text the exam terms are the reader's
+  own language: drop translation brackets and any «по-русски это…»
+  scaffolding, and write the explanation directly around the term.
+- Storage: the comment's `text`/`draft` blocks are per-language item lists
+  (`items: [{lang: RU|SR, text}]`). Serbian is saved via the **new Rust
+  API** (`api.saobracaj.gleb.at`): `saveCommentDraft(id: Int!, draft:
+  String!, language: SR)` — requires an `edit_comments` account. This CLI
+  still targets the legacy server and its `draft` mutation, which only
+  writes RU — do not submit Serbian through it; extend it (or use the new
+  API directly) first.
+
 ## Files
 
 - `scripts/comments_cli.py` — the only thing you should run; stdlib-only

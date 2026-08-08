@@ -7,6 +7,7 @@ import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
+import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/konspekt/models/konspekt.dart';
 import 'package:saobracaj/konspekt/presentation/konspekt_inline_text.dart';
@@ -54,8 +55,10 @@ class _KonspektPageState extends State<KonspektPage> {
         appBar: AppBar(
           title: BlocBuilder<KonspektBloc, KonspektState>(
             builder: (context, state) {
+              final russian =
+                  context.watch<FeatureFlagsBloc>().state.russianContent;
               return Text(
-                state.konspekt?.categoryName.text ??
+                state.konspekt?.categoryName.select(russian: russian) ??
                     LocaleKeys.konspekt_title.tr(),
               );
             },
@@ -105,6 +108,8 @@ class _KonspektPageState extends State<KonspektPage> {
             if (state.inProgress || konspekt == null) {
               return const Center(child: CircularProgressIndicator());
             }
+            final russian =
+                context.watch<FeatureFlagsBloc>().state.russianContent;
             // Markdown конспекта на всю ширину окна нечитаем — колонка
             // ограничена шириной комфортного чтения.
             return ReadableWidth(
@@ -116,7 +121,7 @@ class _KonspektPageState extends State<KonspektPage> {
                     return Padding(
                       padding: const EdgeInsets.only(top: 16),
                       child: KonspektMarkdown(
-                        text: konspekt.intro!.text,
+                        text: konspekt.intro!.select(russian: russian),
                         categoryId: konspekt.categoryId,
                         onSectionLink: (sectionId) => context
                             .read<KonspektBloc>()
@@ -132,6 +137,7 @@ class _KonspektPageState extends State<KonspektPage> {
                     padding: EdgeInsets.only(bottom: isLast ? 32 : 0),
                     child: _SectionItem(
                       section: section,
+                      russian: russian,
                       categoryId: konspekt.categoryId,
                       onSectionLink: (sectionId) => context
                           .read<KonspektBloc>()
@@ -174,11 +180,16 @@ class _UnavailablePage extends StatelessWidget {
 class _SectionItem extends StatelessWidget {
   const _SectionItem({
     required this.section,
+    required this.russian,
     required this.categoryId,
     required this.onSectionLink,
   });
 
   final KonspektSection section;
+
+  /// Whether the study content is shown in Russian (`russian_content` on).
+  final bool russian;
+
   final String categoryId;
   final void Function(String sectionId) onSectionLink;
 
@@ -193,7 +204,7 @@ class _SectionItem extends StatelessWidget {
             children: [
               Expanded(
                 child: KonspektInlineText(
-                  text: section.title.text,
+                  text: section.title.select(russian: russian),
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
               ),
@@ -209,7 +220,7 @@ class _SectionItem extends StatelessWidget {
           ),
         ),
         KonspektMarkdown(
-          text: section.content.text,
+          text: section.content.select(russian: russian),
           categoryId: categoryId,
           onSectionLink: onSectionLink,
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -232,6 +243,9 @@ class _SectionItem extends StatelessWidget {
   }
 }
 
+// Словарь — глоссарий сербских экзаменационных терминов с русским переводом,
+// то есть контент по природе русскоязычный: кнопка гейтится russian_content,
+// поэтому здесь остаётся RU-first `.text` без выбора языка.
 Future<void> _showDictionary(
   BuildContext context,
   KonspektDictionary dictionary,

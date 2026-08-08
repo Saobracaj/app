@@ -104,6 +104,33 @@ never open `assets/allQuestions.json` (1.4 MB) directly with the Read tool.
    published). `--dry-run` validates and reports the payload size without
    touching the database.
 
+## Serbian version (`sr` fields)
+
+The app shows konspekts in Serbian for everyone **except** users with the
+`russian_content` feature resolved on (backend grant + the popup/settings
+opt-in) — the `sr` fields are the primary content, not an extra. Authoring
+rules:
+
+- **Serbian Cyrillic only** (ћирилица) — never Latin, never a mix.
+- **Adapt, don't translate.** The RU text leans on the reader knowing
+  Russian: Serbian terms in italics with a Russian translation in brackets,
+  "как по-русски X" comparisons, the RU-translation dictionary. In the `sr`
+  version the exam terms are the reader's native words — drop translation
+  brackets and any "in Russian this is called…" scaffolding, and rewrite
+  those sentences around the term itself. Everything else (logic chains,
+  facts, traps, inline `[№7921](question?id=7921)` links, illustration
+  markers) carries over 1:1.
+- Author `sr` **per block** in the same file (`blocks[].content.sr`), then
+  run `sync-blocks` — it regenerates `content.sr` alongside `content.ru`
+  once at least one block of a section carries Serbian. Translate whole
+  sections at a time: partially-Serbian sections render with gaps
+  (`validate` warns about them).
+- `title.sr`, `categoryName.sr` and `intro.sr` are needed too; the
+  `dictionary` is inherently RU-oriented (translations *into* Russian) and
+  stays RU-only — the app only offers it to `russian_content` users.
+- Bump `version` and re-`publish` — the sr fields ship inside the same
+  document.
+
 ## Notes
 
 - Content only: this skill writes `konspekt_content/` and the database. Do

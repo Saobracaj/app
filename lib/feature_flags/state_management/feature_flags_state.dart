@@ -16,6 +16,11 @@ class FeatureFlagsState {
   /// widgets need: `context.select((FeatureFlagsBloc b) => b.state.isEnabled(x))`.
   bool isEnabled(AppFeature feature) => snapshot.isEnabled(feature);
 
+  /// Convenience mirror of [FeatureFlagsSnapshot.russianContent]: whether the
+  /// study content (konspekts, explanations, RU translations) is shown in
+  /// Russian rather than Serbian.
+  bool get russianContent => snapshot.russianContent;
+
   FeatureFlagsState copyWith({FeatureFlagsSnapshot? snapshot}) =>
       FeatureFlagsState(snapshot: snapshot ?? this.snapshot);
 }

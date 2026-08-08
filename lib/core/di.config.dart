@@ -153,9 +153,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i206.QuestionListsRepository>(
       () => _i206.QuestionListsRepository(gh<_i483.GraphqlClient>()),
     );
-    gh.lazySingleton<_i359.CommentRepository>(
-      () => _i359.CommentRepository(gh<_i483.GraphqlClient>()),
-    );
     gh.lazySingleton<_i147.QuestionDifficultyRepository>(
       () => _i147.QuestionDifficultyRepository(gh<_i483.GraphqlClient>()),
     );
@@ -188,6 +185,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i491.KonspektRepository>(),
         categoryId,
         initialSection,
+      ),
+    );
+    gh.lazySingleton<_i359.CommentRepository>(
+      () => _i359.CommentRepository(
+        gh<_i483.GraphqlClient>(),
+        gh<_i389.FeatureFlagsRepository>(),
       ),
     );
     gh.factoryParam<_i192.QuestionKonspektBloc, int, String>(
