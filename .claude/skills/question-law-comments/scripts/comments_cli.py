@@ -2,37 +2,43 @@
 """
 CLI for the "question-law-comments" skill.
 
-Talks to the Saobraćaj GraphQL server and to the bundled question/law JSON
-assets so that an agent can generate RU comments (with links to the law) for
-exam questions without ever loading the full 1.4 MB questions file or the
-~4000-entry law file into its own context.
+Talks to the Saobraćaj GraphQL API (the Rust backend at
+`api.saobracaj.gleb.at`) and to the bundled question/law JSON assets so that an
+agent can generate RU/SR comments (with links to the law) for exam questions
+without ever loading the full 1.4 MB questions file or the ~4000-entry law file
+into its own context.
 
-Auth is fully self-contained: on first use the script signs up a disposable
-dev account (BASIC permission is all `comments`/`draft` need) and caches its
-refresh token at ~/.saobracaj_comments/auth.json (override with
-SAOBRACAJ_COMMENTS_TOKEN_FILE). Later runs mint short-lived access tokens
-from the cached refresh token automatically. No operator interaction needed.
+Auth needs a real account **with the `edit_comments` permission** — every write
+here is an editor action, and the backend guards it (a throwaway sign-up will
+not do). Put the credentials in the environment:
+
+    SAOBRACAJ_COMMENTS_EMAIL=<editor account e-mail>
+    SAOBRACAJ_COMMENTS_PASSWORD=<its password>
+
+The script logs in once and caches the refresh token at
+~/.saobracaj_comments/auth.json (override with SAOBRACAJ_COMMENTS_TOKEN_FILE);
+later runs mint short-lived access tokens from it and only fall back to a
+password login when the refresh token has expired. Override the endpoint with
+SAOBRACAJ_GRAPHQL_URL if the API ever moves.
 
 Subcommands (see --help on each):
-  auth                       make sure a valid access token exists, print nothing on success
-  queue [--limit N] [--category ID] [--subcategory ID] [--status ...]
+  auth                       make sure a valid access token exists
+  queue [--limit N] [--category ID] [--subcategory ID] [--status ...] [--lang ru|sr]
   show ID [ID ...]
   search-law KEYWORD [KEYWORD ...] [--chlan N] [--limit N]
-  submit ID (--file PATH | --stdin)
+  submit ID (--file PATH | --stdin) [--lang ru|sr]
   status ID [ID ...]
 """
 import argparse
 import json
 import os
-import random
-import string
 import sys
 import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 
-DEFAULT_SERVER_URL = "https://saobracaj-serveer-69637270851.europe-west3.run.app/graphql"
+DEFAULT_SERVER_URL = "https://api.saobracaj.gleb.at/graphql"
 SERVER_URL = os.environ.get("SAOBRACAJ_GRAPHQL_URL", DEFAULT_SERVER_URL)
 
 TOKEN_FILE = Path(
@@ -90,15 +96,33 @@ def _jwt_exp(token):
     return json.loads(base64.urlsafe_b64decode(payload)).get("exp", 0)
 
 
-def _sign_up_new_account():
-    suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=8))
-    email = f"autopilot-comments+{int(time.time())}-{suffix}@gleb.at"
-    password = "".join(random.choices(string.ascii_letters + string.digits, k=24)) + "!Aa1"
-    data = gql(
-        "query($e: String!, $p: String!) { signUp(email: $e, password: $p) { accessToken refreshToken } }",
-        {"e": email, "p": password},
-    )
-    tokens = data["signUp"]
+def _credentials():
+    email = os.environ.get("SAOBRACAJ_COMMENTS_EMAIL")
+    password = os.environ.get("SAOBRACAJ_COMMENTS_PASSWORD")
+    if not (email and password):
+        print(
+            "error: no editor credentials.\n"
+            "  Every mutation here needs an account with the `edit_comments` permission —\n"
+            "  set SAOBRACAJ_COMMENTS_EMAIL and SAOBRACAJ_COMMENTS_PASSWORD (ask the operator).",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    return email, password
+
+
+def _login():
+    email, password = _credentials()
+    try:
+        tokens = gql(
+            "mutation($e: String!, $p: String!) { login(email: $e, password: $p) "
+            "{ accessToken refreshToken } }",
+            {"e": email, "p": password},
+        )["login"]
+    except RuntimeError as e:
+        print(f"error: login as {email} failed ({e}).\n"
+              "  Check SAOBRACAJ_COMMENTS_EMAIL / SAOBRACAJ_COMMENTS_PASSWORD with the operator.",
+              file=sys.stderr)
+        sys.exit(2)
     return {
         "email": email,
         "access_token": tokens["accessToken"],
@@ -107,8 +131,14 @@ def _sign_up_new_account():
 
 
 def get_access_token():
-    """Returns a valid access token, creating/refreshing credentials as needed."""
+    """Returns a valid access token, refreshing or logging in as needed."""
+    email, _ = _credentials()  # fail fast with a readable message, before any request
     cache = _load_cache()
+
+    # A cached token from a different account (or from the legacy server) must
+    # not be reused silently.
+    if cache.get("email") != email:
+        cache = {}
 
     access = cache.get("access_token")
     if access and _jwt_exp(access) > time.time() + 30:
@@ -117,23 +147,23 @@ def get_access_token():
     refresh = cache.get("refresh_token")
     if refresh:
         try:
-            data = gql("query($r: String!) { refreshToken(refreshToken: $r) { accessToken refreshToken } }",
-                        {"r": refresh})
+            data = gql("mutation($r: String!) { refreshToken(refreshToken: $r) "
+                       "{ accessToken refreshToken } }", {"r": refresh})
             tokens = data["refreshToken"]
             cache["access_token"] = tokens["accessToken"]
             cache["refresh_token"] = tokens["refreshToken"]
             _save_cache(cache)
             return cache["access_token"]
         except Exception:
-            pass  # fall through to re-registration
+            pass  # refresh token expired/revoked -> log in again
 
-    cache = _sign_up_new_account()
+    cache = _login()
     _save_cache(cache)
     return cache["access_token"]
 
 
 def cmd_auth(args):
-    token = get_access_token()
+    get_access_token()
     print(f"OK, account: {_load_cache().get('email')}")
 
 
@@ -166,10 +196,25 @@ def _subcategory_name(categories, subcategory_id):
 # queue: which question ids still need a comment
 # --------------------------------------------------------------------------
 
+def _fragment_state(comment, lang):
+    """Where `lang`'s fragment of this comment currently lives: none/draft/text."""
+    def has(block):
+        return bool(block) and any(i["lang"] == lang for i in block.get("items", []))
+
+    if has(comment.get("text")):
+        return "text"
+    if has(comment.get("draft")):
+        return "draft"
+    return "none"
+
+
 def cmd_queue(args):
     token = get_access_token()
-    comments = gql("{ comments { id status } }", token=token)["comments"]
-    status_by_id = {c["id"]: c["status"] for c in comments}
+    comments = gql(
+        "{ allQuestionComments { id status draft { items { lang } } text { items { lang } } } }",
+        token=token,
+    )["allQuestionComments"]
+    by_id = {c["id"]: c for c in comments}
 
     questions = _load_questions()
     if args.category:
@@ -177,15 +222,26 @@ def cmd_queue(args):
     if args.subcategory:
         questions = [q for q in questions if q.get("subcategoryId") == args.subcategory]
 
-    wanted_statuses = {"pending"} if args.status == "pending" else \
-        {"pending", "draft", "moderation", "ready"} if args.status == "all" else {args.status}
+    lang = args.lang.upper()
+    # For SR the interesting default is "every question that has some RU work
+    # already"; for RU it is the untouched backlog.
+    status_filter = args.status or ("all" if lang == "SR" else "pending")
+    wanted_statuses = {"pending", "draft", "moderation", "ready"} if status_filter == "all" \
+        else {status_filter}
 
     result = []
     for q in questions:
         qid = q["qId"]
-        status = status_by_id.get(qid, "PENDING")  # no Comment doc yet == PENDING
-        if status.lower() in wanted_statuses:
-            result.append((qid, q.get("categoryId"), q.get("subcategoryId"), status))
+        comment = by_id.get(qid)  # no comment row yet == PENDING, nothing in any language
+        status = comment["status"] if comment else "PENDING"
+        sr_state = _fragment_state(comment or {}, "SR")
+        if status.lower() not in wanted_statuses:
+            continue
+        # The Serbian backlog is per-fragment: a question is done once it carries
+        # an SR fragment, whatever the comment's overall status is.
+        if lang == "SR" and sr_state != "none":
+            continue
+        result.append((qid, q.get("categoryId"), q.get("subcategoryId"), status, sr_state))
 
     # Group by subcategory so a batch shares law context -> fewer law lookups per session.
     result.sort(key=lambda r: (r[1] or "", r[2] or 0, r[0]))
@@ -193,8 +249,8 @@ def cmd_queue(args):
     if args.limit:
         result = result[: args.limit]
 
-    for qid, cat, sub, status in result:
-        print(f"{qid}\tcat={cat}\tsub={sub}\t{status}")
+    for qid, cat, sub, status, sr_state in result:
+        print(f"{qid}\tcat={cat}\tsub={sub}\t{status}\tsr={sr_state}")
     print(f"# {len(result)} question(s) matched", file=sys.stderr)
 
 
@@ -219,9 +275,10 @@ def cmd_show(args):
         ru = ru_by_id.get(qid)
 
         try:
-            existing = gql("query($id: Long!) { comment(id: $id) { status draft { text { lang text } } "
-                            "text { text { lang text } } } }", {"id": qid}, token=token)["comment"]
-        except Exception as e:
+            existing = gql("query($id: Int!) { questionComment(id: $id) { status "
+                           "draft { items { lang text } } text { items { lang text } } } }",
+                           {"id": qid}, token=token)["questionComment"]
+        except Exception:
             existing = None
 
         print(f"=== question {qid} ===")
@@ -238,14 +295,11 @@ def cmd_show(args):
             print("has_image: true (image not available through this CLI)")
         if existing:
             print(f"comment_status: {existing['status']}")
-            if existing.get("draft"):
-                for t in existing["draft"]["text"]:
-                    if t["lang"] == "RU":
-                        print(f"existing_draft_ru: {t['text'][:300]}")
-            if existing.get("text"):
-                for t in existing["text"]["text"]:
-                    if t["lang"] == "RU":
-                        print(f"existing_published_ru: {t['text'][:300]}")
+            # Both languages are printed: the RU text is the source an SR
+            # adaptation is written from, and vice versa it shows what exists.
+            for block, label in (("draft", "existing_draft"), ("text", "existing_published")):
+                for t in (existing.get(block) or {}).get("items", []):
+                    print(f"{label}_{t['lang'].lower()}: {t['text'][:300]}")
         print()
 
 
@@ -313,26 +367,39 @@ def cmd_submit(args):
         print("error: empty comment text", file=sys.stderr)
         sys.exit(1)
 
+    lang = args.lang.upper()
+
     if not args.force:
-        current = gql("query($id: Long!) { comment(id: $id) { status } }", {"id": args.id}, token=token)["comment"]
-        if current["status"] in ("READY", "MODERATION"):
-            print(f"refusing to overwrite comment {args.id}: status is {current['status']} "
+        current = gql("query($id: Int!) { questionComment(id: $id) { status } }",
+                      {"id": args.id}, token=token)["questionComment"]
+        status = current["status"] if current else "PENDING"
+        if status in ("READY", "MODERATION"):
+            print(f"refusing to overwrite comment {args.id}: status is {status} "
                   f"(pass --force to override)", file=sys.stderr)
             sys.exit(1)
 
+    # saveCommentDraft replaces only the fragment of the given language; the
+    # other language's draft fragment is preserved server-side.
     result = gql(
-        "mutation($id: Long!, $draft: String!) { draft(id: $id, draft: $draft) { id status } }",
-        {"id": args.id, "draft": text},
+        "mutation($id: Int!, $draft: String!, $lang: Language!) "
+        "{ saveCommentDraft(id: $id, draft: $draft, language: $lang) { id status } }",
+        {"id": args.id, "draft": text, "lang": lang},
         token=token,
-    )["draft"]
-    print(f"saved: id={result['id']} status={result['status']}")
+    )["saveCommentDraft"]
+    print(f"saved: id={result['id']} status={result['status']} lang={lang}")
 
 
 def cmd_status(args):
     token = get_access_token()
     for qid in args.ids:
-        data = gql("query($id: Long!) { comment(id: $id) { status } }", {"id": int(qid)}, token=token)["comment"]
-        print(f"{qid}\t{data['status']}")
+        data = gql("query($id: Int!) { questionComment(id: $id) { status "
+                   "draft { items { lang } } text { items { lang } } } }",
+                   {"id": int(qid)}, token=token)["questionComment"]
+        if not data:
+            print(f"{qid}\tPENDING\tru=none\tsr=none")
+            continue
+        print(f"{qid}\t{data['status']}\tru={_fragment_state(data, 'RU')}\t"
+              f"sr={_fragment_state(data, 'SR')}")
 
 
 # --------------------------------------------------------------------------
@@ -348,7 +415,11 @@ def main():
     p.add_argument("--limit", type=int, default=20)
     p.add_argument("--category", help="filter by categoryId (string, e.g. '25')")
     p.add_argument("--subcategory", type=int, help="filter by subcategoryId")
-    p.add_argument("--status", default="pending", choices=["pending", "draft", "moderation", "ready", "all"])
+    p.add_argument("--status", default=None,
+                   choices=["pending", "draft", "moderation", "ready", "all"],
+                   help="comment status filter (default: 'pending' for --lang ru, 'all' for --lang sr)")
+    p.add_argument("--lang", default="ru", choices=["ru", "sr"],
+                   help="which language's backlog to list; 'sr' lists questions with no SR fragment yet")
     p.set_defaults(func=cmd_queue)
 
     p = sub.add_parser("show", help="print a compact view of one or more questions")
@@ -361,10 +432,12 @@ def main():
     p.add_argument("--limit", type=int, default=8)
     p.set_defaults(func=cmd_search_law)
 
-    p = sub.add_parser("submit", help="save a RU markdown comment as a draft (pending review)")
+    p = sub.add_parser("submit", help="save a markdown comment as a draft (pending review)")
     p.add_argument("id", type=int)
     p.add_argument("--file", help="path to a file with the markdown text")
     p.add_argument("--stdin", action="store_true", help="read the markdown text from stdin")
+    p.add_argument("--lang", default="ru", choices=["ru", "sr"],
+                   help="language of the fragment being saved (default: ru)")
     p.add_argument("--force", action="store_true", help="overwrite even if status is READY/MODERATION")
     p.set_defaults(func=cmd_submit)
 

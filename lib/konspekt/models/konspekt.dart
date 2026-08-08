@@ -4,8 +4,8 @@ part 'konspekt.freezed.dart';
 
 part 'konspekt.g.dart';
 
-/// A localized markdown/text value. Only `ru` is authored today; `sr` is
-/// reserved for a future Serbian version of the konspekts.
+/// A localized markdown/text value: the Russian and Serbian versions of one
+/// fragment, either of which may not be authored yet.
 @freezed
 abstract class KonspektText with _$KonspektText {
   const KonspektText._();
@@ -14,7 +14,17 @@ abstract class KonspektText with _$KonspektText {
 
   factory KonspektText.fromJson(Map<String, dynamic> json) => _$KonspektTextFromJson(json);
 
+  /// RU-first pick, used where no user context exists (authoring validation).
+  /// Display code must use [select] — the shown language is decided by the
+  /// `russian_content` feature, not by which fragment happens to exist.
   String get text => ru ?? sr ?? '';
+
+  /// The fragment for the study-content language: Russian when the
+  /// `russian_content` feature is resolved on (backend grant + the user's
+  /// popup/settings opt-in), Serbian otherwise. Falls back to the other
+  /// language while the preferred one is not authored yet.
+  String select({required bool russian}) =>
+      russian ? (ru ?? sr ?? '') : (sr ?? ru ?? '');
 }
 
 /// A placeholder for an illustration/animation that will be produced later

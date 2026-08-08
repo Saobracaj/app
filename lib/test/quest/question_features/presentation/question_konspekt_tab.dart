@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/navigation.dart';
+import '../../../../feature_flags/state_management/feature_flags_bloc.dart';
 import '../../../../generated/locale_keys.g.dart';
 import '../../../../konspekt/presentation/konspekt_inline_text.dart';
 import '../../../../konspekt/presentation/konspekt_markdown.dart';
@@ -28,6 +29,8 @@ class QuestionKonspektTab extends StatelessWidget {
       builder: (context, state) {
         if (state.failed) return const _KonspektLoadFailed();
         if (state.sections.isEmpty) return const SizedBox.shrink();
+        final russian =
+            context.watch<FeatureFlagsBloc>().state.russianContent;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -39,12 +42,12 @@ class QuestionKonspektTab extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     KonspektInlineText(
-                      text: state.sections[i].title.text,
+                      text: state.sections[i].title.select(russian: russian),
                       style: theme.textTheme.titleSmall,
                     ),
                     const SizedBox(height: 6),
                     KonspektMarkdown(
-                      text: state.sections[i].content.text,
+                      text: state.sections[i].content.select(russian: russian),
                       categoryId: categoryId,
                     ),
                   ],

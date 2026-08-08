@@ -65,13 +65,24 @@ void main() {
     );
   }
 
-  testWidgets('KonspektPage renders the category 25 konspekt', (tester) async {
+  testWidgets('KonspektPage renders the category 25 konspekt in Serbian by default', (tester) async {
     await tester.pumpWidget(wrap(const KonspektPage(categoryId: '25')));
     await tester.pumpAndSettle();
 
+    // Without russian_content the authored Serbian fragment wins, both for the
+    // category name and for the section titles below it.
+    expect(find.text('Основе безбедности саобраћаја'), findsOneWidget);
+    expect(find.textContaining('Ко регулише и ко контролише саобраћај'), findsWidgets);
+  });
+
+  testWidgets('KonspektPage shows Russian with the russian_content feature on', (tester) async {
+    await tester.pumpWidget(wrap(
+      const KonspektPage(categoryId: '25'),
+      grants: const {'category_summaries', 'russian_content'},
+    ));
+    await tester.pumpAndSettle();
+
     expect(find.text('Основы безопасности дорожного движения'), findsOneWidget);
-    // The intro and the first section land in the initial viewport.
-    expect(find.textContaining('Кто регулирует и контролирует движение'), findsWidgets);
   });
 
   testWidgets('KonspektPage deep link scrolls to the requested section', (tester) async {

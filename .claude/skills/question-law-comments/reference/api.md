@@ -3,57 +3,72 @@
 You normally don't need any of this — `scripts/comments_cli.py` wraps it
 all. Read this only if you need to debug the CLI or extend it.
 
-Server: `saobracaj_server` (Kotlin/Ktor/KGraphQL), endpoint `/graphql`,
-default deployed instance:
-`https://saobracaj-serveer-69637270851.europe-west3.run.app/graphql`.
-Resolvers live in
-`saobracaj_server/saobracaj/saobracaj/src/main/kotlin/presentation/SaobracajPresentation.kt`.
+API: `saobracaj_backend` (Rust/async-graphql, on top of `base_rust_backend`),
+endpoint `https://api.saobracaj.gleb.at/graphql`. Resolvers live in
+`saobracaj_backend/src/comments/graphql.rs`, storage in
+`.../comments/repository.rs`, types in `.../comments/model.rs`. (The old
+Kotlin server on Cloud Run is legacy — its `comments`/`draft` fields are gone
+from this skill.)
 
 ## Auth
 
-- `signUp(email, password)` (public query) -> `{ accessToken, refreshToken }`.
-  Any never-before-used email works; no confirmation step in this deploy
-  (`confirmEmailBeforeAuth = false`). New accounts get `BASIC` permission,
-  which is all the comment endpoints require.
-- `refreshToken(refreshToken)` (public query) -> new `{ accessToken,
-  refreshToken }` pair. Access tokens are short-lived (~15 min); refresh
-  tokens last ~30 days.
+- `login(email, password)` (mutation) -> `{ accessToken, refreshToken }`.
+  There is **no self sign-up path that helps here**: reading needs any
+  authenticated user, and `allQuestionComments` plus every mutation are
+  guarded by the `edit_comments` permission, which only the operator can
+  grant. Credentials come from `SAOBRACAJ_COMMENTS_EMAIL` /
+  `SAOBRACAJ_COMMENTS_PASSWORD`.
+- `refreshToken(refreshToken)` (mutation) -> a new `{ accessToken,
+  refreshToken }` pair. Access tokens are short-lived; the CLI caches the
+  refresh token and re-logs in when it expires.
 - Send `Authorization: Bearer <accessToken>` on every subsequent call.
-- Errors come back as HTTP 200 with a top-level `errors` array (e.g. `Token
-  expired`), not as an HTTP error status — always check for `errors` in the
-  response body.
+- Errors come back as HTTP 200 with a top-level `errors` array (e.g.
+  `authorization required`, `extensions.code = authorization_required`), not
+  as an HTTP error status — always check for `errors` in the response body.
 
 ## Comment id == question id
 
-A `Comment` document's `id` (`Long`) is the same value as the question's
-`qId`/`qcId` in `app/assets/allQuestions.json`. Comment docs are created
-lazily: querying/mutating an id that has no document yet auto-creates one
-with `status = PENDING`.
+A comment's `id` (`Int`, i.e. GraphQL `Int!` — the legacy API used `Long`) is
+the same value as the question's `qId`/`qcId` in
+`app/assets/allQuestions.json`. Rows are created lazily: `questionComment`
+returns `null` while none exists (treat that as `PENDING`), and
+`saveCommentDraft` creates the row on first write.
+
+## Text blocks are per-language
+
+`text`, `draft` and each entry of `history` are `CommentText { items
+[{ lang, text }], created, updated }` — one item per language, `lang` being
+the `Language` enum (`RU` | `SR`). The legacy API's `text { text { lang
+text } }` shape no longer exists; the field is `items`.
+
+`saveCommentDraft(id, draft, language)` replaces **only** the fragment of
+that language and preserves the other one, so writing SR never clobbers RU.
+`language` defaults to `RU` server-side.
 
 ## Queries/mutations used by this skill
 
 ```graphql
-query { comments { id status } }                       # cheap bulk status list, used by `queue`
-query($id: Long!) { comment(id: $id) { status draft { text { lang text } } text { text { lang text } } } }
-mutation($id: Long!, $draft: String!) { draft(id: $id, draft: $draft) { id status } }
+query { allQuestionComments { id status draft { items { lang } } text { items { lang } } } }   # `queue`
+query($id: Int!) { questionComment(id: $id) { status draft { items { lang text } } text { items { lang text } } } }
+mutation($id: Int!, $draft: String!, $lang: Language!) {
+  saveCommentDraft(id: $id, draft: $draft, language: $lang) { id status }
+}
 ```
 
-`draft(id, text)` always writes the **Russian** text item (language
-defaults server-side to `RU`; there's no way to pass a language from this
-mutation's current signature). It flips `status` from `PENDING` to `DRAFT`
-the first time; later calls just overwrite the draft text in place.
+`saveCommentDraft` flips `status` from `PENDING` to `DRAFT` the first time;
+later calls just overwrite that language's draft fragment in place.
 
 ## `CommentStatus` state machine
 
-Ground truth: `CommentsRepository.saveDraft`/`applyDraft` in
-`saobracaj/saobracaj/src/main/kotlin/domain/entities/CommentsRepository.kt`
-(lines ~31-96), enum in `domain/entities/Comment.kt`. The Angular panel's
+Ground truth: `CommentsRepository::save_draft`/`apply_draft` in
+`saobracaj_backend/src/comments/repository.rs`, enum in
+`saobracaj_backend/src/comments/model.rs`. The Angular panel's
 Russian labels for each status are in
 `saobracaj_panel_angular/src/app/components/markdown-editor/markdown-editor.component.ts`
 (`getStatusText()`).
 
 ```
-PENDING  -- draft() --> DRAFT -- applyDraft() --> DRAFT or MODERATION -- (human, in the Angular panel) --> READY
+PENDING -- saveCommentDraft() --> DRAFT -- applyCommentDraft() --> DRAFT or MODERATION -- (human, in the Angular panel) --> READY
 "Ожидает"          "Черновик"                  see note below     "На модерации"          "Готово"
 ```
 
@@ -61,26 +76,23 @@ PENDING  -- draft() --> DRAFT -- applyDraft() --> DRAFT or MODERATION -- (human,
   **This is a different, unrelated status from "pending" used loosely in
   English to mean "awaiting review."** Don't conflate the two.
 - `DRAFT` ("Черновик"): someone saved draft text, not yet applied. **This
-  is where `submit` leaves everything — it never calls `applyDraft`.** A
+  is where `submit` leaves everything — it never calls `applyCommentDraft`.** A
   human reviews drafts in the Angular admin panel (`markdown-editor` /
   `question-preview` components) and applies them from there. This is the
   correct "awaiting human review" state for content this skill writes.
-- `MODERATION` ("На модерации"): set by `applyDraft` **only when a `text`
+- `MODERATION` ("На модерации"): set by `apply_draft` **only when a `text`
   was already published before** (i.e. this is a re-edit of a
-  previously-live comment, now needing re-review) — see
-  `CommentsRepository.kt:82-89`. On the *first* `applyDraft` for a comment
-  (no prior `text`), the draft still gets copied into `text` (so it goes
-  live) but status is left as `DRAFT`, not bumped to `MODERATION` — a
-  quirk of the current server code, not something this skill controls.
-- `READY` ("Готово"): approved/done. **No GraphQL mutation in the
-  codebase ever sets this** — the only place `CommentStatus.READY` is
-  assigned is the one-time seed import in `data/CommentCols.kt:72`
-  (bundled markdown files loaded straight to DB). So today there appears
-  to be no API path that marks a comment fully approved; that must happen
-  out-of-band (direct DB edit) if it happens at all. Not this skill's
-  concern, just worth knowing.
+  previously-live comment, now needing re-review); a `READY` comment stays
+  `READY`. On the *first* apply (no prior `text`) the draft is copied into
+  `text` (so it goes live) but the status stays `DRAFT` — a quirk carried
+  over from the legacy server, not something this skill controls.
+- `READY` ("Готово"): approved/done. The Rust API does expose
+  `setCommentStatus(id, status)` (also `edit_comments`-only), which the
+  panel uses; promoting to `READY` applies any pending draft first, so the
+  published content always lives in `text`. This skill never calls it —
+  marking a comment approved is a human decision.
 
-Never call `applyDraft` from this skill — it publishes the draft into the
+Never call `applyCommentDraft` from this skill — it publishes the draft into the
 live `text` field, which is a human decision, not something to automate.
 If you're asked to review/fix an existing draft rather than write a new
 one, that's still just another `submit` call (overwrites the draft in

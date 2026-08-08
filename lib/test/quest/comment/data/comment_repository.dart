@@ -1,7 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import '../../../../auth/data/graphql_client.dart';
-import '../../../../core/app_language.dart';
+import '../../../../feature_flags/data/feature_flags_repository.dart';
 
 /// The editorial comment of one question as the app needs it: the applied
 /// [text], the unapplied [draft] and the moderation [status]. Editors (the
@@ -20,10 +20,12 @@ class QuestionCommentDetails {
   /// `PENDING` | `DRAFT` | `MODERATION` | `READY`.
   final String status;
 
-  /// The live, applied text in the UI language (fallback RU → first).
+  /// The live, applied text in the study-content language — Serbian unless the
+  /// `russian_content` feature is resolved on (falls back to the other
+  /// language, then to the first non-empty fragment).
   final String? text;
 
-  /// The unapplied draft in the UI language (fallback RU → first).
+  /// The unapplied draft in the study-content language (same fallbacks).
   final String? draft;
 
   /// RU-first picks used as the editing source.
@@ -69,9 +71,14 @@ class QuestionCommentDetails {
 /// applies the draft server-side).
 @lazySingleton
 class CommentRepository {
-  CommentRepository(this._client);
+  CommentRepository(this._client, this._flags);
 
   final GraphqlClient _client;
+
+  /// Decides the display language: Russian only when `russian_content` is
+  /// resolved on (backend grant + the user's popup/settings opt-in), Serbian
+  /// otherwise.
+  final FeatureFlagsRepository _flags;
 
   static const _fields = r'''
     status
@@ -139,24 +146,29 @@ class CommentRepository {
     if (comment is! Map) return null;
     return QuestionCommentDetails(
       status: comment['status']?.toString() ?? 'PENDING',
-      text: _pick(comment['text'], preferUiLanguage: true),
-      draft: _pick(comment['draft'], preferUiLanguage: true),
-      textRu: _pick(comment['text'], preferUiLanguage: false),
-      draftRu: _pick(comment['draft'], preferUiLanguage: false),
+      text: _pick(comment['text'], forDisplay: true),
+      draft: _pick(comment['draft'], forDisplay: true),
+      textRu: _pick(comment['text'], forDisplay: false),
+      draftRu: _pick(comment['draft'], forDisplay: false),
     );
   }
 
-  /// Picks one fragment out of a `{ items: [{lang, text}] }` block: the UI
-  /// language when [preferUiLanguage], then `RU` (the only fully-populated
-  /// language), then the first non-empty fragment.
-  String? _pick(dynamic block, {required bool preferUiLanguage}) {
+  /// Picks one fragment out of a `{ items: [{lang, text}] }` block.
+  ///
+  /// [forDisplay] picks the study-content language — `RU` when the
+  /// `russian_content` feature is resolved on, `SR` otherwise — falling back to
+  /// the other language while the preferred one has no fragment yet, then to
+  /// the first non-empty item. The non-display variant is the RU-first editing
+  /// source (drafts are edited in RU in the app).
+  String? _pick(dynamic block, {required bool forDisplay}) {
     if (block is! Map) return null;
     final items = block['items'];
     if (items is! List || items.isEmpty) return null;
 
-    final lang = appLanguageCode.toUpperCase();
-    String? byLang;
+    final preferred = _flags.snapshot.russianContent ? 'RU' : 'SR';
+    String? byPreferred;
     String? ru;
+    String? sr;
     String? first;
     for (final raw in items) {
       if (raw is! Map) continue;
@@ -164,9 +176,11 @@ class CommentRepository {
       if (value == null || value.isEmpty) continue;
       first ??= value;
       final itemLang = raw['lang']?.toString().toUpperCase();
-      if (itemLang == lang) byLang = value;
+      if (itemLang == preferred) byPreferred = value;
       if (itemLang == 'RU') ru = value;
+      if (itemLang == 'SR') sr = value;
     }
-    return (preferUiLanguage ? byLang : null) ?? ru ?? first;
+    if (!forDisplay) return ru ?? first;
+    return byPreferred ?? (preferred == 'RU' ? sr : ru) ?? first;
   }
 }
