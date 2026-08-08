@@ -8,7 +8,10 @@ enum QuestionFeedbackSource {
   discussion('discussion'),
 
   /// Вкладка «Конспект» (выдержки из конспекта категории).
-  summary('summary');
+  summary('summary'),
+
+  /// Вкладка «Спросить AI» (предгенерированное объяснение).
+  askAi('ask_ai');
 
   const QuestionFeedbackSource(this.key);
 

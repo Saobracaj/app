@@ -58,6 +58,10 @@ import '../test/quest/comment/data/comment_repository.dart' as _i359;
 import '../test/quest/comment/editor/state_management/comment_editor_bloc.dart'
     as _i658;
 import '../test/quest/comment/state_management/comment_bloc.dart' as _i213;
+import '../test/quest/question_features/ask_ai/data/question_explanation_repository.dart'
+    as _i1026;
+import '../test/quest/question_features/ask_ai/state_management/ask_ai_bloc.dart'
+    as _i1003;
 import '../test/quest/question_features/data/question_analytics_repository.dart'
     as _i1002;
 import '../test/quest/question_features/data/question_difficulty_repository.dart'
@@ -193,6 +197,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i389.FeatureFlagsRepository>(),
       ),
     );
+    gh.lazySingleton<_i1026.QuestionExplanationRepository>(
+      () => _i1026.QuestionExplanationRepository(
+        gh<_i483.GraphqlClient>(),
+        gh<_i389.FeatureFlagsRepository>(),
+      ),
+    );
     gh.factoryParam<_i192.QuestionKonspektBloc, int, String>(
       (questionId, categoryId) => _i192.QuestionKonspektBloc(
         gh<_i491.KonspektRepository>(),
@@ -278,6 +288,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i311.ProfileRepository>(),
         gh<_i388.AuthBloc>(),
         gh<_i389.FeatureFlagsRepository>(),
+      ),
+    );
+    gh.factoryParam<_i1003.AskAiBloc, int, dynamic>(
+      (questionId, _) => _i1003.AskAiBloc(
+        gh<_i1026.QuestionExplanationRepository>(),
+        questionId,
       ),
     );
     gh.factoryParam<_i481.GroupFeedBloc, String, dynamic>(
