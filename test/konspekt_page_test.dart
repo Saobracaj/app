@@ -69,10 +69,10 @@ void main() {
     await tester.pumpWidget(wrap(const KonspektPage(categoryId: '25')));
     await tester.pumpAndSettle();
 
-    // Without russian_content the authored Serbian fragment wins; fragments
-    // not yet translated (the first section title) fall back to Russian.
-    expect(find.text('Oснове безбедности саобраћаја'), findsOneWidget);
-    expect(find.textContaining('Кто регулирует и контролирует движение'), findsWidgets);
+    // Without russian_content the authored Serbian fragment wins, both for the
+    // category name and for the section titles below it.
+    expect(find.text('Основе безбедности саобраћаја'), findsOneWidget);
+    expect(find.textContaining('Ко регулише и ко контролише саобраћај'), findsWidgets);
   });
 
   testWidgets('KonspektPage shows Russian with the russian_content feature on', (tester) async {
