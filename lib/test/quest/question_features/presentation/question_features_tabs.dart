@@ -13,6 +13,7 @@ import '../../../../public_comments/state_management/comment_count_state.dart';
 import '../../../../question_feedback/domain/question_feedback_source.dart';
 import '../../../../question_feedback/presentation/report_problem_button.dart';
 import '../../comment/comment_widget/comment_widget.dart';
+import '../ask_ai/presentation/ask_ai_tab.dart';
 import '../state_management/question_features_bloc.dart';
 import '../state_management/question_features_events.dart';
 import '../state_management/question_features_state.dart';
@@ -344,6 +345,14 @@ class _TabContent extends StatelessWidget {
         );
       case AppFeature.questionAnalysis:
         return QuestionAnalysisTab(questionId: questionId);
+      // Объяснение — тоже сгенерированный контент, в котором бывает на что
+      // пожаловаться, поэтому кнопка «Сообщить об ошибке» есть и здесь.
+      case AppFeature.askAi:
+        return _WithReportButton(
+          questionId: questionId,
+          source: QuestionFeedbackSource.askAi,
+          child: AskAiTab(questionId: questionId),
+        );
       default:
         return _ComingSoon(feature: feature);
     }
