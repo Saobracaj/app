@@ -1,3 +1,5 @@
+import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_chat.dart';
+
 /// What can happen in the Ask-AI chat.
 sealed class AskAiChatEvent {}
 
@@ -20,3 +22,10 @@ class AskAiChatSendPressed extends AskAiChatEvent {
 }
 
 class AskAiChatErrorDismissed extends AskAiChatEvent {}
+
+/// An `askAiStream` frame arrived — the reply in progress grew, or the model
+/// reached for a tool. Fed by the Bloc's own subscription, not by widgets.
+class AskAiChatStreamed extends AskAiChatEvent {
+  AskAiChatStreamed(this.update);
+  final AskAiStreamUpdate update;
+}

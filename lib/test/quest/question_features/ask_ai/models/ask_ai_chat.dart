@@ -51,6 +51,61 @@ abstract class AskAiChatMessage with _$AskAiChatMessage {
   );
 }
 
+/// One event of the `askAiStream` subscription — the reply being born, delta
+/// by delta, with tool statuses in between. Best-effort by design: the `askAi`
+/// mutation still delivers the whole reply, the stream only makes the wait
+/// watchable.
+sealed class AskAiStreamUpdate {
+  const AskAiStreamUpdate();
+
+  /// `null` for an event kind this build does not know — a newer server is
+  /// talking, and skipping the frame is safer than guessing.
+  static AskAiStreamUpdate? parse(Map<String, dynamic> json) {
+    switch (json['kind']?.toString()) {
+      case 'DELTA':
+        return AskAiStreamDelta(json['text']?.toString() ?? '');
+      case 'TOOL':
+        return AskAiStreamTool(json['tool']?.toString() ?? '');
+      case 'COMPLETED':
+        final message = json['message'];
+        return message is Map
+            ? AskAiStreamCompleted(
+                AskAiChatMessage.parse(message.cast<String, dynamic>()),
+              )
+            : null;
+      case 'FAILED':
+        return AskAiStreamFailed(json['text']?.toString() ?? '');
+    }
+    return null;
+  }
+}
+
+/// A fragment of the answer's text, in order.
+class AskAiStreamDelta extends AskAiStreamUpdate {
+  const AskAiStreamDelta(this.text);
+  final String text;
+}
+
+/// The model reached for a tool (`search_zakon`, `get_question`, …). Whatever
+/// text streamed before it was commentary on the way to the tool, not the
+/// answer — the reader resets its buffer here.
+class AskAiStreamTool extends AskAiStreamUpdate {
+  const AskAiStreamTool(this.tool);
+  final String tool;
+}
+
+/// The reply is finished and persisted.
+class AskAiStreamCompleted extends AskAiStreamUpdate {
+  const AskAiStreamCompleted(this.message);
+  final AskAiChatMessage message;
+}
+
+/// The turn failed; [message] is already human-readable.
+class AskAiStreamFailed extends AskAiStreamUpdate {
+  const AskAiStreamFailed(this.message);
+  final String message;
+}
+
 /// The caller's standing against the daily message quota — the backend exposes
 /// it so the app can show a "come back tomorrow" state instead of failing a
 /// send.

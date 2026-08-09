@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
@@ -53,10 +54,18 @@ class _StubExplanationRepository extends QuestionExplanationRepository {
 /// Пустой живой чат: история пуста, квота не тронута — вкладке достаточно,
 /// чтобы отрисовать секцию чата под статичным объяснением.
 class _StubChatRepository extends AskAiChatRepository {
-  _StubChatRepository() : super(GraphqlClient(TokenStorage()));
+  _StubChatRepository()
+    : super(
+        GraphqlClient(TokenStorage()),
+        GraphqlSubscriptionClient(GraphqlClient(TokenStorage()), TokenStorage()),
+      );
 
   @override
   Future<List<AskAiChatMessage>> history(AskAiChatScope scope, String scopeId) async => const [];
+
+  @override
+  Stream<AskAiStreamUpdate> replyStream(AskAiChatScope scope, String scopeId) =>
+      const Stream.empty();
 
   @override
   Future<AskAiQuota> quota() async => const AskAiQuota(limit: 40, used: 0, remaining: 40);

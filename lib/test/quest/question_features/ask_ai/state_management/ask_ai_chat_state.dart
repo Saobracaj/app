@@ -22,6 +22,15 @@ sealed class AskAiChatState with _$AskAiChatState {
     /// only the assistant's reply back, so the user's words live here until
     /// the send settles.
     String? pendingUserText,
+
+    /// The reply streamed so far, while [sending] — rendered inside the
+    /// thinking bubble as it grows. Reset by a tool status: whatever the model
+    /// said before reaching for a tool was commentary, not the answer.
+    @Default('') String streamingText,
+
+    /// The wire name of the tool the model is using right now («ищу похожие
+    /// билеты…»), while [sending]; `null` when it is just writing.
+    String? streamingTool,
     String? errorMessage,
     AskAiQuota? quota,
   }) = _AskAiChatState;

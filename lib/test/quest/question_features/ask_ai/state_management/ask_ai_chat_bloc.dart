@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
@@ -14,6 +16,12 @@ import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/a
 /// failed send drops the optimistic bubble and keeps the draft, so nothing
 /// typed is ever lost. The daily quota is re-read after every send — an
 /// agentic answer may cost more than one unit, and only the backend knows.
+///
+/// While the chat is open the Bloc also holds the `askAiStream` subscription:
+/// the reply streams into the thinking bubble as it is generated, with tool
+/// statuses in between. The stream is presentation only — the mutation's
+/// return stays the sole source of the finished conversation, so a dropped
+/// websocket degrades to the old wait-for-the-whole-reply behaviour.
 @injectable
 class AskAiChatBloc extends Bloc<AskAiChatEvent, AskAiChatState> {
   AskAiChatBloc(
@@ -25,6 +33,7 @@ class AskAiChatBloc extends Bloc<AskAiChatEvent, AskAiChatState> {
     on<AskAiChatBodyChanged>(_onBodyChanged);
     on<AskAiChatSendPressed>(_onSendPressed);
     on<AskAiChatErrorDismissed>(_onErrorDismissed);
+    on<AskAiChatStreamed>(_onStreamed);
     add(AskAiChatOpened());
   }
 
@@ -37,10 +46,23 @@ class AskAiChatBloc extends Bloc<AskAiChatEvent, AskAiChatState> {
   /// numeric, so `local-N` can never collide.
   int _localSeq = 0;
 
+  StreamSubscription<AskAiStreamUpdate>? _live;
+
   Future<void> _onOpened(
     AskAiChatOpened event,
     Emitter<AskAiChatState> emit,
   ) async {
+    // Opened ahead of the first send so the socket is already up when the
+    // reply starts streaming; errors are irrelevant here — no stream simply
+    // means no live preview. `onDone` lets a retry re-open it: the client
+    // closes the stream when the server refuses the subscription.
+    _live ??= _repository
+        .replyStream(scope, scopeId)
+        .listen(
+          (update) => add(AskAiChatStreamed(update)),
+          onError: (_) {},
+          onDone: () => _live = null,
+        );
     emit(state.copyWith(loading: true, historyFailed: false));
     try {
       final history = _repository.history(scope, scopeId);
@@ -85,6 +107,8 @@ class AskAiChatBloc extends Bloc<AskAiChatEvent, AskAiChatState> {
         state.copyWith(
           sending: false,
           pendingUserText: null,
+          streamingText: '',
+          streamingTool: null,
           body: fromDraft ? '' : state.body,
           messages: [...state.messages, userBubble, reply],
         ),
@@ -97,9 +121,34 @@ class AskAiChatBloc extends Bloc<AskAiChatEvent, AskAiChatState> {
         state.copyWith(
           sending: false,
           pendingUserText: null,
+          streamingText: '',
+          streamingTool: null,
           errorMessage: _message(e),
         ),
       );
+    }
+  }
+
+  /// Fold one live frame into the thinking bubble. Only while a send is in
+  /// flight — a frame streamed to another device's turn has no bubble here.
+  void _onStreamed(AskAiChatStreamed event, Emitter<AskAiChatState> emit) {
+    if (!state.sending) return;
+    switch (event.update) {
+      case AskAiStreamDelta(:final text):
+        emit(
+          state.copyWith(
+            streamingText: state.streamingText + text,
+            streamingTool: null,
+          ),
+        );
+      case AskAiStreamTool(:final tool):
+        // Whatever streamed before a tool call was the model's commentary on
+        // the way to it; the answer starts over after the last tool round.
+        emit(state.copyWith(streamingText: '', streamingTool: tool));
+      case AskAiStreamCompleted() || AskAiStreamFailed():
+        // The mutation's own return settles the conversation; acting on these
+        // too would append the reply twice.
+        break;
     }
   }
 
@@ -108,6 +157,12 @@ class AskAiChatBloc extends Bloc<AskAiChatEvent, AskAiChatState> {
     Emitter<AskAiChatState> emit,
   ) {
     emit(state.copyWith(errorMessage: null));
+  }
+
+  @override
+  Future<void> close() async {
+    await _live?.cancel();
+    return super.close();
   }
 
   /// The quota is auxiliary: failing to read it must break neither the history
