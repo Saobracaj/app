@@ -24,7 +24,7 @@ class RastojanjeOndsojanje extends StatelessWidget {
                   SizedBox(height: 40, child: AnimatedAutoWidget(color: Colors.blue)),
                   Padding(
                     padding: const EdgeInsets.only(left: 30),
-                    child: SizedBox(height: 90, child: VerticalDistanceLine(text: "Растојање")),
+                    child: SizedBox(height: 90, child: VerticalDistanceLine(text: 'Растојање')),
                   ),
                   Row(
                     children: [
@@ -47,7 +47,7 @@ class RastojanjeOndsojanje extends StatelessWidget {
 class HorizontalDistanceLine extends StatelessWidget {
   final String text;
 
-  const HorizontalDistanceLine({Key? key, required this.text}) : super(key: key);
+  const HorizontalDistanceLine({super.key, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +62,7 @@ class HorizontalDistanceLine extends StatelessWidget {
 class VerticalDistanceLine extends StatelessWidget {
   final String text;
 
-  const VerticalDistanceLine({Key? key, required this.text}) : super(key: key);
+  const VerticalDistanceLine({super.key, required this.text});
 
   @override
   Widget build(BuildContext context) {

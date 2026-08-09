@@ -1,5 +1,9 @@
 import 'dart:math' as math;
+// easy_localization реэкспортирует intl со своим TextDirection — прячем его,
+// чтобы в файле остался TextDirection из Flutter (нужен TextPainter'у).
+import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
+import 'package:saobracaj/generated/locale_keys.g.dart';
 
 class ThemedCompactDecisionTree extends StatelessWidget {
   const ThemedCompactDecisionTree({super.key});
@@ -8,6 +12,7 @@ class ThemedCompactDecisionTree extends StatelessWidget {
   Widget build(BuildContext context) {
     // Получаем текущую цветовую схему приложения (светлую или темную)
     final colorScheme = Theme.of(context).colorScheme;
+    final labels = _TreeLabels.of(context);
 
     return Padding(
       padding: const EdgeInsets.all(8.0),
@@ -16,9 +21,9 @@ class ThemedCompactDecisionTree extends StatelessWidget {
         child: SizedBox(
           width: 400,
           height: 600,
-          // Передаем цветовую схему внутрь Painter
+          // Передаем цветовую схему и переведенные подписи внутрь Painter
           child: CustomPaint(
-            painter: _ThemedTreePainter(colorScheme),
+            painter: _ThemedTreePainter(colorScheme, labels),
           ),
         ),
       ),
@@ -26,10 +31,80 @@ class ThemedCompactDecisionTree extends StatelessWidget {
   }
 }
 
+/// Переведенные подписи дерева. Названия категорий транспорта
+/// (лаки/тешки трицикл, лаки/тешки четвороцикл, путничко возило) — это
+/// сербские термины из правил, они не переводятся.
+class _TreeLabels {
+  const _TreeLabels({
+    required this.yes,
+    required this.no,
+    required this.fuelNote,
+    required this.wheelsQuestion,
+    required this.lightLimits,
+    required this.withinLightLimits,
+    required this.withinLightLimitsAndMass,
+    required this.powerLimit,
+    required this.seatsNote,
+  });
+
+  /// Читаем строки через [BuildContext], чтобы виджет подписался на смену
+  /// локали: Painter кэширует подписи и без этого остался бы на старом языке.
+  factory _TreeLabels.of(BuildContext context) => _TreeLabels(
+        yes: context.tr(LocaleKeys.decisionTree_yes),
+        no: context.tr(LocaleKeys.decisionTree_no),
+        fuelNote: context.tr(LocaleKeys.decisionTree_fuelNote),
+        wheelsQuestion: context.tr(LocaleKeys.decisionTree_wheelsQuestion),
+        lightLimits: context.tr(LocaleKeys.decisionTree_lightLimits),
+        withinLightLimits: context.tr(LocaleKeys.decisionTree_withinLightLimits),
+        withinLightLimitsAndMass:
+            context.tr(LocaleKeys.decisionTree_withinLightLimitsAndMass),
+        powerLimit: context.tr(LocaleKeys.decisionTree_powerLimit),
+        seatsNote: context.tr(LocaleKeys.decisionTree_seatsNote),
+      );
+
+  final String yes;
+  final String no;
+  final String fuelNote;
+  final String wheelsQuestion;
+  final String lightLimits;
+  final String withinLightLimits;
+  final String withinLightLimitsAndMass;
+  final String powerLimit;
+  final String seatsNote;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is _TreeLabels &&
+          other.yes == yes &&
+          other.no == no &&
+          other.fuelNote == fuelNote &&
+          other.wheelsQuestion == wheelsQuestion &&
+          other.lightLimits == lightLimits &&
+          other.withinLightLimits == withinLightLimits &&
+          other.withinLightLimitsAndMass == withinLightLimitsAndMass &&
+          other.powerLimit == powerLimit &&
+          other.seatsNote == seatsNote;
+
+  @override
+  int get hashCode => Object.hash(
+        yes,
+        no,
+        fuelNote,
+        wheelsQuestion,
+        lightLimits,
+        withinLightLimits,
+        withinLightLimitsAndMass,
+        powerLimit,
+        seatsNote,
+      );
+}
+
 class _ThemedTreePainter extends CustomPainter {
   final ColorScheme colorScheme;
+  final _TreeLabels labels;
 
-  _ThemedTreePainter(this.colorScheme);
+  _ThemedTreePainter(this.colorScheme, this.labels);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -68,35 +143,37 @@ class _ThemedTreePainter extends CustomPainter {
     _drawArrow(canvas, const Offset(160, 140), const Offset(60, 195), '3', strokeColor, textColor);
     _drawArrow(canvas, const Offset(240, 140), const Offset(340, 205), '4', strokeColor, textColor);
 
-    _drawArrow(canvas, const Offset(50, 295), const Offset(50, 355), 'да', strokeColor, textColor, textOffset: const Offset(35, 310));
-    _drawArrow(canvas, const Offset(90, 280), const Offset(150, 355), 'нет', strokeColor, textColor, textOffset: const Offset(135, 310));
+    _drawArrow(canvas, const Offset(50, 295), const Offset(50, 355), labels.yes, strokeColor, textColor, textOffset: const Offset(35, 310));
+    _drawArrow(canvas, const Offset(90, 280), const Offset(150, 355), labels.no, strokeColor, textColor, textOffset: const Offset(135, 310));
 
-    _drawArrow(canvas, const Offset(310, 275), const Offset(250, 355), 'да', strokeColor, textColor, textOffset: const Offset(260, 310));
-    _drawArrow(canvas, const Offset(335, 275), const Offset(350, 335), 'нет', strokeColor, textColor, textOffset: const Offset(360, 310));
+    _drawArrow(canvas, const Offset(310, 275), const Offset(250, 355), labels.yes, strokeColor, textColor, textOffset: const Offset(260, 310));
+    _drawArrow(canvas, const Offset(335, 275), const Offset(350, 335), labels.no, strokeColor, textColor, textOffset: const Offset(360, 310));
 
-    _drawArrow(canvas, const Offset(325, 405), const Offset(250, 495), 'да', strokeColor, textColor, textOffset: const Offset(275, 440));
-    _drawArrow(canvas, const Offset(350, 425), const Offset(350, 495), 'нет', strokeColor, textColor, textOffset: const Offset(365, 440));
+    _drawArrow(canvas, const Offset(325, 405), const Offset(250, 495), labels.yes, strokeColor, textColor, textOffset: const Offset(275, 440));
+    _drawArrow(canvas, const Offset(350, 425), const Offset(350, 495), labels.no, strokeColor, textColor, textOffset: const Offset(365, 440));
 
     // === ОТРИСОВКА УЗЛОВ ===
-    _drawBox(canvas, 'Напоминание: бензин → cm³ | не-бензин/электро → kW', noteCenter, noteColor, strokeColor, textColor, width: 380, height: 45, fontSize: 14);
-    _drawBox(canvas, 'Сколько колёс?', rootCenter, noteColor, strokeColor, textColor, width: 140, height: 40, fontSize: 14);
-    _drawBox(canvas, '*Лимиты легкого: \n≤45 km/h;\nбензин ≤50 cm³\n/не бензин ≤4 kW', limitCenter, noteColor, strokeColor, textColor, width: 140, height: 80, fontSize: 14, dashed: true);
+    _drawBox(canvas, labels.fuelNote, noteCenter, noteColor, strokeColor, textColor, width: 380, height: 45, fontSize: 14);
+    _drawBox(canvas, labels.wheelsQuestion, rootCenter, noteColor, strokeColor, textColor, width: 140, height: 40, fontSize: 14);
+    _drawBox(canvas, labels.lightLimits, limitCenter, noteColor, strokeColor, textColor, width: 140, height: 80, fontSize: 14, dashed: true);
 
 
 
-    _drawDiamond(canvas, 'в лимитах лёгкого*?', diamond3Center, diamondColor, strokeColor, colorScheme.onSecondaryContainer, width: 130, height: 110, fontSize: 11);
-    _drawDiamond(canvas, 'В лимитах лёгкого*\n+масса ≤350 kg?', diamond4Center, diamondColor, strokeColor, colorScheme.onSecondaryContainer, width: 130, height: 100, fontSize: 11);
-    _drawDiamond(canvas, 'мощность\n≤15 kW?', diamondPowCenter, diamondColor, strokeColor, colorScheme.onSecondaryContainer, width: 90, height: 90, fontSize: 13);
+    _drawDiamond(canvas, labels.withinLightLimits, diamond3Center, diamondColor, strokeColor, colorScheme.onSecondaryContainer, width: 130, height: 110, fontSize: 11);
+    _drawDiamond(canvas, labels.withinLightLimitsAndMass, diamond4Center, diamondColor, strokeColor, colorScheme.onSecondaryContainer, width: 130, height: 100, fontSize: 11);
+    _drawDiamond(canvas, labels.powerLimit, diamondPowCenter, diamondColor, strokeColor, colorScheme.onSecondaryContainer, width: 90, height: 90, fontSize: 13);
 
+    // Названия категорий — сербские термины из правил, не переводятся
     _drawBox(canvas, 'лаки\nтрицикл', laki3Center, lakiColor, strokeColor, colorScheme.onTertiaryContainer, width: 85, height: 50, fontSize: 13);
     _drawBox(canvas, 'тешки\nтрицикл', teski3Center, teskiColor, strokeColor, colorScheme.onErrorContainer, width: 85, height: 50, fontSize: 13);
     _drawBox(canvas, 'лаки\nчетвороцикл', laki4Center, lakiColor, strokeColor, colorScheme.onTertiaryContainer, width: 90, height: 50, fontSize: 13);
     _drawBox(canvas, 'тешки\nчетвороцикл', teski4Center, teskiColor, strokeColor, colorScheme.onErrorContainer, width: 90, height: 50, fontSize: 13);
-    _drawBox(canvas, 'путничко\nвозило\n(до 9 мест)', autoCenter, autoColor, strokeColor, colorScheme.onPrimaryContainer, width: 90, height: 55, fontSize: 13);
+    _drawBox(canvas, 'путничко\nвозило\n${labels.seatsNote}', autoCenter, autoColor, strokeColor, colorScheme.onPrimaryContainer, width: 90, height: 55, fontSize: 13);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ThemedTreePainter oldDelegate) =>
+      oldDelegate.colorScheme != colorScheme || oldDelegate.labels != labels;
 
   // --- Вспомогательные методы с поддержкой тем ---
 
