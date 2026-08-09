@@ -56,7 +56,17 @@ final routes = RouteMap(
   routes: {
     // «История» ('/statistics') временно скрыта из нижней навигации; сам
     // маршрут ниже остаётся рабочим для прямых ссылок.
-    '/': (_) => IndexedPage(child: HomePage(), paths: ['/home', '/questions', '/practice', '/settings']),
+    // Switching a tab has to leave a browser history entry, otherwise the
+    // back button is dead for the app's main navigation: the four tabs are
+    // where a web user spends most of their clicks, and by routemaster's
+    // default (`TabBackBehavior.none`) every switch only *replaces* the
+    // address, so "back" from the fourth tab throws the user off the site
+    // instead of walking them back through the tabs they visited.
+    '/': (_) => IndexedPage(
+      child: HomePage(),
+      paths: ['/home', '/questions', '/practice', '/settings'],
+      backBehavior: TabBackBehavior.history,
+    ),
     '/home': (_) => MaterialPage(child: HomeContentPage()),
     '/questions': (_) => MaterialPage(child: QuestionsPage()),
     '/statistics': (_) => MaterialPage(child: StatisticsPage()),

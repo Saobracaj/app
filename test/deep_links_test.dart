@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/core/deep_links/deep_link_path.dart';
 import 'package:saobracaj/core/deep_links/deep_link_service.dart';
 import 'package:saobracaj/main.dart' show AppRouteInformationParser;
@@ -73,7 +74,7 @@ void main() {
     // ссылку роутеру: полный URL со схемой. Раньше он целиком становился
     // «путём» и каждая живая ссылка открывала «страница не найдена».
     test('полный URL нормализуется в путь маршрута', () async {
-      const parser = AppRouteInformationParser();
+      final parser = AppRouteInformationParser();
       final data = await parser.parseRouteInformation(
         RouteInformation(
           uri: Uri.parse('https://saobracaj.gleb.at/question/7923'),
@@ -83,7 +84,7 @@ void main() {
     });
 
     test('чужой URL уводит на главную, а не в «не найдено»', () async {
-      const parser = AppRouteInformationParser();
+      final parser = AppRouteInformationParser();
       final data = await parser.parseRouteInformation(
         RouteInformation(uri: Uri.parse('https://example.com/whatever')),
       );
@@ -91,11 +92,50 @@ void main() {
     });
 
     test('обычный путь проходит как есть', () async {
-      const parser = AppRouteInformationParser();
+      final parser = AppRouteInformationParser();
       final data = await parser.parseRouteInformation(
         RouteInformation(uri: Uri.parse('/question/7923?comments=1')),
       );
       expect(data.path, '/question/7923');
+    });
+
+    // Записи истории браузера переживают перезагрузку страницы, а нумерация
+    // хронологической истории routemaster — нет: после F5 она начинается
+    // заново. Поэтому каждая запись помечается сеансом, который её написал.
+    test('запись своего сеанса разбирается вместе с состоянием', () async {
+      final parser = AppRouteInformationParser();
+      final own = parser.restoreRouteInformation(
+        RouteData(
+          '/lists/my-list',
+          pathTemplate: '/lists/:id',
+          pathParameters: const {'id': 'my-list'},
+        ),
+      );
+      final data = await parser.parseRouteInformation(own);
+      expect(data.pathTemplate, '/lists/:id');
+      expect(data.pathParameters['id'], 'my-list');
+    });
+
+    test('запись чужого сеанса открывается по адресу, а не по индексу', () async {
+      // Так выглядит запись, оставленная прошлым запуском приложения: индекс
+      // в ней указывает на несуществующую запись хронологической истории, и
+      // «назад» либо ничего не делал, либо уезжал на посторонний экран.
+      final stale = RouteInformation(
+        uri: Uri.parse('/lists/my-list'),
+        state: const {
+          'isReplacement': false,
+          'internalPath': '/lists/my-list',
+          'requestSource': 'RequestSource.internal',
+          'pathTemplate': '/lists/:id',
+          'pathParameters': {'id': 'my-list'},
+          'historyIndex': 7,
+          'appSession': 'какой-то прошлый запуск',
+        },
+      );
+      final data = await AppRouteInformationParser().parseRouteInformation(stale);
+      expect(data.path, '/lists/my-list');
+      // Состояние прошлого сеанса отброшено: маршрут разобран из адреса.
+      expect(data.pathTemplate, '/lists/my-list');
     });
   });
 
