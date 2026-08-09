@@ -10,6 +10,7 @@ import 'package:saobracaj/theme/presentation/appearance_page.dart';
 import 'package:saobracaj/notifications/presentation/notifications_page.dart';
 import 'package:saobracaj/profile/presentation/display_name_page.dart';
 import 'package:saobracaj/public_comments/presentation/moderation_page.dart';
+import 'package:saobracaj/push_test/presentation/test_push_page.dart';
 import 'package:saobracaj/groups/presentation/group_feed_page.dart';
 import 'package:saobracaj/groups/presentation/group_invite_page.dart';
 import 'package:saobracaj/groups/presentation/group_members_page.dart';
@@ -101,14 +102,19 @@ final routes = RouteMap(
     // and because a Redirect parent is dropped from the stack, "back" from the
     // feed returns to wherever the user came from (the home screen), not to an
     // intermediate group page.
-    '/groups/:id': (data) => Redirect('/groups/${data.pathParameters['id']}/feed'),
+    '/groups/:id': (data) =>
+        Redirect('/groups/${data.pathParameters['id']}/feed'),
     // Where an invite link lands: https://saobracaj.gleb.at/invite/ABC-DEF-GHI
     '/invite/:token': (data) => MaterialPage(
-      child: InvitePage(token: Uri.decodeComponent(data.pathParameters['token'] ?? '')),
+      child: InvitePage(
+        token: Uri.decodeComponent(data.pathParameters['token'] ?? ''),
+      ),
     ),
     // The activity feed: paged history, live while the screen is open.
     '/groups/:id/feed': (data) => MaterialPage(
-      child: GroupFeedPage(groupId: Uri.decodeComponent(data.pathParameters['id'] ?? '')),
+      child: GroupFeedPage(
+        groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+      ),
     ),
     // Management, split off the feed's app-bar menu: the roster (everyone) and
     // the invite (owner only). Children of the feed so "back" returns to it.
@@ -130,16 +136,16 @@ final routes = RouteMap(
     '/lists/:id/q/zakon': zakonPage,
     '/questPractice/q': questPage,
     '/questPractice/q/zakon': zakonPage,
-    '/questPractice':
-        (data) => MaterialPage(
-          child: Practice(
-            params: PracticeParams(
-              showRightAnswers: data.queryParameters['showRightAnswers'] == 'true',
-              showStats: data.queryParameters['showStats'] == 'true',
-              buttonsLikeInExam: data.queryParameters['buttonsLikeInExam'] == 'true',
-            ),
-          ),
+    '/questPractice': (data) => MaterialPage(
+      child: Practice(
+        params: PracticeParams(
+          showRightAnswers: data.queryParameters['showRightAnswers'] == 'true',
+          showStats: data.queryParameters['showStats'] == 'true',
+          buttonsLikeInExam:
+              data.queryParameters['buttonsLikeInExam'] == 'true',
         ),
+      ),
+    ),
     '/about': (_) => MaterialPage(child: AboutPage()),
     '/about/privacyPolicy': (_) => MaterialPage(child: PrivacyPolicyWidget()),
     '/zakon': zakonPage,
@@ -166,12 +172,9 @@ final routes = RouteMap(
     '/login': (_) => const MaterialPage(child: LoginPage()),
     '/register': (_) => const MaterialPage(child: RegisterPage()),
     '/resetPassword': (_) => const MaterialPage(child: ResetPasswordPage()),
-    '/confirmCode':
-        (data) => MaterialPage(
-          child: ConfirmCodePage(
-            email: data.queryParameters['email'] ?? '',
-          ),
-        ),
+    '/confirmCode': (data) => MaterialPage(
+      child: ConfirmCodePage(email: data.queryParameters['email'] ?? ''),
+    ),
     '/settings': (_) => const MaterialPage(child: ProfilePage()),
     '/profile': (_) => const MaterialPage(child: ProfilePage()),
     '/appearance': (_) => const MaterialPage(child: AppearancePage()),
@@ -179,6 +182,10 @@ final routes = RouteMap(
     '/notifications': (_) => const MaterialPage(child: NotificationsPage()),
     '/displayName': (_) => const MaterialPage(child: DisplayNamePage()),
     '/moderation': (_) => const MaterialPage(child: ModerationPage()),
+    // Инструмент администратора: ставит один тестовый пуш в очередь. Пункт в
+    // настройках виден только с правом `send_test_push`, право же проверяет
+    // бэкенд — по прямой ссылке экран открывается кому угодно.
+    '/testPush': (_) => const MaterialPage(child: TestPushPage()),
     // The support chat ("чат с разработчиком"). The user's own conversation
     // needs no id — the backend resolves it from the token; the moderator's
     // list and the conversations opened from it sit under it, so "back" from a
@@ -223,7 +230,8 @@ RouteSettings questPage(RouteData data) {
     child: Quest(
       options: StartTestState(
         random: data.queryParameters['random'] == 'true',
-        randomOptionsOrder: data.queryParameters['randomOptionsOrder'] == 'true',
+        randomOptionsOrder:
+            data.queryParameters['randomOptionsOrder'] == 'true',
       ),
       questions: ids,
       subcategory: data.queryParameters['subcategory'],

@@ -163,7 +163,9 @@
     "pushOnThisDevice": "On this device",
     "pushOnThisBrowser": "In this browser",
     "pushBlockedHint": "Notifications are turned off in the system settings. Enable them to receive push.",
-    "pushBlockedInBrowser": "Notifications are blocked for this site. Allow them in your browser settings and try again."
+    "pushBlockedInBrowser": "Notifications are blocked for this site. Allow them in your browser settings and try again.",
+    "testPush": "Test push",
+    "testPushSubtitle": "Send a test notification by email"
   },
   "featureFlags": {
     "title": "Features",
@@ -571,5 +573,22 @@
     "withinLightLimitsAndMass": "Within the light limits*\n+mass ≤350 kg?",
     "powerLimit": "power\n≤15 kW?",
     "seatsNote": "(≤9 seats)"
+  },
+  "testPush": {
+    "title": "Test push",
+    "hint": "Queues one notification on the backend for the given email. Success means \"accepted for delivery\": the push goes out through the background worker and FCM, so it arrives with a small delay.",
+    "email": "Recipient email",
+    "pushTitle": "Title",
+    "body": "Body",
+    "link": "Link",
+    "linkHint": "Where the app opens, e.g. /settings",
+    "optional": "Optional — a default is used when empty",
+    "send": "Send",
+    "queued": "Notification queued for {}",
+    "devices": {
+      "one": "Deliverable device: {}",
+      "other": "Deliverable devices: {}"
+    },
+    "noDevices": "But there is nowhere to deliver it: the user has no device with push enabled and a token on file."
   }
 }

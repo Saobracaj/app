@@ -42,6 +42,8 @@ import '../public_comments/data/public_comments_repository.dart' as _i989;
 import '../public_comments/state_management/comment_count_bloc.dart' as _i955;
 import '../public_comments/state_management/comments_bloc.dart' as _i405;
 import '../public_comments/state_management/moderation_bloc.dart' as _i515;
+import '../push_test/data/push_test_repository.dart' as _i548;
+import '../push_test/state_management/test_push_bloc.dart' as _i246;
 import '../question_feedback/domain/question_feedback_source.dart' as _i7;
 import '../question_feedback/state_management/question_feedback_bloc.dart'
     as _i751;
@@ -158,6 +160,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i989.PublicCommentsRepository>(
       () => _i989.PublicCommentsRepository(gh<_i483.GraphqlClient>()),
     );
+    gh.lazySingleton<_i548.PushTestRepository>(
+      () => _i548.PushTestRepository(gh<_i483.GraphqlClient>()),
+    );
     gh.lazySingleton<_i206.QuestionListsRepository>(
       () => _i206.QuestionListsRepository(gh<_i483.GraphqlClient>()),
     );
@@ -187,6 +192,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i187.KonspektCatalogBloc>(
       () => _i187.KonspektCatalogBloc(gh<_i491.KonspektRepository>()),
+    );
+    gh.factory<_i246.TestPushBloc>(
+      () => _i246.TestPushBloc(
+        gh<_i548.PushTestRepository>(),
+        gh<_i388.AuthBloc>(),
+      ),
     );
     gh.factoryParam<_i198.KonspektBloc, String, String?>(
       (categoryId, initialSection) => _i198.KonspektBloc(
