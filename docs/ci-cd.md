@@ -229,22 +229,37 @@ Xcode, запрещает ручное/API-добавление сборок и 
 создания группы**. Beta App Review для внутренних групп не нужен — сборка
 становится доступна тестировщикам сразу после добавления в группу.
 
+#### Шаг 6. APNs Auth Key для пушей
+
+К пайплайну ключ отношения не имеет — он живёт в Firebase, — но без него FCM
+физически не может доставить пуш на iOS, каким бы верным ни был профиль.
+
+Заведён 2026-08-09: Apple Developer → **Keys** → «+» → *Apple Push
+Notifications service (APNs)*, конфигурация **Sandbox & Production**, Team
+Scoped (All Topics). Имя «Saobracaj APNs», **Key ID `3QD434X5KG`**, файл
+`AuthKey_3QD434X5KG.p8` выдаётся ровно один раз и лежит вне git в
+`~/Documents/2026/saobracaj/private_documents/apple-distribution/`.
+
+Тот же файл залит в Firebase Console → Project settings → **Cloud Messaging**
+→ *Apple app configuration* → APNs Authentication Key, в **обе** строки —
+development и production (Key ID `3QD434X5KG`, Team ID `BHH5379JU2`); ключ
+собран под оба окружения, поэтому одинаково годится и для debug-сборок
+(sandbox), и для TestFlight/App Store (production).
+
 ### Веб — уже работает ✅
 
 Переменные `VPS_HOST`, `VPS_USER`, `VPS_SSH_PASSWORD` заданы на уровне
 организации; деплой описан в `saobracaj_backend/deploy` (сервис `web` в
 `~/app/docker-compose.yml` на VPS).
 
-Один секрет пока не залит — `FCM_VAPID_KEY`, публичный ключ Web Push
-(Firebase Console → Project settings → **Cloud Messaging** → *Web
-configuration* → Web Push certificates → «Generate key pair», скопировать
-строку «Key pair»). Он уходит в сборку как
-`--dart-define=FCM_VAPID_KEY=…`; без него веб-сборка **осознанно не
-регистрирует** push-токен (`PushTokenService`, `lib/notifications/data/`) —
-`getToken()` на вебе без ключа может только бросить исключение. Сервис-воркер
-`web/firebase-messaging-sw.js` уже в репозитории, так что после заливки
-секрета веб-пуши включаются одной пересборкой. Пуши на Android и iOS от этого
-секрета не зависят.
+Секрет `FCM_VAPID_KEY` — публичный ключ Web Push (Firebase Console → Project
+settings → **Cloud Messaging** → *Web configuration* → Web Push certificates →
+«Generate key pair», скопировать строку «Key pair»). Ключ сгенерирован и залит
+2026-08-09. Он уходит в сборку как `--dart-define=FCM_VAPID_KEY=…`; без него
+веб-сборка **осознанно не регистрирует** push-токен (`PushTokenService`,
+`lib/notifications/data/`) — `getToken()` на вебе без ключа может только
+бросить исключение. Сервис-воркер `web/firebase-messaging-sw.js` уже в
+репозитории. Пуши на Android и iOS от этого секрета не зависят.
 
 ---
 
