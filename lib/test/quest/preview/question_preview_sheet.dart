@@ -88,40 +88,104 @@ class QuestionPreviewSheet extends StatelessWidget {
               .firstWhereOrNull((c) => c.id == question.categoryId)
               ?.name;
 
+    // A sheet, not a screen: on wide windows never the whole width, or the
+    // bottom sheet degenerates into a full-width band.
+    if (question == null) {
+      return Align(
+        alignment: Alignment.bottomCenter,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 640),
+          child: _SheetSurface(
+            child: SafeArea(top: false, child: const _MissingQuestion()),
+          ),
+        ),
+      );
+    }
+
     return Align(
       alignment: Alignment.bottomCenter,
       child: ConstrainedBox(
-        // A sheet, not a screen: whatever it takes, but never the whole height —
-        // and on wide windows never the whole width either, or the bottom sheet
-        // degenerates into a full-width band.
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.9,
-          maxWidth: 640,
-        ),
-        child: Material(
-          color: Theme.of(context).colorScheme.surface,
-          clipBehavior: Clip.antiAlias,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: question == null
-                ? const _MissingQuestion()
-                : BlocProvider(
-                    create: (_) => QuestContentBloc(
-                      {...question.choices},
-                      const {},
-                      question.id,
-                    ),
-                    child: _Content(
-                      question: question,
-                      categoryName: categoryName,
-                    ),
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: _DismissOnCollapse(
+          child: DraggableScrollableSheet(
+            // The same sheet behavior as the rest of the app (the law's table
+            // of contents, the konspekt links): the sheet itself is what drags,
+            // there is no scroll view nested inside another.
+            expand: false,
+            snap: true,
+            initialChildSize: 0.65,
+            minChildSize: 0.3,
+            maxChildSize: 0.9,
+            builder: (context, scrollController) => _SheetSurface(
+              child: SafeArea(
+                top: false,
+                child: BlocProvider(
+                  create: (_) => QuestContentBloc(
+                    {...question.choices},
+                    const {},
+                    question.id,
                   ),
+                  child: _Content(
+                    question: question,
+                    categoryName: categoryName,
+                    scrollController: scrollController,
+                  ),
+                ),
+              ),
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// The rounded surface both states of the sheet share.
+class _SheetSurface extends StatelessWidget {
+  const _SheetSurface({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      clipBehavior: Clip.antiAlias,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Pops the route once the sheet has been dragged down to its minimum — that is
+/// how a [DraggableScrollableSheet] living on its own route gets dismissed
+/// (inside `showModalBottomSheet` the modal route does this itself).
+class _DismissOnCollapse extends StatefulWidget {
+  const _DismissOnCollapse({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_DismissOnCollapse> createState() => _DismissOnCollapseState();
+}
+
+class _DismissOnCollapseState extends State<_DismissOnCollapse> {
+  bool _dismissing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return NotificationListener<DraggableScrollableNotification>(
+      onNotification: (notification) {
+        if (!_dismissing &&
+            notification.extent <= notification.minExtent + 0.005) {
+          _dismissing = true;
+          Navigator.of(context).pop();
+        }
+        return false;
+      },
+      child: widget.child,
     );
   }
 }
@@ -154,64 +218,19 @@ class _MissingQuestion extends StatelessWidget {
   }
 }
 
-// Stateful only for the drag-to-dismiss accumulator below — everything else is
-// still driven by the blocs.
-class _Content extends StatefulWidget {
-  const _Content({required this.question, this.categoryName});
+/// The sheet's content: one scroll view driven by the sheet's own controller
+/// (so dragging anywhere on the content moves the sheet), with the action bar
+/// pinned below it.
+class _Content extends StatelessWidget {
+  const _Content({
+    required this.question,
+    required this.scrollController,
+    this.categoryName,
+  });
 
   final Question question;
+  final ScrollController scrollController;
   final String? categoryName;
-
-  @override
-  State<_Content> createState() => _ContentState();
-}
-
-class _ContentState extends State<_Content> {
-  Question get question => widget.question;
-
-  /// Downward travel accumulated while the content is already at its top, so a
-  /// continued pull closes the sheet — without this, the inner scroll view
-  /// swallowed the drag and the sheet could only be dismissed from the header.
-  double _pullDown = 0;
-  bool _dismissing = false;
-
-  static const _dismissThreshold = 48.0;
-
-  bool _onScroll(ScrollNotification notification) {
-    if (_dismissing || notification.depth != 0) return false;
-    if (notification is ScrollStartNotification ||
-        notification is ScrollEndNotification) {
-      _pullDown = 0;
-      return false;
-    }
-
-    final double delta;
-    if (notification is OverscrollNotification) {
-      if (notification.dragDetails == null) return false;
-      delta = notification.overscroll;
-    } else if (notification is ScrollUpdateNotification) {
-      if (notification.dragDetails == null) return false;
-      // Only a pull past the top counts; ordinary scrolling resets the travel.
-      if (notification.metrics.pixels > notification.metrics.minScrollExtent) {
-        _pullDown = 0;
-        return false;
-      }
-      delta = notification.scrollDelta ?? 0;
-    } else {
-      return false;
-    }
-
-    if (delta < 0) {
-      _pullDown -= delta;
-      if (_pullDown >= _dismissThreshold) {
-        _dismissing = true;
-        Navigator.of(context).pop();
-      }
-    } else if (delta > 0) {
-      _pullDown = 0;
-    }
-    return false;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -219,108 +238,83 @@ class _ContentState extends State<_Content> {
     final rightAnswers = question.choices.where((c) => c.isCorrect).length;
 
     return Column(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        // Dragging the handle (or anywhere in the header) throws the sheet away,
-        // the gesture everyone tries first.
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onVerticalDragEnd: (details) {
-            if ((details.primaryVelocity ?? 0) > 250) {
-              Navigator.of(context).pop();
-            }
-          },
-          child: Column(
-            children: [
-              Container(
-                width: 32,
-                height: 4,
-                margin: const EdgeInsets.only(top: 12, bottom: 10),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurfaceVariant.withValues(
-                    alpha: 0.4,
-                  ),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        widget.categoryName ??
-                            LocaleKeys.quest_preview_title.tr(),
-                        style: theme.textTheme.titleMedium,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      LocaleKeys.quest_points.plural(question.points),
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        Flexible(
-          child: NotificationListener<ScrollNotification>(
-            onNotification: _onScroll,
-            child: SingleChildScrollView(
-              // Bouncing physics so the pull past the top emits drag updates on
-              // every platform (clamping physics reports them as overscrolls —
-              // _onScroll handles both).
-              physics: const BouncingScrollPhysics(
-                parent: AlwaysScrollableScrollPhysics(),
-              ),
-              padding: const EdgeInsets.only(bottom: 8),
-              child: BlocConsumer<QuestContentBloc, QuesContentState>(
-                listenWhen: (prev, curr) => prev.limitHits != curr.limitHits,
-                listener: (context, state) => showSelectionLimitFeedback(
-                  context,
-                  LocaleKeys.quest_answerLimitReached.plural(rightAnswers),
-                ),
-                builder: (context, state) {
-                  final bloc = context.read<QuestContentBloc>();
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (question.hasImage) ...[
-                        QuestionImageCard(imageId: question.imageId),
-                        const SizedBox(height: 14),
-                      ],
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: QuestMarkdown(
-                          text: question.text.trim().dict,
-                          pStyle: theme.textTheme.titleMedium,
+        Expanded(
+          child: BlocConsumer<QuestContentBloc, QuesContentState>(
+            listenWhen: (prev, curr) => prev.limitHits != curr.limitHits,
+            listener: (context, state) => showSelectionLimitFeedback(
+              context,
+              LocaleKeys.quest_answerLimitReached.plural(rightAnswers),
+            ),
+            builder: (context, state) {
+              final bloc = context.read<QuestContentBloc>();
+              return ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.only(bottom: 8),
+                children: [
+                  Center(
+                    child: Container(
+                      width: 32,
+                      height: 4,
+                      margin: const EdgeInsets.only(top: 12, bottom: 10),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.onSurfaceVariant.withValues(
+                          alpha: 0.4,
                         ),
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      const SizedBox(height: 12),
-                      for (final choice in question.choices)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                          child: AnswerOptionCard(
-                            choice: choice,
-                            selected: state.selectedChoices.contains(choice),
-                            revealed: state.showCorrectAnswers,
-                            showTranslation: false,
-                            onTap: state.showCorrectAnswers
-                                ? null
-                                : () => bloc.add(AddChoice(choice)),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            categoryName ?? LocaleKeys.quest_preview_title.tr(),
+                            style: theme.textTheme.titleMedium,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                    ],
-                  );
-                },
-              ),
-            ),
+                        const SizedBox(width: 8),
+                        Text(
+                          LocaleKeys.quest_points.plural(question.points),
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (question.hasImage) ...[
+                    QuestionImageCard(imageId: question.imageId),
+                    const SizedBox(height: 14),
+                  ],
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: QuestMarkdown(
+                      text: question.text.trim().dict,
+                      pStyle: theme.textTheme.titleMedium,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  for (final choice in question.choices)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                      child: AnswerOptionCard(
+                        choice: choice,
+                        selected: state.selectedChoices.contains(choice),
+                        revealed: state.showCorrectAnswers,
+                        showTranslation: false,
+                        onTap: state.showCorrectAnswers
+                            ? null
+                            : () => bloc.add(AddChoice(choice)),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ),
         const Divider(height: 1),

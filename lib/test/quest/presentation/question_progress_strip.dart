@@ -200,18 +200,34 @@ class QuestionProgressStrip extends StatelessWidget {
           final raw = ((constraints.maxWidth - _gap * (n - 1)) / n)
               .floorToDouble();
           final collapsedWidth = raw < 2.0 ? 2.0 : raw;
-          return GestureDetector(
-            // Catches taps on the gaps between segments/chips too.
-            behavior: HitTestBehavior.translucent,
-            onTap: () => onExpandedChanged(!expanded),
-            child: Wrap(
-              spacing: _gap,
-              runSpacing: 6,
-              alignment: WrapAlignment.center,
-              children: [
-                for (final entry in entries)
-                  _segment(context, entry, quiz, scheme, collapsedWidth),
-              ],
+          // A long run (145 questions in an exam category) folds into more chip
+          // rows than the screen holds. Capping the navigator's height keeps
+          // the question visible below it — so the usual ways to close it
+          // (scrolling the body, tapping a gap) stay reachable — and the rows
+          // that don't fit scroll inside the cap.
+          return ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.4,
+            ),
+            child: SingleChildScrollView(
+              primary: false,
+              physics: expanded
+                  ? const ClampingScrollPhysics()
+                  : const NeverScrollableScrollPhysics(),
+              child: GestureDetector(
+                // Catches taps on the gaps between segments/chips too.
+                behavior: HitTestBehavior.translucent,
+                onTap: () => onExpandedChanged(!expanded),
+                child: Wrap(
+                  spacing: _gap,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.center,
+                  children: [
+                    for (final entry in entries)
+                      _segment(context, entry, quiz, scheme, collapsedWidth),
+                  ],
+                ),
+              ),
             ),
           );
         },

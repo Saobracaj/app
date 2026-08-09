@@ -15,6 +15,7 @@ import '../models/group_event.dart';
 import '../state_management/group_feed_bloc.dart';
 import '../state_management/group_feed_events.dart';
 import '../state_management/group_feed_state.dart';
+import '../state_management/groups_bloc.dart';
 import 'group_event_summary.dart';
 
 /// Everything that has happened in a group, newest first.
@@ -47,6 +48,17 @@ class _FeedView extends StatelessWidget {
 
   final String groupId;
 
+  /// Whether the signed-in user owns this group, read from the app-wide list
+  /// (`myGroups` carries `viewerIsOwner`) — the feed itself never loads the
+  /// full group.
+  bool _viewerOwnsGroup(BuildContext context) {
+    final groups = context.watch<GroupsBloc>().state.groups;
+    for (final group in groups) {
+      if (group.id == groupId) return group.viewerIsOwner;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<GroupFeedBloc, GroupFeedState>(
@@ -59,6 +71,10 @@ class _FeedView extends StatelessWidget {
         context.read<GroupFeedBloc>().add(const GroupFeedErrorShown());
       },
       builder: (context, state) {
+        // Считается в build (itemBuilder меню вызывается вне фазы билда, там
+        // watch запрещён); watch — чтобы пункт «Приглашение» появился, как
+        // только myGroups доехал.
+        final ownsGroup = _viewerOwnsGroup(context);
         return Scaffold(
           appBar: AppBar(
             title: Text(
@@ -77,18 +93,24 @@ class _FeedView extends StatelessWidget {
                   ),
                   icon: const Icon(Icons.cloud_off_outlined),
                 ),
-              // Управление группой (участники, приглашение, переименование)
-              // вынесено в меню — сама карточка группы теперь открывает ленту.
-              // Навигация через onSelected: контекст пункта меню к моменту
-              // срабатывания уже снят с дерева вместе с самим меню.
+              // Управление группой вынесено в меню — сама карточка группы
+              // открывает ленту. «Участники» доступны всем, «Приглашение» —
+              // только владельцу (признак берётся из myGroups в общем
+              // GroupsBloc). Навигация через onSelected: контекст пункта меню
+              // к моменту срабатывания уже снят с дерева вместе с самим меню.
               PopupMenuButton<String>(
-                onSelected: (_) =>
-                    Routemaster.of(context).push('/groups/$groupId'),
+                onSelected: (item) =>
+                    Routemaster.of(context).push('/groups/$groupId/feed/$item'),
                 itemBuilder: (_) => [
                   PopupMenuItem(
-                    value: 'manage',
-                    child: Text(LocaleKeys.groups_manage.tr()),
+                    value: 'members',
+                    child: Text(LocaleKeys.groups_members.tr()),
                   ),
+                  if (ownsGroup)
+                    PopupMenuItem(
+                      value: 'invite',
+                      child: Text(LocaleKeys.groups_invite_title.tr()),
+                    ),
                 ],
               ),
             ],

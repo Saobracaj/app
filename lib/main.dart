@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -19,6 +20,7 @@ import 'auth/data/firebase_init.dart';
 import 'auth/state_management/auth/auth_bloc.dart';
 import 'auth/state_management/auth/auth_events.dart';
 import 'core/app_language.dart';
+import 'core/deep_links/deep_link_path.dart';
 import 'core/deep_links/deep_link_service.dart';
 import 'core/di.dart';
 import 'db/dependencies.dart';
@@ -96,6 +98,30 @@ void main() async {
       child: MyApp(dynamicSchemes: dynamicSchemes),
     ),
   );
+}
+
+/// [RoutemasterParser] that survives being handed a full URL.
+///
+/// The engine's built-in deep-link handling (and any other system source) may
+/// push `https://saobracaj.gleb.at/question/7923` as route information verbatim;
+/// routemaster would take the whole string for a path and land on "page not
+/// found". A link with a scheme is therefore normalized through the same
+/// [deepLinkPathFor] the DeepLinkService uses. Not on the web — there the
+/// address bar is the router's input and never carries a scheme.
+class AppRouteInformationParser extends RoutemasterParser {
+  const AppRouteInformationParser();
+
+  @override
+  Future<RouteData> parseRouteInformation(RouteInformation routeInformation) {
+    final uri = routeInformation.uri;
+    if (!kIsWeb && uri.hasScheme) {
+      final path = deepLinkPathFor(uri) ?? '/';
+      return super.parseRouteInformation(
+        RouteInformation(uri: Uri.parse(path)),
+      );
+    }
+    return super.parseRouteInformation(routeInformation);
+  }
 }
 
 class MyApp extends StatefulWidget {
@@ -197,7 +223,7 @@ class _MyAppState extends State<MyApp> {
               ),
             ),
             routerDelegate: _routerDelegate,
-            routeInformationParser: RoutemasterParser(),
+            routeInformationParser: const AppRouteInformationParser(),
             title: 'Saobraćaj',
             themeMode: themeState.mode,
             theme: buildAppTheme(lightScheme),

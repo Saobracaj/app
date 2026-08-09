@@ -23,6 +23,15 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- Links are handled by app_links (DeepLinkService), which
+                 normalizes them into router paths. Since Flutter 3.27 the
+                 engine's own deep-link handling is on by default and pushes the
+                 raw URL into the router — every App Link then lands on "page
+                 not found". -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false"
+              />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

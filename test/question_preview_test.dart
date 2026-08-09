@@ -143,6 +143,22 @@ void main() {
     expect(find.text('Одговори'), findsNothing);
   });
 
+  testWidgets('протягивание содержимого вниз закрывает шит', (tester) async {
+    // Как у остальных bottom sheet: скроллится сам шит, без вложенного
+    // скролла, и жест вниз по содержимому уводит его за нижний край.
+    await _openPreview(tester, _question());
+
+    await tester.fling(
+      find.text('Како треба да поступи возач?'),
+      const Offset(0, 500),
+      1200,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AnswerOptionCard), findsNothing);
+    expect(find.text('open'), findsOneWidget);
+  });
+
   testWidgets('«Затвори» закрывает шит и возвращает на исходный экран', (
     tester,
   ) async {

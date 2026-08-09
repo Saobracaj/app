@@ -227,6 +227,52 @@ void main() {
     expect(tester.getSize(segmentOf('2')).height, 6);
   });
 
+  testWidgets('145 вопросов: раскрытая полоса не съедает весь экран, '
+      'чипы скроллятся', (tester) async {
+    // Экзаменационная категория со 145 вопросами: раньше раскрытый навигатор
+    // занимал экран целиком, не скроллился, и закрыть его можно было только
+    // выбрав вопрос (скриншот в задаче 1217292094173343).
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: QuestionProgressHeader(
+            entries: [
+              for (var i = 1; i <= 145; i++)
+                QuestionNavigatorEntry(
+                  questionId: i,
+                  number: i,
+                  points: 2,
+                  status: QuestionStatus.unanswered,
+                ),
+            ],
+            currentQuestionId: 1,
+            onQuestionSelected: (_) {},
+            child: ListView(
+              children: const [SizedBox(key: Key('body'), height: 2000)],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Раскрываем тапом по полосе.
+    await tester.tap(find.text('1'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+
+    // Тело вопроса осталось на экране — навигатор ограничен по высоте.
+    expect(find.byKey(const Key('body')), findsOneWidget);
+
+    // Дальние чипы достижимы прокруткой внутри навигатора.
+    final strip = find.byType(SingleChildScrollView);
+    await tester.dragUntilVisible(
+      find.text('145'),
+      strip,
+      const Offset(0, -120),
+    );
+    expect(find.text('145'), findsOneWidget);
+  });
+
   testWidgets('нельзя выбрать больше нужного: лишний тап не выбирается, '
       'даёт вибрацию и подсказку', (tester) async {
     // Ловим обращения к платформе, чтобы проверить вибрацию.

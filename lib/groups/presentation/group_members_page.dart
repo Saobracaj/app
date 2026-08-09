@@ -1,12 +1,10 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
 import '../../generated/locale_keys.g.dart';
-import '../../public_comments/presentation/relative_time.dart';
 import '../models/group.dart';
 import '../state_management/group_bloc.dart';
 import '../state_management/group_events.dart';
@@ -14,18 +12,20 @@ import '../state_management/group_state.dart';
 import '../state_management/groups_bloc.dart';
 import '../state_management/groups_events.dart';
 import 'group_dialogs.dart';
-import 'group_event_summary.dart';
-import 'group_invite_card.dart';
 
-/// One group: who is in it, what the owner can do with it, and the invite the
-/// owner hands out.
+/// The group's roster — who is in it and, for the owner, everything done *to*
+/// people and to the group itself: hand the group over, remove a member, lift a
+/// ban, rename, delete. Leaving lives here too.
 ///
 /// Nothing here decides who may do what — the buttons only mirror what the
 /// server allows, and every action goes back through it. Leaving is dispatched
 /// to the app-wide `GroupsBloc` (it owns the user's list of groups and re-reads
 /// the feature flags afterwards); everything else belongs to this screen.
-class GroupPage extends StatelessWidget {
-  const GroupPage({super.key, required this.groupId});
+///
+/// The feed is the group's main screen; this page and the invite page hang off
+/// its app-bar menu and deliberately show no events.
+class GroupMembersPage extends StatelessWidget {
+  const GroupMembersPage({super.key, required this.groupId});
 
   final String groupId;
 
@@ -34,13 +34,13 @@ class GroupPage extends StatelessWidget {
     return BlocProvider(
       create: (_) =>
           getIt<GroupBloc>(param1: groupId)..add(const GroupOpened()),
-      child: const _GroupView(),
+      child: const _MembersView(),
     );
   }
 }
 
-class _GroupView extends StatelessWidget {
-  const _GroupView();
+class _MembersView extends StatelessWidget {
+  const _MembersView();
 
   @override
   Widget build(BuildContext context) {
@@ -55,13 +55,15 @@ class _GroupView extends StatelessWidget {
           ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
           context.read<GroupBloc>().add(const GroupErrorShown());
         }
-        if (state.closed) Routemaster.of(context).pop();
+        // Deleted from this screen: the group's feed below is gone with it, so
+        // the whole group stack is left, not just this page.
+        if (state.closed) Routemaster.of(context).replace('/home');
       },
       builder: (context, state) {
         final group = state.group;
         return Scaffold(
           appBar: AppBar(
-            title: Text(group?.name ?? LocaleKeys.groups_section.tr()),
+            title: Text(LocaleKeys.groups_members.tr()),
             actions: [
               if (group != null && state.isOwner)
                 _OwnerMenu(group: group, busy: state.busy),
@@ -73,7 +75,10 @@ class _GroupView extends StatelessWidget {
               child: Text(LocaleKeys.groups_notFound.tr()),
             ),
             (_, _, null) => const SizedBox.shrink(),
-            (_, _, final Group group) => _GroupBody(group: group, state: state),
+            (_, _, final Group group) => _MembersBody(
+              group: group,
+              state: state,
+            ),
           },
         );
       },
@@ -81,8 +86,8 @@ class _GroupView extends StatelessWidget {
   }
 }
 
-class _GroupBody extends StatelessWidget {
-  const _GroupBody({required this.group, required this.state});
+class _MembersBody extends StatelessWidget {
+  const _MembersBody({required this.group, required this.state});
 
   final Group group;
   final GroupState state;
@@ -94,12 +99,6 @@ class _GroupBody extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 24),
       children: [
         if (state.busy) const LinearProgressIndicator(),
-        if (state.isOwner)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-            child: GroupInviteCard(state: state),
-          ),
-        _SectionTitle(LocaleKeys.groups_members.tr()),
         for (final member in group.members)
           _MemberTile(member: member, state: state),
         if (state.isOwner && group.bannedMembers.isNotEmpty) ...[
@@ -118,41 +117,6 @@ class _GroupBody extends StatelessWidget {
               ),
             ),
         ],
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _SectionTitle(LocaleKeys.groups_activity.tr()),
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: TextButton(
-                onPressed: () => Routemaster.of(
-                  context,
-                ).push('/groups/${group.id}/feed'),
-                child: Text(LocaleKeys.groups_openFeed.tr()),
-              ),
-            ),
-          ],
-        ),
-        if (group.feedPreview.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              LocaleKeys.groups_noEvents.tr(),
-              style: theme.textTheme.bodyMedium,
-            ),
-          )
-        else
-          for (final event in group.feedPreview)
-            ListTile(
-              dense: true,
-              title: Text(groupEventSummary(context, event)),
-              trailing: Text(
-                relativeTime(event.occurredAt),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.outline,
-                ),
-              ),
-            ),
         const SizedBox(height: 16),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -181,7 +145,8 @@ class _GroupBody extends StatelessWidget {
     );
     if (!confirmed || !context.mounted) return;
     bloc.add(GroupLeaveRequested(group.id));
-    Routemaster.of(context).pop();
+    // The feed below this page belongs to a group the user just left.
+    Routemaster.of(context).replace('/home');
   }
 }
 
@@ -313,41 +278,4 @@ class _SectionTitle extends StatelessWidget {
       child: Text(title, style: Theme.of(context).textTheme.titleSmall),
     );
   }
-}
-
-/// A yes/no dialog for the actions that cannot be undone.
-Future<bool> confirmAction(
-  BuildContext context, {
-  required String title,
-  required String body,
-  required String action,
-}) async {
-  final confirmed = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: Text(title),
-      content: Text(body),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(ctx).pop(false),
-          child: Text(LocaleKeys.groups_cancel.tr()),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.of(ctx).pop(true),
-          child: Text(action),
-        ),
-      ],
-    ),
-  );
-  return confirmed ?? false;
-}
-
-/// Copy [text] and say so — used by the invite card for both the code and the
-/// link.
-Future<void> copyAndTell(BuildContext context, String text) async {
-  await Clipboard.setData(ClipboardData(text: text));
-  if (!context.mounted) return;
-  ScaffoldMessenger.of(
-    context,
-  ).showSnackBar(SnackBar(content: Text(LocaleKeys.groups_invite_copied.tr())));
 }

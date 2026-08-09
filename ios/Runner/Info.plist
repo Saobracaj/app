@@ -45,6 +45,12 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Links are handled by app_links (DeepLinkService), which normalizes them
+	     into router paths. Since Flutter 3.27 the engine's own deep-link handling
+	     is on by default and pushes the *raw* URL into the router — every
+	     universal link then lands on "page not found". -->
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<!-- The app's own URL scheme: saobracaj://saobracaj.gleb.at/invite/ABC-DEF-GHI.
 	     Universal Links (see Runner.entitlements) are the primary route; this
 	     one also works on a build that is not associated with the domain yet. -->

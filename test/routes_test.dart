@@ -88,6 +88,26 @@ void main() {
     expect(_build('/question/8084'), isA<MaterialPage>());
   });
 
+  test('группа: адрес без /feed редиректит в ленту, «назад» из неё — домой', () {
+    // Redirect-родитель выпадает из стека, поэтому под лентой не остаётся
+    // промежуточного экрана группы (раньше «назад» уводил на экран с QR).
+    expect(_build('/groups/g1'), isA<Redirect>());
+    final stack = routes
+        .getAll('/groups/g1/feed/members')!
+        .map((r) => r.pathTemplate);
+    expect(stack, [
+      '/',
+      '/groups/:id',
+      '/groups/:id/feed',
+      '/groups/:id/feed/members',
+    ]);
+  });
+
+  test('участники и приглашение группы — отдельные маршруты под лентой', () {
+    expect(routes.get('/groups/g1/feed/members'), isNotNull);
+    expect(routes.get('/groups/g1/feed/invite'), isNotNull);
+  });
+
   test('каждый диплинк ведёт на существующий маршрут', () {
     for (final link in _externalLinks) {
       final path = deepLinkPathFor(Uri.parse(link));

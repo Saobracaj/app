@@ -11,8 +11,9 @@ import 'package:saobracaj/notifications/presentation/notifications_page.dart';
 import 'package:saobracaj/profile/presentation/display_name_page.dart';
 import 'package:saobracaj/public_comments/presentation/moderation_page.dart';
 import 'package:saobracaj/groups/presentation/group_feed_page.dart';
+import 'package:saobracaj/groups/presentation/group_invite_page.dart';
+import 'package:saobracaj/groups/presentation/group_members_page.dart';
 import 'package:saobracaj/groups/presentation/invite_page.dart';
-import 'package:saobracaj/groups/presentation/group_page.dart';
 import 'package:saobracaj/home/home_content_page.dart';
 import 'package:saobracaj/home_page.dart';
 import 'package:saobracaj/konspekt/presentation/konspekt_page.dart';
@@ -86,17 +87,30 @@ final routes = RouteMap(
         listId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
       ),
     ),
-    // One group: its members, the owner's tools and the invite code.
-    '/groups/:id': (data) => MaterialPage(
-      child: GroupPage(groupId: Uri.decodeComponent(data.pathParameters['id'] ?? '')),
-    ),
+    // A group's main screen is its feed. The bare address redirects there —
+    // and because a Redirect parent is dropped from the stack, "back" from the
+    // feed returns to wherever the user came from (the home screen), not to an
+    // intermediate group page.
+    '/groups/:id': (data) => Redirect('/groups/${data.pathParameters['id']}/feed'),
     // Where an invite link lands: https://saobracaj.gleb.at/invite/ABC-DEF-GHI
     '/invite/:token': (data) => MaterialPage(
       child: InvitePage(token: Uri.decodeComponent(data.pathParameters['token'] ?? '')),
     ),
-    // Its activity feed: paged history, live while the screen is open.
+    // The activity feed: paged history, live while the screen is open.
     '/groups/:id/feed': (data) => MaterialPage(
       child: GroupFeedPage(groupId: Uri.decodeComponent(data.pathParameters['id'] ?? '')),
+    ),
+    // Management, split off the feed's app-bar menu: the roster (everyone) and
+    // the invite (owner only). Children of the feed so "back" returns to it.
+    '/groups/:id/feed/members': (data) => MaterialPage(
+      child: GroupMembersPage(
+        groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+      ),
+    ),
+    '/groups/:id/feed/invite': (data) => MaterialPage(
+      child: GroupInvitePage(
+        groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+      ),
     ),
     // Questions opened from a feed event sit under the feed, so finishing the
     // run (or pressing back) returns to the feed rather than to the home tab.

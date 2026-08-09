@@ -50,11 +50,11 @@ class _GroupsSectionBody extends StatelessWidget {
           confirmInviteFlow(context, preview, token);
           return;
         }
-        // A freshly created or joined group opens straight away: the owner
-        // needs its invite code, and the joiner wants to see where they landed.
+        // A freshly created or joined group opens straight away — on its feed,
+        // like the card; the owner reaches the invite from the feed's menu.
         final id = state.openGroupId;
         context.read<GroupsBloc>().add(const GroupOpenHandled());
-        if (id != null) Routemaster.of(context).push('/groups/$id');
+        if (id != null) Routemaster.of(context).push('/groups/$id/feed');
       },
       builder: (context, state) {
         return Column(

@@ -435,8 +435,7 @@
       "noMistakes": "No mistakes",
       "openMistakes": "Practise these questions",
       "offline": "No connection to the server — refresh"
-    },
-    "manage": "Members & invite"
+    }
   },
   "questionAnalysis": {
     "valueTitle": "Question value",

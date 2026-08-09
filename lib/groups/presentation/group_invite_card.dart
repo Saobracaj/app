@@ -11,7 +11,7 @@ import '../../generated/locale_keys.g.dart';
 import '../state_management/group_bloc.dart';
 import '../state_management/group_events.dart';
 import '../state_management/group_state.dart';
-import 'group_page.dart' show copyAndTell;
+import 'group_dialogs.dart' show copyAndTell;
 
 /// How the owner invites people: the code, the link built from it, and a QR of
 /// that link.

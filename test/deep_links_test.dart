@@ -1,6 +1,8 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/core/deep_links/deep_link_path.dart';
 import 'package:saobracaj/core/deep_links/deep_link_service.dart';
+import 'package:saobracaj/main.dart' show AppRouteInformationParser;
 
 void main() {
   group('deepLinkPathFor', () {
@@ -63,6 +65,37 @@ void main() {
     test('a code with characters worth escaping is escaped once', () {
       final path = deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/lists/my%20list'));
       expect(path, '/lists/my%20list');
+    });
+  });
+
+  group('AppRouteInformationParser', () {
+    // Так системный источник (встроенная обработка диплинков движка) отдаёт
+    // ссылку роутеру: полный URL со схемой. Раньше он целиком становился
+    // «путём» и каждая живая ссылка открывала «страница не найдена».
+    test('полный URL нормализуется в путь маршрута', () async {
+      const parser = AppRouteInformationParser();
+      final data = await parser.parseRouteInformation(
+        RouteInformation(
+          uri: Uri.parse('https://saobracaj.gleb.at/question/7923'),
+        ),
+      );
+      expect(data.path, '/question/7923');
+    });
+
+    test('чужой URL уводит на главную, а не в «не найдено»', () async {
+      const parser = AppRouteInformationParser();
+      final data = await parser.parseRouteInformation(
+        RouteInformation(uri: Uri.parse('https://example.com/whatever')),
+      );
+      expect(data.path, '/');
+    });
+
+    test('обычный путь проходит как есть', () async {
+      const parser = AppRouteInformationParser();
+      final data = await parser.parseRouteInformation(
+        RouteInformation(uri: Uri.parse('/question/7923?comments=1')),
+      );
+      expect(data.path, '/question/7923');
     });
   });
 
