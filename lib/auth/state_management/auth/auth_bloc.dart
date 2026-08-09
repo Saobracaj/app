@@ -79,6 +79,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           // out, which arrives as an `unauthenticated` transition.
         }
       case AuthStatus.unauthenticated:
+        // Statistics are tied to the account that produced them: leaving them
+        // behind would merge this user's results into the next account signing
+        // in on this device. Only a transition *out of* a live session is a
+        // real sign-out — `unauthenticated` is also how the very first
+        // bootstrap reports "no stored session", and a guest's own history must
+        // survive that. Cleared before the new state is published, so whatever
+        // reacts to the logout (e.g. the "recent mistakes" row) already reads an
+        // empty database.
+        if (state.status == AuthStatus.authenticated) {
+          await statisticsSync.onLoggedOut();
+        }
         emit(
           state.copyWith(status: AuthStatus.unauthenticated, clearViewer: true),
         );
@@ -92,7 +103,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> _onLogout(LogoutRequested event, Emitter<AuthState> emit) {
-    return repository.logout();
+  /// User-initiated sign-out. Flush first: the local statistics are wiped once
+  /// the session ends, so this is the last chance to upload anything gathered
+  /// since the previous sync (a test finished while offline). Bounded, because
+  /// signing out must not hang on a dead network — and never fatal, since
+  /// `sync()` swallows its own errors.
+  Future<void> _onLogout(LogoutRequested event, Emitter<AuthState> emit) async {
+    await statisticsSync.sync().timeout(
+      const Duration(seconds: 3),
+      onTimeout: () {},
+    );
+    await repository.logout();
   }
 }

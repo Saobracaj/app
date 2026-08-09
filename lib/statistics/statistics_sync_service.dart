@@ -34,12 +34,18 @@ class StatisticsSyncService {
   // more afterwards to pick up records added in the meantime.
   bool _pending = false;
 
+  // Bumped by [onLoggedOut]. A sync carries the counter it started with, so a
+  // response that arrives after the session ended cannot merge the previous
+  // account's records back into the freshly-cleared database.
+  int _session = 0;
+
   final _synced = StreamController<void>.broadcast();
 
   /// Fires after every completed sync that may have pulled new records into the
-  /// local DB — listeners holding stats in memory (e.g. `AllQuestionsBloc`)
-  /// re-read on it, so the numbers appear right after login instead of after
-  /// the next finished test.
+  /// local DB, and after [onLoggedOut] emptied it — listeners holding stats in
+  /// memory (e.g. `AllQuestionsBloc`) re-read on it, so the numbers appear right
+  /// after login instead of after the next finished test, and disappear right
+  /// after logout.
   Stream<void> get synced => _synced.stream;
 
   static const _mutation = r'''
@@ -54,6 +60,9 @@ class StatisticsSyncService {
   /// Run a sync now if the user is signed in. Safe to call from anywhere
   /// (fire-and-forget); never throws.
   Future<void> sync() async {
+    // Read before the first await, so a logout happening while this sync is
+    // under way is always seen as a session change.
+    final session = _session;
     final token = await _storage.accessToken;
     if (token == null || token.isEmpty) return; // signed out — nothing to do.
 
@@ -65,8 +74,8 @@ class StatisticsSyncService {
     try {
       do {
         _pending = false;
-        await _syncOnce();
-      } while (_pending);
+        await _syncOnce(session);
+      } while (_pending && session == _session);
       _synced.add(null);
     } catch (e) {
       debugPrint('Statistics sync failed: $e');
@@ -75,7 +84,19 @@ class StatisticsSyncService {
     }
   }
 
-  Future<void> _syncOnce() async {
+  /// Drop the local statistics when the session ends: they belong to the
+  /// account that produced them and have already been uploaded (a sync runs
+  /// after every finished test, and once more just before an explicit logout),
+  /// so logging back in pulls them down again. Keeping them would fold this
+  /// user's numbers into whichever account signs in next on this device.
+  Future<void> onLoggedOut() async {
+    _session++;
+    _pending = false;
+    await _db.clearStatistics();
+    _synced.add(null);
+  }
+
+  Future<void> _syncOnce(int session) async {
     final answers = await _db.getAllAnswers();
     final subcategories = await _db.getAllSubcategoryRecords();
     final practices = await _db.getPracticeRecords();
@@ -123,6 +144,10 @@ class StatisticsSyncService {
       variables: {'input': input},
       authenticated: true,
     );
+
+    // The user signed out while the request was in flight: this payload is the
+    // previous account's, and the local database has just been cleared for it.
+    if (session != _session) return;
 
     final result = data['syncStatistics'];
     if (result is Map<String, dynamic>) {
