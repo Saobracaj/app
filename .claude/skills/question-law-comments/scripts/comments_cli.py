@@ -297,9 +297,18 @@ def cmd_show(args):
             print(f"comment_status: {existing['status']}")
             # Both languages are printed: the RU text is the source an SR
             # adaptation is written from, and vice versa it shows what exists.
+            # An applied comment stores the same text in `draft` and `text`;
+            # printing it twice only wastes context, so the copy is skipped.
+            published = {
+                t["lang"]: t["text"]
+                for t in (existing.get("text") or {}).get("items", [])
+            }
             for block, label in (("draft", "existing_draft"), ("text", "existing_published")):
                 for t in (existing.get(block) or {}).get("items", []):
-                    print(f"{label}_{t['lang'].lower()}: {t['text'][:300]}")
+                    if block == "draft" and published.get(t["lang"]) == t["text"]:
+                        continue
+                    text = t["text"] if args.full else t["text"][:300]
+                    print(f"{label}_{t['lang'].lower()}: {text}")
         print()
 
 
@@ -369,14 +378,38 @@ def cmd_submit(args):
 
     lang = args.lang.upper()
 
-    if not args.force:
-        current = gql("query($id: Int!) { questionComment(id: $id) { status } }",
-                      {"id": args.id}, token=token)["questionComment"]
-        status = current["status"] if current else "PENDING"
-        if status in ("READY", "MODERATION"):
+    current = gql("query($id: Int!) { questionComment(id: $id) { status "
+                  "draft { items { lang text } } text { items { lang text } } } }",
+                  {"id": args.id}, token=token)["questionComment"]
+    status = current["status"] if current else "PENDING"
+    draft_items = {t["lang"]: t["text"]
+                   for t in ((current or {}).get("draft") or {}).get("items", [])}
+    published_items = {t["lang"]: t["text"]
+                       for t in ((current or {}).get("text") or {}).get("items", [])}
+
+    # A READY/MODERATION comment is protected per *language*: adding the missing
+    # SR fragment to a published RU comment is the normal Serbian workflow and
+    # touches nothing that a human already approved.
+    if not args.force and status in ("READY", "MODERATION"):
+        if lang in draft_items or lang in published_items:
             print(f"refusing to overwrite comment {args.id}: status is {status} "
-                  f"(pass --force to override)", file=sys.stderr)
+                  f"and a {lang} fragment already exists (pass --force to override)",
+                  file=sys.stderr)
             sys.exit(1)
+
+    # `applyCommentDraft` replaces the published text with the draft *wholesale*,
+    # so a draft holding only SR would drop an already published RU fragment the
+    # moment a human applies it. Copy any published fragment the draft is missing
+    # back into the draft first, and the apply stays additive.
+    for other_lang, other_text in published_items.items():
+        if other_lang != lang and other_lang not in draft_items:
+            gql(
+                "mutation($id: Int!, $draft: String!, $lang: Language!) "
+                "{ saveCommentDraft(id: $id, draft: $draft, language: $lang) { id } }",
+                {"id": args.id, "draft": other_text, "lang": other_lang},
+                token=token,
+            )
+            print(f"carried the published {other_lang} fragment into the draft")
 
     # saveCommentDraft replaces only the fragment of the given language; the
     # other language's draft fragment is preserved server-side.
@@ -424,6 +457,9 @@ def main():
 
     p = sub.add_parser("show", help="print a compact view of one or more questions")
     p.add_argument("ids", nargs="+")
+    p.add_argument("--full", action="store_true",
+                   help="print existing comments in full instead of the first 300 "
+                        "characters (needed when adapting an RU comment into SR)")
     p.set_defaults(func=cmd_show)
 
     p = sub.add_parser("search-law", help="keyword search over parsed_zakon.json")
