@@ -48,7 +48,6 @@ class _ObyezdAnimacijaState extends State<ObyezdAnimacija> with SingleTickerProv
       child: ClipRect(
         child: Stack(
           children: [
-            const RoadView(moving: true),
             Positioned.fill(child: const RoadView(moving: false)),
 
             // Неподвижная машина — синяя, стоит посередине экрана
@@ -74,10 +73,12 @@ class _ObyezdAnimacijaState extends State<ObyezdAnimacija> with SingleTickerProv
             ),
 
             Positioned(
-              left: 150,
+              left: 130,
               bottom: 20,
               child: EmergencyTriangle(),
             ),
+
+            Positioned(top: 8, left: 8, child: Text('Обилажење', style: TextStyle(color: Colors.white))),
           ],
         ),
       ),

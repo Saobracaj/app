@@ -64,12 +64,12 @@ class _BlockedRoadSceneState extends State<BlockedRoadScene> with SingleTickerPr
       child: ClipRect(
         child: Stack(
           children: [
-            const RoadView(moving: true),
             Positioned.fill(child: const RoadView(moving: false)),
 
             // Неподвижная машина + конусы + препятствие
             Positioned(
               bottom: 10,
+              left: 20,
               child: Align(
                 alignment: Alignment.bottomCenter,
                 child: Row(
@@ -78,6 +78,7 @@ class _BlockedRoadSceneState extends State<BlockedRoadScene> with SingleTickerPr
                       height: 50,
                       child: AnimatedAutoWidget(color: Colors.blue, leftIndicatorOn: true),
                     ),
+                    SizedBox(width: 20),
                     Column(children: [
                       TrafficConeWidget(height: 25),
                       TrafficConeWidget(height: 25),
@@ -114,6 +115,7 @@ class _BlockedRoadSceneState extends State<BlockedRoadScene> with SingleTickerPr
                 },
               );
             }),
+            Positioned(top: 8, left: 8, child: Text('Пропуштање', style: TextStyle(color: Colors.white))),
           ],
         ),
       ),

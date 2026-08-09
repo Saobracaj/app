@@ -43,7 +43,7 @@ class _MimoilazenjeState extends State<Mimoilazenje>
       child: ClipRRect(
         child: Stack(
           children: [
-            RoadView(moving: true),
+            // RoadView(moving: true),
             Positioned.fill(child: RoadView(moving: true)),
 
             // Синяя машина (по центру, без анимации)
@@ -76,6 +76,7 @@ class _MimoilazenjeState extends State<Mimoilazenje>
                 ),
               ),
             ),
+            Positioned(top: 8, left: 8, child: Text('Мимолажење', style: TextStyle(color: Colors.white))),
           ],
         ),
       ),
