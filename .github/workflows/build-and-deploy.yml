@@ -551,7 +551,8 @@ jobs:
           flutter build web --wasm --release \
             --target "$FLUTTER_TARGET" \
             --build-name "${{ needs.preflight.outputs.version_name }}" \
-            --build-number "${{ needs.preflight.outputs.build_number }}"
+            --build-number "${{ needs.preflight.outputs.build_number }}" \
+            --dart-define=FCM_VAPID_KEY="${{ secrets.FCM_VAPID_KEY }}"
 
       - name: Compute the image name (GHCR requires a lowercase owner)
         id: meta

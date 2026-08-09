@@ -174,8 +174,13 @@ Certificate From a Certificate Authority*) → скачать `.cer`, откры
 
 1. https://developer.apple.com/account → **Certificates, Identifiers & Profiles**
    → **Identifiers** — убедиться, что App ID `at.gleb.saobracaj.saobracaj`
-   существует и в нём включены нужные capabilities (Push Notifications,
-   Sign in with Apple — они используются приложением).
+   существует и в нём включены нужные capabilities. Их ровно три, по числу
+   ключей в `ios/Runner/Runner.entitlements`: **Push Notifications**
+   (`aps-environment`), **Sign in with Apple** (`com.apple.developer.applesignin`)
+   и **Associated Domains** (`com.apple.developer.associated-domains` —
+   Universal Links на `saobracaj.gleb.at`). Подпись в CI ручная, поэтому
+   профиль, в котором не хватает хотя бы одного из них, роняет сборку с
+   «Provisioning profile doesn't include the … entitlement».
 2. **Profiles** → «+» → **App Store Connect** (раздел *Distribution*) → выбрать
    этот App ID → выбрать сертификат из шага 1 → задать имя (например
    `Saobracaj App Store`) → Generate → Download.
@@ -229,6 +234,17 @@ Xcode, запрещает ручное/API-добавление сборок и 
 Переменные `VPS_HOST`, `VPS_USER`, `VPS_SSH_PASSWORD` заданы на уровне
 организации; деплой описан в `saobracaj_backend/deploy` (сервис `web` в
 `~/app/docker-compose.yml` на VPS).
+
+Один секрет пока не залит — `FCM_VAPID_KEY`, публичный ключ Web Push
+(Firebase Console → Project settings → **Cloud Messaging** → *Web
+configuration* → Web Push certificates → «Generate key pair», скопировать
+строку «Key pair»). Он уходит в сборку как
+`--dart-define=FCM_VAPID_KEY=…`; без него веб-сборка **осознанно не
+регистрирует** push-токен (`PushTokenService`, `lib/notifications/data/`) —
+`getToken()` на вебе без ключа может только бросить исключение. Сервис-воркер
+`web/firebase-messaging-sw.js` уже в репозитории, так что после заливки
+секрета веб-пуши включаются одной пересборкой. Пуши на Android и iOS от этого
+секрета не зависят.
 
 ---
 
