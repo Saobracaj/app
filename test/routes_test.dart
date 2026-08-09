@@ -124,6 +124,16 @@ void main() {
     expect((page as MaterialPage).child, isA<NotFoundPage>());
   });
 
+  test('переключение вкладок попадает в историю браузера', () {
+    // По умолчанию (`TabBackBehavior.none`) routemaster только заменяет адрес
+    // при переключении вкладки: истории не остаётся, и кнопка «назад» в
+    // браузере уносила пользователя с сайта вместо возврата на предыдущую
+    // вкладку — а вкладки и есть основная навигация приложения.
+    final page = _build('/');
+    expect(page, isA<IndexedPage>());
+    expect((page as IndexedPage).backBehavior, TabBackBehavior.history);
+  });
+
   test('конспект без категории не превращается в экран с ошибкой', () {
     // Так выглядит родитель диплинка `/konspekt/question/7921`: категории в
     // пути нет, показывать нечего. Redirect выкидывает такую страницу из

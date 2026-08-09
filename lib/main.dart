@@ -100,7 +100,8 @@ void main() async {
   );
 }
 
-/// [RoutemasterParser] that survives being handed a full URL.
+/// [RoutemasterParser] that survives being handed a full URL, and browser
+/// history entries left over from an earlier run of the app.
 ///
 /// The engine's built-in deep-link handling (and any other system source) may
 /// push `https://saobracaj.gleb.at/question/7923` as route information verbatim;
@@ -108,8 +109,30 @@ void main() async {
 /// found". A link with a scheme is therefore normalized through the same
 /// [deepLinkPathFor] the DeepLinkService uses. Not on the web — there the
 /// address bar is the router's input and never carries a scheme.
+///
+/// The second job matters on the web, where history entries outlive the run of
+/// the app that wrote them — see [_session].
 class AppRouteInformationParser extends RoutemasterParser {
-  const AppRouteInformationParser();
+  AppRouteInformationParser();
+
+  /// Identifies this run of the app inside the browser history entries it
+  /// writes.
+  ///
+  /// Routemaster stores the index of its own chronological history in every
+  /// history entry, and navigates the back/forward buttons by that index. The
+  /// index only means something to the run that wrote it: reloading the page
+  /// (F5, or following a link back into the app) starts a fresh, empty
+  /// history, while the entries behind the current one still carry the indexes
+  /// of the previous run. Handing those to routemaster made it look up a
+  /// chronological entry that no longer exists — back and forward then either
+  /// did nothing or jumped to an unrelated screen, and the history stack was
+  /// mangled on the way.
+  ///
+  /// So every entry is stamped with the session that wrote it, and an entry
+  /// from another session is navigated by its URL instead — which is what the
+  /// address bar shows anyway, and what a typed-in link does. As the user walks
+  /// over such an entry it gets rewritten with this session's stamp.
+  final String _session = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
 
   @override
   Future<RouteData> parseRouteInformation(RouteInformation routeInformation) {
@@ -120,8 +143,27 @@ class AppRouteInformationParser extends RoutemasterParser {
         RouteInformation(uri: Uri.parse(path)),
       );
     }
+    final state = routeInformation.state;
+    if (state is Map && state[_sessionKey] != _session) {
+      return super.parseRouteInformation(RouteInformation(uri: uri));
+    }
     return super.parseRouteInformation(routeInformation);
   }
+
+  @override
+  RouteInformation restoreRouteInformation(RouteData configuration) {
+    final info = super.restoreRouteInformation(configuration);
+    final state = info.state;
+    return RouteInformation(
+      uri: info.uri,
+      state: {
+        if (state is Map) ...state.cast<String, Object?>(),
+        _sessionKey: _session,
+      },
+    );
+  }
+
+  static const _sessionKey = 'appSession';
 }
 
 class MyApp extends StatefulWidget {
@@ -138,6 +180,11 @@ class _MyAppState extends State<MyApp> {
   final RoutemasterDelegate _routerDelegate = RoutemasterDelegate(
     routesBuilder: (context) => routes,
   );
+
+  /// Held for the lifetime of the app: it stamps the browser history entries
+  /// with the session that wrote them, so it must not be rebuilt with the tree.
+  final AppRouteInformationParser _routeInformationParser =
+      AppRouteInformationParser();
 
   StreamSubscription<String>? _deepLinks;
 
@@ -223,7 +270,7 @@ class _MyAppState extends State<MyApp> {
               ),
             ),
             routerDelegate: _routerDelegate,
-            routeInformationParser: const AppRouteInformationParser(),
+            routeInformationParser: _routeInformationParser,
             title: 'Saobraćaj',
             themeMode: themeState.mode,
             theme: buildAppTheme(lightScheme),
