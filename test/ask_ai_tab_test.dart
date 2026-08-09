@@ -9,9 +9,12 @@ import 'package:saobracaj/feature_flags/data/feature_flags_snapshot.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/test/data/quiz_preferences_repository.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/data/ask_ai_chat_repository.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/data/question_explanation_repository.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_chat.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/models/question_explanation.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_bloc.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_bloc.dart';
 import 'package:saobracaj/test/quest/question_features/presentation/question_features_tabs.dart';
 import 'package:saobracaj/test/quest/question_features/state_management/question_features_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -47,6 +50,22 @@ class _StubExplanationRepository extends QuestionExplanationRepository {
   }
 }
 
+/// Пустой живой чат: история пуста, квота не тронута — вкладке достаточно,
+/// чтобы отрисовать секцию чата под статичным объяснением.
+class _StubChatRepository extends AskAiChatRepository {
+  _StubChatRepository() : super(GraphqlClient(TokenStorage()));
+
+  @override
+  Future<List<AskAiChatMessage>> history(AskAiChatScope scope, String scopeId) async => const [];
+
+  @override
+  Future<AskAiQuota> quota() async => const AskAiQuota(limit: 40, used: 0, remaining: 40);
+
+  @override
+  Future<AskAiChatMessage> ask(AskAiChatScope scope, String scopeId, String message) async =>
+      AskAiChatMessage(id: '1', role: AskAiChatRole.assistant, content: 'ok', createdAt: DateTime.now());
+}
+
 /// Выдаёт ровно вкладку «Спросить AI», чтобы панель отрисовала её одну.
 class _StubFeatureFlagsRepository extends FeatureFlagsRepository {
   _StubFeatureFlagsRepository() : super(GraphqlClient(TokenStorage()), TokenStorage());
@@ -80,6 +99,10 @@ void main() {
     );
     getIt.registerFactoryParam<AskAiBloc, int, void>(
       (questionId, _) => AskAiBloc(getIt(), questionId),
+    );
+    getIt.registerLazySingleton<AskAiChatRepository>(_StubChatRepository.new);
+    getIt.registerFactoryParam<AskAiChatBloc, AskAiChatScope, String>(
+      (scope, scopeId) => AskAiChatBloc(getIt(), scope, scopeId),
     );
   });
 

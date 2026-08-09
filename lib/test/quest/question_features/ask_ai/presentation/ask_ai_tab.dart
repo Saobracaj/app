@@ -7,14 +7,15 @@ import '../../../../../generated/locale_keys.g.dart';
 import '../../../../../konspekt/presentation/konspekt_inline_text.dart';
 import '../../../../../konspekt/presentation/konspekt_markdown.dart';
 import '../models/question_explanation.dart';
+import 'ask_ai_chat_section.dart';
 import '../state_management/ask_ai_bloc.dart';
 import '../state_management/ask_ai_events.dart';
 import '../state_management/ask_ai_state.dart';
 
 /// The "Спросить AI" tab: the pre-generated explanation of the question — why
 /// the correct answer is correct, why the others are not, with links into the
-/// deciding law paragraph and konspekt section. The interactive chat lands on
-/// this tab later; until then the tab is the static document alone.
+/// deciding law paragraph and konspekt section — with the interactive chat
+/// about this question underneath it.
 ///
 /// The markdown reuses [KonspektMarkdown], so the document's `zakon?…`,
 /// `question?id=…` and `konspekt?…` links open exactly like konspekt ones.
@@ -29,11 +30,23 @@ class AskAiTab extends StatelessWidget {
       create: (_) => getIt<AskAiBloc>(param1: questionId),
       child: BlocBuilder<AskAiBloc, AskAiState>(
         builder: (context, state) {
-          if (state.failed) return const _LoadFailed();
           if (state.inProgress) return const _Loading();
           final explanation = state.explanation;
-          if (explanation == null) return const _NoExplanationYet();
-          return _Explanation(explanation: explanation);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (state.failed)
+                const _LoadFailed()
+              else if (explanation == null)
+                const _NoExplanationYet()
+              else
+                _Explanation(explanation: explanation),
+              // The chat stands on its own: a question with no explanation —
+              // or one whose explanation would not load — is still worth
+              // asking about.
+              AskAiChatSection(questionId: questionId),
+            ],
+          );
         },
       ),
     );

@@ -2,10 +2,14 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/feature_flags/domain/app_feature.dart';
+import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/test/practice/state_management/practice_bloc.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_chat.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/presentation/ask_ai_chat_page.dart';
 import 'package:saobracaj/test/practice/widgets/confetti.dart';
 import 'package:saobracaj/theme/quiz_colors.dart';
 
@@ -34,7 +38,10 @@ class FinalizePracticeWidget extends StatelessWidget {
             ];
 
             return Scaffold(
-              bottomNavigationBar: _Actions(wrongIds: wrongIds),
+              bottomNavigationBar: _Actions(
+                wrongIds: wrongIds,
+                attemptUuid: state.attemptUuid,
+              ),
               body: Stack(
                 children: [
                   if (isSuccess) ConfettiDemo(),
@@ -407,18 +414,26 @@ class _ErrorCard extends StatelessWidget {
   }
 }
 
-/// Pinned actions: review the mistakes (primary) and close. With a clean run
-/// there is nothing to review, so closing becomes the primary action.
+/// Pinned actions: review the mistakes (primary), the Ask-AI chat about this
+/// attempt (premium `ask_ai` accounts), and close. With a clean run there is
+/// nothing to review, so closing becomes the primary action.
 class _Actions extends StatelessWidget {
-  const _Actions({required this.wrongIds});
+  const _Actions({required this.wrongIds, required this.attemptUuid});
 
   final List<int> wrongIds;
+
+  /// The attempt's sync uuid — the exam chat's scope id on the backend.
+  final String? attemptUuid;
 
   @override
   Widget build(BuildContext context) {
     // Navigator.pop (not Routemaster) — the settings page awaits this pop to
     // refresh the previous-tries list.
     void close() => Navigator.of(context).pop();
+    final askAiEnabled = context.select(
+      (FeatureFlagsBloc bloc) => bloc.state.isEnabled(AppFeature.askAi),
+    );
+    final uuid = attemptUuid;
     return ColoredBox(
       color: Theme.of(context).colorScheme.surfaceContainerHigh,
       child: SafeArea(
@@ -429,7 +444,7 @@ class _Actions extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (wrongIds.isNotEmpty) ...[
+              if (wrongIds.isNotEmpty)
                 FilledButton(
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
@@ -442,11 +457,34 @@ class _Actions extends StatelessWidget {
                     LocaleKeys.simulation_reviewErrors.plural(wrongIds.length),
                   ),
                 ),
+              if (askAiEnabled && uuid != null) ...[
+                if (wrongIds.isNotEmpty) const SizedBox(height: 8),
+                FilledButton.tonalIcon(
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(48),
+                    shape: const StadiumBorder(),
+                  ),
+                  icon: const Icon(Icons.auto_awesome_outlined, size: 20),
+                  // The root navigator: the chat covers the whole result
+                  // screen, and popping it lands back here.
+                  onPressed: () => Navigator.of(context, rootNavigator: true)
+                      .push(
+                    MaterialPageRoute(
+                      builder: (_) => AskAiChatPage(
+                        scope: AskAiChatScope.examResult,
+                        scopeId: uuid,
+                      ),
+                    ),
+                  ),
+                  label: Text(LocaleKeys.askAi_examEntry.tr()),
+                ),
+              ],
+              if (wrongIds.isNotEmpty || (askAiEnabled && uuid != null))
                 TextButton(
                   onPressed: close,
                   child: Text(LocaleKeys.simulation_close.tr()),
-                ),
-              ] else
+                )
+              else
                 FilledButton(
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
