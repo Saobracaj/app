@@ -65,7 +65,11 @@ entries) directly with the Read tool, that burns context for nothing.
 2. **Read the questions.**
    ```
    python3 scripts/comments_cli.py show 7973 7974 7977
+   python3 scripts/comments_cli.py show 7973 7974 --full   # untruncated existing comments
    ```
+   Existing comments are cut at 300 characters unless you pass `--full`;
+   writing an SR adaptation needs the whole RU text, so use `--full` for
+   that pass (a draft identical to the published text is printed once).
    Prints, per question: category/subcategory names, the Serbian question
    text and choices with `isCorrect` flags marked (plus any existing RU/SR
    draft and published fragments), an RU translation hint
@@ -105,11 +109,17 @@ entries) directly with the Read tool, that burns context for nothing.
    the live `text` field (the field the Angular panel treats as the
    officially published comment), i.e. publish it unreviewed — the opposite
    of what we want. A human applies the draft themselves from the Angular
-   panel once they've reviewed it. It refuses to overwrite a
-   `READY`/`MODERATION` comment unless you pass `--force`.
+   panel once they've reviewed it. On a `READY`/`MODERATION` comment it
+   refuses to overwrite a fragment **in the same language** unless you pass
+   `--force` — adding the missing SR fragment to a published RU comment is
+   the normal Serbian workflow and needs no flag.
 
    `--lang` picks which fragment is written; the other language's draft
-   fragment is preserved server-side, so saving SR never clobbers RU.
+   fragment is preserved server-side, so saving SR never clobbers RU. If the
+   draft is missing a language the published text has, `submit` copies that
+   published fragment into the draft first — `applyCommentDraft` replaces the
+   whole text with the draft, so without this the RU text would vanish the
+   moment a human applies an SR-only draft.
 
 6. **Spot-check.**
    ```
