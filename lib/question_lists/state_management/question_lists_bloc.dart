@@ -61,6 +61,10 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
         _lists.refresh();
       } else if (auth.status == AuthStatus.unauthenticated) {
         _lists.onLoggedOut();
+        // The answer history is wiped on sign-out (`AuthBloc`), so recompute:
+        // otherwise the automatic list keeps offering the previous user's
+        // mistakes.
+        _loadRecentMistakes();
       }
     });
     await _lists.bootstrap();

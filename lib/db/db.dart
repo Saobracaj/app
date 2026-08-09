@@ -37,6 +37,18 @@ class AppDatabase extends _$AppDatabase {
   Future<Set<String>> subcategoryUuids() => _uuidsOf(subCategoryRecords);
   Future<Set<String>> practiceUuids() => _uuidsOf(practiceRecords);
 
+  /// Wipe every locally-stored statistics record. Called when a session ends
+  /// (see `StatisticsSyncService.onLoggedOut`): the numbers belong to the
+  /// account that produced them, and whatever signs in next must not inherit
+  /// them.
+  Future<void> clearStatistics() async {
+    await transaction(() async {
+      await delete(answerRecords).go();
+      await delete(subCategoryRecords).go();
+      await delete(practiceRecords).go();
+    });
+  }
+
   Future<Set<String>> _uuidsOf(TableInfo table) async {
     final rows = await customSelect(
       'SELECT uuid FROM ${table.actualTableName} WHERE uuid IS NOT NULL',

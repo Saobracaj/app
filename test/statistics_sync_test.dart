@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +23,10 @@ class _FakeClient extends GraphqlClient {
     },
   };
 
+  /// When set, the request hangs until it is completed — lets a test act while
+  /// a sync is in flight.
+  Completer<void>? gate;
+
   @override
   Future<Map<String, dynamic>> run(
     String query, {
@@ -28,6 +34,7 @@ class _FakeClient extends GraphqlClient {
     bool authenticated = false,
   }) async {
     lastVariables = variables;
+    await gate?.future;
     return response;
   }
 }
@@ -185,4 +192,76 @@ void main() {
     await service.sync();
     expect(client.lastVariables, isNull);
   });
+
+  test('логаут стирает всю локальную статистику и оповещает слушателей', () async {
+    await _seedOneOfEach(db);
+    final refreshes = <void>[];
+    final subscription = service.synced.listen(refreshes.add);
+    addTearDown(subscription.cancel);
+
+    await service.onLoggedOut();
+    await pumpEventQueue();
+
+    expect(await db.getAllAnswers(), isEmpty);
+    expect(await db.getAllSubcategoryRecords(), isEmpty);
+    expect(await db.getPracticeRecords(), isEmpty);
+    // Экраны, держащие статистику в памяти, должны перечитать её и показать ноль.
+    expect(refreshes, hasLength(1));
+  });
+
+  test('ответ сервера, пришедший после логаута, не возвращает данные обратно', () async {
+    client.response = {
+      'syncStatistics': {
+        'answers': [
+          {
+            'id': 'server-a1',
+            'questionId': 5,
+            'answeredAt': '2026-02-01T00:00:00.000Z',
+            'isWrong': false,
+          },
+        ],
+        'subcategories': <dynamic>[],
+        'practices': <dynamic>[],
+      },
+    };
+    await _seedOneOfEach(db);
+
+    // Синхронизация уходит на сервер, и пока она в полёте — пользователь выходит.
+    final gate = Completer<void>();
+    client.gate = gate;
+    final inFlight = service.sync();
+    await service.onLoggedOut();
+    gate.complete();
+    await inFlight;
+
+    expect(await db.getAllAnswers(), isEmpty);
+    expect(await db.getAllSubcategoryRecords(), isEmpty);
+    expect(await db.getPracticeRecords(), isEmpty);
+  });
+}
+
+/// По одной записи в каждую таблицу статистики.
+Future<void> _seedOneOfEach(AppDatabase db) async {
+  await db.insertAnswer(
+    AnswerRecordsCompanion.insert(
+      questionId: 42,
+      date: DateTime.utc(2026, 1, 2),
+      isWrong: true,
+    ),
+  );
+  await db.insertSubCategory(
+    SubCategoryRecordsCompanion.insert(
+      subcategory: 'signs',
+      rightAnswers: 8,
+      allAnswers: 10,
+    ),
+  );
+  await db.insertPractice(
+    PracticeRecordsCompanion.insert(
+      points: 90,
+      time: DateTime.utc(2026, 1, 3),
+      mistakes: 1,
+      durationSeconds: 1200,
+    ),
+  );
 }
