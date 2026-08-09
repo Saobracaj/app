@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -17,6 +19,15 @@ import '../state_management/support_image_state.dart';
 /// reader's finger as pictures decode one after another.
 const double kSupportImageWidth = 240;
 const double kSupportImageHeight = 180;
+
+/// Rounding of that box — also where the flight to full screen starts from.
+const double kSupportImageRadius = 12;
+
+/// Hero tag of an inline picture. Shared by the thumbnail in the bubble and by
+/// the full-screen viewer, so tapping one flies the photo into the other
+/// instead of cutting to it.
+String supportImageHeroTag(SupportAttachment attachment) =>
+    'support-image-${attachment.id}';
 
 /// How one attachment is rendered inside a message bubble.
 ///
@@ -109,7 +120,7 @@ class _ImageTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(kSupportImageRadius),
         child: SizedBox(
           width: kSupportImageWidth,
           height: kSupportImageHeight,
@@ -126,35 +137,41 @@ class _ImageTile extends StatelessWidget {
                   context,
                   attachment.copyWith(url: state.url),
                 ),
-                child: Image.network(
-                  state.url,
-                  // A re-signed link is a different image to Flutter's cache
-                  // only if the widget is told so.
-                  key: ValueKey(state.url),
-                  width: kSupportImageWidth,
-                  height: kSupportImageHeight,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, _, _) {
-                    // Reporting during a build is not allowed; the Bloc ignores
-                    // everything after the one retry, so repeats are harmless.
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (context.mounted) {
-                        context.read<SupportImageBloc>().add(
-                          SupportImageLoadFailed(),
-                        );
-                      }
-                    });
-                    return _ImagePlaceholder(
-                      fileName: attachment.fileName,
-                      loading: !state.refreshed,
-                    );
-                  },
-                  loadingBuilder: (context, child, progress) => progress == null
-                      ? child
-                      : _ImagePlaceholder(
-                          fileName: attachment.fileName,
-                          loading: true,
-                        ),
+                child: Hero(
+                  tag: supportImageHeroTag(attachment),
+                  flightShuttleBuilder: supportImageFlight(state.url),
+                  child: Image.network(
+                    state.url,
+                    // A re-signed link is a different image to Flutter's cache
+                    // only if the widget is told so.
+                    key: ValueKey(state.url),
+                    width: kSupportImageWidth,
+                    height: kSupportImageHeight,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, _, _) {
+                      // Reporting during a build is not allowed; the Bloc
+                      // ignores everything after the one retry, so repeats are
+                      // harmless.
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (context.mounted) {
+                          context.read<SupportImageBloc>().add(
+                            SupportImageLoadFailed(),
+                          );
+                        }
+                      });
+                      return _ImagePlaceholder(
+                        fileName: attachment.fileName,
+                        loading: !state.refreshed,
+                      );
+                    },
+                    loadingBuilder: (context, child, progress) =>
+                        progress == null
+                        ? child
+                        : _ImagePlaceholder(
+                            fileName: attachment.fileName,
+                            loading: true,
+                          ),
+                  ),
                 ),
               );
             },
@@ -285,24 +302,109 @@ Future<void> _download(BuildContext context, SupportAttachment attachment) async
   }
 }
 
-/// Full-screen image viewer: pinch/zoom over a black backdrop, with the same
-/// download action as a file attachment.
-void _openFullScreen(BuildContext context, SupportAttachment attachment) {
-  Navigator.of(context, rootNavigator: true).push(
+/// What actually flies between the bubble and the full screen.
+///
+/// The default shuttle hands the flight to the widget it lands on, so a picture
+/// shown cropped in the bubble (`cover`) would snap to its letterboxed shape in
+/// the very first frame of the flight. Drawing the same cropped picture for the
+/// whole way instead — into a rectangle that ends on the photo's own
+/// proportions — lets the crop unwind continuously, and the rounded corners
+/// straighten out along with it.
+HeroFlightShuttleBuilder supportImageFlight(String url) {
+  return (context, animation, direction, fromContext, toContext) {
+    return AnimatedBuilder(
+      animation: animation,
+      // The picture is built once: only its clip depends on the animation.
+      child: Image.network(url, fit: BoxFit.cover, gaplessPlayback: true),
+      builder: (context, child) => ClipRRect(
+        borderRadius: BorderRadius.circular(
+          kSupportImageRadius * (1 - animation.value).clamp(0.0, 1.0),
+        ),
+        child: child,
+      ),
+    );
+  };
+}
+
+/// Open the picture full screen.
+///
+/// The photo's proportions are looked up first, because the hero has to land on
+/// exactly the rectangle the photo will occupy — otherwise the flight ends on a
+/// letterboxed box and the picture jumps on the last frame. The same bytes are
+/// already decoded for the thumbnail, so the answer comes back from the image
+/// cache within a frame; when it does not, the viewer letterboxes as before
+/// rather than making the tap wait.
+Future<void> _openFullScreen(
+  BuildContext context,
+  SupportAttachment attachment,
+) async {
+  final navigator = Navigator.of(context, rootNavigator: true);
+  final url = attachment.url ?? '';
+  final aspectRatio = url.isEmpty ? null : await _imageAspectRatio(url);
+  if (!navigator.mounted) return;
+  navigator.push(
     MaterialPageRoute<void>(
       fullscreenDialog: true,
-      builder: (_) => _FullScreenImage(attachment: attachment),
+      builder: (_) =>
+          _FullScreenImage(attachment: attachment, aspectRatio: aspectRatio),
     ),
   );
 }
 
+/// Width-to-height of the decoded picture, or `null` if it is not there to be
+/// had quickly — a link that has expired since the thumbnail loaded, or a
+/// picture still on its way.
+Future<double?> _imageAspectRatio(String url) {
+  final completer = Completer<double?>();
+  final stream = NetworkImage(url).resolve(ImageConfiguration.empty);
+  late final ImageStreamListener listener;
+  void finish(double? ratio) {
+    if (!completer.isCompleted) completer.complete(ratio);
+    stream.removeListener(listener);
+  }
+
+  listener = ImageStreamListener(
+    (info, _) {
+      final ratio = info.image.width / info.image.height;
+      info.dispose();
+      finish(ratio.isFinite && ratio > 0 ? ratio : null);
+    },
+    onError: (_, _) => finish(null),
+  );
+  stream.addListener(listener);
+  return completer.future.timeout(
+    const Duration(milliseconds: 300),
+    onTimeout: () {
+      stream.removeListener(listener);
+      return null;
+    },
+  );
+}
+
+/// Full-screen image viewer: pinch/zoom over a black backdrop, with the same
+/// download action as a file attachment.
 class _FullScreenImage extends StatelessWidget {
-  const _FullScreenImage({required this.attachment});
+  const _FullScreenImage({required this.attachment, this.aspectRatio});
 
   final SupportAttachment attachment;
 
+  /// Proportions of the photo, when they were known at open time — the hero
+  /// lands on a box of exactly this shape, so `cover` and `contain` coincide.
+  final double? aspectRatio;
+
   @override
   Widget build(BuildContext context) {
+    final url = attachment.url ?? '';
+    final image = Image.network(
+      url,
+      fit: aspectRatio == null ? BoxFit.contain : BoxFit.cover,
+      errorBuilder: (context, _, _) => Center(
+        child: Text(
+          'support.imageUnavailable'.tr(),
+          style: const TextStyle(color: Colors.white),
+        ),
+      ),
+    );
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
@@ -321,15 +423,17 @@ class _FullScreenImage extends StatelessWidget {
           ),
         ],
       ),
-      body: Center(
-        child: InteractiveViewer(
-          maxScale: 5,
-          child: Image.network(
-            attachment.url ?? '',
-            errorBuilder: (context, _, _) => Text(
-              'support.imageUnavailable'.tr(),
-              style: const TextStyle(color: Colors.white),
-            ),
+      body: InteractiveViewer(
+        maxScale: 5,
+        child: Center(
+          child: Hero(
+            tag: supportImageHeroTag(attachment),
+            flightShuttleBuilder: supportImageFlight(url),
+            // Without the proportions the picture letterboxes across the whole
+            // body; a photo bigger than the screen used to overflow it.
+            child: aspectRatio == null
+                ? SizedBox.expand(child: image)
+                : AspectRatio(aspectRatio: aspectRatio!, child: image),
           ),
         ),
       ),
