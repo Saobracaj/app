@@ -71,7 +71,11 @@ class _SectionView extends StatelessWidget {
                       createdAt: DateTime.now(),
                     ),
                   ),
-                if (state.sending) const AskAiThinkingBubble(),
+                if (state.sending)
+                  AskAiThinkingBubble(
+                    streamingText: state.streamingText,
+                    tool: state.streamingTool,
+                  ),
                 if (state.isEmpty && !state.sending) ...[
                   Text(
                     LocaleKeys.askAi_emptyHint.tr(),

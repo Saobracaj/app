@@ -51,37 +51,75 @@ class AskAiMessageBubble extends StatelessWidget {
   }
 }
 
-/// The assistant-side placeholder while the model is thinking — an agentic
-/// answer takes long enough that a silent screen reads as broken.
+/// The assistant-side bubble while the model works. Silent at first («AI
+/// обдумывает ответ…»), it turns into a live view as the `askAiStream`
+/// subscription feeds it: the reply's text grows word by word, and a tool
+/// status names what the model is doing in between («ищу в законе…»). Without
+/// a working websocket it simply stays on the label — the reply still arrives
+/// whole through the mutation.
 class AskAiThinkingBubble extends StatelessWidget {
-  const AskAiThinkingBubble({super.key});
+  const AskAiThinkingBubble({super.key, this.streamingText = '', this.tool});
+
+  /// The reply streamed so far; rendered above the status row as it grows.
+  final String streamingText;
+
+  /// The wire name of the tool in use right now, `null` when just writing.
+  final String? tool;
+
+  /// Human labels for the backend's tool belt. A tool this build does not
+  /// know falls back to the generic label instead of leaking a wire name.
+  static const _toolLabels = {
+    'search_questions': LocaleKeys.askAi_toolSearchQuestions,
+    'get_question': LocaleKeys.askAi_toolGetQuestion,
+    'search_zakon': LocaleKeys.askAi_toolSearchZakon,
+    'get_user_attempts': LocaleKeys.askAi_toolGetUserAttempts,
+    'get_konspekt_blocks': LocaleKeys.askAi_toolGetKonspektBlocks,
+  };
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final label = tool == null
+        ? LocaleKeys.askAi_thinking
+        : _toolLabels[tool] ?? LocaleKeys.askAi_toolFallback;
     return Align(
       alignment: Alignment.centerLeft,
-      child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        color: theme.colorScheme.surfaceContainerHighest,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                LocaleKeys.askAi_thinking.tr(),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.sizeOf(context).width * 0.94,
+        ),
+        child: Card(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          color: theme.colorScheme.surfaceContainerHighest,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (streamingText.isNotEmpty) ...[
+                  KonspektMarkdown(text: streamingText),
+                  const SizedBox(height: 8),
+                ],
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      label.tr(),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

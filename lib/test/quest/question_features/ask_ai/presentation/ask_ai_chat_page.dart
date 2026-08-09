@@ -95,7 +95,11 @@ class _Messages extends StatelessWidget {
             createdAt: DateTime.now(),
           ),
         ),
-      if (state.sending) const AskAiThinkingBubble(),
+      if (state.sending)
+        AskAiThinkingBubble(
+          streamingText: state.streamingText,
+          tool: state.streamingTool,
+        ),
     ];
     final count = state.messages.length + tail.length;
     return ListView.builder(

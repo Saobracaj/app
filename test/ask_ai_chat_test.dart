@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/data/ask_ai_chat_repository.dart';
@@ -12,13 +15,31 @@ import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/a
 /// Управляемый транспорт чата: история и квота задаются тестом, отправка
 /// может падать сетью или ответом сервера (текст ошибки — как настоящий).
 class _StubChatRepository extends AskAiChatRepository {
-  _StubChatRepository() : super(GraphqlClient(TokenStorage()));
+  _StubChatRepository()
+    : super(
+        GraphqlClient(TokenStorage()),
+        GraphqlSubscriptionClient(GraphqlClient(TokenStorage()), TokenStorage()),
+      );
 
   List<AskAiChatMessage> historyMessages = [];
   int historyFailures = 0;
   AskAiQuota quotaValue = const AskAiQuota(limit: 40, used: 0, remaining: 40);
   GraphqlException? askError;
   final askedMessages = <String>[];
+
+  /// Живой стрим под контролем теста; сколько раз на него подписывались.
+  final live = StreamController<AskAiStreamUpdate>.broadcast(sync: true);
+  int liveSubscriptions = 0;
+
+  /// Отправка, которую тест завершает вручную — пока она висит, блок «sending»
+  /// и стриминговые кадры складываются в пузырь.
+  Completer<AskAiChatMessage>? pendingAsk;
+
+  @override
+  Stream<AskAiStreamUpdate> replyStream(AskAiChatScope scope, String scopeId) {
+    liveSubscriptions++;
+    return live.stream;
+  }
 
   @override
   Future<List<AskAiChatMessage>> history(AskAiChatScope scope, String scopeId) async {
@@ -36,6 +57,8 @@ class _StubChatRepository extends AskAiChatRepository {
   Future<AskAiChatMessage> ask(AskAiChatScope scope, String scopeId, String message) async {
     final error = askError;
     if (error != null) throw error;
+    final pending = pendingAsk;
+    if (pending != null) return pending.future;
     askedMessages.add(message);
     return AskAiChatMessage(
       id: 'srv-${askedMessages.length}',
@@ -156,6 +179,70 @@ void main() {
       await b.close();
     });
 
+    test('стриминговые дельты копятся в пузыре, а статус тула сбрасывает черновой текст', () async {
+      final b = bloc();
+      await pumpEventQueue();
+      // Стрим открыт заранее — сокет уже поднят к моменту первой отправки.
+      expect(repository.liveSubscriptions, 1);
+
+      repository.pendingAsk = Completer();
+      b.add(AskAiChatSendPressed(text: 'Сравни с билетом 8033'));
+      await pumpEventQueue();
+      expect(b.state.sending, isTrue);
+
+      repository.live.add(const AskAiStreamDelta('Секунду, '));
+      repository.live.add(const AskAiStreamDelta('смотрю…'));
+      await pumpEventQueue();
+      expect(b.state.streamingText, 'Секунду, смотрю…');
+      expect(b.state.streamingTool, isNull);
+
+      // Тул: сказанное до него — комментарий по пути, не ответ.
+      repository.live.add(const AskAiStreamTool('search_zakon'));
+      await pumpEventQueue();
+      expect(b.state.streamingText, isEmpty);
+      expect(b.state.streamingTool, 'search_zakon');
+
+      repository.live.add(const AskAiStreamDelta('Потому что закон.'));
+      await pumpEventQueue();
+      expect(b.state.streamingText, 'Потому что закон.');
+      expect(b.state.streamingTool, isNull);
+
+      // Мутация вернулась — стриминговый черновик уступает место ответу.
+      repository.pendingAsk!.complete(_message('srv-1', AskAiChatRole.assistant, 'Потому что закон.'));
+      await pumpEventQueue();
+      expect(b.state.sending, isFalse);
+      expect(b.state.streamingText, isEmpty);
+      expect(b.state.streamingTool, isNull);
+      expect(b.state.messages.last.content, 'Потому что закон.');
+      await b.close();
+    });
+
+    test('кадры COMPLETED/FAILED и кадры вне отправки не трогают состояние', () async {
+      final b = bloc();
+      await pumpEventQueue();
+
+      // Вне отправки (ход с другого устройства) дельты игнорируются.
+      repository.live.add(const AskAiStreamDelta('чужой ход'));
+      await pumpEventQueue();
+      expect(b.state.streamingText, isEmpty);
+
+      repository.pendingAsk = Completer();
+      b.add(AskAiChatSendPressed(text: 'Почему?'));
+      await pumpEventQueue();
+
+      // Итоговые кадры не добавляют сообщений: их привозит сама мутация,
+      // иначе ответ появился бы дважды.
+      repository.live.add(AskAiStreamCompleted(_message('9', AskAiChatRole.assistant, 'Готово')));
+      repository.live.add(const AskAiStreamFailed('сбой'));
+      await pumpEventQueue();
+      expect(b.state.messages, isEmpty);
+      expect(b.state.errorMessage, isNull);
+
+      repository.pendingAsk!.complete(_message('srv-1', AskAiChatRole.assistant, 'Ответ'));
+      await pumpEventQueue();
+      await b.close();
+    });
+
     test('подсказка отправляется как готовый вопрос, не трогая черновик', () async {
       final b = bloc();
       await pumpEventQueue();
@@ -218,6 +305,31 @@ void main() {
 
       expect(find.text('askAi.quotaExhausted'), findsOneWidget);
       expect(find.byType(TextField), findsNothing);
+    });
+
+    testWidgets('пока модель думает, пузырь показывает стриминговый текст и статус тула', (tester) async {
+      repository.pendingAsk = Completer();
+      await tester.pumpWidget(wrap());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('askAi.suggestWhy'));
+      await tester.pump();
+      expect(find.text('askAi.thinking'), findsOneWidget);
+
+      repository.live.add(const AskAiStreamTool('search_zakon'));
+      await tester.pump();
+      expect(find.text('askAi.toolSearchZakon'), findsOneWidget);
+
+      repository.live.add(const AskAiStreamDelta('Потому что закон.'));
+      await tester.pump();
+      expect(find.text('askAi.thinking'), findsOneWidget);
+      expect(find.textContaining('Потому что закон', findRichText: true), findsWidgets);
+
+      repository.pendingAsk!.complete(
+        _message('srv-1', AskAiChatRole.assistant, 'Потому что закон.'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('askAi.thinking'), findsNothing);
     });
 
     testWidgets('тап по подсказке отправляет её и рисует ответ ассистента', (tester) async {

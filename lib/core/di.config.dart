@@ -163,15 +163,8 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i206.QuestionListsRepository>(
       () => _i206.QuestionListsRepository(gh<_i483.GraphqlClient>()),
     );
-    gh.lazySingleton<_i154.AskAiChatRepository>(
-      () => _i154.AskAiChatRepository(gh<_i483.GraphqlClient>()),
-    );
     gh.lazySingleton<_i147.QuestionDifficultyRepository>(
       () => _i147.QuestionDifficultyRepository(gh<_i483.GraphqlClient>()),
-    );
-    gh.factoryParam<_i794.AskAiChatBloc, _i997.AskAiChatScope, String>(
-      (scope, scopeId) =>
-          _i794.AskAiChatBloc(gh<_i154.AskAiChatRepository>(), scope, scopeId),
     );
     gh.lazySingleton<_i388.AuthBloc>(
       () => _i388.AuthBloc(
@@ -238,6 +231,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i966.GraphqlSubscriptionClient>(),
       ),
     );
+    gh.lazySingleton<_i154.AskAiChatRepository>(
+      () => _i154.AskAiChatRepository(
+        gh<_i483.GraphqlClient>(),
+        gh<_i966.GraphqlSubscriptionClient>(),
+      ),
+    );
     gh.factoryParam<_i955.CommentCountBloc, int, dynamic>(
       (questionId, _) => _i955.CommentCountBloc(
         gh<_i989.PublicCommentsRepository>(),
@@ -283,6 +282,10 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i206.QuestionListsRepository>(),
         gh<_i388.AuthBloc>(),
       ),
+    );
+    gh.factoryParam<_i794.AskAiChatBloc, _i997.AskAiChatScope, String>(
+      (scope, scopeId) =>
+          _i794.AskAiChatBloc(gh<_i154.AskAiChatRepository>(), scope, scopeId),
     );
     gh.factoryParam<_i405.CommentsBloc, int, String?>(
       (questionId, threadId) => _i405.CommentsBloc(
