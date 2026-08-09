@@ -55,7 +55,7 @@ class _ObyezdAnimacija2State extends State<ObyezdAnimacija2> with SingleTickerPr
             // Неподвижная машина — синяя, стоит посередине экрана
 
             Positioned(
-              left: width * 0.5,
+              left: width * 0.45,
               bottom: 10,
               child: Row(
                 children: [
@@ -86,6 +86,8 @@ class _ObyezdAnimacija2State extends State<ObyezdAnimacija2> with SingleTickerPr
                 );
               },
             ),
+
+            Positioned(top: 8, left: 8, child: Text('Обилажење', style: TextStyle(color: Colors.white))),
           ],
         ),
       ),

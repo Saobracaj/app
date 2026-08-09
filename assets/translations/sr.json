@@ -577,5 +577,16 @@
     "suggestMistakes": "Анализирај моје грешке",
     "suggestTopics": "Које теме да поновим?",
     "suggestPlan": "Шта да учим пре следећег покушаја?"
+  },
+  "decisionTree": {
+    "yes": "да",
+    "no": "не",
+    "fuelNote": "Подсетник: бензин → cm³ | не-бензин/електро → kW",
+    "wheelsQuestion": "Колико точкова?",
+    "lightLimits": "*Границе за лаки:\n≤45 km/h;\nбензин ≤50 cm³\n/не бензин ≤4 kW",
+    "withinLightLimits": "у границама лаког*?",
+    "withinLightLimitsAndMass": "У границама лаког*\n+маса ≤350 kg?",
+    "powerLimit": "снага\n≤15 kW?",
+    "seatsNote": "(до 9 места)"
   }
 }

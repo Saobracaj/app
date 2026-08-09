@@ -14,16 +14,13 @@ class HomeContentPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(LocaleKeys.home_home.tr()),
-        actions: const [AuthButton()],
-      ),
+      appBar: AppBar(title: Text(LocaleKeys.home_home.tr()), actions: const [AuthButton()]),
       // Карточки групп и лента списков шире читабельной колонки смотрятся
       // разъехавшимися — на широких экранах контент собран по центру.
       body: ReadableWidth(
         maxWidth: 840,
         child: ListView(
-          children: const [
+          children: [
             SizedBox(height: 8),
             QuestionListsSection(),
             SizedBox(height: 8),

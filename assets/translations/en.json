@@ -565,5 +565,16 @@
     "suggestMistakes": "Go over my mistakes",
     "suggestTopics": "Which topics should I review?",
     "suggestPlan": "What should I study before the next attempt?"
+  },
+  "decisionTree": {
+    "yes": "yes",
+    "no": "no",
+    "fuelNote": "Reminder: petrol → cm³ | non-petrol/electric → kW",
+    "wheelsQuestion": "How many wheels?",
+    "lightLimits": "*Light-vehicle limits:\n≤45 km/h;\npetrol ≤50 cm³\n/non-petrol ≤4 kW",
+    "withinLightLimits": "within the light limits*?",
+    "withinLightLimitsAndMass": "Within the light limits*\n+mass ≤350 kg?",
+    "powerLimit": "power\n≤15 kW?",
+    "seatsNote": "(≤9 seats)"
   }
 }

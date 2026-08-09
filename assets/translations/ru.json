@@ -587,5 +587,16 @@
     "suggestMistakes": "Разбери мои ошибки",
     "suggestTopics": "Какие темы мне повторить?",
     "suggestPlan": "Что подучить перед следующей попыткой?"
+  },
+  "decisionTree": {
+    "yes": "да",
+    "no": "нет",
+    "fuelNote": "Напоминание: бензин → cm³ | не-бензин/электро → kW",
+    "wheelsQuestion": "Сколько колёс?",
+    "lightLimits": "*Лимиты лёгкого:\n≤45 km/h;\nбензин ≤50 cm³\n/не бензин ≤4 kW",
+    "withinLightLimits": "в лимитах лёгкого*?",
+    "withinLightLimitsAndMass": "В лимитах лёгкого*\n+масса ≤350 kg?",
+    "powerLimit": "мощность\n≤15 kW?",
+    "seatsNote": "(до 9 мест)"
   }
 }

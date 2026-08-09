@@ -4,6 +4,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+const _indicatorWidth = 20.0;
+const _indicatorHeight = 10.0;
+
 class AnimatedAutoWidget extends StatefulWidget {
   final Color color;
   final bool leftIndicatorOn;
@@ -51,7 +54,7 @@ class _AnimatedAutoWidgetState extends State<AnimatedAutoWidget> {
     return FittedBox(
       fit: BoxFit.scaleDown,
       child: SizedBox(
-        width: 300,
+        width: 190,
         height: 100,
         child: CustomPaint(painter: _AutoPainter(color: widget.color, leftIndicatorOn: leftIndicatorOn, rightIndicatorOn: rightIndicatorOn)),
       ),
@@ -71,7 +74,7 @@ class _AutoPainter extends CustomPainter {
     final centerX = size.width / 2;
     final centerY = size.height / 2;
     final carLength = size.height * 0.8;
-    final carWidth = size.width * 0.6;
+    final carWidth = size.width * 0.9;
     final carTop = size.height * 0.1;
     final carLeft = centerX - carWidth / 2;
     final carHeight = size.height * 0.8;
@@ -190,11 +193,11 @@ class _AutoPainter extends CustomPainter {
           ..style = PaintingStyle.stroke;
 
     if (leftIndicatorOn) {
-      canvas.drawOval(Rect.fromCenter(center: Offset(carLeft + carWidth - 20, carTop + 5), width: 15, height: 8), circlePaint);
+      canvas.drawOval(Rect.fromCenter(center: Offset(carLeft + carWidth - 20, carTop + 5), width: _indicatorWidth, height: _indicatorHeight), circlePaint);
     }
     // canvas.drawOval(Rect.fromCenter(center: Offset(carLeft + carWidth - 20, carTop + 5), width: 15, height: 8), circleStrokePaint);
     if (rightIndicatorOn) {
-      canvas.drawOval(Rect.fromCenter(center: Offset(carLeft + carWidth - 20, carTop + carHeight - 5), width: 15, height: 8), circlePaint);
+      canvas.drawOval(Rect.fromCenter(center: Offset(carLeft + carWidth - 20, carTop + carHeight - 5), width: _indicatorWidth, height: _indicatorHeight), circlePaint);
     }
     // canvas.drawOval(Rect.fromCenter(center: Offset(carLeft + carWidth - 20, carTop + carHeight - 5), width: 15, height: 8), circleStrokePaint);
 

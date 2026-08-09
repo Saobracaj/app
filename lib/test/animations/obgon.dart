@@ -70,6 +70,7 @@ class _ObgonState extends State<Obgon> with SingleTickerProviderStateMixin {
                 );
               },
             ),
+            Positioned(top: 8, left: 8, child: Text('Претицање', style: TextStyle(color: Colors.white))),
           ],
         ),
       ),
