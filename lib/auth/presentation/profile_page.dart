@@ -125,6 +125,20 @@ class ProfilePage extends StatelessWidget {
                       onTap: () => Routemaster.of(context).push('/moderation'),
                     ),
                   ],
+                  // Инструмент администратора: тестовая отправка пуша по почте.
+                  // Гейт — бэкендовое право `send_test_push`, оно же проверяется
+                  // и на самой мутации.
+                  if (auth.viewer?.permissions.contains('send_test_push') ==
+                      true) ...[
+                    const Divider(height: 0),
+                    ListTile(
+                      leading: const Icon(Icons.notifications_active_outlined),
+                      title: Text('settings.testPush'.tr()),
+                      subtitle: Text('settings.testPushSubtitle'.tr()),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Routemaster.of(context).push('/testPush'),
+                    ),
+                  ],
                   const Divider(height: 0),
                   ListTile(
                     leading: const Icon(Icons.tune),

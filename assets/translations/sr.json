@@ -167,7 +167,9 @@
     "pushOnThisDevice": "На овом уређају",
     "pushOnThisBrowser": "У овом прегледачу",
     "pushBlockedHint": "Обавештења су искључена у подешавањима система. Укључите их да бисте примали push.",
-    "pushBlockedInBrowser": "Обавештења су блокирана за овај сајт. Дозволите их у подешавањима прегледача и покушајте поново."
+    "pushBlockedInBrowser": "Обавештења су блокирана за овај сајт. Дозволите их у подешавањима прегледача и покушајте поново.",
+    "testPush": "Test push",
+    "testPushSubtitle": "Pošalji probno obaveštenje na e-poštu"
   },
   "featureFlags": {
     "title": "Функције",
@@ -577,5 +579,23 @@
     "suggestMistakes": "Анализирај моје грешке",
     "suggestTopics": "Које теме да поновим?",
     "suggestPlan": "Шта да учим пре следећег покушаја?"
+  },
+  "testPush": {
+    "title": "Test push",
+    "hint": "Stavlja jedno obaveštenje u red na bekendu za datu e-poštu. Uspeh znači „primljeno za slanje“: isporuka ide kroz pozadinski radnik i FCM, pa obaveštenje stiže sa malim zakašnjenjem.",
+    "email": "E-pošta primaoca",
+    "pushTitle": "Naslov",
+    "body": "Tekst",
+    "link": "Link",
+    "linkHint": "Gde se aplikacija otvara, npr. /settings",
+    "optional": "Opciono — koristi se podrazumevana vrednost",
+    "send": "Pošalji",
+    "queued": "Obaveštenje je stavljeno u red za {}",
+    "devices": {
+      "one": "Uređaj za isporuku: {}",
+      "few": "Uređaja za isporuku: {}",
+      "other": "Uređaja za isporuku: {}"
+    },
+    "noDevices": "Ali nema gde da se isporuči: korisnik nema nijedan uređaj sa uključenim push obaveštenjima i sačuvanim tokenom."
   }
 }
