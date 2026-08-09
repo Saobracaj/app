@@ -28,19 +28,29 @@ Future<void> initFirebase() async {
   }
 
   try {
-    // The OAuth client id, NOT options.appId (the Firebase app id) — passing
-    // the app id makes the native GoogleSignIn SDK fail on iOS.
-    final options = DefaultFirebaseOptions.currentPlatform;
-    final googleClientId = switch (defaultTargetPlatform) {
-      TargetPlatform.iOS || TargetPlatform.macOS => options.iosClientId,
-      TargetPlatform.android => options.androidClientId,
-      _ => null,
-    };
     FirebaseUIAuth.configureProviders([
-      GoogleProvider(clientId: googleClientId ?? ''),
+      GoogleProvider(clientId: googleOAuthClientId),
       fb_ui_oauth_apple.AppleProvider(),
     ]);
   } catch (e) {
     debugPrint('FirebaseUIAuth.configureProviders failed: $e');
   }
+}
+
+/// The OAuth client id for Google Sign-In — the single source of truth for
+/// every `GoogleProvider` in the app.
+///
+/// It is the *OAuth* client id, NOT `options.appId` (the Firebase app id):
+/// passing the app id makes the native GoogleSignIn SDK fail on iOS. Only the
+/// native flows read it — on Android the plugin takes the client id from
+/// google-services.json, and on the web firebase_ui_oauth_google signs in
+/// through `signInWithPopup` — so an empty string is the correct value there.
+String get googleOAuthClientId {
+  final options = DefaultFirebaseOptions.currentPlatform;
+  final clientId = switch (defaultTargetPlatform) {
+    TargetPlatform.iOS || TargetPlatform.macOS => options.iosClientId,
+    TargetPlatform.android => options.androidClientId,
+    _ => null,
+  };
+  return clientId ?? '';
 }

@@ -13,8 +13,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
-import '../../firebase_options.dart';
 import '../../generated/locale_keys.g.dart';
+import '../data/firebase_init.dart';
 import '../state_management/firebase_login/firebase_login_bloc.dart';
 import '../state_management/firebase_login/firebase_login_events.dart';
 import '../state_management/firebase_login/firebase_login_state.dart';
@@ -221,7 +221,9 @@ class _GoogleButton extends StatelessWidget {
       state: state,
       socialProvider: SocialAuthProvider.google,
       pageEnabled: pageEnabled,
-      provider: fb_ui_oauth_google.GoogleProvider(clientId: _googleClientId),
+      provider: fb_ui_oauth_google.GoogleProvider(
+        clientId: googleOAuthClientId,
+      ),
       builder: (onPressed, busy) =>
           GoogleSignInButton(onPressed: onPressed, busy: busy),
     );
@@ -251,12 +253,4 @@ class _AppleButton extends StatelessWidget {
           AppleSignInButton(onPressed: onPressed, busy: busy),
     );
   }
-}
-
-String get _googleClientId {
-  if (DefaultFirebaseOptions.currentPlatform == DefaultFirebaseOptions.ios) {
-    return DefaultFirebaseOptions.ios.iosClientId ??
-        DefaultFirebaseOptions.ios.appId;
-  }
-  return DefaultFirebaseOptions.currentPlatform.appId;
 }

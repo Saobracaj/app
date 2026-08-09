@@ -7,6 +7,16 @@ import 'package:injectable/injectable.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../auth/data/auth_status.dart';
 
+/// The project's Web Push certificate (VAPID) public key — Firebase Console →
+/// Project settings → Cloud Messaging → Web configuration.
+///
+/// The web build only registers a push token when it is passed in
+/// (`flutter build web --dart-define=FCM_VAPID_KEY=...`, see docs/ci-cd.md).
+/// Without a key `getToken()` on the web can only throw, so the whole web
+/// registration stays off rather than failing on every login. Native builds
+/// ignore this constant.
+const _webVapidKey = String.fromEnvironment('FCM_VAPID_KEY');
+
 /// Keeps the device's FCM push token registered with `saobracaj_backend`.
 ///
 /// A token is (re)registered whenever:
@@ -57,11 +67,19 @@ class PushTokenService {
   }
 
   Future<String?> _currentToken() async {
+    if (kIsWeb && _webVapidKey.isEmpty) {
+      // Bail out before requestPermission() so the browser is not asked for a
+      // permission we could not use anyway.
+      debugPrint('Push: no FCM_VAPID_KEY, skipping web token registration');
+      return null;
+    }
     try {
       final messaging = FirebaseMessaging.instance;
       // iOS / web only issue a token once notification permission is granted.
       await messaging.requestPermission();
-      return await messaging.getToken();
+      return await messaging.getToken(
+        vapidKey: kIsWeb ? _webVapidKey : null,
+      );
     } catch (e) {
       debugPrint('FirebaseMessaging.getToken failed: $e');
       return null;

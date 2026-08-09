@@ -2,6 +2,21 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Push notifications: added by Xcode together with the "Push
+	     Notifications" capability. `development` is the APNs sandbox, used by
+	     debug builds; Xcode swaps it for `production` when archiving for
+	     distribution, so leave it as is. -->
+	<key>aps-environment</key>
+	<string>development</string>
+
+	<!-- Sign in with Apple: without this entitlement (and the matching
+	     capability on the App ID) the native flow ends with
+	     ASAuthorizationError 1000 → "Sign in failed. Please try again." -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+
 	<!-- Universal Links: iOS fetches
 	     https://saobracaj.gleb.at/.well-known/apple-app-site-association
 	     (served by web_server/) and, finding this app's ID there, opens
@@ -15,14 +30,6 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:saobracaj.gleb.at</string>
-	</array>
-
-	<!-- Sign in with Apple: without this entitlement (and the matching
-	     capability on the App ID) the native flow ends with
-	     ASAuthorizationError 1000 → "Sign in failed. Please try again." -->
-	<key>com.apple.developer.applesignin</key>
-	<array>
-		<string>Default</string>
 	</array>
 </dict>
 </plist>

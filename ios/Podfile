@@ -36,16 +36,15 @@ target 'Runner' do
   end
 end
 
+# permission_handler used to be configured from here with
+# GCC_PREPROCESSOR_DEFINITIONS = PERMISSION_NOTIFICATIONS=1. Since Xcode 26
+# migrated the project to SPM, permission_handler_apple has no CocoaPods target
+# left to patch — it compiles its own Package.swift, where PERMISSION_NOTIFICATIONS
+# is on by default (permissions with no required Info.plist key are enabled
+# unless an env var turns them off). Only desktop_webview_auth still comes in as
+# a pod, so this hook is left with the settings Flutter needs from it.
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
-    # Enable only the permission_handler permissions the app actually uses.
-    # PERMISSION_NOTIFICATIONS gates the push-notifications toggle prompt.
-    target.build_configurations.each do |config|
-      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
-        '$(inherited)',
-        'PERMISSION_NOTIFICATIONS=1',
-      ]
-    end
   end
 end

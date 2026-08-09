@@ -37,6 +37,11 @@ migrate_working_dir/
 .pub/
 /build/
 
+# iOS: `flutter build` resolves the Swift packages itself and rewrites these on
+# every machine (Xcode also touches them just by opening the project), so they
+# only ever show up as churn in the diff.
+ios/**/xcshareddata/swiftpm/Package.resolved
+
 # Symbolication related
 app.*.symbols
 
