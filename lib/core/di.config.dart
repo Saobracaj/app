@@ -58,10 +58,16 @@ import '../test/quest/comment/data/comment_repository.dart' as _i359;
 import '../test/quest/comment/editor/state_management/comment_editor_bloc.dart'
     as _i658;
 import '../test/quest/comment/state_management/comment_bloc.dart' as _i213;
+import '../test/quest/question_features/ask_ai/data/ask_ai_chat_repository.dart'
+    as _i154;
 import '../test/quest/question_features/ask_ai/data/question_explanation_repository.dart'
     as _i1026;
+import '../test/quest/question_features/ask_ai/models/ask_ai_chat.dart'
+    as _i997;
 import '../test/quest/question_features/ask_ai/state_management/ask_ai_bloc.dart'
     as _i1003;
+import '../test/quest/question_features/ask_ai/state_management/ask_ai_chat_bloc.dart'
+    as _i794;
 import '../test/quest/question_features/data/question_analytics_repository.dart'
     as _i1002;
 import '../test/quest/question_features/data/question_difficulty_repository.dart'
@@ -157,8 +163,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i206.QuestionListsRepository>(
       () => _i206.QuestionListsRepository(gh<_i483.GraphqlClient>()),
     );
+    gh.lazySingleton<_i154.AskAiChatRepository>(
+      () => _i154.AskAiChatRepository(gh<_i483.GraphqlClient>()),
+    );
     gh.lazySingleton<_i147.QuestionDifficultyRepository>(
       () => _i147.QuestionDifficultyRepository(gh<_i483.GraphqlClient>()),
+    );
+    gh.factoryParam<_i794.AskAiChatBloc, _i997.AskAiChatScope, String>(
+      (scope, scopeId) =>
+          _i794.AskAiChatBloc(gh<_i154.AskAiChatRepository>(), scope, scopeId),
     );
     gh.lazySingleton<_i388.AuthBloc>(
       () => _i388.AuthBloc(

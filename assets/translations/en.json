@@ -537,6 +537,27 @@
     "loadFailed": "Couldn't load the explanation. Check your connection and try again",
     "retry": "Retry",
     "wrongChoices": "Why the other options are wrong",
-    "sources": "Sources"
+    "sources": "Sources",
+    "chatTitle": "AI chat",
+    "hint": "Your question…",
+    "send": "Send",
+    "thinking": "The AI is thinking…",
+    "emptyHint": "Ask a question — the AI sees this question, the summary and the law",
+    "examEmptyHint": "The AI sees this exam's result and every mistake. Ask what to go over",
+    "historyFailed": "Couldn't load the chat. Check your connection and try again",
+    "sendFailed": "Couldn't send the message. Check your connection and try again",
+    "quotaExhausted": "Today's AI question limit is used up — come back tomorrow",
+    "quotaLeft": {
+      "one": "{} question left today",
+      "other": "{} questions left today"
+    },
+    "disclaimer": "The AI can make mistakes — double-check the law and the summary",
+    "examEntry": "Ask AI",
+    "suggestWhy": "Why is this answer correct?",
+    "suggestSimple": "Explain it in simple terms",
+    "suggestExample": "Give a real-life example",
+    "suggestMistakes": "Go over my mistakes",
+    "suggestTopics": "Which topics should I review?",
+    "suggestPlan": "What should I study before the next attempt?"
   }
 }

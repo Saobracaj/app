@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:saobracaj/db/answer_table.dart' show genRecordId;
 import 'package:saobracaj/db/db.dart';
 import 'package:saobracaj/db/dependencies.dart';
 import 'package:saobracaj/models/models.dart';
@@ -129,6 +130,10 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
       }
     }
     final elapsed = DateTime.now().difference(_startTime!).inSeconds;
+    // Assigned here rather than by the table's clientDefault so the result
+    // screen knows the attempt's sync id — the Ask-AI chat about this exam is
+    // keyed by it on the backend.
+    final attemptUuid = genRecordId();
 
     // The result screen renders from these — the same numbers that go into
     // the practice record below.
@@ -138,6 +143,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
         finalPoints: pointsSummary,
         finalWrongQuestions: wrongAnswers,
         elapsedSeconds: elapsed,
+        attemptUuid: attemptUuid,
       ),
     );
 
@@ -148,6 +154,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
         mistakes: Value(wrongAnswers.length),
         durationSeconds: Value(elapsed),
         wrongAnswers: Value(wrongAnswers),
+        uuid: Value(attemptUuid),
       ),
     );
     // Push the new result to the back-end (no-op when signed out).
@@ -236,6 +243,8 @@ sealed class PracticeState with _$PracticeState {
     // questions count as wrong here, unlike the running score above.
     @Default(0) int finalPoints,
     @Default(<int>[]) List<int> finalWrongQuestions,
+    // The finished attempt's sync uuid — the Ask-AI exam chat's scope id.
+    String? attemptUuid,
     int? elapsedSeconds,
     Question? currentQuestion,
     Set<Choice>? currentAnswers,
