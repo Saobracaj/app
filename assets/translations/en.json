@@ -533,12 +533,7 @@
     "home": "Go home"
   },
   "askAi": {
-    "noExplanation": "The explanation for this question isn't ready yet. Explanations are gradually being added for every question",
-    "loadFailed": "Couldn't load the explanation. Check your connection and try again",
     "retry": "Retry",
-    "wrongChoices": "Why the other options are wrong",
-    "sources": "Sources",
-    "chatTitle": "AI chat",
     "hint": "Your question…",
     "send": "Send",
     "thinking": "The AI is thinking…",

@@ -9,10 +9,14 @@ import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/a
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_events.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_state.dart';
 
-/// The interactive chat under the static explanation on the "Спросить AI"
-/// tab. The tab lives inside the question screen's own scroll view, so this
-/// is a plain column of bubbles rather than its own list — the short
-/// conversations a question invites don't need one.
+/// The whole content of the "Спросить AI" tab: the interactive chat about this
+/// question, and nothing else. The pre-generated разбор and the law excerpts it
+/// used to sit under are already the "Объяснение" and "Конспект" tabs — the tab
+/// shows the one thing those don't.
+///
+/// The tab lives inside the question screen's own scroll view, so this is a
+/// plain column of bubbles rather than its own list — the short conversations a
+/// question invites don't need one.
 class AskAiChatSection extends StatelessWidget {
   const AskAiChatSection({super.key, required this.questionId});
 
@@ -38,14 +42,13 @@ class _SectionView extends StatelessWidget {
     final theme = Theme.of(context);
     return BlocBuilder<AskAiChatBloc, AskAiChatState>(
       builder: (context, state) {
+        // Своего заголовка у секции нет: вкладка панели уже подписана
+        // «Спросить AI», второй раз называть чат незачем.
         return Padding(
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Divider(height: 24),
-              Text(LocaleKeys.askAi_chatTitle.tr(), style: theme.textTheme.titleSmall),
-              const SizedBox(height: 8),
               if (state.loading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),

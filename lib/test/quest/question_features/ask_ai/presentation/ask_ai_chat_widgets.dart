@@ -261,30 +261,34 @@ class AskAiComposer extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: _ComposerField(
-                text: state.body,
-                enabled: !state.sending,
-                onChanged: (value) => bloc.add(AskAiChatBodyChanged(value)),
-                onSend: send,
+        // Кнопка отправки — часть поля ввода: тап по ней не считается тапом
+        // «мимо» и не закрывает клавиатуру на полуслове.
+        TextFieldTapRegion(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: _ComposerField(
+                  text: state.body,
+                  enabled: !state.sending,
+                  onChanged: (value) => bloc.add(AskAiChatBodyChanged(value)),
+                  onSend: send,
+                ),
               ),
-            ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              tooltip: LocaleKeys.askAi_send.tr(),
-              icon: state.sending
-                  ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.send),
-              onPressed: state.canSend ? send : null,
-            ),
-          ],
+              const SizedBox(width: 8),
+              IconButton.filled(
+                tooltip: LocaleKeys.askAi_send.tr(),
+                icon: state.sending
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send),
+                onPressed: state.canSend ? send : null,
+              ),
+            ],
+          ),
         ),
         if (remaining != null && remaining <= _lowQuota) ...[
           const SizedBox(height: 4),
@@ -327,6 +331,7 @@ class _ComposerFieldState extends State<_ComposerField> {
   late final TextEditingController _controller = TextEditingController(
     text: widget.text,
   );
+  final FocusNode _focus = FocusNode();
 
   @override
   void didUpdateWidget(_ComposerField oldWidget) {
@@ -337,6 +342,7 @@ class _ComposerFieldState extends State<_ComposerField> {
   @override
   void dispose() {
     _controller.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
@@ -354,7 +360,12 @@ class _ComposerFieldState extends State<_ComposerField> {
       },
       child: TextField(
         controller: _controller,
+        focusNode: _focus,
         onChanged: widget.onChanged,
+        // Тап по любой области вне поля — по сообщению, по подсказке, по самому
+        // вопросу — снимает фокус и закрывает клавиатуру, на всех платформах
+        // (по умолчанию так ведёт себя только desktop).
+        onTapOutside: (_) => _focus.unfocus(),
         enabled: widget.enabled,
         minLines: 1,
         maxLines: 5,
