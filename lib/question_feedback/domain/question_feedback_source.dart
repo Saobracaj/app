@@ -7,6 +7,9 @@ enum QuestionFeedbackSource {
   /// Вкладка «Обсуждение» (публичные комментарии).
   discussion('discussion'),
 
+  /// Вкладка «Объяснение» (редакторский комментарий к вопросу).
+  explanation('explanation'),
+
   /// Вкладка «Конспект» (выдержки из конспекта категории).
   summary('summary');
 

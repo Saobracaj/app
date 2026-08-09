@@ -27,7 +27,7 @@ Future<void> pushScreen(
   Map<String, String>? queryParameters,
   required Widget Function() screen,
 }) {
-  if (_isRoutable(context, path)) {
+  if (isRoutable(context, path)) {
     Routemaster.of(context).push(path, queryParameters: queryParameters);
     return Future.value();
   }
@@ -45,7 +45,7 @@ Future<void> pushScreen(
 /// of its own): Routemaster would resolve the relative path against the page
 /// *underneath* it, which is not what the user is looking at, so those always
 /// take the imperative branch.
-bool _isRoutable(BuildContext context, String path) {
+bool isRoutable(BuildContext context, String path) {
   final base = RouteData.maybeOf(context)?.path;
   if (base == null) return false;
   final target = base == '/' ? '/$path' : '$base/$path';

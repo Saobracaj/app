@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:routemaster/routemaster.dart';
-import 'package:saobracaj/core/deep_links.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
 import 'package:saobracaj/test/animations/animations_map.dart';
 import 'package:saobracaj/util/nav_to_url.dart';
@@ -85,10 +84,9 @@ class QuestMarkdown extends StatelessWidget {
       Routemaster.of(context).push(link);
     } else if (href.startsWith('zakon')) {
       Routemaster.of(context).push(href);
-    } else if (href.startsWith('https://$kDeepLinkHost/')) {
-      final link = href.split('https://$kDeepLinkHost/')[1];
-      Routemaster.of(context).push(link);
     } else {
+      // Ссылка на наш сайт открывается внутри приложения — этим занимается
+      // navigateToUri, в браузер уходят только чужие адреса.
       navigateToUri(context, Uri.parse(href));
     }
   }

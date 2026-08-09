@@ -13,9 +13,9 @@ import '../state_management/question_feedback_bloc.dart';
 import '../state_management/question_feedback_events.dart';
 import '../state_management/question_feedback_state.dart';
 
-/// Кнопка «Сообщить об ошибке» внизу вкладки вопроса — обсуждения или
-/// конспекта. Открывает диалог, который отправляет жалобу в чат пользователя с
-/// разработчиком.
+/// Кнопка «Сообщить об ошибке» внизу вкладки вопроса — объяснения, конспекта
+/// или обсуждения. Открывает диалог, который отправляет жалобу в чат
+/// пользователя с разработчиком.
 ///
 /// Видна, пока включена фича `question_feedback`.
 class ReportProblemButton extends StatelessWidget {

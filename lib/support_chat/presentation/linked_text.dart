@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/deep_links.dart';
+import '../../util/nav_to_url.dart';
 
 /// A link found inside a message body: where it sits in the text and where it
 /// points.
@@ -73,11 +74,14 @@ bool isInternalLink(Uri uri) {
 
 /// Open [uri], asking first when it leaves the product.
 ///
-/// A support chat is a place where strangers paste addresses at each other, so
-/// an outside link never opens on a single tap: the dialog shows where it
-/// actually goes before the browser does.
+/// A link to one of our own screens (a question, a konspekt, an invite) opens
+/// right here in the app — the browser never sees it. A support chat is also a
+/// place where strangers paste addresses at each other, so an outside link
+/// never opens on a single tap: the dialog shows where it actually goes before
+/// the browser does.
 Future<void> openMessageLink(BuildContext context, Uri uri) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
+  if (openAppUri(context, uri)) return;
   if (!isInternalLink(uri)) {
     final confirmed = await showDialog<bool>(
       context: context,

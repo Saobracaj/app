@@ -168,6 +168,17 @@ https://saobracaj.gleb.at/question/1234
       expect(built.chat.messages.single.body, startsWith('Report · summary'));
     });
 
+    test('со вкладки объяснения источник — explanation', () async {
+      final built = _build(source: QuestionFeedbackSource.explanation);
+      built.bloc.add(QuestionFeedbackOpened());
+      built.bloc.add(QuestionFeedbackTextChanged('объяснение противоречит закону'));
+      await pumpEventQueue();
+      built.bloc.add(QuestionFeedbackSubmitted());
+      await built.bloc.stream.firstWhere((s) => s.sent);
+
+      expect(built.chat.messages.single.body, startsWith('Report · explanation'));
+    });
+
     test('пустой текст отправить нельзя', () async {
       final built = _build();
       built.bloc.add(QuestionFeedbackOpened());

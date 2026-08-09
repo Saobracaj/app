@@ -322,11 +322,15 @@ class _TabContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     switch (feature) {
-      case AppFeature.questionComments:
-        return CommentWidget(questionId: questionId);
-      // Конспект и обсуждение — единственные вкладки с чужим содержимым, в
+      // Объяснение, конспект и обсуждение — вкладки с чужим содержимым, в
       // котором пользователю есть на что пожаловаться, поэтому кнопка «Сообщить
       // об ошибке» живёт под ними (и только под ними).
+      case AppFeature.questionComments:
+        return _WithReportButton(
+          questionId: questionId,
+          source: QuestionFeedbackSource.explanation,
+          child: CommentWidget(questionId: questionId),
+        );
       case AppFeature.categorySummaries:
         return _WithReportButton(
           questionId: questionId,
