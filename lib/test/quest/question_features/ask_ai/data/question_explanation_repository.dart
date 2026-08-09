@@ -7,10 +7,16 @@ import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/models/question_explanation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Source of the pre-generated question explanations (the "Спросить AI" tab's
-/// static content). They live in `saobracaj_backend` behind the premium
-/// `ask_ai` flag — `questionExplanation(questionId:, lang:)` returns the
-/// document, or `null` for a question whose explanation is not generated yet.
+/// Source of the pre-generated question explanations. They live in
+/// `saobracaj_backend` behind the premium `ask_ai` flag —
+/// `questionExplanation(questionId:, lang:)` returns the document, or `null`
+/// for a question whose explanation is not generated yet.
+///
+/// **No screen renders them right now:** the "Спросить AI" tab used to show the
+/// document above its chat, and that was dropped — the разбор and the law
+/// excerpts are already the "Объяснение" and "Конспект" tabs. The client is
+/// kept (and tested) because the documents are still generated and served; it
+/// is the ready entry point whenever they get a place of their own.
 ///
 /// The display language follows the study-content language: Russian when the
 /// `russian_content` feature is resolved on, Serbian otherwise — falling back

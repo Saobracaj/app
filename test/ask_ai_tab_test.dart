@@ -11,48 +11,14 @@ import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/test/data/quiz_preferences_repository.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/data/ask_ai_chat_repository.dart';
-import 'package:saobracaj/test/quest/question_features/ask_ai/data/question_explanation_repository.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_chat.dart';
-import 'package:saobracaj/test/quest/question_features/ask_ai/models/question_explanation.dart';
-import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_bloc.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_bloc.dart';
 import 'package:saobracaj/test/quest/question_features/presentation/question_features_tabs.dart';
 import 'package:saobracaj/test/quest/question_features/state_management/question_features_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Источник объяснений, который сначала падает заданное число раз («офлайн»,
-/// «нет права», «икота сервера»), а потом отдаёт документ или «объяснения нет».
-class _StubExplanationRepository extends QuestionExplanationRepository {
-  _StubExplanationRepository()
-      : super(GraphqlClient(TokenStorage()), _StubFeatureFlagsRepository());
-
-  int failures = 0;
-  bool hasExplanation = true;
-
-  @override
-  Future<QuestionExplanation?> load(int questionId) async {
-    if (failures > 0) {
-      failures--;
-      throw GraphqlException('offline', network: true);
-    }
-    if (!hasExplanation) return null;
-    return const QuestionExplanation(
-      questionId: 7921,
-      summary: 'Регулируют движение полицейские в форме.',
-      // Разметка и ссылки в разборе обязаны отрисоваться, а не показаться как есть.
-      explanation: 'По [чл. 2](zakon?chapter=I&chlan=2) это задача МВД.',
-      wrongChoices: [
-        ExplanationWrongChoice(index: 0, text: 'инспектори', why: 'Не уполномочены.'),
-      ],
-      sources: [
-        ExplanationSource(type: 'zakon', title: 'Чл. 2 ЗОБС', uri: 'zakon?chapter=I&chlan=2'),
-      ],
-    );
-  }
-}
-
-/// Пустой живой чат: история пуста, квота не тронута — вкладке достаточно,
-/// чтобы отрисовать секцию чата под статичным объяснением.
+/// Чат с заранее заданной историей: вкладке этого достаточно, чтобы отрисовать
+/// либо пустое состояние с подсказками, либо переписку.
 class _StubChatRepository extends AskAiChatRepository {
   _StubChatRepository()
     : super(
@@ -60,8 +26,11 @@ class _StubChatRepository extends AskAiChatRepository {
         GraphqlSubscriptionClient(GraphqlClient(TokenStorage()), TokenStorage()),
       );
 
+  List<AskAiChatMessage> historyMessages = const [];
+
   @override
-  Future<List<AskAiChatMessage>> history(AskAiChatScope scope, String scopeId) async => const [];
+  Future<List<AskAiChatMessage>> history(AskAiChatScope scope, String scopeId) async =>
+      historyMessages;
 
   @override
   Stream<AskAiStreamUpdate> replyStream(AskAiChatScope scope, String scopeId) =>
@@ -97,19 +66,15 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   SharedPreferences.setMockInitialValues({});
 
-  late _StubExplanationRepository repository;
+  late _StubChatRepository chat;
 
   setUp(() {
-    repository = _StubExplanationRepository();
-    getIt.registerLazySingleton<QuestionExplanationRepository>(() => repository);
+    chat = _StubChatRepository();
     getIt.registerLazySingleton<QuizPreferencesRepository>(QuizPreferencesRepository.new);
     getIt.registerFactoryParam<QuestionFeaturesBloc, AppFeature?, void>(
       (initial, _) => QuestionFeaturesBloc(getIt(), initial),
     );
-    getIt.registerFactoryParam<AskAiBloc, int, void>(
-      (questionId, _) => AskAiBloc(getIt(), questionId),
-    );
-    getIt.registerLazySingleton<AskAiChatRepository>(_StubChatRepository.new);
+    getIt.registerLazySingleton<AskAiChatRepository>(() => chat);
     getIt.registerFactoryParam<AskAiChatBloc, AskAiChatScope, String>(
       (scope, scopeId) => AskAiChatBloc(getIt(), scope, scopeId),
     );
@@ -128,42 +93,46 @@ void main() {
     ),
   );
 
-  testWidgets('загруженное объяснение отрисовано целиком: резюме, разбор, неверные варианты, источники', (tester) async {
+  testWidgets('вкладка показывает только чат: ни разбора, ни источников, ни второго заголовка', (tester) async {
     await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
-    expect(find.text('Регулируют движение полицейские в форме.'), findsOneWidget);
-    // Markdown-ссылка отрисована текстом, а не сырой разметкой.
-    expect(find.textContaining('чл. 2', findRichText: true), findsWidgets);
-    expect(find.textContaining('[', findRichText: true), findsNothing);
-    expect(find.text('askAi.wrongChoices'), findsOneWidget);
-    expect(find.text('инспектори'), findsOneWidget);
-    expect(find.text('askAi.sources'), findsOneWidget);
-    expect(find.text('askAi.noExplanation'), findsNothing);
-  });
-
-  testWidgets('сбой загрузки показывает причину, а retry восстанавливает вкладку', (tester) async {
-    repository.failures = 1;
-    await tester.pumpWidget(wrap());
-    await tester.pumpAndSettle();
-
+    // Поле ввода и пустое состояние чата на месте.
     // Без EasyLocalization в дереве tr() отдаёт сам ключ.
-    expect(find.text('askAi.loadFailed'), findsOneWidget);
-    expect(find.text('Регулируют движение полицейские в форме.'), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('askAi.emptyHint'), findsOneWidget);
+    expect(find.text('askAi.suggestWhy'), findsOneWidget);
 
-    await tester.tap(find.text('askAi.retry'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Регулируют движение полицейские в форме.'), findsOneWidget);
+    // Статичное объяснение с вкладки убрано целиком — оно есть в «Объяснении»
+    // и «Конспекте».
+    expect(find.text('askAi.chatTitle'), findsNothing);
+    expect(find.text('askAi.wrongChoices'), findsNothing);
+    expect(find.text('askAi.sources'), findsNothing);
+    expect(find.text('askAi.noExplanation'), findsNothing);
     expect(find.text('askAi.loadFailed'), findsNothing);
   });
 
-  testWidgets('вопрос без объяснения получает понятную заглушку, а не пустую вкладку', (tester) async {
-    repository.hasExplanation = false;
+  testWidgets('тап по любой области вне поля ввода снимает фокус', (tester) async {
+    chat.historyMessages = [
+      AskAiChatMessage(
+        id: '1',
+        role: AskAiChatRole.user,
+        content: 'Почему Б?',
+        createdAt: DateTime(2026, 8, 9),
+      ),
+    ];
     await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
-    expect(find.text('askAi.noExplanation'), findsOneWidget);
-    expect(find.text('askAi.loadFailed'), findsNothing);
+    await tester.tap(find.byType(TextField));
+    await tester.pumpAndSettle();
+    expect(FocusManager.instance.primaryFocus?.hasPrimaryFocus, isTrue);
+    expect(tester.testTextInput.isVisible, isTrue);
+
+    // Тап по сообщению переписки — область, у которой своего обработчика нет.
+    await tester.tap(find.text('Почему Б?'));
+    await tester.pumpAndSettle();
+
+    expect(tester.testTextInput.isVisible, isFalse);
   });
 }
