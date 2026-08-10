@@ -8,6 +8,8 @@ import 'decision_tree_widget.dart';
 import 'mimoilazenje.dart';
 import 'obgon.dart';
 import 'obilazenje1.dart';
+import 'obilazenje_prepreke.dart';
+import 'trougao_i_prsluk.dart';
 
 final _animations = {
   'mimoilazenje': Mimoilazenje(),
@@ -18,6 +20,9 @@ final _animations = {
   'rastojanje_odstojanje': RastojanjeOndsojanje(),
   'manevri-animacija': Manevri(),
   'kategorije-stablo': ThemedCompactDecisionTree(),
+  // Конспект 30 «Правила дорожного движения»
+  'trougao-i-prsluk': TrougaoIPrsluk(),
+  'obilazenje-prepreke': ObilazenjePrepreke(),
 };
 
 Widget getAnimation(String animationName) {
