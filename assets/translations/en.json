@@ -590,5 +590,22 @@
       "other": "Deliverable devices: {}"
     },
     "noDevices": "But there is nowhere to deliver it: the user has no device with push enabled and a token on file."
+  },
+  "presekPuta": {
+    "sidewalk": "pavement — for pedestrians",
+    "shoulder": "shoulder — not part of the roadway",
+    "lane": "one lane — one row of vehicles",
+    "laneHalf": "half of the roadway, for one direction",
+    "roadway": "all the asphalt for vehicles: pavements and shoulders excluded",
+    "road": "everything together — from edge to edge"
+  },
+  "znakNaselje": {
+    "starts": "the built-up area starts here",
+    "ends": "the built-up area ends here",
+    "notConfuse": "do not confuse it with the place-name plate",
+    "wrongAnswer": "in these questions it is the wrong answer"
+  },
+  "zoneUporedno": {
+    "trap": "a decoy: no question in this category has such an answer"
   }
 }

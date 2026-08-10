@@ -603,5 +603,22 @@
       "other": "Uređaja za isporuku: {}"
     },
     "noDevices": "Ali nema gde da se isporuči: korisnik nema nijedan uređaj sa uključenim push obaveštenjima i sačuvanim tokenom."
+  },
+  "presekPuta": {
+    "sidewalk": "тротоар — за пешаке",
+    "shoulder": "банкина — није део коловоза",
+    "lane": "једна трака — један ред возила",
+    "laneHalf": "половина коловоза, за један смер",
+    "roadway": "сав асфалт за возила: тротоари и банкине не улазе",
+    "road": "све заједно — од ивице до ивице"
+  },
+  "znakNaselje": {
+    "starts": "овде насеље почиње",
+    "ends": "овде се насеље завршава",
+    "notConfuse": "не мешати са таблом назива насељеног места",
+    "wrongAnswer": "у овим питањима то је нетачан одговор"
+  },
+  "zoneUporedno": {
+    "trap": "замка: таквог одговора нема ни у једном питању категорије"
   }
 }
