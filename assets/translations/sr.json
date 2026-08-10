@@ -603,5 +603,13 @@
       "other": "Uređaja za isporuku: {}"
     },
     "noDevices": "Ali nema gde da se isporuči: korisnik nema nijedan uređaj sa uključenim push obaveštenjima i sačuvanim tokenom."
+  },
+  "hijerarhijaPiramida": {
+    "stronger": "јаче",
+    "weaker": "слабије",
+    "note": "Изузетак: ако је семафор дао зелено двојици истовремено, редослед између њих решава правило саобраћаја."
+  },
+  "znaciPolicajca": {
+    "note": "Знаци овлашћеног лица јачи су од семафора, знакова и ознака на коловозу: када он даје знак, семафор се не рачуна."
   }
 }

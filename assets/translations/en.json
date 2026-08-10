@@ -590,5 +590,13 @@
       "other": "Deliverable devices: {}"
     },
     "noDevices": "But there is nowhere to deliver it: the user has no device with push enabled and a token on file."
+  },
+  "hijerarhijaPiramida": {
+    "stronger": "stronger",
+    "weaker": "weaker",
+    "note": "Exception: if the traffic light turned green for two drivers at once, the order between them is decided by the right-of-way rule."
+  },
+  "znaciPolicajca": {
+    "note": "An authorised officer's signals outrank traffic lights, signs and road markings: when the officer signals, the light does not count."
   }
 }

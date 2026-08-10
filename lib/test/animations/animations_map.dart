@@ -5,9 +5,11 @@ import 'package:saobracaj/test/animations/propustanje.dart';
 import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
 
 import 'decision_tree_widget.dart';
+import 'hijerarhija_piramida.dart';
 import 'mimoilazenje.dart';
 import 'obgon.dart';
 import 'obilazenje1.dart';
+import 'znaci_policajca.dart';
 
 final _animations = {
   'mimoilazenje': Mimoilazenje(),
@@ -18,6 +20,8 @@ final _animations = {
   'rastojanje_odstojanje': RastojanjeOndsojanje(),
   'manevri-animacija': Manevri(),
   'kategorije-stablo': ThemedCompactDecisionTree(),
+  'hijerarhija-piramida': HijerarhijaPiramida(),
+  'znaci-policajca': ZnaciPolicajca(),
 };
 
 Widget getAnimation(String animationName) {
