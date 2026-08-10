@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
+import 'package:saobracaj/theme/app_theme.dart';
 
 class ThemedCompactDecisionTree extends StatelessWidget {
   const ThemedCompactDecisionTree({super.key});
@@ -166,8 +167,10 @@ class _ThemedTreePainter extends CustomPainter {
     // Названия категорий — сербские термины из правил, не переводятся
     _drawBox(canvas, 'лаки\nтрицикл', laki3Center, lakiColor, strokeColor, colorScheme.onTertiaryContainer, width: 85, height: 50, fontSize: 13);
     _drawBox(canvas, 'тешки\nтрицикл', teski3Center, teskiColor, strokeColor, colorScheme.onErrorContainer, width: 85, height: 50, fontSize: 13);
-    _drawBox(canvas, 'лаки\nчетвороцикл', laki4Center, lakiColor, strokeColor, colorScheme.onTertiaryContainer, width: 90, height: 50, fontSize: 13);
-    _drawBox(canvas, 'тешки\nчетвороцикл', teski4Center, teskiColor, strokeColor, colorScheme.onErrorContainer, width: 90, height: 50, fontSize: 13);
+    // Ширина 100, а не 90, как у трициклов: «четвороцикл» длиннее и при 90
+    // переносится последней буквой на третью строку.
+    _drawBox(canvas, 'лаки\nчетвороцикл', laki4Center, lakiColor, strokeColor, colorScheme.onTertiaryContainer, width: 100, height: 50, fontSize: 13);
+    _drawBox(canvas, 'тешки\nчетвороцикл', teski4Center, teskiColor, strokeColor, colorScheme.onErrorContainer, width: 100, height: 50, fontSize: 13);
     _drawBox(canvas, 'путничко\nвозило\n${labels.seatsNote}', autoCenter, autoColor, strokeColor, colorScheme.onPrimaryContainer, width: 90, height: 55, fontSize: 13);
   }
 
@@ -258,6 +261,10 @@ class _ThemedTreePainter extends CustomPainter {
       text: text,
       style: TextStyle(
         color: textColor, // Используем цвет текста из темы
+        // Без явного семейства TextPainter рисует системным шрифтом, а не
+        // шрифтом приложения — метрики расходятся с теми, что проверяет
+        // decision_tree_localization_test.
+        fontFamily: kAppFontFamily,
         fontSize: fontSize,
         fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
         height: 1.15,
