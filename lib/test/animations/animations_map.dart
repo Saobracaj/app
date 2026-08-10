@@ -8,6 +8,8 @@ import 'decision_tree_widget.dart';
 import 'mimoilazenje.dart';
 import 'obgon.dart';
 import 'obilazenje1.dart';
+import 'pozicija_pred_skretanje.dart';
+import 'skretanje_pesaci.dart';
 
 final _animations = {
   'mimoilazenje': Mimoilazenje(),
@@ -18,6 +20,8 @@ final _animations = {
   'rastojanje_odstojanje': RastojanjeOndsojanje(),
   'manevri-animacija': Manevri(),
   'kategorije-stablo': ThemedCompactDecisionTree(),
+  'pozicija-pred-skretanje': PozicijaPredSkretanje(),
+  'skretanje-pesaci': SkretanjePesaci(),
 };
 
 Widget getAnimation(String animationName) {
