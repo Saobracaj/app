@@ -603,5 +603,22 @@
       "other": "Uređaja za isporuku: {}"
     },
     "noDevices": "Ali nema gde da se isporuči: korisnik nema nijedan uređaj sa uključenim push obaveštenjima i sačuvanim tokenom."
+  },
+  "istureniTeret": {
+    "front": "напред",
+    "rear": "позади",
+    "supported": "запамти:",
+    "wrongTitle": "замке у одговорима:"
+  },
+  "oznakeTereta": {
+    "day": "Обични услови — важно је које је возило",
+    "night": "Ноћ, магла, киша",
+    "never": "терет се њиме никада не означава"
+  },
+  "zabranjenaMesta": {
+    "cargoBed": "У товарном простору не вози се нико — ни радници на утовару",
+    "lockedSpace": "Не може се отворити изнутра — забрањено, године нису важне",
+    "camper": "У камп приколици у вожњи не вози се нико",
+    "allowed": "Само предвиђена места и онолико лица колико пише у дозволи"
   }
 }
