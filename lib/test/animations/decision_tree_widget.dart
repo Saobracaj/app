@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
+import 'package:saobracaj/theme/app_theme.dart';
 
 class ThemedCompactDecisionTree extends StatelessWidget {
   const ThemedCompactDecisionTree({super.key});
@@ -113,9 +114,12 @@ class _ThemedTreePainter extends CustomPainter {
     final rootCenter = const Offset(200, 120);
 
     final diamond3Center = const Offset(60, 250);
-    final diamond4Center = const Offset(340, 250);
+    // Ромб сдвинут влево от 340: при ширине 130 его правая вершина иначе
+    // вылезает за холст 400 и обрезается.
+    final diamond4Center = const Offset(335, 250);
 
-    final limitCenter = const Offset(200, 230);
+    // Сноска с лимитами уже и левее, чтобы не касаться правого ромба.
+    final limitCenter = const Offset(193, 230);
 
     final laki3Center = const Offset(50, 380);
     final teski3Center = const Offset(150, 380);
@@ -155,19 +159,23 @@ class _ThemedTreePainter extends CustomPainter {
     // === ОТРИСОВКА УЗЛОВ ===
     _drawBox(canvas, labels.fuelNote, noteCenter, noteColor, strokeColor, textColor, width: 380, height: 45, fontSize: 14);
     _drawBox(canvas, labels.wheelsQuestion, rootCenter, noteColor, strokeColor, textColor, width: 140, height: 40, fontSize: 14);
-    _drawBox(canvas, labels.lightLimits, limitCenter, noteColor, strokeColor, textColor, width: 140, height: 80, fontSize: 14, dashed: true);
+    _drawBox(canvas, labels.lightLimits, limitCenter, noteColor, strokeColor, textColor, width: 130, height: 80, fontSize: 14, dashed: true);
 
 
 
     _drawDiamond(canvas, labels.withinLightLimits, diamond3Center, diamondColor, strokeColor, colorScheme.onSecondaryContainer, width: 130, height: 110, fontSize: 11);
-    _drawDiamond(canvas, labels.withinLightLimitsAndMass, diamond4Center, diamondColor, strokeColor, colorScheme.onSecondaryContainer, width: 130, height: 100, fontSize: 11);
+    // Ромб выше остальных: подпись в три строки, а у ромба к краям остаётся
+    // всё меньше ширины — на высоте 100 нижняя строка вылезала за грани.
+    _drawDiamond(canvas, labels.withinLightLimitsAndMass, diamond4Center, diamondColor, strokeColor, colorScheme.onSecondaryContainer, width: 130, height: 112, fontSize: 11);
     _drawDiamond(canvas, labels.powerLimit, diamondPowCenter, diamondColor, strokeColor, colorScheme.onSecondaryContainer, width: 90, height: 90, fontSize: 13);
 
     // Названия категорий — сербские термины из правил, не переводятся
     _drawBox(canvas, 'лаки\nтрицикл', laki3Center, lakiColor, strokeColor, colorScheme.onTertiaryContainer, width: 85, height: 50, fontSize: 13);
     _drawBox(canvas, 'тешки\nтрицикл', teski3Center, teskiColor, strokeColor, colorScheme.onErrorContainer, width: 85, height: 50, fontSize: 13);
-    _drawBox(canvas, 'лаки\nчетвороцикл', laki4Center, lakiColor, strokeColor, colorScheme.onTertiaryContainer, width: 90, height: 50, fontSize: 13);
-    _drawBox(canvas, 'тешки\nчетвороцикл', teski4Center, teskiColor, strokeColor, colorScheme.onErrorContainer, width: 90, height: 50, fontSize: 13);
+    // Ширина 100, а не 90, как у трициклов: «четвороцикл» длиннее и при 90
+    // переносится последней буквой на третью строку.
+    _drawBox(canvas, 'лаки\nчетвороцикл', laki4Center, lakiColor, strokeColor, colorScheme.onTertiaryContainer, width: 100, height: 50, fontSize: 13);
+    _drawBox(canvas, 'тешки\nчетвороцикл', teski4Center, teskiColor, strokeColor, colorScheme.onErrorContainer, width: 100, height: 50, fontSize: 13);
     _drawBox(canvas, 'путничко\nвозило\n${labels.seatsNote}', autoCenter, autoColor, strokeColor, colorScheme.onPrimaryContainer, width: 90, height: 55, fontSize: 13);
   }
 
@@ -258,6 +266,10 @@ class _ThemedTreePainter extends CustomPainter {
       text: text,
       style: TextStyle(
         color: textColor, // Используем цвет текста из темы
+        // Без явного семейства TextPainter рисует системным шрифтом, а не
+        // шрифтом приложения — метрики расходятся с теми, что проверяет
+        // decision_tree_localization_test.
+        fontFamily: kAppFontFamily,
         fontSize: fontSize,
         fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
         height: 1.15,

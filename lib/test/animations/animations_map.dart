@@ -15,7 +15,9 @@ final _animations = {
   'obilazenje': ObyezdAnimacija(),
   'obilazenje2': ObyezdAnimacija2(),
   'propustanje': BlockedRoadScene(),
-  'rastojanje_odstojanje': RastojanjeOndsojanje(),
+  // Слаг из ТЗ; старый ключ 'rastojanje_odstojanje' убран — по текстам
+  // комментариев и объяснений в БД бэкенда он нигде не встречается.
+  'odstojanje-rastojanje-shema': RastojanjeOndsojanje(),
   'manevri-animacija': Manevri(),
   'kategorije-stablo': ThemedCompactDecisionTree(),
 };

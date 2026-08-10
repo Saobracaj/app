@@ -2,41 +2,48 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:saobracaj/test/animations/auto.dart';
+import 'package:saobracaj/theme/app_theme.dart';
 
 class RastojanjeOndsojanje extends StatelessWidget {
   const RastojanjeOndsojanje({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 200,
-      // padding: EdgeInsets.all(16),
-      child: ClipRRect(
-        child: Stack(
-          children: [
-            Positioned.fill(child: Container(color: Colors.grey.shade800)),
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(height: 10),
-                  SizedBox(height: 40, child: AnimatedAutoWidget(color: Colors.blue)),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 30),
-                    child: SizedBox(height: 90, child: VerticalDistanceLine(text: 'Растојање')),
-                  ),
-                  Row(
-                    children: [
-                      SizedBox(height: 40, child: AnimatedAutoWidget(color: Colors.red)),
-                      SizedBox(width: 150, height: 20, child: HorizontalDistanceLine(text: 'Одстојање')),
-                      SizedBox(height: 40, child: AnimatedAutoWidget(color: Colors.yellow)),
-                    ],
-                  ),
-                ],
+    // Фиксированный холст внутри FittedBox: строка «машина — размерная линия —
+    // машина» занимает ~320 px, и на узком экране без масштабирования она
+    // вылезала за границы.
+    return FittedBox(
+      fit: BoxFit.contain,
+      child: SizedBox(
+        width: 330,
+        height: 200,
+        child: ClipRRect(
+          child: Stack(
+            children: [
+              Positioned.fill(child: Container(color: Colors.grey.shade800)),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(height: 10),
+                    SizedBox(height: 40, child: AnimatedAutoWidget(color: Colors.blue)),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 30),
+                      child: SizedBox(height: 90, child: VerticalDistanceLine(text: 'Растојање')),
+                    ),
+                    Row(
+                      children: [
+                        SizedBox(height: 40, child: AnimatedAutoWidget(color: Colors.red)),
+                        SizedBox(width: 150, height: 20, child: HorizontalDistanceLine(text: 'Одстојање')),
+                        SizedBox(height: 40, child: AnimatedAutoWidget(color: Colors.yellow)),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -105,7 +112,13 @@ class _HorizontalDistancePainter extends CustomPainter {
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(color: Colors.white, fontSize: 16),
+        // Семейство задаём явно: иначе TextPainter берёт системный шрифт, а в
+        // тестовом рендере — шрифт-заглушку с квадратами вместо букв.
+        style: const TextStyle(
+          color: Colors.white,
+          fontFamily: kAppFontFamily,
+          fontSize: 16,
+        ),
       ),
       textDirection: TextDirection.ltr,
     );
@@ -152,7 +165,13 @@ class _VerticalDistancePainter extends CustomPainter {
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(color: Colors.white, fontSize: 16),
+        // Семейство задаём явно: иначе TextPainter берёт системный шрифт, а в
+        // тестовом рендере — шрифт-заглушку с квадратами вместо букв.
+        style: const TextStyle(
+          color: Colors.white,
+          fontFamily: kAppFontFamily,
+          fontSize: 16,
+        ),
       ),
       textDirection: TextDirection.ltr,
     );
