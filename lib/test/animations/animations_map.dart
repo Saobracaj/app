@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:saobracaj/test/animations/kruzni_tok.dart';
 import 'package:saobracaj/test/animations/manevri.dart';
 import 'package:saobracaj/test/animations/obilazenje2.dart';
 import 'package:saobracaj/test/animations/propustanje.dart';
@@ -18,6 +19,7 @@ final _animations = {
   'rastojanje_odstojanje': RastojanjeOndsojanje(),
   'manevri-animacija': Manevri(),
   'kategorije-stablo': ThemedCompactDecisionTree(),
+  'kruzni-tok': KruzniTok(),
 };
 
 Widget getAnimation(String animationName) {
