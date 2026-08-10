@@ -8,6 +8,7 @@ import 'decision_tree_widget.dart';
 import 'mimoilazenje.dart';
 import 'obgon.dart';
 import 'obilazenje1.dart';
+import 'zaustavni_put.dart';
 
 final _animations = {
   'mimoilazenje': Mimoilazenje(),
@@ -18,6 +19,7 @@ final _animations = {
   'rastojanje_odstojanje': RastojanjeOndsojanje(),
   'manevri-animacija': Manevri(),
   'kategorije-stablo': ThemedCompactDecisionTree(),
+  'zaustavni-put': ZaustavniPut(),
 };
 
 Widget getAnimation(String animationName) {

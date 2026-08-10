@@ -603,5 +603,11 @@
       "other": "Uređaja za isporuku: {}"
     },
     "noDevices": "Ali nema gde da se isporuči: korisnik nema nijedan uređaj sa uključenim push obaveštenjima i sačuvanim tokenom."
+  },
+  "stoppingDistance": {
+    "reactionLegend": "пут реакције (≈1 s)",
+    "brakingLegend": "пут кочења",
+    "growthNote": "Двоструко већа брзина → двоструко дужи пут реакције, а четвороструко дужи пут кочења.",
+    "conditionsNote": "Рачун: реакција 1 s, сув асфалт (успорење ≈6,5 m/s²). На мокром коловозу пут кочења је око двоструко дужи."
   }
 }

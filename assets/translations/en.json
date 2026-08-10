@@ -590,5 +590,11 @@
       "other": "Deliverable devices: {}"
     },
     "noDevices": "But there is nowhere to deliver it: the user has no device with push enabled and a token on file."
+  },
+  "stoppingDistance": {
+    "reactionLegend": "reaction distance (≈1 s)",
+    "brakingLegend": "braking distance",
+    "growthNote": "Twice the speed → twice the reaction distance, but four times the braking distance.",
+    "conditionsNote": "Assumes a 1 s reaction and dry asphalt (deceleration ≈6.5 m/s²). On a wet road the braking distance roughly doubles."
   }
 }
