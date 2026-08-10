@@ -590,5 +590,20 @@
       "other": "Deliverable devices: {}"
     },
     "noDevices": "But there is nowhere to deliver it: the user has no device with push enabled and a token on file."
+  },
+  "tireMarking": {
+    "width": "tyre width, mm",
+    "profile": "profile: height as % of width",
+    "radial": "radial, not diagonal",
+    "rim": "rim diameter, inches",
+    "load": "load index",
+    "speed": "speed index",
+    "winter": "winter tyre",
+    "wear": "tread wear indicator"
+  },
+  "vehiclePlates": {
+    "slow": "slow vehicles (tractor)",
+    "long": "long vehicles",
+    "heavy": "heavy vehicles"
   }
 }
