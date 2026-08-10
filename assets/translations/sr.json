@@ -586,6 +586,19 @@
     "powerLimit": "снага\n≤15 kW?",
     "seatsNote": "(до 9 места)"
   },
+  "pravilnoSedenje": {
+    "driverTitle": "Возач: наслон за главу и појас",
+    "headrestTop": "горња ивица наслона — у висини темена, не ниже од очију",
+    "headrestClose": "што ближе потиљку",
+    "backUpright": "наслон усправан — леђа у потпуности належу",
+    "belt": "појас преко рамена и карлице, трака није уврнута",
+    "crown": "теме",
+    "eyeLevel": "очи",
+    "childTitle": "Дете до 3 године на предњем седишту",
+    "childRear": "корпа окренута супротно смеру кретања",
+    "airbagOff": "ваздушни јастук искључен или га нема",
+    "direction": "смер кретања"
+  },
   "testPush": {
     "title": "Test push",
     "hint": "Stavlja jedno obaveštenje u red na bekendu za datu e-poštu. Uspeh znači „primljeno za slanje“: isporuka ide kroz pozadinski radnik i FCM, pa obaveštenje stiže sa malim zakašnjenjem.",
