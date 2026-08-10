@@ -6,11 +6,15 @@ import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
 
 import 'decision_tree_widget.dart';
 import 'mimoilazenje.dart';
+import 'mimoilazenje_nagib.dart';
 import 'obgon.dart';
 import 'obilazenje1.dart';
+import 'pravilo_jednog_vozila.dart';
 
 final _animations = {
   'mimoilazenje': Mimoilazenje(),
+  'mimoilazenje-nagib': MimoilazenjeNagib(),
+  'pravilo-jednog-vozila': PraviloJednogVozila(),
   'preticanje': Obgon(),
   'obilazenje': ObyezdAnimacija(),
   'obilazenje2': ObyezdAnimacija2(),
