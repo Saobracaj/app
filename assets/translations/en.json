@@ -590,5 +590,19 @@
       "other": "Deliverable devices: {}"
     },
     "noDevices": "But there is nowhere to deliver it: the user has no device with push enabled and a token on file."
+  },
+  "triVrsteZnakova": {
+    "danger": "warns: danger ahead",
+    "order": "orders: forbidden or mandatory",
+    "info": "informs: the place or its vicinity",
+    "note": "The pictogram is the same — the answer is not. The shape and the rim decide: triangle — približavanje, circle — zabrana or obaveza, blue square — mesto."
+  },
+  "uzduzneLinije": {
+    "edge": "edge of the carriageway",
+    "doubleSolid": "may be neither crossed nor driven on",
+    "warning": "long dashes — a solid line ahead",
+    "guide": "guides the vehicle through the junction",
+    "combined": "broken line on my side — I may cross",
+    "numbers": "In numbered pictures: 1 and 2 are ivične linije, 3 is neisprekidana razdelna, 4 is isprekidana razdelna or linija upozorenja."
   }
 }

@@ -603,5 +603,19 @@
       "other": "Uređaja za isporuku: {}"
     },
     "noDevices": "Ali nema gde da se isporuči: korisnik nema nijedan uređaj sa uključenim push obaveštenjima i sačuvanim tokenom."
+  },
+  "triVrsteZnakova": {
+    "danger": "upozorava: ispred je opasnost",
+    "order": "naređuje: zabranjeno ili mora",
+    "info": "obaveštava: mesto ili blizina",
+    "note": "Simbol je isti — odgovor nije. Odlučuju oblik i ivica: trougao — približavanje, krug — zabrana ili obaveza, plavi kvadrat — mesto."
+  },
+  "uzduzneLinije": {
+    "edge": "ivica kolovoza",
+    "doubleSolid": "ne sme se ni preći ni voziti po njoj",
+    "warning": "duge crte — ispred je neisprekidana",
+    "guide": "vodi vozilo kroz raskrsnicu",
+    "combined": "isprekidana sa moje strane — smem",
+    "numbers": "Na slikama s brojevima: 1 i 2 su ivične linije, 3 je neisprekidana razdelna, 4 je isprekidana razdelna ili linija upozorenja."
   }
 }

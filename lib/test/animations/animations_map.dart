@@ -8,6 +8,8 @@ import 'decision_tree_widget.dart';
 import 'mimoilazenje.dart';
 import 'obgon.dart';
 import 'obilazenje1.dart';
+import 'tri_vrste_znakova.dart';
+import 'uzduzne_linije.dart';
 
 final _animations = {
   'mimoilazenje': Mimoilazenje(),
@@ -18,6 +20,9 @@ final _animations = {
   'rastojanje_odstojanje': RastojanjeOndsojanje(),
   'manevri-animacija': Manevri(),
   'kategorije-stablo': ThemedCompactDecisionTree(),
+  // Конспект 32 «Саобраћајна сигнализација»
+  'tri-vrste-znakova': TriVrsteZnakova(),
+  'uzduzne-linije': UzduzneLinije(),
 };
 
 Widget getAnimation(String animationName) {
