@@ -13,10 +13,12 @@ import 'package:saobracaj/test/animations/znak_naselje.dart';
 import 'package:saobracaj/test/animations/zone_uporedno.dart';
 import 'package:saobracaj/test/animations/trake_pred_prugom.dart';
 
+import 'blokirana_raskrsnica.dart';
 import 'decision_tree_widget.dart';
 import 'dve_vrste_nezgode.dart';
 import 'istureni_teret.dart';
 import 'hijerarhija_piramida.dart';
+import 'klinc_raskrsnica.dart';
 import 'mimoilazenje.dart';
 import 'mimoilazenje_nagib.dart';
 import 'obgon.dart';
@@ -34,8 +36,12 @@ import 'uzduzne_linije.dart';
 import 'znaci_policajca.dart';
 import 'pozicija_pred_skretanje.dart';
 import 'skretanje_pesaci.dart';
+import 'pravilo_desne_strane.dart';
 
 final _animations = {
+  'pravilo-desne-strane': PraviloDesneStrane(),
+  'klinc-raskrsnica': KlincRaskrsnica(),
+  'blokirana-raskrsnica': BlokiranaRaskrsnica(),
   'mimoilazenje': Mimoilazenje(),
   'mimoilazenje-nagib': MimoilazenjeNagib(),
   'pravilo-jednog-vozila': PraviloJednogVozila(),
