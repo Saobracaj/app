@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:saobracaj/test/animations/manevri.dart';
 import 'package:saobracaj/test/animations/obilazenje2.dart';
+import 'package:saobracaj/test/animations/preticanje_sekvenca.dart';
+import 'package:saobracaj/test/animations/preticanje_strane.dart';
 import 'package:saobracaj/test/animations/propustanje.dart';
 import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
 
@@ -17,6 +19,8 @@ final _animations = {
   'propustanje': BlockedRoadScene(),
   'rastojanje_odstojanje': RastojanjeOndsojanje(),
   'manevri-animacija': Manevri(),
+  'preticanje-sekvenca': PreticanjeSekvenca(),
+  'preticanje-strane': PreticanjeStrane(),
   'kategorije-stablo': ThemedCompactDecisionTree(),
 };
 
