@@ -678,5 +678,11 @@
     "step4": "the driver made it — towing stops, but he pays for the work already done",
     "abandoned": "parked properly, but visibly abandoned and unregistered — towed as well",
     "timerCaption": "deadline in the decision"
+  },
+  "stoppingDistance": {
+    "reactionLegend": "reaction distance (≈1 s)",
+    "brakingLegend": "braking distance",
+    "growthNote": "Twice the speed → twice the reaction distance, but four times the braking distance.",
+    "conditionsNote": "Assumes a 1 s reaction and dry asphalt (deceleration ≈6.5 m/s²). On a wet road the braking distance roughly doubles."
   }
 }

@@ -24,6 +24,7 @@ import 'zabranjena_mesta_za_lica.dart';
 import 'obilazenje_prepreke.dart';
 import 'trougao_i_prsluk.dart';
 import 'pravilo_jednog_vozila.dart';
+import 'zaustavni_put.dart';
 
 final _animations = {
   'mimoilazenje': Mimoilazenje(),
@@ -56,6 +57,7 @@ final _animations = {
   // Конспект 30 «Правила дорожного движения»
   'trougao-i-prsluk': TrougaoIPrsluk(),
   'obilazenje-prepreke': ObilazenjePrepreke(),
+  'zaustavni-put': ZaustavniPut(),
 };
 
 Widget getAnimation(String animationName) {
