@@ -12,6 +12,10 @@ import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
 import 'package:saobracaj/test/animations/znak_naselje.dart';
 import 'package:saobracaj/test/animations/zone_uporedno.dart';
 import 'package:saobracaj/test/animations/trake_pred_prugom.dart';
+import 'package:saobracaj/test/animations/probna_brzine.dart';
+import 'package:saobracaj/test/animations/probna_ogranicenja.dart';
+import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
+import 'package:saobracaj/test/animations/vozac_vs_vozilo.dart';
 
 import 'blokirana_raskrsnica.dart';
 import 'decision_tree_widget.dart';
@@ -95,6 +99,9 @@ final _animations = {
   'prikolica-b-vs-be': PrikolicaBvsBe(),
   'katadiopteri-na-prikolici': KatadiopteriNaPrikolici(),
   'raskinuta-veza-prikolice': RaskinutaVezaPrikolice(),
+  'probna-ogranicenja': ProbnaOgranicenja(),
+  'probna-brzine': ProbnaBrzine(),
+  'vozac-vs-vozilo': VozacVsVozilo(),
 };
 
 Widget getAnimation(String animationName) {
