@@ -38,6 +38,10 @@ import 'mase_vozila.dart';
 import 'boje_svetala_napred_nazad.dart';
 import 'decision_tree_widget.dart';
 import 'dometi_svetlosnih_snopova.dart';
+import 'autoput_trake.dart';
+import 'autoput_vs_motoput.dart';
+import 'decision_tree_widget.dart';
+import 'posebne_trake_autoput.dart';
 import 'mimoilazenje.dart';
 import 'mimoilazenje_nagib.dart';
 import 'obgon.dart';
@@ -130,6 +134,9 @@ final _animations = {
   'upotreba-svetala-matrica': UpotrebaSvetalaMatrica(),
   'posebni-signali': PosebniSignali(),
   'propustanje-vozila-s-prvenstvom': PropustanjeVozilaSPrvenstvom(),
+  'autoput-trake': AutoputTrake(),
+  'posebne-trake-autoput': PosebneTrakeAutoput(),
+  'autoput-vs-motoput': AutoputVsMotoput(),
 };
 
 Widget getAnimation(String animationName) {
