@@ -2,6 +2,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:saobracaj/test/animations/kruzni_tok.dart';
 import 'package:saobracaj/test/animations/manevri.dart';
 import 'package:saobracaj/test/animations/pravilno_sedenje.dart';
+import 'package:saobracaj/test/animations/alkohol_prag_skala.dart';
+import 'package:saobracaj/test/animations/manevri.dart';
+import 'package:saobracaj/test/animations/nula_promila.dart';
 import 'package:saobracaj/test/animations/obilazenje2.dart';
 import 'package:saobracaj/test/animations/oznaka_pneumatika.dart';
 import 'package:saobracaj/test/animations/oznake_sporo_dugo_tesko.dart';
@@ -16,6 +19,7 @@ import 'package:saobracaj/test/animations/probna_brzine.dart';
 import 'package:saobracaj/test/animations/probna_ogranicenja.dart';
 import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
 import 'package:saobracaj/test/animations/vozac_vs_vozilo.dart';
+import 'package:saobracaj/test/animations/skala_alkohola.dart';
 
 import 'blokirana_raskrsnica.dart';
 import 'decision_tree_widget.dart';
@@ -102,6 +106,9 @@ final _animations = {
   'probna-ogranicenja': ProbnaOgranicenja(),
   'probna-brzine': ProbnaBrzine(),
   'vozac-vs-vozilo': VozacVsVozilo(),
+  'alkohol-prag-skala': AlkoholPragSkala(),
+  'skala-alkohola': SkalaAlkohola(),
+  'nula-promila': NulaPromila(),
 };
 
 Widget getAnimation(String animationName) {
