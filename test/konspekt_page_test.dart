@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/core/di.dart';
@@ -51,17 +53,36 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   SharedPreferences.setMockInitialValues({});
 
-  setUpAll(() {
+  setUpAll(() async {
     getIt.registerLazySingleton<KonspektRepository>(_StubKonspektRepository.new);
     getIt.registerFactoryParam<KonspektBloc, String, String?>(
       (categoryId, section) => KonspektBloc(getIt(), categoryId, section),
     );
+    await EasyLocalization.ensureInitialized();
   });
 
+  /// EasyLocalization здесь не для красоты: в тексте конспекта есть маркеры
+  /// `anim/…`, а виджеты-иллюстрации читают подписи через `context.tr` и без
+  /// локализации в дереве падают с LocalizationNotFoundException.
   Widget wrap(Widget child, {Set<String> grants = const {'category_summaries'}}) {
     final flags = FeatureFlagsBloc(_StubFeatureFlagsRepository(grants));
-    return MaterialApp(
-      home: BlocProvider.value(value: flags, child: child),
+    return EasyLocalization(
+      useOnlyLangCode: true,
+      ignorePluralRules: false,
+      supportedLocales: const [Locale('sr'), Locale('ru'), Locale('en')],
+      fallbackLocale: const Locale('ru'),
+      startLocale: const Locale('ru'),
+      saveLocale: false,
+      path: 'assets/translations',
+      assetLoader: const CodegenLoader(),
+      child: Builder(
+        builder: (context) => MaterialApp(
+          localizationsDelegates: context.localizationDelegates,
+          supportedLocales: context.supportedLocales,
+          locale: context.locale,
+          home: BlocProvider.value(value: flags, child: child),
+        ),
+      ),
     );
   }
 
@@ -96,15 +117,14 @@ void main() {
     await tester.pumpWidget(wrap(const KonspektPage(categoryId: '999')));
     await tester.pumpAndSettle();
 
-    // Without EasyLocalization in the tree tr() falls back to the raw key.
-    expect(find.text('konspekt.notFound'), findsOneWidget);
+    expect(find.text('Конспект не найден'), findsOneWidget);
   });
 
   testWidgets('KonspektPage stays closed without the category_summaries entitlement', (tester) async {
     await tester.pumpWidget(wrap(const KonspektPage(categoryId: '25'), grants: const {}));
     await tester.pumpAndSettle();
 
-    expect(find.text('konspekt.unavailable'), findsOneWidget);
+    expect(find.text('Конспект недоступен'), findsOneWidget);
     expect(find.text('Основы безопасности дорожного движения'), findsNothing);
   });
 }
