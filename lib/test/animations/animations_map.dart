@@ -19,6 +19,7 @@ import 'dve_vrste_nezgode.dart';
 import 'istureni_teret.dart';
 import 'hijerarhija_piramida.dart';
 import 'klinc_raskrsnica.dart';
+import 'dopunske_table_parkiranje.dart';
 import 'mimoilazenje.dart';
 import 'mimoilazenje_nagib.dart';
 import 'obgon.dart';
@@ -37,6 +38,8 @@ import 'znaci_policajca.dart';
 import 'pozicija_pred_skretanje.dart';
 import 'skretanje_pesaci.dart';
 import 'pravilo_desne_strane.dart';
+import 'zabrana_zaustavljanja_parkiranja.dart';
+import 'zaustavljeno_vs_parkirano.dart';
 
 final _animations = {
   'pravilo-desne-strane': PraviloDesneStrane(),
@@ -83,6 +86,9 @@ final _animations = {
   'pozicija-pred-skretanje': PozicijaPredSkretanje(),
   'skretanje-pesaci': SkretanjePesaci(),
   'kruzni-tok': KruzniTok(),
+  'zaustavljeno-vs-parkirano': ZaustavljenoVsParkirano(),
+  'zabrana-zaustavljanja-parkiranja': ZabranaZaustavljanjaParkiranja(),
+  'dopunske-table-parkiranje': DopunskeTableParkiranje(),
 };
 
 Widget getAnimation(String animationName) {
