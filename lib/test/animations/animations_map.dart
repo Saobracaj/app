@@ -9,6 +9,8 @@ import 'package:saobracaj/test/animations/obilazenje2.dart';
 import 'package:saobracaj/test/animations/oznaka_pneumatika.dart';
 import 'package:saobracaj/test/animations/oznake_sporo_dugo_tesko.dart';
 import 'package:saobracaj/test/animations/presek_puta.dart';
+import 'package:saobracaj/test/animations/preticanje_sekvenca.dart';
+import 'package:saobracaj/test/animations/preticanje_strane.dart';
 import 'package:saobracaj/test/animations/propustanje.dart';
 import 'package:saobracaj/test/animations/pruzni_prelaz.dart';
 import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
@@ -74,6 +76,8 @@ final _animations = {
   // комментариев и объяснений в БД бэкенда он нигде не встречается.
   'odstojanje-rastojanje-shema': RastojanjeOndsojanje(),
   'manevri-animacija': Manevri(),
+  'preticanje-sekvenca': PreticanjeSekvenca(),
+  'preticanje-strane': PreticanjeStrane(),
   'kategorije-stablo': ThemedCompactDecisionTree(),
   'oznaka-pneumatika': OznakaPneumatika(),
   'oznake-sporo-dugo-tesko': OznakeSporoDugoTesko(),
