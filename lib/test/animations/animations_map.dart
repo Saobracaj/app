@@ -11,11 +11,14 @@ import 'package:saobracaj/test/animations/znak_naselje.dart';
 import 'package:saobracaj/test/animations/zone_uporedno.dart';
 
 import 'decision_tree_widget.dart';
+import 'dve_vrste_nezgode.dart';
 import 'istureni_teret.dart';
 import 'mimoilazenje.dart';
 import 'obgon.dart';
 import 'obilazenje1.dart';
 import 'oznake_tereta.dart';
+import 'postupak_teska_nezgoda.dart';
+import 'uklanjanje_tok.dart';
 import 'zabranjena_mesta_za_lica.dart';
 
 final _animations = {
@@ -39,6 +42,11 @@ final _animations = {
   'istureni-teret': IstureniTeret(),
   'oznake-tereta': OznakeTereta(),
   'zabranjena-mesta-za-lica': ZabranjenaMestaZaLica(),
+  // Конспект 35 «Обязанности участников при ДТП»
+  'dve-vrste-nezgode': DveVrsteNezgode(),
+  'postupak-teska-nezgoda': PostupakTeskaNezgoda(),
+  // Конспект 36 «Специальные меры и полномочия»
+  'uklanjanje-tok': UklanjanjeTok(),
 };
 
 Widget getAnimation(String animationName) {

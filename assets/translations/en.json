@@ -652,5 +652,31 @@
     "lockedSpace": "A space that cannot be opened from inside — nobody, whatever their age",
     "camper": "Nobody rides inside a caravan while it is moving",
     "allowed": "Only proper seats, and only as many people as the document says"
+  },
+  "dveVrsteNezgode": {
+    "severeWhat": "someone is injured or killed, or the damage is large",
+    "minorWhat": "only bodywork is damaged, nobody was hurt",
+    "doNotMove": "do not move the car: traces stay until the inspection ends",
+    "callServices": "the police and the ambulance must be called",
+    "clearRoad": "if it blocks traffic, you must clear it off the carriageway",
+    "noPolice": "you need not call the police, the form is enough"
+  },
+  "postupakTeskaNezgoda": {
+    "title": "A serious crash: what to do on the spot",
+    "step1": "stopped right where the crash happened",
+    "step2": "switched the engine off",
+    "step3": "turned on the hazard lights — all four indicators",
+    "step4": "placed the warning triangle at a safe distance",
+    "step5": "called the police and the ambulance",
+    "step6": "stayed on the spot until the inspection was over"
+  },
+  "uklanjanjeTok": {
+    "title": "Towing away a badly parked car",
+    "step1": "driver present — removes it at once; driver absent — the decision goes on the windscreen",
+    "step2": "caught on camera: the decision is electronic, a police officer leaves the notice",
+    "step3": "the deadline passed — the car is towed at the driver or owner expense",
+    "step4": "the driver made it — towing stops, but he pays for the work already done",
+    "abandoned": "parked properly, but visibly abandoned and unregistered — towed as well",
+    "timerCaption": "deadline in the decision"
   }
 }

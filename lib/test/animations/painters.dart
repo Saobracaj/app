@@ -155,6 +155,40 @@ abstract class IllustrationPainter extends CustomPainter {
     return painter.size;
   }
 
+  /// Подпись поверх асфальта: белый текст на тёмной подложке. Без подложки
+  /// подпись попадает то на разметку, то на машину и перестаёт читаться, а
+  /// двигать её по сцене каждый раз — заведомо хрупко.
+  void roadLabel(
+    Canvas canvas,
+    String value,
+    Offset center, {
+    double fontSize = 11,
+    double maxWidth = 220,
+  }) {
+    final size =
+        measure(value, maxWidth: maxWidth, fontSize: fontSize, isBold: true);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: center,
+          width: size.width + 12,
+          height: size.height + 6,
+        ),
+        const Radius.circular(5),
+      ),
+      Paint()..color = const Color(0xCC1B1F24),
+    );
+    text(
+      canvas,
+      value,
+      center,
+      const Color(0xFFF2F2F2),
+      maxWidth: maxWidth,
+      fontSize: fontSize,
+      isBold: true,
+    );
+  }
+
   /// Рамка панели: схема из нескольких сюжетов разделяется рамками, иначе
   /// подписи одного сюжета читаются как подписи соседнего.
   void panelFrame(Canvas canvas, Rect rect, {Color? fill, Color? border}) {
@@ -660,4 +694,256 @@ VehicleParts drawCarProfile(
     rearEdge: rect.left,
     groundY: groundY,
   );
+}
+
+/// Легковой автомобиль **вид сверху**, носом вправо, вписанный в [rect]
+/// (включая колёса). Сцены «вид сверху на дорогу» рисуются в координатах
+/// холста, поэтому виджет `AnimatedAutoWidget` из `auto.dart` тут не годится:
+/// он живёт своим `Timer` и своим `FittedBox`.
+///
+/// Все дополнительные признаки — маячок, крест скорой, аварийка, смятый
+/// перед — включаются флагами: сцена собирается из одной и той же машины, и
+/// полицейская от участника отличается ровно тем, чем должна.
+void drawCarTopView(
+  Canvas canvas,
+  IllustrationPainter p,
+  Rect rect, {
+  required Color body,
+  bool noseRight = true,
+  bool hazardOn = false,
+  bool beacon = false,
+  bool ambulanceCross = false,
+  bool damagedFront = false,
+  bool damagedRear = false,
+  bool scratched = false,
+  Color? outline,
+}) {
+  if (!noseRight) {
+    // Отражаем относительно центра: геометрия ниже пишется один раз, для
+    // машины носом вправо.
+    canvas.save();
+    canvas.translate(rect.center.dx, 0);
+    canvas.scale(-1, 1);
+    canvas.translate(-rect.center.dx, 0);
+  }
+
+  final scheme = p.colorScheme;
+  final ink = outline ?? scheme.outline;
+  final l = rect.width;
+  final h = rect.height;
+
+  // Кузов уже габарита: колёса выступают за него сверху и снизу.
+  final carBody = Rect.fromLTRB(
+    rect.left,
+    rect.top + h * 0.1,
+    rect.right,
+    rect.bottom - h * 0.1,
+  );
+
+  // Покрышки всегда тёмные: машины в этих сценах стоят на асфальте, цвет
+  // которого от темы не зависит, и светлые колёса на нём выглядят вывернутыми.
+  final tirePaint = Paint()..color = const Color(0xFF23272B);
+  final wheelLen = l * 0.15;
+  final wheelThick = h * 0.13;
+  for (final cx in [rect.left + l * 0.2, rect.right - l * 0.24]) {
+    for (final cy in [carBody.top, carBody.bottom]) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: Offset(cx, cy),
+            width: wheelLen,
+            height: wheelThick * 2,
+          ),
+          Radius.circular(wheelThick * 0.5),
+        ),
+        tirePaint,
+      );
+    }
+  }
+
+  final shell = RRect.fromRectAndCorners(
+    carBody,
+    topLeft: Radius.circular(h * 0.18),
+    bottomLeft: Radius.circular(h * 0.18),
+    topRight: Radius.circular(h * 0.3),
+    bottomRight: Radius.circular(h * 0.3),
+  );
+  canvas.drawRRect(shell, Paint()..color = body);
+  canvas.drawRRect(
+    shell,
+    Paint()
+      ..color = ink
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4,
+  );
+
+  // Стёкла и крыша: без них силуэт сверху читается как прямоугольник.
+  final glass = Paint()..color = scheme.surface.withValues(alpha: 0.85);
+  final roof = Rect.fromLTRB(
+    rect.left + l * 0.34,
+    carBody.top + h * 0.12,
+    rect.left + l * 0.62,
+    carBody.bottom - h * 0.12,
+  );
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(roof, Radius.circular(h * 0.1)),
+    Paint()..color = Color.alphaBlend(Colors.black.withValues(alpha: 0.12), body),
+  );
+  canvas.drawPath(
+    Path()
+      ..moveTo(roof.right, roof.top)
+      ..lineTo(rect.left + l * 0.74, carBody.top + h * 0.18)
+      ..lineTo(rect.left + l * 0.74, carBody.bottom - h * 0.18)
+      ..lineTo(roof.right, roof.bottom)
+      ..close(),
+    glass,
+  );
+  canvas.drawPath(
+    Path()
+      ..moveTo(roof.left, roof.top)
+      ..lineTo(rect.left + l * 0.22, carBody.top + h * 0.18)
+      ..lineTo(rect.left + l * 0.22, carBody.bottom - h * 0.18)
+      ..lineTo(roof.left, roof.bottom)
+      ..close(),
+    glass,
+  );
+
+  // Фары — по ним видно, где у машины нос.
+  final lamp = Paint()..color = const Color(0xFFFFF3C4);
+  for (final cy in [carBody.top + h * 0.16, carBody.bottom - h * 0.16]) {
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset(rect.right - l * 0.03, cy),
+          width: l * 0.05,
+          height: h * 0.14,
+        ),
+        const Radius.circular(2),
+      ),
+      lamp,
+    );
+  }
+
+  if (beacon) {
+    // Синий маячок поперёк крыши — цвет здесь и есть содержание.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: roof.center,
+          width: l * 0.1,
+          height: h * 0.66,
+        ),
+        const Radius.circular(3),
+      ),
+      Paint()..color = const Color(0xFF1E63D0),
+    );
+  }
+  if (ambulanceCross) {
+    final c = roof.center;
+    final arm = h * 0.26;
+    final cross = Paint()
+      ..color = const Color(0xFFD32F2F)
+      ..strokeWidth = h * 0.12
+      ..strokeCap = StrokeCap.butt;
+    canvas.drawLine(Offset(c.dx - arm, c.dy), Offset(c.dx + arm, c.dy), cross);
+    canvas.drawLine(Offset(c.dx, c.dy - arm), Offset(c.dx, c.dy + arm), cross);
+  }
+
+  if (hazardOn) {
+    // Аварийка: все четыре угла разом. Оранжевый — сигнальный цвет, из темы
+    // его не взять.
+    final blink = Paint()..color = const Color(0xFFFFA000);
+    for (final cx in [rect.left + l * 0.04, rect.right - l * 0.04]) {
+      for (final cy in [carBody.top + h * 0.14, carBody.bottom - h * 0.14]) {
+        canvas.drawCircle(Offset(cx, cy), h * 0.11, blink);
+      }
+    }
+  }
+
+  if (damagedFront || damagedRear) {
+    final crumple = Paint()
+      ..color = scheme.onSurface
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6;
+    final edges = <double>[
+      if (damagedFront) rect.right - l * 0.07,
+      if (damagedRear) rect.left + l * 0.07,
+    ];
+    for (final x in edges) {
+      final path = Path()..moveTo(x, carBody.top + h * 0.05);
+      var up = true;
+      for (var y = carBody.top + h * 0.05;
+          y < carBody.bottom - h * 0.05;
+          y += h * 0.18) {
+        path.lineTo(x + (up ? l * 0.035 : -l * 0.035), y + h * 0.09);
+        up = !up;
+      }
+      canvas.drawPath(path, crumple);
+    }
+  }
+  if (scratched) {
+    // Царапина: короткие штрихи по борту — «мања материјална штета».
+    final scratch = Paint()
+      ..color = scheme.onSurface
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+    for (var i = 0; i < 3; i++) {
+      final x = rect.left + l * (0.62 + i * 0.07);
+      canvas.drawLine(
+        Offset(x, carBody.bottom - h * 0.06),
+        Offset(x + l * 0.04, carBody.bottom - h * 0.24),
+        scratch,
+      );
+    }
+  }
+
+  if (!noseRight) canvas.restore();
+}
+
+/// Пиктограмма человека **вид сверху**: плечи и голова. Ровно столько, чтобы
+/// на сцене «вид сверху» человек не путался с предметом.
+void drawPersonTopView(
+  Canvas canvas,
+  Offset center,
+  double size,
+  Color color, {
+  bool lying = false,
+}) {
+  final paint = Paint()..color = color;
+  if (lying) {
+    // Лежащий: вытянутое тело, голова сбоку, руки в стороны — силуэт сразу
+    // читается как «лице је повређено», а не как пятно на асфальте.
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: Offset.zero,
+          width: size * 1.5,
+          height: size * 0.5,
+        ),
+        Radius.circular(size * 0.24),
+      ),
+      paint,
+    );
+    canvas.drawCircle(Offset(-size * 0.9, 0), size * 0.32, paint);
+    final limb = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size * 0.16
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(-size * 0.2, 0), Offset(size * 0.2, -size * 0.6), limb);
+    canvas.drawLine(Offset(size * 0.7, 0), Offset(size * 1.2, size * 0.45), limb);
+    canvas.restore();
+    return;
+  }
+  canvas.drawOval(
+    Rect.fromCenter(
+      center: Offset(center.dx, center.dy + size * 0.25),
+      width: size * 0.95,
+      height: size * 0.62,
+    ),
+    paint,
+  );
+  canvas.drawCircle(Offset(center.dx, center.dy - size * 0.22), size * 0.3, paint);
 }
