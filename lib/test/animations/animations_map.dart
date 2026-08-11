@@ -14,6 +14,7 @@ import 'decision_tree_widget.dart';
 import 'dve_vrste_nezgode.dart';
 import 'istureni_teret.dart';
 import 'mimoilazenje.dart';
+import 'mimoilazenje_nagib.dart';
 import 'obgon.dart';
 import 'obilazenje1.dart';
 import 'oznake_tereta.dart';
@@ -22,9 +23,12 @@ import 'uklanjanje_tok.dart';
 import 'zabranjena_mesta_za_lica.dart';
 import 'obilazenje_prepreke.dart';
 import 'trougao_i_prsluk.dart';
+import 'pravilo_jednog_vozila.dart';
 
 final _animations = {
   'mimoilazenje': Mimoilazenje(),
+  'mimoilazenje-nagib': MimoilazenjeNagib(),
+  'pravilo-jednog-vozila': PraviloJednogVozila(),
   'preticanje': Obgon(),
   'obilazenje': ObyezdAnimacija(),
   'obilazenje2': ObyezdAnimacija2(),
