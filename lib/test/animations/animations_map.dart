@@ -25,6 +25,8 @@ import 'obilazenje_prepreke.dart';
 import 'trougao_i_prsluk.dart';
 import 'pravilo_jednog_vozila.dart';
 import 'zaustavni_put.dart';
+import 'tri_vrste_znakova.dart';
+import 'uzduzne_linije.dart';
 
 final _animations = {
   'mimoilazenje': Mimoilazenje(),
@@ -58,6 +60,9 @@ final _animations = {
   'trougao-i-prsluk': TrougaoIPrsluk(),
   'obilazenje-prepreke': ObilazenjePrepreke(),
   'zaustavni-put': ZaustavniPut(),
+  // Конспект 32 «Саобраћајна сигнализација»
+  'tri-vrste-znakova': TriVrsteZnakova(),
+  'uzduzne-linije': UzduzneLinije(),
 };
 
 Widget getAnimation(String animationName) {

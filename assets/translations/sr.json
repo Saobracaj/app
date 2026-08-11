@@ -697,5 +697,19 @@
     "brakingLegend": "пут кочења",
     "growthNote": "Двоструко већа брзина → двоструко дужи пут реакције, а четвороструко дужи пут кочења.",
     "conditionsNote": "Рачун: реакција 1 s, сув асфалт (успорење ≈6,5 m/s²). На мокром коловозу пут кочења је око двоструко дужи."
+  },
+  "triVrsteZnakova": {
+    "danger": "upozorava: ispred je opasnost",
+    "order": "naređuje: zabranjeno ili mora",
+    "info": "obaveštava: mesto ili blizina",
+    "note": "Simbol je isti — odgovor nije. Odlučuju oblik i ivica: trougao — približavanje, krug — zabrana ili obaveza, plavi kvadrat — mesto."
+  },
+  "uzduzneLinije": {
+    "edge": "ivica kolovoza",
+    "doubleSolid": "ne sme se ni preći ni voziti po njoj",
+    "warning": "duge crte — ispred je neisprekidana",
+    "guide": "vodi vozilo kroz raskrsnicu",
+    "combined": "isprekidana sa moje strane — smem",
+    "numbers": "Na slikama s brojevima: 1 i 2 su ivične linije, 3 je neisprekidana razdelna, 4 je isprekidana razdelna ili linija upozorenja."
   }
 }
