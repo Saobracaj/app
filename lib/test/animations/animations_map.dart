@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:saobracaj/test/animations/manevri.dart';
+import 'package:saobracaj/test/animations/pravilno_sedenje.dart';
 import 'package:saobracaj/test/animations/obilazenje2.dart';
 import 'package:saobracaj/test/animations/oznaka_pneumatika.dart';
 import 'package:saobracaj/test/animations/oznake_sporo_dugo_tesko.dart';
@@ -30,6 +31,7 @@ final _animations = {
   'presek-puta': PresekPuta(),
   'znak-naselje': ZnakNaselje(),
   'zone-uporedno': ZoneUporedno(),
+  'pravilno-sedenje': PravilnoSedenje(),
 };
 
 Widget getAnimation(String animationName) {
