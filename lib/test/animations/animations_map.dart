@@ -31,6 +31,9 @@ import 'dopunske_table_parkiranje.dart';
 import 'katadiopteri_na_prikolici.dart';
 import 'dimenzije_vozila.dart';
 import 'mase_vozila.dart';
+import 'boje_svetala_napred_nazad.dart';
+import 'decision_tree_widget.dart';
+import 'dometi_svetlosnih_snopova.dart';
 import 'mimoilazenje.dart';
 import 'mimoilazenje_nagib.dart';
 import 'obgon.dart';
@@ -54,6 +57,7 @@ import 'zaustavljeno_vs_parkirano.dart';
 import 'prikolica_b_vs_be.dart';
 import 'raskinuta_veza_prikolice.dart';
 import 'opterecenje_vs_dimenzije.dart';
+import 'upotreba_svetala_matrica.dart';
 
 final _animations = {
   'pravilo-desne-strane': PraviloDesneStrane(),
@@ -115,6 +119,9 @@ final _animations = {
   'mase-vozila': MaseVozila(),
   'opterecenje-vs-dimenzije': OpterecenjeVsDimenzije(),
   'dimenzije-vozila': DimenzijeVozila(),
+  'boje-svetala-napred-nazad': BojeSvetalaNapredNazad(),
+  'dometi-svetlosnih-snopova': DometiSvetlosnihSnopova(),
+  'upotreba-svetala-matrica': UpotrebaSvetalaMatrica(),
 };
 
 Widget getAnimation(String animationName) {
