@@ -11,6 +11,8 @@ import 'package:saobracaj/test/animations/oznake_sporo_dugo_tesko.dart';
 import 'package:saobracaj/test/animations/presek_puta.dart';
 import 'package:saobracaj/test/animations/preticanje_sekvenca.dart';
 import 'package:saobracaj/test/animations/preticanje_strane.dart';
+import 'package:saobracaj/test/animations/posebni_signali.dart';
+import 'package:saobracaj/test/animations/propustanje_vozila_s_prvenstvom.dart';
 import 'package:saobracaj/test/animations/propustanje.dart';
 import 'package:saobracaj/test/animations/pruzni_prelaz.dart';
 import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
@@ -126,6 +128,8 @@ final _animations = {
   'boje-svetala-napred-nazad': BojeSvetalaNapredNazad(),
   'dometi-svetlosnih-snopova': DometiSvetlosnihSnopova(),
   'upotreba-svetala-matrica': UpotrebaSvetalaMatrica(),
+  'posebni-signali': PosebniSignali(),
+  'propustanje-vozila-s-prvenstvom': PropustanjeVozilaSPrvenstvom(),
 };
 
 Widget getAnimation(String animationName) {
