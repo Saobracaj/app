@@ -6,9 +6,11 @@ import 'package:saobracaj/test/animations/oznaka_pneumatika.dart';
 import 'package:saobracaj/test/animations/oznake_sporo_dugo_tesko.dart';
 import 'package:saobracaj/test/animations/presek_puta.dart';
 import 'package:saobracaj/test/animations/propustanje.dart';
+import 'package:saobracaj/test/animations/pruzni_prelaz.dart';
 import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
 import 'package:saobracaj/test/animations/znak_naselje.dart';
 import 'package:saobracaj/test/animations/zone_uporedno.dart';
+import 'package:saobracaj/test/animations/trake_pred_prugom.dart';
 
 import 'decision_tree_widget.dart';
 import 'dve_vrste_nezgode.dart';
@@ -67,6 +69,8 @@ final _animations = {
   'uzduzne-linije': UzduzneLinije(),
   'hijerarhija-piramida': HijerarhijaPiramida(),
   'znaci-policajca': ZnaciPolicajca(),
+  'pruzni-prelaz': PruzniPrelaz(),
+  'trake-pred-prugom': TrakePredPrugom(),
 };
 
 Widget getAnimation(String animationName) {
