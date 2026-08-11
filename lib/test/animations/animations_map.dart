@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:saobracaj/test/animations/kruzni_tok.dart';
 import 'package:saobracaj/test/animations/manevri.dart';
 import 'package:saobracaj/test/animations/pravilno_sedenje.dart';
 import 'package:saobracaj/test/animations/obilazenje2.dart';
@@ -75,6 +76,7 @@ final _animations = {
   'trake-pred-prugom': TrakePredPrugom(),
   'pozicija-pred-skretanje': PozicijaPredSkretanje(),
   'skretanje-pesaci': SkretanjePesaci(),
+  'kruzni-tok': KruzniTok(),
 };
 
 Widget getAnimation(String animationName) {
