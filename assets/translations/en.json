@@ -635,5 +635,22 @@
   },
   "zoneUporedno": {
     "trap": "a decoy: no question in this category has such an answer"
+  },
+  "istureniTeret": {
+    "front": "at the front",
+    "rear": "at the rear",
+    "supported": "the rest of the load rests on the cargo area:",
+    "wrongTitle": "distractors in the answers:"
+  },
+  "oznakeTereta": {
+    "day": "Normal conditions — the vehicle type matters",
+    "night": "Poor visibility: night, fog, rain",
+    "never": "a load is never marked with it"
+  },
+  "zabranjenaMesta": {
+    "cargoBed": "Nobody rides in a truck's cargo area — not even loaders",
+    "lockedSpace": "A space that cannot be opened from inside — nobody, whatever their age",
+    "camper": "Nobody rides inside a caravan while it is moving",
+    "allowed": "Only proper seats, and only as many people as the document says"
   }
 }

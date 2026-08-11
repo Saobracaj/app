@@ -11,9 +11,12 @@ import 'package:saobracaj/test/animations/znak_naselje.dart';
 import 'package:saobracaj/test/animations/zone_uporedno.dart';
 
 import 'decision_tree_widget.dart';
+import 'istureni_teret.dart';
 import 'mimoilazenje.dart';
 import 'obgon.dart';
 import 'obilazenje1.dart';
+import 'oznake_tereta.dart';
+import 'zabranjena_mesta_za_lica.dart';
 
 final _animations = {
   'mimoilazenje': Mimoilazenje(),
@@ -32,6 +35,10 @@ final _animations = {
   'znak-naselje': ZnakNaselje(),
   'zone-uporedno': ZoneUporedno(),
   'pravilno-sedenje': PravilnoSedenje(),
+  // Конспект 33 «Превоз терета и лица»
+  'istureni-teret': IstureniTeret(),
+  'oznake-tereta': OznakeTereta(),
+  'zabranjena-mesta-za-lica': ZabranjenaMestaZaLica(),
 };
 
 Widget getAnimation(String animationName) {
