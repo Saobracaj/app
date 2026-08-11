@@ -31,6 +31,8 @@ import 'zaustavni_put.dart';
 import 'tri_vrste_znakova.dart';
 import 'uzduzne_linije.dart';
 import 'znaci_policajca.dart';
+import 'pozicija_pred_skretanje.dart';
+import 'skretanje_pesaci.dart';
 
 final _animations = {
   'mimoilazenje': Mimoilazenje(),
@@ -71,6 +73,8 @@ final _animations = {
   'znaci-policajca': ZnaciPolicajca(),
   'pruzni-prelaz': PruzniPrelaz(),
   'trake-pred-prugom': TrakePredPrugom(),
+  'pozicija-pred-skretanje': PozicijaPredSkretanje(),
+  'skretanje-pesaci': SkretanjePesaci(),
 };
 
 Widget getAnimation(String animationName) {
