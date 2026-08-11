@@ -603,5 +603,20 @@
       "other": "Uređaja za isporuku: {}"
     },
     "noDevices": "Ali nema gde da se isporuči: korisnik nema nijedan uređaj sa uključenim push obaveštenjima i sačuvanim tokenom."
+  },
+  "tireMarking": {
+    "width": "у милиметрима",
+    "profile": "висина у процентима од ширине",
+    "radial": "није дијагонална",
+    "rim": "у цолима",
+    "load": "колику масу пнеуматик носи",
+    "speed": "до које брзине сме",
+    "winter": "пнеуматик за зимске услове",
+    "wear": "докле сме да се истроши"
+  },
+  "vehiclePlates": {
+    "slow": "нпр. трактор",
+    "long": "дугачка возила и скупови",
+    "heavy": "тешка теретна возила"
   }
 }

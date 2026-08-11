@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:saobracaj/test/animations/manevri.dart';
 import 'package:saobracaj/test/animations/obilazenje2.dart';
+import 'package:saobracaj/test/animations/oznaka_pneumatika.dart';
+import 'package:saobracaj/test/animations/oznake_sporo_dugo_tesko.dart';
 import 'package:saobracaj/test/animations/propustanje.dart';
 import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
 
@@ -20,6 +22,8 @@ final _animations = {
   'odstojanje-rastojanje-shema': RastojanjeOndsojanje(),
   'manevri-animacija': Manevri(),
   'kategorije-stablo': ThemedCompactDecisionTree(),
+  'oznaka-pneumatika': OznakaPneumatika(),
+  'oznake-sporo-dugo-tesko': OznakeSporoDugoTesko(),
 };
 
 Widget getAnimation(String animationName) {
