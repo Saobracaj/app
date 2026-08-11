@@ -29,6 +29,8 @@ import 'hijerarhija_piramida.dart';
 import 'klinc_raskrsnica.dart';
 import 'dopunske_table_parkiranje.dart';
 import 'katadiopteri_na_prikolici.dart';
+import 'dimenzije_vozila.dart';
+import 'mase_vozila.dart';
 import 'mimoilazenje.dart';
 import 'mimoilazenje_nagib.dart';
 import 'obgon.dart';
@@ -51,6 +53,7 @@ import 'zabrana_zaustavljanja_parkiranja.dart';
 import 'zaustavljeno_vs_parkirano.dart';
 import 'prikolica_b_vs_be.dart';
 import 'raskinuta_veza_prikolice.dart';
+import 'opterecenje_vs_dimenzije.dart';
 
 final _animations = {
   'pravilo-desne-strane': PraviloDesneStrane(),
@@ -109,6 +112,9 @@ final _animations = {
   'alkohol-prag-skala': AlkoholPragSkala(),
   'skala-alkohola': SkalaAlkohola(),
   'nula-promila': NulaPromila(),
+  'mase-vozila': MaseVozila(),
+  'opterecenje-vs-dimenzije': OpterecenjeVsDimenzije(),
+  'dimenzije-vozila': DimenzijeVozila(),
 };
 
 Widget getAnimation(String animationName) {
