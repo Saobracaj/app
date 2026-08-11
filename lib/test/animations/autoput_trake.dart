@@ -295,7 +295,7 @@ class _AutoputTrakePainter extends CustomPainter {
   /// Сломавшаяся машина: стоит на остановочной полосе с аварийкой.
   void _drawStoppedCar(Canvas canvas) {
     final blink = (progress * 16).floor().isEven;
-    drawCarTopView(
+    drawSchematicCarTopView(
       canvas,
       Rect.fromCenter(
         center: const Offset(215, _yShoulder),
@@ -312,7 +312,7 @@ class _AutoputTrakePainter extends CustomPainter {
   void _drawSlowCar(Canvas canvas) {
     // Едет медленнее нашей: к началу обгона она впереди, к концу — позади.
     final x = 200 + progress * 55;
-    drawCarTopView(
+    drawSchematicCarTopView(
       canvas,
       Rect.fromCenter(
         center: Offset(x, _yRightLane),
@@ -328,7 +328,7 @@ class _AutoputTrakePainter extends CustomPainter {
     canvas.save();
     canvas.translate(center.dx, center.dy);
     canvas.rotate(angle);
-    drawCarTopView(
+    drawSchematicCarTopView(
       canvas,
       Rect.fromCenter(
         center: Offset.zero,

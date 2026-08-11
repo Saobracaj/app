@@ -132,7 +132,7 @@ class _PosebneTrakePainter extends CustomPainter {
 
     // Сломавшаяся машина с аварийкой — единственное, ради чего остановочная
     // полоса и существует.
-    drawCarTopView(
+    drawSchematicCarTopView(
       canvas,
       Rect.fromCenter(
         center: const Offset(215, _yShoulder),
@@ -297,7 +297,7 @@ class _PosebneTrakePainter extends CustomPainter {
       gap: 8,
     );
 
-    drawCarTopView(
+    drawSchematicCarTopView(
       canvas,
       Rect.fromCenter(
         center: const Offset(130, 316),
@@ -363,7 +363,7 @@ class _PosebneTrakePainter extends CustomPainter {
         ..strokeWidth = 3.5,
     );
 
-    drawCarTopView(
+    drawSchematicCarTopView(
       canvas,
       Rect.fromCenter(
         center: const Offset(250, 316),

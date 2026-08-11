@@ -7,7 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/animations/dve_vrste_nezgode.dart'
     show kAsphalt, kMarking, kCarBlue, kSignalRed;
-import 'package:saobracaj/test/animations/painters.dart';
+import 'package:saobracaj/test/animations/painters.dart'
+    // Палитра этих сцен берётся из dve_vrste_nezgode.dart выше:
+    // одноимённые цвета из painters.dart относятся к схемам автомагистрали.
+    hide kAsphalt, kCarBlue;
 
 /// Порядок эвакуации непрописно паркираног возила по шагам.
 ///

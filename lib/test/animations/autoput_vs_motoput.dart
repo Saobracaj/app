@@ -406,7 +406,7 @@ class _AutoputVsMotoputPainter extends CustomPainter {
     canvas.translate(center.dx, center.dy);
     // Машина рисуется носом вправо, поэтому поворачиваем её вдоль дороги.
     canvas.rotate(up ? -3.14159 / 2 : 3.14159 / 2);
-    drawCarTopView(
+    drawSchematicCarTopView(
       canvas,
       Rect.fromCenter(center: Offset.zero, width: 34, height: 17),
       color,

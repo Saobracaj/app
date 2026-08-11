@@ -1,19 +1,14 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:saobracaj/theme/app_theme.dart';
 
 /// Общие рисовалки для иллюстраций из `lib/test/animations/`.
 ///
-/// Своя копия `_drawText` была уже в `decision_tree_widget.dart`; чтобы не
-/// плодить четвёртую, текст на холсте рисуется отсюда.
+/// Здесь три слоя, выросшие независимо и сведённые в один файл:
+/// свободные функции рисования текста, база [IllustrationPainter] со сценами
+/// «вид сбоку» и набор `drawScheme*` для схем «вид сверху».
 
-/// Рисует [text] на холсте, привязывая его к точке [anchorPoint].
-///
-/// [anchor] задаёт, какой угол/сторона блока текста попадает в эту точку:
-/// [Alignment.center] — центр (подпись под фигурой), [Alignment.centerLeft] —
-/// левый край при той же высоте (строка списка).
-///
-/// `fontFamily` задаётся всегда: без него `TextPainter` берёт системный шрифт,
-/// а в тестовом рендере — заглушку с квадратными глифами.
 void drawCanvasText(
   Canvas canvas,
   String text,
@@ -26,53 +21,6 @@ void drawCanvasText(
   Alignment anchor = Alignment.center,
   double lineHeight = 1.2,
   double letterSpacing = 0,
-// Общие рисовалки для схем «вид сверху»: асфальт, разметка, стрелки, подписи
-// и пиктограммы транспорта.
-//
-// Вынесено сюда, потому что одни и те же куски нужны сразу нескольким сценам
-// (autoput_trake, posebne_trake_autoput, autoput_vs_motoput): дорога и машины
-// во всём приложении должны выглядеть одинаково, а копия рисовалки в каждом
-// файле неизбежно разъезжается.
-
-import 'dart:math' as math;
-
-import 'package:flutter/material.dart';
-import 'package:saobracaj/theme/app_theme.dart';
-
-/// Асфальт. Литеральный цвет намеренно: разметка белая и жёлтая, и она
-/// читается только на тёмном покрытии — в светлой теме тоже.
-const Color kAsphalt = Color(0xFF4E535A);
-
-/// Асфальт остановочной полосы и съездов — чуть светлее, чтобы полоса
-/// отличалась от ходовых даже без подписи.
-const Color kAsphaltShoulder = Color(0xFF6E757E);
-
-/// Разметка.
-const Color kLineWhite = Color(0xFFF2F2F2);
-const Color kLineYellow = Color(0xFFF5C518);
-
-/// Цвета участников. Разные машины должны различаться с одного взгляда.
-const Color kCarBlue = Color(0xFF2E77D0);
-const Color kCarGreen = Color(0xFF3C9B57);
-const Color kCarRed = Color(0xFFD24B3E);
-const Color kCarGrey = Color(0xFFB9C0C8);
-const Color kHazardOn = Color(0xFFFF9A22);
-
-/// Подпись на схеме. Всегда со шрифтом темы: без `fontFamily` в тестовом
-/// рендере вместо букв получаются квадраты.
-///
-/// [anchor] — точка привязки, [align] — как относительно неё лежит блок
-/// текста (по умолчанию центр).
-Size drawSchemeText(
-  Canvas canvas,
-  String text,
-  Offset anchor,
-  Color color, {
-  double fontSize = 11,
-  bool bold = false,
-  double maxWidth = 140,
-  Alignment align = Alignment.center,
-  TextAlign textAlign = TextAlign.center,
 }) {
   final painter = TextPainter(
     text: TextSpan(
@@ -84,9 +32,6 @@ Size drawSchemeText(
         fontFamily: kAppFontFamily,
         height: lineHeight,
         letterSpacing: letterSpacing,
-        fontFamily: kAppFontFamily,
-        fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
-        height: 1.2,
       ),
     ),
     textAlign: textAlign,
@@ -109,25 +54,6 @@ double measureCanvasText(
   double fontSize = 12,
   FontWeight fontWeight = FontWeight.normal,
   double letterSpacing = 0,
-  // align == Alignment.center → блок центрирован по anchor;
-  // (-1) — левый/верхний край блока в anchor, (1) — правый/нижний.
-  final dx = anchor.dx - painter.width * (align.x + 1) / 2;
-  final dy = anchor.dy - painter.height * (align.y + 1) / 2;
-  painter.paint(canvas, Offset(dx, dy));
-  return painter.size;
-}
-
-/// Подпись в «плашке» — читается поверх асфальта, где обычный текст теряется.
-void drawSchemeChip(
-  Canvas canvas,
-  String text,
-  Offset anchor,
-  Color background,
-  Color foreground, {
-  double fontSize = 11,
-  bool bold = false,
-  double maxWidth = 150,
-  Alignment align = Alignment.center,
 }) {
   final painter = TextPainter(
     text: TextSpan(
@@ -142,10 +68,7 @@ void drawSchemeChip(
     textDirection: TextDirection.ltr,
   )..layout();
   return painter.width;
-import 'dart:math' as math;
-
-import 'package:flutter/material.dart';
-import 'package:saobracaj/theme/app_theme.dart';
+}
 
 /// Общая основа для статичных схем-иллюстраций.
 ///
@@ -1015,6 +938,82 @@ void drawPersonTopView(
     paint,
   );
   canvas.drawCircle(Offset(center.dx, center.dy - size * 0.22), size * 0.3, paint);
+}
+
+/// Асфальт. Литеральный цвет намеренно: разметка белая и жёлтая, и она
+/// читается только на тёмном покрытии — в светлой теме тоже.
+const Color kAsphalt = Color(0xFF4E535A);
+
+/// Асфальт остановочной полосы и съездов — чуть светлее, чтобы полоса
+/// отличалась от ходовых даже без подписи.
+const Color kAsphaltShoulder = Color(0xFF6E757E);
+
+/// Разметка.
+const Color kLineWhite = Color(0xFFF2F2F2);
+const Color kLineYellow = Color(0xFFF5C518);
+
+/// Цвета участников. Разные машины должны различаться с одного взгляда.
+const Color kCarBlue = Color(0xFF2E77D0);
+const Color kCarGreen = Color(0xFF3C9B57);
+const Color kCarRed = Color(0xFFD24B3E);
+const Color kCarGrey = Color(0xFFB9C0C8);
+const Color kHazardOn = Color(0xFFFF9A22);
+
+/// Подпись на схеме. Всегда со шрифтом темы: без `fontFamily` в тестовом
+/// рендере вместо букв получаются квадраты.
+///
+/// [anchor] — точка привязки, [align] — как относительно неё лежит блок
+/// текста (по умолчанию центр).
+Size drawSchemeText(
+  Canvas canvas,
+  String text,
+  Offset anchor,
+  Color color, {
+  double fontSize = 11,
+  bool bold = false,
+  double maxWidth = 140,
+  Alignment align = Alignment.center,
+  TextAlign textAlign = TextAlign.center,
+}) {
+  final painter = TextPainter(
+    text: TextSpan(
+      text: text,
+      style: TextStyle(
+        color: color,
+        fontSize: fontSize,
+        fontFamily: kAppFontFamily,
+        fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
+        height: 1.2,
+      ),
+    ),
+    textAlign: textAlign,
+    textDirection: TextDirection.ltr,
+  )..layout(maxWidth: maxWidth);
+
+  // align == Alignment.center → блок центрирован по anchor;
+  // (-1) — левый/верхний край блока в anchor, (1) — правый/нижний.
+  final dx = anchor.dx - painter.width * (align.x + 1) / 2;
+  final dy = anchor.dy - painter.height * (align.y + 1) / 2;
+  painter.paint(canvas, Offset(dx, dy));
+  return painter.size;
+}
+
+/// Подпись в «плашке» — читается поверх асфальта, где обычный текст теряется.
+void drawSchemeChip(
+  Canvas canvas,
+  String text,
+  Offset anchor,
+  Color background,
+  Color foreground, {
+  double fontSize = 11,
+  bool bold = false,
+  double maxWidth = 150,
+  Alignment align = Alignment.center,
+}) {
+  final painter = TextPainter(
+    text: TextSpan(
+      text: text,
+      style: TextStyle(
         color: foreground,
         fontSize: fontSize,
         fontFamily: kAppFontFamily,
@@ -1142,7 +1141,7 @@ void drawDashedLine(
 ///
 /// [hazardOn] — включённая аварийка (все четыре угла), [blinkOn] — фаза
 /// мигания: гасить лампы можно снаружи, не пересобирая машину.
-void drawCarTopView(
+void drawSchematicCarTopView(
   Canvas canvas,
   Rect rect,
   Color body, {
