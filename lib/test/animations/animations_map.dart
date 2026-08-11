@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:saobracaj/test/animations/manevri.dart';
 import 'package:saobracaj/test/animations/obilazenje2.dart';
+import 'package:saobracaj/test/animations/posebni_signali.dart';
+import 'package:saobracaj/test/animations/propustanje_vozila_s_prvenstvom.dart';
 import 'package:saobracaj/test/animations/propustanje.dart';
 import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
 
@@ -18,6 +20,8 @@ final _animations = {
   'rastojanje_odstojanje': RastojanjeOndsojanje(),
   'manevri-animacija': Manevri(),
   'kategorije-stablo': ThemedCompactDecisionTree(),
+  'posebni-signali': PosebniSignali(),
+  'propustanje-vozila-s-prvenstvom': PropustanjeVozilaSPrvenstvom(),
 };
 
 Widget getAnimation(String animationName) {
