@@ -698,5 +698,13 @@
     "guide": "guides the vehicle through the junction",
     "combined": "broken line on my side — I may cross",
     "numbers": "In numbered pictures: 1 and 2 are ivične linije, 3 is neisprekidana razdelna, 4 is isprekidana razdelna or linija upozorenja."
+  },
+  "hijerarhijaPiramida": {
+    "stronger": "stronger",
+    "weaker": "weaker",
+    "note": "Exception: if the traffic light turned green for two drivers at once, the order between them is decided by the right-of-way rule."
+  },
+  "znaciPolicajca": {
+    "note": "An authorised officer's signals outrank traffic lights, signs and road markings: when the officer signals, the light does not count."
   }
 }

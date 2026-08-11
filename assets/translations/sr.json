@@ -711,5 +711,13 @@
     "guide": "vodi vozilo kroz raskrsnicu",
     "combined": "isprekidana sa moje strane — smem",
     "numbers": "Na slikama s brojevima: 1 i 2 su ivične linije, 3 je neisprekidana razdelna, 4 je isprekidana razdelna ili linija upozorenja."
+  },
+  "hijerarhijaPiramida": {
+    "stronger": "јаче",
+    "weaker": "слабије",
+    "note": "Изузетак: ако је семафор дао зелено двојици истовремено, редослед између њих решава правило саобраћаја."
+  },
+  "znaciPolicajca": {
+    "note": "Знаци овлашћеног лица јачи су од семафора, знакова и ознака на коловозу: када он даје знак, семафор се не рачуна."
   }
 }

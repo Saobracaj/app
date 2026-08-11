@@ -13,6 +13,7 @@ import 'package:saobracaj/test/animations/zone_uporedno.dart';
 import 'decision_tree_widget.dart';
 import 'dve_vrste_nezgode.dart';
 import 'istureni_teret.dart';
+import 'hijerarhija_piramida.dart';
 import 'mimoilazenje.dart';
 import 'mimoilazenje_nagib.dart';
 import 'obgon.dart';
@@ -27,6 +28,7 @@ import 'pravilo_jednog_vozila.dart';
 import 'zaustavni_put.dart';
 import 'tri_vrste_znakova.dart';
 import 'uzduzne_linije.dart';
+import 'znaci_policajca.dart';
 
 final _animations = {
   'mimoilazenje': Mimoilazenje(),
@@ -63,6 +65,8 @@ final _animations = {
   // Конспект 32 «Саобраћајна сигнализација»
   'tri-vrste-znakova': TriVrsteZnakova(),
   'uzduzne-linije': UzduzneLinije(),
+  'hijerarhija-piramida': HijerarhijaPiramida(),
+  'znaci-policajca': ZnaciPolicajca(),
 };
 
 Widget getAnimation(String animationName) {
