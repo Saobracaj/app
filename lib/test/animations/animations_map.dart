@@ -20,6 +20,7 @@ import 'istureni_teret.dart';
 import 'hijerarhija_piramida.dart';
 import 'klinc_raskrsnica.dart';
 import 'dopunske_table_parkiranje.dart';
+import 'katadiopteri_na_prikolici.dart';
 import 'mimoilazenje.dart';
 import 'mimoilazenje_nagib.dart';
 import 'obgon.dart';
@@ -40,6 +41,8 @@ import 'skretanje_pesaci.dart';
 import 'pravilo_desne_strane.dart';
 import 'zabrana_zaustavljanja_parkiranja.dart';
 import 'zaustavljeno_vs_parkirano.dart';
+import 'prikolica_b_vs_be.dart';
+import 'raskinuta_veza_prikolice.dart';
 
 final _animations = {
   'pravilo-desne-strane': PraviloDesneStrane(),
@@ -89,6 +92,9 @@ final _animations = {
   'zaustavljeno-vs-parkirano': ZaustavljenoVsParkirano(),
   'zabrana-zaustavljanja-parkiranja': ZabranaZaustavljanjaParkiranja(),
   'dopunske-table-parkiranje': DopunskeTableParkiranje(),
+  'prikolica-b-vs-be': PrikolicaBvsBe(),
+  'katadiopteri-na-prikolici': KatadiopteriNaPrikolici(),
+  'raskinuta-veza-prikolice': RaskinutaVezaPrikolice(),
 };
 
 Widget getAnimation(String animationName) {
