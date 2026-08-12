@@ -8,6 +8,7 @@ import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
+import 'package:saobracaj/core/presentation/app_sidebar.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
@@ -21,6 +22,7 @@ import 'package:saobracaj/test/quest/presentation/quest_bottom_bar.dart';
 import 'package:saobracaj/test/quest/quest.dart';
 import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 import 'package:saobracaj/theme/app_theme.dart';
+import 'package:saobracaj/theme/state_management/theme_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Тесты адаптивной вёрстки: на телефоне остаётся прежняя мобильная вёрстка,
@@ -125,6 +127,8 @@ Widget _questApp() {
 /// Оболочка вкладок ([HomePage]) на минимальной карте маршрутов Routemaster.
 Widget _homeApp() {
   Page<void> stub(_) => const MaterialPage(child: SizedBox());
+  final storage = TokenStorage();
+  final client = _FakeClient(storage);
   final delegate = RoutemasterDelegate(
     routesBuilder: (_) => RouteMap(
       routes: {
@@ -148,6 +152,20 @@ Widget _homeApp() {
       theme: buildAppTheme(ColorScheme.fromSeed(seedColor: Colors.blue)),
       routerDelegate: delegate,
       routeInformationParser: const RoutemasterParser(),
+      // Боковая колонка широкого экрана показывает аккаунт и переключатель
+      // темы, поэтому оболочке нужны оба блока.
+      builder: (context, child) => MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (_) => AuthBloc(
+              AuthRepository(client, storage),
+              GraphqlSubscriptionClient(client, storage),
+            ),
+          ),
+          BlocProvider(create: (_) => ThemeBloc()),
+        ],
+        child: child!,
+      ),
     ),
   );
 }
@@ -206,13 +224,16 @@ void main() {
       expect(rail.extended, isFalse);
     });
 
-    testWidgets('широкий экран: рельса развёрнута с подписями', (tester) async {
+    testWidgets('широкий экран: боковая колонка вместо рельсы', (tester) async {
       _setScreenSize(tester, const Size(1440, 900));
       await tester.pumpWidget(_homeApp());
       await tester.pumpAndSettle();
 
-      final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
-      expect(rail.extended, isTrue);
+      // На вебе и десктопе рельсу сменяет колонка макета: логотип, подписанные
+      // разделы и блок аккаунта внизу.
+      expect(find.byType(NavigationRail), findsNothing);
+      expect(find.byType(AppSidebar), findsOneWidget);
+      expect(find.text('Saobraćaj'), findsOneWidget);
     });
 
     testWidgets('рельса переключает вкладки', (tester) async {

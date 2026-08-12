@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/categories.dart';
+import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/questions/presentation/question_list_tile.dart';
+import 'package:saobracaj/questions/questions_page.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 
 import '../state_management/question_search_bloc.dart';
@@ -13,7 +15,19 @@ import '../state_management/question_search_state.dart';
 /// field pinned to the top, and — depending on the query — either the normal
 /// category list (empty query) or the grouped search results.
 class SearchableQuestions extends StatelessWidget {
-  const SearchableQuestions({super.key});
+  const SearchableQuestions({
+    super.key,
+    this.wide = false,
+    this.showTitle = false,
+  });
+
+  /// Раскладка широкого экрана: поиск переезжает в закреплённую шапку рядом с
+  /// заголовком, категории показываются плитками.
+  final bool wide;
+
+  /// Показывать ли заголовок страницы в шапке — на широких окнах с боковой
+  /// колонкой шапки [AppBar] нет, и заголовок несёт сама страница.
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -22,10 +36,10 @@ class SearchableQuestions extends StatelessWidget {
         final data = qState.questionsData;
         // Until the questions have loaded (or on error) there is nothing to
         // search; `Categories` already renders the loading/error states.
-        if (data == null) return const Categories();
+        if (data == null) return Categories(wide: wide);
         return BlocProvider(
           create: (_) => QuestionSearchBloc(data),
-          child: const _SearchableQuestionsView(),
+          child: _SearchableQuestionsView(wide: wide, showTitle: showTitle),
         );
       },
     );
@@ -33,10 +47,50 @@ class SearchableQuestions extends StatelessWidget {
 }
 
 class _SearchableQuestionsView extends StatelessWidget {
-  const _SearchableQuestionsView();
+  const _SearchableQuestionsView({required this.wide, required this.showTitle});
+
+  final bool wide;
+  final bool showTitle;
 
   @override
   Widget build(BuildContext context) {
+    if (wide) {
+      return Column(
+        children: [
+          QuestionsWideHeader(
+            showTitle: showTitle,
+            trailing: const _SearchField(),
+          ),
+          BlocBuilder<QuestionSearchBloc, QuestionSearchState>(
+            builder: (context, state) {
+              if (!state.isActive || state.matchCount == 0) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: _ResultsCount(count: state.matchCount),
+              );
+            },
+          ),
+          Expanded(
+            child: BlocBuilder<QuestionSearchBloc, QuestionSearchState>(
+              builder: (context, state) {
+                if (!state.isActive) {
+                  return const Padding(
+                    padding: EdgeInsets.only(top: 26),
+                    child: Categories(wide: true),
+                  );
+                }
+                if (state.groups.isEmpty) return const _NoResults();
+                return ReadableWidth(
+                  child: _SearchResults(groups: state.groups),
+                );
+              },
+            ),
+          ),
+        ],
+      );
+    }
     return Column(
       children: [
         const Padding(
@@ -47,7 +101,9 @@ class _SearchableQuestionsView extends StatelessWidget {
           builder: (context, state) {
             // When there are no hits the `_NoResults` placeholder already
             // conveys that, so the count line only shows for non-empty results.
-            if (!state.isActive || state.matchCount == 0) return const SizedBox.shrink();
+            if (!state.isActive || state.matchCount == 0) {
+              return const SizedBox.shrink();
+            }
             return _ResultsCount(count: state.matchCount);
           },
         ),
@@ -89,7 +145,8 @@ class _SearchFieldState extends State<_SearchField> {
     return TextField(
       controller: _controller,
       textInputAction: TextInputAction.search,
-      onChanged: (value) => context.read<QuestionSearchBloc>().add(QueryChanged(value)),
+      onChanged: (value) =>
+          context.read<QuestionSearchBloc>().add(QueryChanged(value)),
       decoration: InputDecoration(
         hintText: 'Поиск по вопросам',
         prefixIcon: const Icon(Icons.search),
@@ -144,7 +201,9 @@ class _ResultsCount extends StatelessWidget {
         alignment: Alignment.centerLeft,
         child: Text(
           'Найдено $count ${_questionsWord(count)}',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ),
     );
@@ -162,11 +221,18 @@ class _SearchResults extends StatelessWidget {
       children: [
         for (final group in groups) ...[
           const SizedBox(height: 16),
-          ListTile(title: Text(group.categoryName, style: Theme.of(context).textTheme.titleMedium)),
+          ListTile(
+            title: Text(
+              group.categoryName,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+          ),
           for (final question in group.questions)
             QuestionListTile(
               question: question,
-              onTap: () => Routemaster.of(context).push('/quest?q=${question.id}&randomOptionsOrder=true'),
+              onTap: () => Routemaster.of(
+                context,
+              ).push('/quest?q=${question.id}&randomOptionsOrder=true'),
             ),
         ],
       ],
@@ -184,7 +250,9 @@ class _NoResults extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         child: Text(
           'Ничего не найдено',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
           textAlign: TextAlign.center,
         ),
       ),

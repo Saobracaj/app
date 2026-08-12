@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:routemaster/routemaster.dart';
+import 'core/presentation/app_sidebar.dart';
 import 'core/responsive.dart';
 import 'generated/locale_keys.g.dart';
 
@@ -52,6 +53,33 @@ class _HomePageState extends State<HomePage> {
       stack: pageState.stacks[pageState.index],
     );
 
+    // Веб и десктоп: вместо расширенного rail'а — боковая колонка из макета
+    // веб-версии (логотип, подписанные разделы, блок аккаунта внизу).
+    if (context.isLargeScreen) {
+      return Scaffold(
+        body: Row(
+          children: [
+            AppSidebar(
+              destinations: [
+                for (final d in destinations)
+                  SidebarDestination(
+                    label: d.label,
+                    icon: d.icon,
+                    selectedIcon: d.selectedIcon,
+                  ),
+              ],
+              selectedIndex: pageState.index,
+              onDestinationSelected: (index) =>
+                  setState(() => pageState.index = index),
+            ),
+            const VerticalDivider(thickness: 1, width: 1),
+            Expanded(child: body),
+          ],
+        ),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+      );
+    }
+
     // On tablets and web the tabs live in a rail on the left — a bottom bar
     // under a wide window is a long mouse trip away from the content. The
     // rail grows labels once there is comfortably room for them.
@@ -61,10 +89,9 @@ class _HomePageState extends State<HomePage> {
           children: [
             SafeArea(
               child: NavigationRail(
-                extended: context.isLargeScreen,
-                labelType: context.isLargeScreen
-                    ? NavigationRailLabelType.none
-                    : NavigationRailLabelType.all,
+                // Подписанные пункты и логотип начинаются с [AppSidebar] выше;
+                // здесь окно ещё узкое — компактный rail с подписями.
+                labelType: NavigationRailLabelType.all,
                 groupAlignment: -0.9,
                 destinations: [
                   for (final d in destinations)

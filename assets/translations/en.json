@@ -5,7 +5,8 @@
     "simulation": "Simulation",
     "history": "History",
     "info": "About",
-    "settings": "Settings"
+    "settings": "Settings",
+    "subtitle": "Question lists and groups. Pick up where you left off."
   },
   "simulation": {
     "title": "Exam Simulation",
@@ -33,6 +34,17 @@
     "reviewErrors": {
       "one": "Review {} mistake",
       "other": "Review {} mistakes"
+    },
+    "subtitle": "41 questions, 45 minutes, the official exam interface.",
+    "bestResult": "Your best result: {}.",
+    "passed": "Passed",
+    "failed": "Failed",
+    "table": {
+      "result": "Result",
+      "points": "Points",
+      "errors": "Mistakes",
+      "time": "Time",
+      "when": "When"
     }
   },
   "info": {
@@ -87,7 +99,17 @@
     "linkCopied": "Link copied",
     "wideTabsPlaceholder": "The explanation, notes and discussion will appear here once you answer the question.",
     "questionNotFound": "Question not found",
-    "toHome": "Go to the home screen"
+    "toHome": "Go to the home screen",
+    "runSettings": "Run settings",
+    "questionsInRun": "questions in the run",
+    "result": {
+      "title": "{} of {} correct",
+      "correct": "correct",
+      "wrong": "with a mistake",
+      "questions": "Questions of the run",
+      "finished": "Run finished",
+      "answered": "answered"
+    }
   },
   "auth": {
     "loginNav": "Log in",
@@ -165,7 +187,8 @@
     "pushBlockedHint": "Notifications are turned off in the system settings. Enable them to receive push.",
     "pushBlockedInBrowser": "Notifications are blocked for this site. Allow them in your browser settings and try again.",
     "testPush": "Test push",
-    "testPushSubtitle": "Send a test notification by email"
+    "testPushSubtitle": "Send a test notification by email",
+    "signedIn": "Signed in"
   },
   "featureFlags": {
     "title": "Features",
@@ -333,7 +356,8 @@
     "addNewList": "Add a new list",
     "noCustomLists": "You have no lists of your own yet",
     "signInRequired": "Sign in to create your own lists",
-    "saveError": "Could not save the list"
+    "saveError": "Could not save the list",
+    "listsCount": "Lists: {}"
   },
   "konspekt": {
     "title": "Summary",
@@ -346,7 +370,8 @@
     "unavailable": "Summary is not available",
     "loadFailed": "Could not load the summary. Check your connection and try again",
     "retry": "Retry",
-    "openFull": "Open full summary"
+    "openFull": "Open full summary",
+    "contents": "Contents"
   },
   "groups": {
     "section": "Groups",
@@ -437,7 +462,8 @@
       "noMistakes": "No mistakes",
       "openMistakes": "Practise these questions",
       "offline": "No connection to the server — refresh"
-    }
+    },
+    "createHint": "Study together: a shared feed and members’ stats."
   },
   "questionAnalysis": {
     "valueTitle": "Question value",

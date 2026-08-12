@@ -5,7 +5,8 @@
     "simulation": "Симулација",
     "history": "Историја",
     "info": "О апликацији",
-    "settings": "Подешавања"
+    "settings": "Подешавања",
+    "subtitle": "Liste pitanja i grupe. Nastavite odakle ste stali."
   },
   "simulation": {
     "title": "Симулација испита",
@@ -34,6 +35,17 @@
       "one": "Прегледај {} грешку",
       "few": "Прегледај {} грешке",
       "other": "Прегледај {} грешака"
+    },
+    "subtitle": "41 pitanje, 45 minuta, interfejs kao na zvaničnom ispitu.",
+    "bestResult": "Vaš najbolji rezultat: {}.",
+    "passed": "Položeno",
+    "failed": "Nije položeno",
+    "table": {
+      "result": "Rezultat",
+      "points": "Poeni",
+      "errors": "Greške",
+      "time": "Vreme",
+      "when": "Kada"
     }
   },
   "info": {
@@ -91,7 +103,17 @@
     "linkCopied": "Линк је копиран",
     "wideTabsPlaceholder": "Објашњење, конспект и дискусија појавиће се овде након одговора на питање.",
     "questionNotFound": "Питање није пронађено",
-    "toHome": "На почетну"
+    "toHome": "На почетну",
+    "runSettings": "Podešavanja prolaza",
+    "questionsInRun": "pitanja u prolazu",
+    "result": {
+      "title": "{} od {} tačno",
+      "correct": "tačno",
+      "wrong": "sa greškom",
+      "questions": "Pitanja prolaza",
+      "finished": "Prolaz završen",
+      "answered": "odgovoreno"
+    }
   },
   "auth": {
     "loginNav": "Пријава",
@@ -169,7 +191,8 @@
     "pushBlockedHint": "Обавештења су искључена у подешавањима система. Укључите их да бисте примали push.",
     "pushBlockedInBrowser": "Обавештења су блокирана за овај сајт. Дозволите их у подешавањима прегледача и покушајте поново.",
     "testPush": "Test push",
-    "testPushSubtitle": "Pošalji probno obaveštenje na e-poštu"
+    "testPushSubtitle": "Pošalji probno obaveštenje na e-poštu",
+    "signedIn": "Prijavljeni ste"
   },
   "featureFlags": {
     "title": "Функције",
@@ -342,7 +365,8 @@
     "addNewList": "Додај нову листу",
     "noCustomLists": "Још немате своје листе",
     "signInRequired": "Пријавите се да бисте правили своје листе",
-    "saveError": "Промене листе нису сачуване"
+    "saveError": "Промене листе нису сачуване",
+    "listsCount": "Lista: {}"
   },
   "konspekt": {
     "title": "Конспект",
@@ -355,7 +379,8 @@
     "unavailable": "Конспект није доступан",
     "loadFailed": "Није могуће учитати конспект. Проверите везу и покушајте поново",
     "retry": "Покушај поново",
-    "openFull": "Отвори цео конспект"
+    "openFull": "Отвори цео конспект",
+    "contents": "Sadržaj"
   },
   "groups": {
     "section": "Групе",
@@ -446,7 +471,8 @@
       "noMistakes": "Без грешака",
       "openMistakes": "Вежбај ова питања",
       "offline": "Нема везе са сервером — освежи"
-    }
+    },
+    "createHint": "Zajednička priprema: zajednički feed i statistika članova."
   },
   "questionAnalysis": {
     "valueTitle": "Вредност питања",
