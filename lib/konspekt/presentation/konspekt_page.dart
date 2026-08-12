@@ -55,8 +55,10 @@ class _KonspektPageState extends State<KonspektPage> {
         appBar: AppBar(
           title: BlocBuilder<KonspektBloc, KonspektState>(
             builder: (context, state) {
-              final russian =
-                  context.watch<FeatureFlagsBloc>().state.russianContent;
+              final russian = context
+                  .watch<FeatureFlagsBloc>()
+                  .state
+                  .russianContent;
               return Text(
                 state.konspekt?.categoryName.select(russian: russian) ??
                     LocaleKeys.konspekt_title.tr(),
@@ -108,11 +110,13 @@ class _KonspektPageState extends State<KonspektPage> {
             if (state.inProgress || konspekt == null) {
               return const Center(child: CircularProgressIndicator());
             }
-            final russian =
-                context.watch<FeatureFlagsBloc>().state.russianContent;
+            final russian = context
+                .watch<FeatureFlagsBloc>()
+                .state
+                .russianContent;
             // Markdown конспекта на всю ширину окна нечитаем — колонка
             // ограничена шириной комфортного чтения.
-            return ReadableWidth(
+            final article = ReadableWidth(
               child: ScrollablePositionedList.builder(
                 itemCount: state.itemCount,
                 itemScrollController: _itemScrollController,
@@ -147,8 +151,79 @@ class _KonspektPageState extends State<KonspektPage> {
                 },
               ),
             );
+            // Широкий экран: слева закреплённое содержание, справа — текст
+            // (макет веб-версии).
+            if (!context.isExpandedScreen) return article;
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _KonspektToc(
+                  konspekt: konspekt,
+                  russian: russian,
+                  onSelected: (sectionId) => context.read<KonspektBloc>().add(
+                    KonspektSectionRequested(sectionId),
+                  ),
+                ),
+                const VerticalDivider(width: 1, thickness: 1),
+                Expanded(child: article),
+              ],
+            );
           },
         ),
+      ),
+    );
+  }
+}
+
+/// Содержание конспекта — закреплённая колонка со ссылками на разделы.
+class _KonspektToc extends StatelessWidget {
+  const _KonspektToc({
+    required this.konspekt,
+    required this.russian,
+    required this.onSelected,
+  });
+
+  final Konspekt konspekt;
+  final bool russian;
+  final void Function(String sectionId) onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 260,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 24, 12, 24),
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+            child: Text(
+              LocaleKeys.konspekt_contents.tr().toUpperCase(),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          for (final section in konspekt.sections)
+            InkWell(
+              onTap: () => onSelected(section.id),
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                child: KonspektInlineText(
+                  text: section.title.select(russian: russian),
+                  style: theme.textTheme.bodyMedium!.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

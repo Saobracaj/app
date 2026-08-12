@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
+import '../../core/presentation/wide_layout.dart';
 import '../../feature_flags/domain/app_feature.dart';
 import '../../feature_flags/presentation/feature_gate.dart';
 import '../../generated/locale_keys.g.dart';
@@ -22,19 +23,25 @@ import 'group_feed_page.dart' show groupEventIsWorthShowing;
 /// whole block is invisible to a signed-out user (and to anyone who turned the
 /// feature off in settings).
 class GroupsSection extends StatelessWidget {
-  const GroupsSection({super.key});
+  const GroupsSection({super.key, this.wide = false});
+
+  /// Раскладка широкого экрана: карточки групп сеткой, а «создать группу» —
+  /// карточкой-приглашением рядом с ними (макет веб-версии).
+  final bool wide;
 
   @override
   Widget build(BuildContext context) {
-    return const FeatureGate(
+    return FeatureGate(
       feature: AppFeature.groups,
-      child: _GroupsSectionBody(),
+      child: _GroupsSectionBody(wide: wide),
     );
   }
 }
 
 class _GroupsSectionBody extends StatelessWidget {
-  const _GroupsSectionBody();
+  const _GroupsSectionBody({required this.wide});
+
+  final bool wide;
 
   @override
   Widget build(BuildContext context) {
@@ -57,6 +64,35 @@ class _GroupsSectionBody extends StatelessWidget {
         if (id != null) Routemaster.of(context).push('/groups/$id/feed');
       },
       builder: (context, state) {
+        if (wide) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SectionHeading(
+                title: LocaleKeys.groups_section.tr(),
+                action: TextButton(
+                  onPressed: state.busy ? null : () => joinGroupFlow(context),
+                  child: Text(LocaleKeys.groups_join.tr()),
+                ),
+              ),
+              if (state.loading && !state.loaded)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: LinearProgressIndicator(),
+                ),
+              ResponsiveGrid(
+                minItemWidth: 340,
+                spacing: 16,
+                runSpacing: 16,
+                children: [
+                  for (final group in state.groups) GroupCard(group: group),
+                  _CreateGroupCard(busy: state.busy),
+                ],
+              ),
+            ],
+          );
+        }
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -122,6 +158,42 @@ class _GroupActions extends StatelessWidget {
   }
 }
 
+/// Карточка-приглашение «Создать группу» в сетке широкого экрана: пунктирная
+/// рамка вместо залитой карточки, чтобы не спорить с настоящими группами.
+class _CreateGroupCard extends StatelessWidget {
+  const _CreateGroupCard({required this.busy});
+
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SurfaceCard(
+      dashed: true,
+      onTap: busy ? null : () => createGroupFlow(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            LocaleKeys.groups_create.tr(),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            LocaleKeys.groups_createHint.tr(),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// One group on the home screen: its name, how many people are in it and the
 /// last few things that happened, or a line saying nothing has yet. Tapping it
 /// opens the group.
@@ -133,8 +205,7 @@ class GroupCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final events =
-        group.feedPreview.where(groupEventIsWorthShowing).toList();
+    final events = group.feedPreview.where(groupEventIsWorthShowing).toList();
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
+import '../../core/presentation/wide_layout.dart';
 import '../../feature_flags/domain/app_feature.dart';
 import '../../feature_flags/state_management/feature_flags_bloc.dart';
 import '../../generated/locale_keys.g.dart';
@@ -25,7 +26,11 @@ import 'list_editor_dialog.dart';
 ///
 /// With both flags off the whole block disappears.
 class QuestionListsSection extends StatelessWidget {
-  const QuestionListsSection({super.key});
+  const QuestionListsSection({super.key, this.wide = false});
+
+  /// Раскладка широкого экрана: вместо горизонтальной ленты — плиточная сетка
+  /// во всю ширину колонки контента (макет веб-версии).
+  final bool wide;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +46,39 @@ class QuestionListsSection extends StatelessWidget {
           ...state.customLists,
         ];
         if (lists.isEmpty && !customEnabled) return const SizedBox.shrink();
+
+        if (wide) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SectionHeading(
+                title: LocaleKeys.questionLists_section.tr(),
+                hint: LocaleKeys.questionLists_listsCount.tr(
+                  args: ['${lists.length}'],
+                ),
+                action: customEnabled
+                    ? TextButton(
+                        onPressed: () => _createList(context),
+                        child: Text(LocaleKeys.questionLists_create.tr()),
+                      )
+                    : null,
+              ),
+              ResponsiveGrid(
+                minItemWidth: 232,
+                children: [
+                  for (final list in lists)
+                    QuestionListChip(
+                      list: list,
+                      expand: true,
+                      onTap: () => Routemaster.of(
+                        context,
+                      ).push('/lists/${Uri.encodeComponent(list.id)}'),
+                    ),
+                ],
+              ),
+            ],
+          );
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,13 +120,32 @@ class QuestionListsSection extends StatelessWidget {
   }
 }
 
+/// Открывает диалог создания списка и заводит список, если пользователь его
+/// подтвердил. Точка входа одна и та же и у карточки-ленты, и у ссылки
+/// «Создать список» в заголовке блока на широком экране.
+Future<void> _createList(BuildContext context) async {
+  final bloc = context.read<QuestionListsBloc>();
+  final draft = await showListEditorDialog(context);
+  if (draft == null) return;
+  bloc.add(QuestionListCreated(name: draft.name, color: draft.color));
+}
+
 /// One list rendered as a compact card: a round colour/icon avatar, the list's
 /// title and how many questions it holds.
 class QuestionListChip extends StatelessWidget {
-  const QuestionListChip({super.key, required this.list, this.onTap});
+  const QuestionListChip({
+    super.key,
+    required this.list,
+    this.onTap,
+    this.expand = false,
+  });
 
   final QuestionList list;
   final VoidCallback? onTap;
+
+  /// В сетке широкого экрана карточка занимает всю ячейку, а не фиксированные
+  /// 160 логических пикселей ленты.
+  final bool expand;
 
   @override
   Widget build(BuildContext context) {
@@ -97,11 +154,18 @@ class QuestionListChip extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        width: 160,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        width: expand ? null : 160,
+        padding: expand
+            ? const EdgeInsets.all(14)
+            : const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
+          color: expand
+              ? theme.colorScheme.surface
+              : theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
+          border: expand
+              ? Border.all(color: theme.colorScheme.outlineVariant)
+              : null,
         ),
         child: Row(
           children: [
@@ -168,13 +232,7 @@ class _CreateListChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return InkWell(
-      onTap: () async {
-        final draft = await showListEditorDialog(context);
-        if (draft == null || !context.mounted) return;
-        context.read<QuestionListsBloc>().add(
-          QuestionListCreated(name: draft.name, color: draft.color),
-        );
-      },
+      onTap: () => _createList(context),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         width: 160,
@@ -192,7 +250,11 @@ class _CreateListChip extends StatelessWidget {
                 color: theme.colorScheme.surfaceContainerHighest,
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.add, size: 18, color: theme.colorScheme.primary),
+              child: Icon(
+                Icons.add,
+                size: 18,
+                color: theme.colorScheme.primary,
+              ),
             ),
             const SizedBox(width: 10),
             Expanded(
