@@ -29,8 +29,7 @@ class QuestionKonspektTab extends StatelessWidget {
       builder: (context, state) {
         if (state.failed) return const _KonspektLoadFailed();
         if (state.sections.isEmpty) return const SizedBox.shrink();
-        final russian =
-            context.watch<FeatureFlagsBloc>().state.russianContent;
+        final russian = context.watch<FeatureFlagsBloc>().state.russianContent;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -54,24 +53,28 @@ class QuestionKonspektTab extends StatelessWidget {
                 ),
               ),
             ],
-            Padding(
-              padding: const EdgeInsets.fromLTRB(6, 4, 6, 2),
-              child: TextButton.icon(
-                icon: const Icon(Icons.menu_book_outlined, size: 18),
-                label: Text(LocaleKeys.konspekt_openFull.tr()),
-                // Relative, so the konspekt opens on top of this question and
-                // "back" comes back to it. Pushing '/konspekt' used to replace
-                // the whole stack, which sent "back" to the home screen.
-                onPressed: () => pushScreen(
-                  context,
-                  path: 'konspekt',
-                  queryParameters: {
-                    'category': categoryId,
-                    'section': state.sections.first.id,
-                  },
-                  screen: () => KonspektPage(
-                    categoryId: categoryId,
-                    section: state.sections.first.id,
+            Align(
+              // Кнопка перехода к полному конспекту — по правому краю вкладки.
+              alignment: AlignmentDirectional.centerEnd,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(6, 4, 6, 2),
+                child: TextButton.icon(
+                  icon: const Icon(Icons.menu_book_outlined, size: 18),
+                  label: Text(LocaleKeys.konspekt_openFull.tr()),
+                  // Relative, so the konspekt opens on top of this question and
+                  // "back" comes back to it. Pushing '/konspekt' used to replace
+                  // the whole stack, which sent "back" to the home screen.
+                  onPressed: () => pushScreen(
+                    context,
+                    path: 'konspekt',
+                    queryParameters: {
+                      'category': categoryId,
+                      'section': state.sections.first.id,
+                    },
+                    screen: () => KonspektPage(
+                      categoryId: categoryId,
+                      section: state.sections.first.id,
+                    ),
                   ),
                 ),
               ),
@@ -98,14 +101,18 @@ class _KonspektLoadFailed extends StatelessWidget {
         children: [
           Text(
             LocaleKeys.konspekt_loadFailed.tr(),
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
               icon: const Icon(Icons.refresh, size: 18),
               label: Text(LocaleKeys.konspekt_retry.tr()),
-              onPressed: () => context.read<QuestionKonspektBloc>().add(QuestionKonspektRequested()),
+              onPressed: () => context.read<QuestionKonspektBloc>().add(
+                QuestionKonspektRequested(),
+              ),
             ),
           ),
         ],

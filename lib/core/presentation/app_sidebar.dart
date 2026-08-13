@@ -33,26 +33,31 @@ class AppSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: width,
+    // Material, а не Container: ink-эффекты пунктов (подсветка выбранного,
+    // hover) рисуются на ближайшем Material-предке, и непрозрачный Container
+    // поверх него их полностью перекрывал.
+    return Material(
       color: scheme.surfaceContainerLow,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const _Brand(),
-              const SizedBox(height: 12),
-              for (var i = 0; i < destinations.length; i++)
-                _SidebarTile(
-                  destination: destinations[i],
-                  selected: i == selectedIndex,
-                  onTap: () => onDestinationSelected(i),
-                ),
-              const Spacer(),
-              const _AccountBlock(),
-            ],
+      child: SizedBox(
+        width: width,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _Brand(),
+                const SizedBox(height: 12),
+                for (var i = 0; i < destinations.length; i++)
+                  _SidebarTile(
+                    destination: destinations[i],
+                    selected: i == selectedIndex,
+                    onTap: () => onDestinationSelected(i),
+                  ),
+                const Spacer(),
+                const _AccountBlock(),
+              ],
+            ),
           ),
         ),
       ),
@@ -131,34 +136,36 @@ class _SidebarTile extends StatelessWidget {
         : scheme.onSurfaceVariant;
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
-      child: InkWell(
-        onTap: onTap,
+      // Собственный Material пункта: и заливка выбранного состояния, и
+      // hover-подсветка InkWell живут на одной поверхности и потому видимы.
+      child: Material(
+        color: selected ? scheme.secondaryContainer : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: selected ? scheme.secondaryContainer : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              Icon(
-                selected ? destination.selectedIcon : destination.icon,
-                size: 20,
-                color: color,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  destination.label,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: color,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Icon(
+                  selected ? destination.selectedIcon : destination.icon,
+                  size: 20,
+                  color: color,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    destination.label,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: color,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

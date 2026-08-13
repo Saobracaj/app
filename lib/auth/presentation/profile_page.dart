@@ -3,11 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
+import '../../core/di.dart';
 import '../../core/presentation/wide_layout.dart';
 import '../../core/responsive.dart';
 import '../../feature_flags/domain/app_feature.dart';
 import '../../feature_flags/state_management/feature_flags_bloc.dart';
 import '../../generated/locale_keys.g.dart';
+import '../../profile/presentation/display_name_page.dart';
+import '../../profile/state_management/display_name_bloc.dart';
+import '../../profile/state_management/display_name_events.dart';
 import '../state_management/auth/auth_bloc.dart';
 import '../state_management/auth/auth_events.dart';
 import '../state_management/auth/auth_state.dart';
@@ -138,6 +142,16 @@ class ProfilePage extends StatelessWidget {
     final permissions = auth.viewer?.permissions ?? const <String>[];
     Widget? subtitle(String text) => compact ? null : Text(text);
     return [
+      // Профиль — отдельный пункт меню: отображаемое имя и аккаунт. Без входа
+      // профиля нет, поэтому пункт виден только авторизованным.
+      if (auth.isAuthenticated)
+        ListTile(
+          leading: const Icon(Icons.person_outline),
+          title: Text('settings.profile'.tr()),
+          subtitle: subtitle('settings.profileSubtitle'.tr()),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Routemaster.of(context).push('/displayName'),
+        ),
       ListTile(
         leading: const Icon(Icons.palette_outlined),
         title: Text(LocaleKeys.settings_appearance.tr()),
@@ -332,12 +346,12 @@ class _AccountPanel extends StatelessWidget {
             const SizedBox(height: 20),
             Divider(color: theme.colorScheme.outlineVariant, height: 1),
             const SizedBox(height: 20),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.badge_outlined),
-              title: Text(LocaleKeys.comments_displayName_title.tr()),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => Routemaster.of(context).push('/displayName'),
+            // Содержимое профиля (отображаемое имя, удаление аккаунта) — прямо
+            // на странице настроек, а не за отдельным переходом.
+            BlocProvider(
+              create: (_) =>
+                  getIt<DisplayNameBloc>()..add(DisplayNameStarted()),
+              child: const DisplayNameContent(),
             ),
           ],
         ],

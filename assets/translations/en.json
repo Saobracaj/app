@@ -166,6 +166,8 @@
     "logoutConfirmTitle": "Log out?",
     "logoutConfirmCancel": "Cancel",
     "logoutConfirmOk": "Log out",
+    "profile": "Profile",
+    "profileSubtitle": "Display name and account",
     "appearance": "Appearance",
     "appearanceSubtitle": "Accent color and theme",
     "accentColor": "Accent color",
