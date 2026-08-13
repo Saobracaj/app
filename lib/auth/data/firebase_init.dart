@@ -27,6 +27,12 @@ Future<void> initFirebase() async {
     }
   }
 
+  // На web провайдеры firebase_ui не настраиваем: вход там идёт напрямую через
+  // `signInWithPopup` (см. FirebaseLoginBloc._webSignIn), а конструктор
+  // GoogleProvider создаёт GoogleSignIn, который на web инициализирует GIS SDK
+  // прямо в конструкторе и без client_id кидает необработанное исключение.
+  if (kIsWeb) return;
+
   try {
     FirebaseUIAuth.configureProviders([
       GoogleProvider(clientId: googleOAuthClientId),
