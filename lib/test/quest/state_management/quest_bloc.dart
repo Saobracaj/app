@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/db/dependencies.dart';
 import 'package:saobracaj/models/models.dart';
 
@@ -17,6 +18,12 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
     on<Init>(_onInit);
     on<MoveToQuestion>(_onMoveToQuestiont);
     on<FinalizeTest>(_onFinalizeTest);
+    // The bloc is created exactly once per run (single questions opened by
+    // deep link included — question_count tells them apart).
+    analytics.logTestStarted(
+      questionCount: questions.length,
+      subcategory: subcategory,
+    );
   }
 
   void _onNextQuestion(NextQuestion event, Emitter<QuestState> emit) {
@@ -79,6 +86,13 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
   }
 
   void _onFinalizeTest(FinalizeTest event, Emitter<QuestState> emit) async {
+    analytics.logTestFinished(
+      questionCount: state.questions.length,
+      rightAnswers: state.rightAnswers,
+      score: state.score,
+      possibleScore: state.possibleScore,
+      subcategory: subcategory,
+    );
 
     if (subcategory != null) {
       await repository.addRecord(subcategory!, state.rightAnswers, state.questions.length);

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
@@ -78,7 +79,7 @@ TestPushBloc _bloc(_FakeRepository repository, {String? email}) {
   return TestPushBloc(
     repository,
     _FakeAuthBloc(
-      AuthRepository(client, storage),
+      AuthRepository(client, storage, AnalyticsService()),
       GraphqlSubscriptionClient(client, storage),
       viewer: email == null
           ? null

@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fba;
 import 'package:firebase_ui_auth/firebase_ui_auth.dart' as fb_ui_auth;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/auth/state_management/firebase_login/firebase_login_bloc.dart';
@@ -25,7 +26,7 @@ class _FakeClient extends GraphqlClient {
 
 FirebaseLoginBloc _buildBloc() {
   final storage = TokenStorage();
-  return FirebaseLoginBloc(AuthRepository(_FakeClient(storage), storage));
+  return FirebaseLoginBloc(AuthRepository(_FakeClient(storage), storage, AnalyticsService()));
 }
 
 /// Дождаться, пока блок отработает событие и погасит one-shot флаги.

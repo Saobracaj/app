@@ -19,6 +19,7 @@ import 'auth/data/auth_repository.dart';
 import 'auth/data/firebase_init.dart';
 import 'auth/state_management/auth/auth_bloc.dart';
 import 'auth/state_management/auth/auth_events.dart';
+import 'core/analytics/analytics_service.dart';
 import 'core/app_language.dart';
 import 'core/deep_links/deep_link_path.dart';
 import 'core/deep_links/deep_link_service.dart';
@@ -199,6 +200,17 @@ class _MyAppState extends State<MyApp> {
     if (pending != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _openDeepLink(pending));
     }
+    // Screen tracking: the delegate notifies on every navigation, and the
+    // service collapses repeats of the same (templated) screen. The
+    // post-frame call reports the screen the app started on, which precedes
+    // the listener's first notification.
+    _routerDelegate.addListener(_logScreenView);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _logScreenView());
+  }
+
+  void _logScreenView() {
+    final path = _routerDelegate.currentConfiguration?.path;
+    if (path != null) analytics.logScreenView(path);
   }
 
   void _openDeepLink(String path) => _routerDelegate.push(path);
@@ -206,6 +218,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void dispose() {
     _deepLinks?.cancel();
+    _routerDelegate.removeListener(_logScreenView);
     _routerDelegate.dispose();
     super.dispose();
   }

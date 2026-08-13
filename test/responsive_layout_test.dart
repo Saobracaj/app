@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
@@ -109,7 +110,7 @@ Widget _questApp() {
             create: (_) => QuestionListsBloc(
               QuestionListsRepository(client),
               AuthBloc(
-                AuthRepository(client, storage),
+                AuthRepository(client, storage, AnalyticsService()),
                 GraphqlSubscriptionClient(client, storage),
               ),
             ),
@@ -158,7 +159,7 @@ Widget _homeApp() {
         providers: [
           BlocProvider(
             create: (_) => AuthBloc(
-              AuthRepository(client, storage),
+              AuthRepository(client, storage, AnalyticsService()),
               GraphqlSubscriptionClient(client, storage),
             ),
           ),
