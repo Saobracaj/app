@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
+import '../../core/responsive.dart';
 import '../domain/display_name_rules.dart';
 import '../state_management/display_name_bloc.dart';
 import '../state_management/display_name_events.dart';
@@ -20,23 +21,32 @@ class DisplayNamePage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Профиль')),
       body: SafeArea(
-        child: BlocProvider(
-          create: (_) => getIt<DisplayNameBloc>()..add(DisplayNameStarted()),
-          child: const _DisplayNameView(),
+        child: ReadableWidth(
+          child: BlocProvider(
+            create: (_) => getIt<DisplayNameBloc>()..add(DisplayNameStarted()),
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: const [DisplayNameContent()],
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-class _DisplayNameView extends StatefulWidget {
-  const _DisplayNameView();
+/// Содержимое профиля (поле отображаемого имени с автосохранением и удаление
+/// аккаунта) без собственного скролла — встраивается и в отдельную страницу,
+/// и прямо в панель настроек на широком экране. Требует [DisplayNameBloc]
+/// выше по дереву.
+class DisplayNameContent extends StatefulWidget {
+  const DisplayNameContent({super.key});
 
   @override
-  State<_DisplayNameView> createState() => _DisplayNameViewState();
+  State<DisplayNameContent> createState() => _DisplayNameContentState();
 }
 
-class _DisplayNameViewState extends State<_DisplayNameView> {
+class _DisplayNameContentState extends State<DisplayNameContent> {
   final _controller = TextEditingController();
 
   @override
@@ -59,11 +69,15 @@ class _DisplayNameViewState extends State<_DisplayNameView> {
       },
       builder: (context, state) {
         if (state.loading) {
-          return const Center(child: CircularProgressIndicator());
+          return const SizedBox(
+            height: 120,
+            child: Center(child: CircularProgressIndicator()),
+          );
         }
         final scheme = Theme.of(context).colorScheme;
-        return ListView(
-          padding: const EdgeInsets.all(16),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               'Отображаемое имя',
@@ -75,9 +89,9 @@ class _DisplayNameViewState extends State<_DisplayNameView> {
             const SizedBox(height: 8),
             Text(
               'Это имя видят другие пользователи рядом с вашими комментариями.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -102,19 +116,22 @@ class _DisplayNameViewState extends State<_DisplayNameView> {
             Text(
               'От $displayNameMinLen до $displayNameMaxLen символов, '
               'не более $displayNameMaxWords слов.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: () => _confirmDeleteAccount(context),
-              icon: Icon(Icons.delete_outline, color: scheme.error),
-              label: Text(
-                'Удалить аккаунт',
-                style: TextStyle(color: scheme.error),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: () => _confirmDeleteAccount(context),
+                icon: Icon(Icons.delete_outline, color: scheme.error),
+                label: Text(
+                  'Удалить аккаунт',
+                  style: TextStyle(color: scheme.error),
+                ),
               ),
             ),
           ],
@@ -129,9 +146,7 @@ class _DisplayNameViewState extends State<_DisplayNameView> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Удалить аккаунт'),
-        content: const Text(
-          'Удаление аккаунта будет доступно позже.',
-        ),
+        content: const Text('Удаление аккаунта будет доступно позже.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),

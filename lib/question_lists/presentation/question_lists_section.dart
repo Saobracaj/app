@@ -150,48 +150,52 @@ class QuestionListChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: expand ? null : 160,
-        padding: expand
-            ? const EdgeInsets.all(14)
-            : const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: expand
-              ? theme.colorScheme.surface
-              : theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(16),
-          border: expand
-              ? Border.all(color: theme.colorScheme.outlineVariant)
-              : null,
-        ),
-        child: Row(
-          children: [
-            QuestionListAvatar(list: list),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    list.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelLarge,
-                  ),
-                  Text(
-                    LocaleKeys.questionLists_questionsCount.tr(
-                      args: ['${list.questionIds.length}'],
+    // Material с InkWell внутри, а не InkWell поверх непрозрачного Container:
+    // иначе hover-подсветка рисуется под карточкой и не видна.
+    return Material(
+      color: expand
+          ? theme.colorScheme.surface
+          : theme.colorScheme.surfaceContainerHighest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: expand
+            ? BorderSide(color: theme.colorScheme.outlineVariant)
+            : BorderSide.none,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          width: expand ? null : 160,
+          padding: expand
+              ? const EdgeInsets.all(14)
+              : const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              QuestionListAvatar(list: list),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      list.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.labelLarge,
                     ),
-                    style: theme.textTheme.bodySmall,
-                  ),
-                ],
+                    Text(
+                      LocaleKeys.questionLists_questionsCount.tr(
+                        args: ['${list.questionIds.length}'],
+                      ),
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -231,41 +235,44 @@ class _CreateListChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
-      onTap: () => _createList(context),
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 160,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest,
-                shape: BoxShape.circle,
+    return Material(
+      color: Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.colorScheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => _createList(context),
+        child: Container(
+          width: 160,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.add,
+                  size: 18,
+                  color: theme.colorScheme.primary,
+                ),
               ),
-              child: Icon(
-                Icons.add,
-                size: 18,
-                color: theme.colorScheme.primary,
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  LocaleKeys.questionLists_create.tr(),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelLarge,
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                LocaleKeys.questionLists_create.tr(),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.labelLarge,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

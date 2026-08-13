@@ -202,22 +202,20 @@ class SurfaceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final content = Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: dashed ? Colors.transparent : (color ?? scheme.surface),
+    final content = Padding(padding: padding, child: child);
+    // Material, а не Container с декорацией: ink-эффекты (hover, ripple) и
+    // самой карточки, и интерактивных потомков (ListTile) рисуются на
+    // ближайшем Material — непрозрачная декорация поверх него их скрывала.
+    return Material(
+      color: dashed ? Colors.transparent : (color ?? scheme.surface),
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(
+        side: BorderSide(
           color: dashed ? scheme.outline : scheme.outlineVariant,
         ),
       ),
-      child: child,
-    );
-    if (onTap == null) return content;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(radius),
-      child: content,
+      clipBehavior: Clip.antiAlias,
+      child: onTap == null ? content : InkWell(onTap: onTap, child: content),
     );
   }
 }
