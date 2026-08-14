@@ -15,24 +15,38 @@ class AboutPage extends StatelessWidget {
         title: Text('О приложении'),
         actions: const [AuthButton()],
       ),
-      body: ListView(
-        children: [
-          AboutInfo(),
-          SizedBox(height: 16),
-          ListTile(
-            title: Text(LocaleKeys.info_privacyPolicy.tr()),
-            onTap: () {
-              Routemaster.of(context).push('privacyPolicy');
-            },
-          ),
-          ListTile(
-            title: Text('ЗАКОН О БЕЗБЕДНОСТИ САОБРАЋАЈА НА ПУТЕВИМА'),
-            onTap: () {
-              Routemaster.of(context).push('/zakon');
-            },
-          ),
-        ],
-      ),
+      body: ListView(children: const [AboutContent()]),
+    );
+  }
+}
+
+/// Содержимое раздела «О приложении» без собственного скролла — встраивается и
+/// в отдельный экран, и в правую панель настроек на широком экране. Ссылки
+/// абсолютные, чтобы работали с любого хост-экрана.
+class AboutContent extends StatelessWidget {
+  const AboutContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AboutInfo(),
+        SizedBox(height: 16),
+        ListTile(
+          title: Text(LocaleKeys.info_privacyPolicy.tr()),
+          onTap: () {
+            Routemaster.of(context).push('/about/privacyPolicy');
+          },
+        ),
+        ListTile(
+          title: Text('ЗАКОН О БЕЗБЕДНОСТИ САОБРАЋАЈА НА ПУТЕВИМА'),
+          onTap: () {
+            Routemaster.of(context).push('/zakon');
+          },
+        ),
+      ],
     );
   }
 }
