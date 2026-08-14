@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
@@ -109,9 +110,9 @@ void main() {
       (questionId, source) => QuestionFeedbackBloc(
         chat,
         _FakePermissions(),
-        AuthRepository(client, storage),
+        AuthRepository(client, storage, AnalyticsService()),
         _FakeAuthBloc(
-          AuthRepository(client, storage),
+          AuthRepository(client, storage, AnalyticsService()),
           subscriptions,
           signedIn: true,
         ),

@@ -22,12 +22,22 @@ class ModerationPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(LocaleKeys.comments_moderation_title.tr())),
-      body: SafeArea(
-        child: BlocProvider(
-          create: (_) => getIt<ModerationBloc>()..add(ModerationStarted()),
-          child: const _ModerationView(),
-        ),
-      ),
+      body: const SafeArea(child: ModerationContent()),
+    );
+  }
+}
+
+/// Лента модерации с собственным [ModerationBloc] и внутренним скроллом
+/// (пагинация), но без Scaffold — встраивается и в отдельный экран, и в правую
+/// панель настроек на широком экране (там ей нужна ограниченная высота).
+class ModerationContent extends StatelessWidget {
+  const ModerationContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => getIt<ModerationBloc>()..add(ModerationStarted()),
+      child: const _ModerationView(),
     );
   }
 }
@@ -41,9 +51,9 @@ class _ModerationView extends StatelessWidget {
       listenWhen: (prev, curr) =>
           curr.errorMessage != null && curr.errorMessage != prev.errorMessage,
       listener: (context, state) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state.errorMessage!)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
       },
       builder: (context, state) {
         if (state.loading) {
@@ -99,16 +109,18 @@ class _ModerationTile extends StatelessWidget {
               comment.authorDisplayName.isEmpty
                   ? LocaleKeys.comments_anonymous.tr()
                   : comment.authorDisplayName,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
               overflow: TextOverflow.ellipsis,
             ),
           ),
           const SizedBox(width: 8),
           Text(
             relativeTime(comment.createdAt),
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),
@@ -122,8 +134,9 @@ class _ModerationTile extends StatelessWidget {
             '${LocaleKeys.comments_moderation_questionLabel.tr(args: ['${comment.questionId}'])}'
             '${comment.parentId != null ? ' · ${LocaleKeys.comments_moderation_replyLabel.tr()}' : ''}'
             ' · ♥ ${comment.likesCount}',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
         ],
       ),

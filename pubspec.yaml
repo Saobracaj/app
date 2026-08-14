@@ -77,6 +77,10 @@ dependencies:
   # lib/notifications/). Mirrors owncup's notification-permission handling.
   permission_handler: ^12.0.3
   firebase_messaging: ^16.4.3
+  # Usage analytics (lib/core/analytics/): screen views + a few key events.
+  # Rides on the Firebase project that is already configured for sign-in and
+  # push; fails soft like the rest of the Firebase stack.
+  firebase_analytics: ^12.0.0
   # Group invitations (lib/groups/): the QR code an owner shows is *generated*
   # here — there is no scanner in the app, a phone's own camera reads it.
   qr_flutter: ^4.1.0
