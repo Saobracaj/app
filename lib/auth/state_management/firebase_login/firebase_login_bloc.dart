@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fba;
 import 'package:firebase_ui_auth/firebase_ui_auth.dart' as fb_ui_auth;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
@@ -29,8 +30,54 @@ class FirebaseLoginBloc extends Bloc<FirebaseLoginEvent, FirebaseLoginState> {
 
   final AuthRepository _repository;
 
-  void _onPressed(SocialSignInPressed event, Emitter<FirebaseLoginState> emit) {
+  Future<void> _onPressed(
+    SocialSignInPressed event,
+    Emitter<FirebaseLoginState> emit,
+  ) async {
     emit(state.copyWith(activeProvider: event.provider, errorMessage: null));
+    // На нативных платформах дальше вход ведёт флоу firebase_ui (его состояния
+    // приходят событием FirebaseAuthReceived); на web — сам блок, см. ниже.
+    if (kIsWeb) await _webSignIn(event.provider, emit);
+  }
+
+  /// Вход на web: прямой `signInWithPopup`, минуя флоу `firebase_ui_oauth`.
+  ///
+  /// Платформенная развилка этого пакета выбирается условным импортом
+  /// `if (dart.library.html)`, а в wasm-сборке (`flutter build web --wasm`)
+  /// `dart.library.html` недоступен — пакет уходит в «нативную» ветку и
+  /// пытается войти через плагин google_sign_in без client_id: кнопка Google
+  /// зависает с вечным спиннером, Apple молчит. Прямой popup через
+  /// firebase_auth работает и в wasm-, и в JS-сборке.
+  Future<void> _webSignIn(
+    SocialAuthProvider provider,
+    Emitter<FirebaseLoginState> emit,
+  ) async {
+    final authProvider = switch (provider) {
+      SocialAuthProvider.google => fba.GoogleAuthProvider()
+        ..setCustomParameters(const {'prompt': 'select_account'}),
+      SocialAuthProvider.apple => fba.AppleAuthProvider(),
+    };
+    try {
+      final credential =
+          await fba.FirebaseAuth.instance.signInWithPopup(authProvider);
+      final user = credential.user;
+      if (user == null) {
+        _fail(emit, LocaleKeys.auth_errors_socialFailed.tr());
+        return;
+      }
+      await _exchangeToken(user, emit);
+    } on fba.FirebaseAuthException catch (e) {
+      final message = _errorMessage(e);
+      // `null` — пользователь сам закрыл попап: молча возвращаем кнопки.
+      if (message == null) {
+        _reset(emit);
+      } else {
+        _fail(emit, message);
+      }
+    } catch (_) {
+      // Firebase не инициализирован или попап упал без кода FirebaseAuth.
+      _fail(emit, LocaleKeys.auth_errors_socialFailed.tr());
+    }
   }
 
   Future<void> _onAuthReceived(

@@ -1,6 +1,7 @@
 // ignore_for_file: dead_code
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fba;
 import 'package:firebase_ui_auth/firebase_ui_auth.dart' as fb_ui_auth;
 import 'package:firebase_ui_oauth/firebase_ui_oauth.dart' as fb_ui_oauth;
 import 'package:firebase_ui_oauth_apple/firebase_ui_oauth_apple.dart'
@@ -120,8 +121,31 @@ class SocialLogin extends StatelessWidget {
     Widget apple() =>
         _AppleButton(bloc: bloc, state: state, pageEnabled: enabled);
 
+    if (kIsWeb) {
+      // На web кнопки дёргают блок напрямую, без AuthFlowBuilder: вход ведёт
+      // сам блок через signInWithPopup (см. FirebaseLoginBloc._webSignIn), а
+      // конструирование GoogleProvider здесь роняло страницу — GoogleSignIn на
+      // web инициализирует GIS SDK прямо в конструкторе и без client_id кидает
+      // необработанное исключение при каждом rebuild.
+      VoidCallback? onPressed(SocialAuthProvider provider) =>
+          (!enabled || state.isBusy)
+              ? null
+              : () => bloc.add(SocialSignInPressed(provider));
+      return [
+        GoogleSignInButton(
+          onPressed: onPressed(SocialAuthProvider.google),
+          busy: state.isBusyWith(SocialAuthProvider.google),
+        ),
+        const SizedBox(height: 12),
+        AppleSignInButton(
+          onPressed: onPressed(SocialAuthProvider.apple),
+          busy: state.isBusyWith(SocialAuthProvider.apple),
+        ),
+      ];
+    }
+
     // all the buttons are temporarily enabled for all platforms for testing purposes
-    if (true || kIsWeb) {
+    if (true) {
       return [google(), const SizedBox(height: 12), apple()];
     }
     switch (defaultTargetPlatform) {
@@ -141,7 +165,16 @@ class SocialLogin extends StatelessWidget {
 /// уже прилинкованный провайдер.
 Future<void> firebaseSignOut(BuildContext context) async {
   try {
-    await fb_ui_auth.FirebaseUIAuth.signOut(context: context);
+    if (kIsWeb) {
+      // FirebaseUIAuth.signOut дёргает logOutProvider каждого провайдера, а
+      // GoogleProvider в браузере под macOS принимает web за нативную
+      // платформу и зовёт google_sign_in без client_id — непойманное
+      // исключение прямо при открытии страницы. На web достаточно сбросить
+      // самого пользователя Firebase.
+      await fba.FirebaseAuth.instance.signOut();
+    } else {
+      await fb_ui_auth.FirebaseUIAuth.signOut(context: context);
+    }
   } catch (_) {
     // best-effort
   }
@@ -193,7 +226,12 @@ class _OAuthButtonScaffold extends StatelessWidget {
                 ? null
                 : () {
                     bloc.add(SocialSignInPressed(socialProvider));
-                    controller.signIn(Theme.of(context).platform);
+                    // На web вход ведёт сам блок (signInWithPopup): флоу
+                    // firebase_ui в wasm-сборке уходит в нативную ветку и
+                    // ломается (см. FirebaseLoginBloc._webSignIn).
+                    if (!kIsWeb) {
+                      controller.signIn(Theme.of(context).platform);
+                    }
                   },
             busy,
           );
