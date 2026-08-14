@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
@@ -190,7 +191,7 @@ Map<String, dynamic> _message(
     bloc: SupportChatBloc(
       repository,
       const NotificationPermissions(),
-      AuthRepository(client, storage),
+      AuthRepository(client, storage, AnalyticsService()),
       threadId,
     ),
     api: api,

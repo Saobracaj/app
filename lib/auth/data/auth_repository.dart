@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:injectable/injectable.dart';
 
+import '../../core/analytics/analytics_service.dart';
 import '../models/auth_tokens.dart';
 import '../models/viewer.dart';
 import 'auth_status.dart';
@@ -21,7 +22,7 @@ import 'token_storage.dart';
 /// caller has to hand the session to a holder manually.
 @lazySingleton
 class AuthRepository {
-  AuthRepository(this._client, this._storage) {
+  AuthRepository(this._client, this._storage, this._analytics) {
     // The client renews the access token on its own; it only reports back when
     // the *refresh* token is gone too, which is the one case that must end the
     // session.
@@ -30,6 +31,7 @@ class AuthRepository {
 
   final GraphqlClient _client;
   final TokenStorage _storage;
+  final AnalyticsService _analytics;
   late final StreamSubscription<void> _expirySub;
 
   static const _tokenFields = 'accessToken refreshToken authenticated';
@@ -80,7 +82,10 @@ class AuthRepository {
       }''',
       variables: {'email': email, 'code': code},
     );
-    return _persist(data['confirmEmail'] as Map<String, dynamic>);
+    // The email flow only becomes a signed-in account here, not in [register].
+    final tokens = await _persist(data['confirmEmail'] as Map<String, dynamic>);
+    if (tokens.authenticated) _analytics.logSignUp('password');
+    return tokens;
   }
 
   Future<bool> resendConfirmationCode(String email) async {
@@ -100,7 +105,9 @@ class AuthRepository {
       }''',
       variables: {'email': email, 'password': password},
     );
-    return _persist(data['login'] as Map<String, dynamic>);
+    final tokens = await _persist(data['login'] as Map<String, dynamic>);
+    if (tokens.authenticated) _analytics.logLogin('password');
+    return tokens;
   }
 
   Future<bool> requestPasswordReset(String email) async {
@@ -135,7 +142,9 @@ class AuthRepository {
       }''',
       variables: {'idToken': idToken},
     );
-    return _persist(data['firebaseAuth'] as Map<String, dynamic>);
+    final tokens = await _persist(data['firebaseAuth'] as Map<String, dynamic>);
+    if (tokens.authenticated) _analytics.logLogin('firebase');
+    return tokens;
   }
 
   Future<Viewer?> me() async {

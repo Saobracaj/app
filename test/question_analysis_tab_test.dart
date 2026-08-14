@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
 import 'package:saobracaj/auth/state_management/auth/auth_state.dart';
@@ -47,7 +48,7 @@ class _StubDifficultyRepository extends QuestionDifficultyRepository {
 class _StubAuthBloc extends AuthBloc {
   _StubAuthBloc(this._status, TokenStorage storage, GraphqlClient client)
     : super(
-        AuthRepository(client, storage),
+        AuthRepository(client, storage, AnalyticsService()),
         GraphqlSubscriptionClient(client, storage),
       );
 

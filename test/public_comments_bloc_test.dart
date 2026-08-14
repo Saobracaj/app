@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
@@ -99,7 +100,7 @@ PublicComment _comment({
   final storage = TokenStorage();
   final client = _FakeClient(storage);
   final comments = _FakeCommentsRepository(client, created: created);
-  final authRepo = AuthRepository(client, storage);
+  final authRepo = AuthRepository(client, storage, AnalyticsService());
   return (
     bloc: CommentsBloc(
       comments,
