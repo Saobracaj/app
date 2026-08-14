@@ -8,6 +8,7 @@ import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/auth/presentation/profile_page.dart';
 import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
@@ -60,7 +61,7 @@ Widget _settingsApp() {
         providers: [
           BlocProvider(
             create: (_) => AuthBloc(
-              AuthRepository(client, storage),
+              AuthRepository(client, storage, AnalyticsService()),
               GraphqlSubscriptionClient(client, storage),
             ),
           ),
