@@ -14,6 +14,7 @@ use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 
 use crate::config::Config;
+use crate::fingerprint::Fingerprints;
 use crate::index_html;
 use crate::meta::{self, Lang};
 use crate::questions::Questions;
@@ -24,6 +25,8 @@ pub struct AppState {
     /// `index.html` from the bundle, read once at startup.
     pub index_template: String,
     pub questions: Questions,
+    /// Entity tags for the bundled files, taken once at startup.
+    pub fingerprints: Fingerprints,
 }
 
 impl AppState {
@@ -40,10 +43,13 @@ impl AppState {
             )
         })?;
         let questions = Questions::load(&config.web_root);
+        let fingerprints = Fingerprints::scan(&config.web_root);
+        tracing::info!(files = fingerprints.len(), "fingerprinted the bundle");
         Ok(Self {
             config,
             index_template,
             questions,
+            fingerprints,
         })
     }
 }
@@ -134,26 +140,49 @@ async fn response_headers(
     next: Next,
 ) -> Response {
     let path = request.uri().path().to_owned();
+    let etag = state.fingerprints.etag(&path).map(str::to_owned);
+
+    // The client already holds this exact file: answer the revalidation and
+    // skip reading the bundle at all.
+    if etag
+        .as_deref()
+        .is_some_and(|etag| already_held(request.headers(), etag))
+    {
+        let mut response = StatusCode::NOT_MODIFIED.into_response();
+        decorate(response.headers_mut(), &path, etag.as_deref(), &state);
+        return response;
+    }
+
     let mut response = next.run(request).await;
-    let headers = response.headers_mut();
 
     // An older mime database hands `.wasm` out as octet-stream, and the
     // browser then refuses to stream-compile it. State the type ourselves.
     if path.ends_with(".wasm") {
-        headers.insert(
+        response.headers_mut().insert(
             header::CONTENT_TYPE,
             HeaderValue::from_static("application/wasm"),
         );
     }
 
+    // Tagging anything but a complete 200 would let a range or an error body be
+    // stored under the whole file's identity.
+    let etag = etag.filter(|_| response.status() == StatusCode::OK);
+    decorate(response.headers_mut(), &path, etag.as_deref(), &state);
+    response
+}
+
+/// Writes the caching and security headers shared by 200s and 304s.
+fn decorate(headers: &mut HeaderMap, path: &str, etag: Option<&str>, state: &AppState) {
+    if let Some(etag) = etag {
+        if let Ok(value) = HeaderValue::from_str(etag) {
+            headers.insert(header::ETAG, value);
+        }
+    }
+
     if !headers.contains_key(header::CACHE_CONTROL) {
-        let is_html = headers
-            .get(header::CONTENT_TYPE)
-            .and_then(|value| value.to_str().ok())
-            .is_some_and(|value| value.starts_with("text/html"));
         headers.insert(
             header::CACHE_CONTROL,
-            HeaderValue::from_static(cache_control_for(&path, is_html)),
+            HeaderValue::from_static(cache_control_for(path)),
         );
     }
 
@@ -177,25 +206,41 @@ async fn response_headers(
             HeaderValue::from_static(coep),
         );
     }
-
-    response
 }
 
-/// Flutter's web output is not content-hashed: `main.dart.js` keeps its name
-/// across releases. So nothing may be cached immutably — the entry points are
-/// revalidated every time, and the rest gets a short window that a deploy
-/// outlives.
-fn cache_control_for(path: &str, is_html: bool) -> &'static str {
-    const ALWAYS_REVALIDATE: [&str; 4] = [
-        "/flutter_bootstrap.js",
-        "/flutter_service_worker.js",
-        "/version.json",
-        "/manifest.json",
-    ];
-    if is_html || ALWAYS_REVALIDATE.contains(&path) {
-        "no-cache"
+/// True when `If-None-Match` names the copy we are about to serve.
+///
+/// The list form (`"a", "b"`) and `*` are both part of the header, and the weak
+/// prefix is ignored on comparison, as the specification asks.
+fn already_held(headers: &HeaderMap, etag: &str) -> bool {
+    let Some(value) = headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|value| value.to_str().ok())
+    else {
+        return false;
+    };
+    let ours = etag.trim_start_matches("W/");
+    value
+        .split(',')
+        .map(|candidate| candidate.trim())
+        .any(|candidate| candidate == "*" || candidate.trim_start_matches("W/") == ours)
+}
+
+/// Flutter's web output is not content-hashed: `main.dart.js` and the assets
+/// keep their names across releases, so a stored copy can only be told apart
+/// from a fresh one by revalidating it. Everything is therefore `no-cache` —
+/// "ask me first", not "don't store" — and the entity tag turns that ask into a
+/// 304 for the files a release didn't touch. A deploy reaches every browser on
+/// its next load instead of waiting out a time-to-live.
+///
+/// The one exception is the question illustrations: there are ~1500 of them,
+/// they are addressed by question id, and their content does not change with a
+/// release, so they keep a real cache window.
+fn cache_control_for(path: &str) -> &'static str {
+    if path.starts_with("/assets/assets/img/") {
+        "public, max-age=86400"
     } else {
-        "public, max-age=3600"
+        "no-cache"
     }
 }
 
@@ -221,6 +266,7 @@ mod tests {
         write(dir.path(), "index.html", INDEX);
         write(dir.path(), "flutter_bootstrap.js", "// bootstrap");
         write(dir.path(), "main.dart.wasm", "\0asm");
+        write(dir.path(), "assets/assets/img/42.jpeg", "\u{ff}\u{d8}\u{ff}");
         write(
             dir.path(),
             "assets/assets/allQuestions.json",
@@ -246,9 +292,21 @@ mod tests {
     }
 
     async fn get_path(router: &Router, path: &str) -> (StatusCode, HeaderMap, String) {
+        get_with(router, path, &[]).await
+    }
+
+    async fn get_with(
+        router: &Router,
+        path: &str,
+        request_headers: &[(header::HeaderName, &str)],
+    ) -> (StatusCode, HeaderMap, String) {
+        let mut request = Request::builder().uri(path);
+        for (name, value) in request_headers {
+            request = request.header(name, *value);
+        }
         let response = router
             .clone()
-            .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+            .oneshot(request.body(Body::empty()).unwrap())
             .await
             .unwrap();
         let status = response.status();
@@ -296,14 +354,64 @@ mod tests {
         let dir = bundle();
         let router = router(&dir);
 
-        let (status, headers, _) = get_path(&router, "/main.dart.wasm").await;
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(headers[header::CONTENT_TYPE], "application/wasm");
-        assert_eq!(headers[header::CACHE_CONTROL], "public, max-age=3600");
+        // Nothing in the bundle may be served from a stale cache, or a deploy
+        // takes a time-to-live to reach anyone.
+        for path in ["/main.dart.wasm", "/flutter_bootstrap.js"] {
+            let (status, headers, _) = get_path(&router, path).await;
+            assert_eq!(status, StatusCode::OK, "{path}");
+            assert_eq!(headers[header::CACHE_CONTROL], "no-cache", "{path}");
+            assert!(headers.contains_key(header::ETAG), "{path}");
+        }
+        assert_eq!(
+            get_path(&router, "/main.dart.wasm").await.1[header::CONTENT_TYPE],
+            "application/wasm",
+        );
 
-        // The entry point must never be served from a stale cache, or a deploy
-        // takes an hour to reach anyone.
-        let (_, headers, _) = get_path(&router, "/flutter_bootstrap.js").await;
+        // The illustrations are addressed by question id and outlive releases.
+        let (_, headers, _) = get_path(&router, "/assets/assets/img/42.jpeg").await;
+        assert_eq!(headers[header::CACHE_CONTROL], "public, max-age=86400");
+    }
+
+    #[tokio::test]
+    async fn an_unchanged_file_revalidates_into_a_304_and_a_changed_one_does_not() {
+        let dir = bundle();
+        let router = router(&dir);
+
+        let (_, headers, _) = get_path(&router, "/main.dart.wasm").await;
+        let etag = headers[header::ETAG].to_str().unwrap().to_string();
+
+        let (status, headers, body) = get_with(
+            &router,
+            "/main.dart.wasm",
+            &[(header::IF_NONE_MATCH, &etag)],
+        )
+        .await;
+        assert_eq!(status, StatusCode::NOT_MODIFIED);
+        assert!(body.is_empty());
+        // A 304 carries the caching and security headers of the real response.
+        assert_eq!(headers[header::CACHE_CONTROL], "no-cache");
+        assert_eq!(headers[header::X_CONTENT_TYPE_OPTIONS], "nosniff");
+        assert_eq!(headers[header::ETAG], etag);
+
+        // What the next release changed comes down in full — this is the copy
+        // the browser is holding from the previous one.
+        let (status, _, body) = get_with(
+            &router,
+            "/main.dart.wasm",
+            &[(header::IF_NONE_MATCH, "W/\"0000000000000000\"")],
+        )
+        .await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(!body.is_empty());
+    }
+
+    #[tokio::test]
+    async fn the_page_itself_is_never_tagged() {
+        // It is rendered per request (title, description, language), so a stored
+        // copy of one route must not stand in for another.
+        let dir = bundle();
+        let (_, headers, _) = get_path(&router(&dir), "/question/11").await;
+        assert!(!headers.contains_key(header::ETAG));
         assert_eq!(headers[header::CACHE_CONTROL], "no-cache");
     }
 

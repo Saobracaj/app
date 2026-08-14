@@ -10,6 +10,7 @@
 //!     what makes the same link open the installed app.
 
 mod config;
+mod fingerprint;
 mod index_html;
 mod meta;
 mod questions;
