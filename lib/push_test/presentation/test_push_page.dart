@@ -22,11 +22,28 @@ class TestPushPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text('testPush.title'.tr())),
       body: SafeArea(
-        child: BlocProvider(
-          create: (_) => getIt<TestPushBloc>()..add(TestPushOpened()),
-          child: const _TestPushView(),
+        child: ReadableWidth(
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: const [TestPushContent()],
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// Форма тестового пуша с собственным [TestPushBloc], но без скролла и
+/// Scaffold — встраивается и в отдельный экран, и в правую панель настроек на
+/// широком экране.
+class TestPushContent extends StatelessWidget {
+  const TestPushContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => getIt<TestPushBloc>()..add(TestPushOpened()),
+      child: const _TestPushView(),
     );
   }
 }
@@ -40,78 +57,77 @@ class _TestPushView extends StatelessWidget {
       builder: (context, state) {
         final bloc = context.read<TestPushBloc>();
         final scheme = Theme.of(context).colorScheme;
-        return ReadableWidth(
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Text(
-                'testPush.hint'.tr(),
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
-              ),
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'testPush.hint'.tr(),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 16),
+            _Field(
+              // Значение приходит из блока (при открытии — своя почта), а
+              // такое поле контроллером не удержать: initialValue у TextField
+              // нет, поэтому здесь TextFormField с ключом на значении блока.
+              key: ValueKey('email:${state.email}'),
+              initialValue: state.email,
+              label: 'testPush.email'.tr(),
+              keyboardType: TextInputType.emailAddress,
+              autofocus: true,
+              onChanged: (v) => bloc.add(TestPushEmailChanged(v)),
+            ),
+            const SizedBox(height: 12),
+            _Field(
+              initialValue: state.title,
+              label: 'testPush.pushTitle'.tr(),
+              helperText: 'testPush.optional'.tr(),
+              onChanged: (v) => bloc.add(TestPushTitleChanged(v)),
+            ),
+            const SizedBox(height: 12),
+            _Field(
+              initialValue: state.body,
+              label: 'testPush.body'.tr(),
+              helperText: 'testPush.optional'.tr(),
+              maxLines: 3,
+              onChanged: (v) => bloc.add(TestPushBodyChanged(v)),
+            ),
+            const SizedBox(height: 12),
+            _Field(
+              initialValue: state.link,
+              label: 'testPush.link'.tr(),
+              helperText: 'testPush.linkHint'.tr(),
+              onChanged: (v) => bloc.add(TestPushLinkChanged(v)),
+            ),
+            const SizedBox(height: 24),
+            FilledButton.icon(
+              onPressed: state.canSend
+                  ? () => bloc.add(TestPushSubmitted())
+                  : null,
+              icon: state.sending
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.send),
+              label: Text('testPush.send'.tr()),
+            ),
+            if (state.errorMessage != null) ...[
               const SizedBox(height: 16),
-              _Field(
-                // Значение приходит из блока (при открытии — своя почта), а
-                // такое поле контроллером не удержать: initialValue у TextField
-                // нет, поэтому здесь TextFormField с ключом на значении блока.
-                key: ValueKey('email:${state.email}'),
-                initialValue: state.email,
-                label: 'testPush.email'.tr(),
-                keyboardType: TextInputType.emailAddress,
-                autofocus: true,
-                onChanged: (v) => bloc.add(TestPushEmailChanged(v)),
+              _Banner(
+                icon: Icons.error_outline,
+                color: scheme.error,
+                text: state.errorMessage!,
               ),
-              const SizedBox(height: 12),
-              _Field(
-                initialValue: state.title,
-                label: 'testPush.pushTitle'.tr(),
-                helperText: 'testPush.optional'.tr(),
-                onChanged: (v) => bloc.add(TestPushTitleChanged(v)),
-              ),
-              const SizedBox(height: 12),
-              _Field(
-                initialValue: state.body,
-                label: 'testPush.body'.tr(),
-                helperText: 'testPush.optional'.tr(),
-                maxLines: 3,
-                onChanged: (v) => bloc.add(TestPushBodyChanged(v)),
-              ),
-              const SizedBox(height: 12),
-              _Field(
-                initialValue: state.link,
-                label: 'testPush.link'.tr(),
-                helperText: 'testPush.linkHint'.tr(),
-                onChanged: (v) => bloc.add(TestPushLinkChanged(v)),
-              ),
-              const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: state.canSend
-                    ? () => bloc.add(TestPushSubmitted())
-                    : null,
-                icon: state.sending
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.send),
-                label: Text('testPush.send'.tr()),
-              ),
-              if (state.errorMessage != null) ...[
-                const SizedBox(height: 16),
-                _Banner(
-                  icon: Icons.error_outline,
-                  color: scheme.error,
-                  text: state.errorMessage!,
-                ),
-              ],
-              if (state.result != null) ...[
-                const SizedBox(height: 16),
-                _ResultBanner(result: state.result!),
-              ],
             ],
-          ),
+            if (state.result != null) ...[
+              const SizedBox(height: 16),
+              _ResultBanner(result: state.result!),
+            ],
+          ],
         );
       },
     );

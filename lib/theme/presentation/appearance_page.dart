@@ -17,13 +17,24 @@ class AppearancePage extends StatelessWidget {
       appBar: AppBar(title: Text(LocaleKeys.settings_appearance.tr())),
       body: SafeArea(
         child: ListView(
-          children: const [
-            _AccentPicker(),
-            _ThemeModePicker(),
-            SizedBox(height: 24),
-          ],
+          children: const [AppearanceContent(), SizedBox(height: 24)],
         ),
       ),
+    );
+  }
+}
+
+/// Содержимое раздела «Оформление» без собственного скролла — встраивается и в
+/// отдельный экран, и в правую панель настроек на широком экране.
+class AppearanceContent extends StatelessWidget {
+  const AppearanceContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [_AccentPicker(), _ThemeModePicker()],
     );
   }
 }
@@ -77,8 +88,7 @@ class _DefaultAccentSwatch extends StatelessWidget {
     return Tooltip(
       message: LocaleKeys.settings_accentDefault.tr(),
       child: GestureDetector(
-        onTap: () =>
-            context.read<ThemeBloc>().add(DefaultAccentSelected()),
+        onTap: () => context.read<ThemeBloc>().add(DefaultAccentSelected()),
         child: CircleAvatar(
           backgroundColor: scheme.primaryContainer,
           radius: 18,

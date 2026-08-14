@@ -19,12 +19,22 @@ class NotificationsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text(LocaleKeys.settings_notifications.tr())),
-      body: SafeArea(
-        child: BlocProvider(
-          create: (_) => getIt<NotificationsBloc>()..add(NotificationsStarted()),
-          child: const _NotificationsView(),
-        ),
-      ),
+      body: SafeArea(child: ListView(children: const [NotificationsContent()])),
+    );
+  }
+}
+
+/// Содержимое раздела «Уведомления» с собственным [NotificationsBloc], но без
+/// скролла и Scaffold — встраивается и в отдельный экран, и в правую панель
+/// настроек на широком экране.
+class NotificationsContent extends StatelessWidget {
+  const NotificationsContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => getIt<NotificationsBloc>()..add(NotificationsStarted()),
+      child: const _NotificationsView(),
     );
   }
 }
@@ -65,13 +75,15 @@ class _NotificationsViewState extends State<_NotificationsView>
       listenWhen: (prev, curr) =>
           curr.errorMessage != null && curr.errorMessage != prev.errorMessage,
       listener: (context, state) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state.errorMessage!.tr())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(state.errorMessage!.tr())));
       },
       builder: (context, state) {
         final bloc = context.read<NotificationsBloc>();
-        return ListView(
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SwitchListTile(
               secondary: const Icon(Icons.mail_outline),
@@ -100,8 +112,8 @@ class _NotificationsViewState extends State<_NotificationsView>
                 child: Text(
                   LocaleKeys.settings_pushBlockedHint.tr(),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.error,
-                      ),
+                    color: Theme.of(context).colorScheme.error,
+                  ),
                 ),
               ),
             const SizedBox(height: 24),

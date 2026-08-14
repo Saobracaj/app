@@ -21,45 +21,57 @@ class FeatureFlagsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('featureFlags.title'.tr())),
-      body: SafeArea(
-        child: BlocBuilder<FeatureFlagsBloc, FeatureFlagsState>(
-          builder: (context, state) {
-            final snapshot = state.snapshot;
-            return ListView(
-              children: [
-                _SectionHeader(
-                  'featureFlags.localSection'.tr(),
-                  'featureFlags.localSectionSubtitle'.tr(),
-                ),
-                for (final f in _tier(FeatureAccess.guest))
-                  _FeatureTile(feature: f, snapshot: snapshot),
-                const Divider(height: 0),
-                _SectionHeader(
-                  'featureFlags.accountSection'.tr(),
-                  'featureFlags.accountSectionSubtitle'.tr(),
-                ),
-                for (final f in _tier(FeatureAccess.authenticated))
-                  _FeatureTile(feature: f, snapshot: snapshot),
-                const Divider(height: 0),
-                _SectionHeader(
-                  'featureFlags.premiumSection'.tr(),
-                  'featureFlags.premiumSectionSubtitle'.tr(),
-                ),
-                for (final f in _tier(FeatureAccess.premium))
-                  if (f != AppFeature.russianContent)
-                    _FeatureTile(feature: f, snapshot: snapshot),
-                const Divider(height: 0),
-                _SectionHeader('featureFlags.russianSection'.tr(), null),
-                _FeatureTile(
-                  feature: AppFeature.russianContent,
-                  snapshot: snapshot,
-                ),
-                const SizedBox(height: 24),
-              ],
-            );
-          },
-        ),
-      ),
+      body: SafeArea(child: ListView(children: const [FeatureFlagsContent()])),
+    );
+  }
+}
+
+/// Список фич без собственного скролла и Scaffold — встраивается и в отдельный
+/// экран, и в правую панель настроек на широком экране. [FeatureFlagsBloc]
+/// глобальный, поэтому провайдера здесь нет.
+class FeatureFlagsContent extends StatelessWidget {
+  const FeatureFlagsContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<FeatureFlagsBloc, FeatureFlagsState>(
+      builder: (context, state) {
+        final snapshot = state.snapshot;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _SectionHeader(
+              'featureFlags.localSection'.tr(),
+              'featureFlags.localSectionSubtitle'.tr(),
+            ),
+            for (final f in _tier(FeatureAccess.guest))
+              _FeatureTile(feature: f, snapshot: snapshot),
+            const Divider(height: 0),
+            _SectionHeader(
+              'featureFlags.accountSection'.tr(),
+              'featureFlags.accountSectionSubtitle'.tr(),
+            ),
+            for (final f in _tier(FeatureAccess.authenticated))
+              _FeatureTile(feature: f, snapshot: snapshot),
+            const Divider(height: 0),
+            _SectionHeader(
+              'featureFlags.premiumSection'.tr(),
+              'featureFlags.premiumSectionSubtitle'.tr(),
+            ),
+            for (final f in _tier(FeatureAccess.premium))
+              if (f != AppFeature.russianContent)
+                _FeatureTile(feature: f, snapshot: snapshot),
+            const Divider(height: 0),
+            _SectionHeader('featureFlags.russianSection'.tr(), null),
+            _FeatureTile(
+              feature: AppFeature.russianContent,
+              snapshot: snapshot,
+            ),
+            const SizedBox(height: 24),
+          ],
+        );
+      },
     );
   }
 
@@ -100,9 +112,8 @@ class _FeatureTile extends StatelessWidget {
     return SwitchListTile(
       title: Text(title),
       value: snapshot.localEnabled(feature),
-      onChanged: (value) => context.read<FeatureFlagsBloc>().add(
-        FeatureToggled(feature, value),
-      ),
+      onChanged: (value) =>
+          context.read<FeatureFlagsBloc>().add(FeatureToggled(feature, value)),
     );
   }
 }

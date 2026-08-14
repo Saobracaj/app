@@ -33,16 +33,29 @@ class SupportChatPage extends StatelessWidget {
   }
 }
 
+/// Собственный разговор пользователя с собственным [SupportChatBloc], но без
+/// Scaffold — встраивается в правую панель настроек на широком экране. Роль
+/// AppBar (индикатор загрузки и потерянного live-соединения) берут на себя
+/// полосы внутри тела чата.
+class SupportChatContent extends StatelessWidget {
+  const SupportChatContent({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) =>
+          getIt<SupportChatBloc>(param1: null)..add(SupportChatOpened()),
+      child: const _SupportChatBody(embedded: true),
+    );
+  }
+}
+
 class _SupportChatView extends StatelessWidget {
   const _SupportChatView();
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<SupportChatBloc, SupportChatState>(
-      listenWhen: (a, b) => a.notificationsPrompt != b.notificationsPrompt,
-      listener: (context, state) {
-        if (state.notificationsPrompt) _askAboutNotifications(context);
-      },
+    return BlocBuilder<SupportChatBloc, SupportChatState>(
       builder: (context, state) {
         final bloc = context.read<SupportChatBloc>();
         final isModerator = bloc.threadId != null;
@@ -70,26 +83,71 @@ class _SupportChatView extends StatelessWidget {
                   )
                 : null,
           ),
-          body: SafeArea(
-            child: Column(
-              children: [
-                if (state.errorMessage != null)
-                  _ErrorBanner(message: state.errorMessage!),
-                Expanded(
-                  // A tap on the free space around the messages dismisses the
-                  // keyboard, same as on the auth screens.
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => FocusScope.of(context).unfocus(),
-                    child: state.isEmpty
-                        ? _EmptyState(isModerator: isModerator)
-                        : _MessageList(messages: state.messages),
-                  ),
+          body: const SafeArea(child: _SupportChatBody(embedded: false)),
+        );
+      },
+    );
+  }
+}
+
+/// Тело чата: баннеры, лента сообщений, поле ввода. В [embedded]-режиме (без
+/// AppBar) сверху добавляются индикатор загрузки и строка про потерянное
+/// live-соединение — та же честность, что и у иконки в AppBar.
+class _SupportChatBody extends StatelessWidget {
+  const _SupportChatBody({required this.embedded});
+
+  final bool embedded;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocConsumer<SupportChatBloc, SupportChatState>(
+      listenWhen: (a, b) => a.notificationsPrompt != b.notificationsPrompt,
+      listener: (context, state) {
+        if (state.notificationsPrompt) _askAboutNotifications(context);
+      },
+      builder: (context, state) {
+        final bloc = context.read<SupportChatBloc>();
+        final isModerator = bloc.threadId != null;
+        return Column(
+          children: [
+            if (embedded && state.loading)
+              const LinearProgressIndicator(minHeight: 2),
+            if (embedded && state.loaded && !state.live)
+              Material(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Row(
+                  children: [
+                    const SizedBox(width: 16),
+                    const Icon(Icons.cloud_off_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'support.offline'.tr(),
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => bloc.add(SupportChatRefreshed()),
+                      child: Text('support.refresh'.tr()),
+                    ),
+                  ],
                 ),
-                _Composer(state: state),
-              ],
+              ),
+            if (state.errorMessage != null)
+              _ErrorBanner(message: state.errorMessage!),
+            Expanded(
+              // A tap on the free space around the messages dismisses the
+              // keyboard, same as on the auth screens.
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => FocusScope.of(context).unfocus(),
+                child: state.isEmpty
+                    ? _EmptyState(isModerator: isModerator)
+                    : _MessageList(messages: state.messages),
+              ),
             ),
-          ),
+            _Composer(state: state),
+          ],
         );
       },
     );
@@ -179,7 +237,9 @@ class _EmptyState extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              isModerator ? 'support.emptyThread'.tr() : 'support.emptyOwn'.tr(),
+              isModerator
+                  ? 'support.emptyThread'.tr()
+                  : 'support.emptyOwn'.tr(),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -238,7 +298,9 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final background = mine ? scheme.primaryContainer : scheme.surfaceContainerHighest;
+    final background = mine
+        ? scheme.primaryContainer
+        : scheme.surfaceContainerHighest;
     final foreground = mine ? scheme.onPrimaryContainer : scheme.onSurface;
 
     return Align(
@@ -263,7 +325,9 @@ class _MessageBubble extends StatelessWidget {
                 Text(
                   authorName(message),
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: mine ? foreground.withValues(alpha: 0.8) : scheme.primary,
+                    color: mine
+                        ? foreground.withValues(alpha: 0.8)
+                        : scheme.primary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -347,9 +411,8 @@ class _Composer extends StatelessWidget {
                           size: 18,
                         ),
                         label: Text(attachment.fileName),
-                        onDeleted: () => bloc.add(
-                          SupportChatAttachmentRemoved(attachment),
-                        ),
+                        onDeleted: () =>
+                            bloc.add(SupportChatAttachmentRemoved(attachment)),
                       ),
                   ],
                 ),
