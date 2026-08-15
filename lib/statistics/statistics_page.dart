@@ -8,6 +8,7 @@ import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/questions/presentation/question_list_tile.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/statistics/state_management/history_bloc.dart';
+import 'package:saobracaj/test/start_test.dart';
 
 class StatisticsPage extends StatelessWidget {
   const StatisticsPage({super.key});
@@ -33,8 +34,9 @@ class StatisticsPage extends StatelessWidget {
                       padding: const EdgeInsets.all(16.0),
                       child: FilledButton(
                         onPressed: () {
-                          Routemaster.of(context).push(
-                            '/start?q=${state.questions.take(100).map((e) => e.id).join(',')}',
+                          openStartTest(
+                            context,
+                            state.questions.take(100).map((e) => e.id).toList(),
                           );
                         },
                         child: Text('Пройти последние ошибки'),

@@ -1,7 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/core/presentation/wide_layout.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/konspekt/presentation/konspekt_button.dart';
@@ -9,6 +8,7 @@ import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/questions/state_management/categories_bloc.dart';
 import 'package:saobracaj/theme/quiz_colors.dart';
+import 'package:saobracaj/test/start_test.dart';
 
 class Categories extends StatefulWidget {
   const Categories({super.key, this.wide = false});
@@ -107,8 +107,10 @@ class _CategoriesState extends State<Categories> {
                           final ids = interestedQuestions
                               .map((e) => e.id)
                               .toList();
-                          Routemaster.of(context).push(
-                            '/start?q=${ids.join(',')}&subcategory=${subCategory.id}',
+                          openStartTest(
+                            context,
+                            ids,
+                            subcategory: '${subCategory.id}',
                           );
                         },
                         child: ListTile(
@@ -281,9 +283,7 @@ class _SubcategoryCard extends StatelessWidget {
             .where((q) => q.subcategoryId == subCategory.id)
             .map((e) => e.id)
             .toList();
-        Routemaster.of(
-          context,
-        ).push('/start?q=${ids.join(',')}&subcategory=${subCategory.id}');
+        openStartTest(context, ids, subcategory: '${subCategory.id}');
       },
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
