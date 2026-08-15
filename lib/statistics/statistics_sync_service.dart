@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../auth/data/graphql_client.dart';
 import '../auth/data/token_storage.dart';
 import '../db/db.dart';
+import 'phantom_subcategory.dart';
 
 /// Two-way synchronisation of the locally-stored statistics (answer log,
 /// subcategory results, practice/mock-exam results) with the `saobracaj_backend`
@@ -114,7 +115,7 @@ class StatisticsSyncService {
       ],
       'subcategories': [
         for (final s in subcategories)
-          if (s.uuid != null)
+          if (s.uuid != null && !isPhantomSubcategory(s.subcategory))
             {
               'id': s.uuid,
               'subcategory': s.subcategory,
@@ -177,6 +178,10 @@ class StatisticsSyncService {
       final s = raw as Map<String, dynamic>;
       final id = s['id'] as String;
       if (knownSubs.contains(id)) continue;
+      // A phantom block: older builds recorded block-less runs under the
+      // literal "null" (see the v7 migration in `AppDatabase`). A server that
+      // still holds such rows must not plant them back into a cleaned device.
+      if (isPhantomSubcategory(s['subcategory'])) continue;
       final occurredAt = s['occurredAt'] as String?;
       await _db.insertSubCategory(
         SubCategoryRecordsCompanion.insert(

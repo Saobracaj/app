@@ -10,6 +10,8 @@ library;
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../statistics/phantom_subcategory.dart';
+
 part 'group_event.freezed.dart';
 
 /// What happened. The wire spellings are the GraphQL enum values (async-graphql
@@ -249,11 +251,34 @@ abstract class GroupEvent with _$GroupEvent {
 
   /// Whether this build can render the event at all. An event of an unknown kind
   /// — or an unknown achievement — is dropped rather than shown as a blank row.
-  bool get isRenderable =>
-      kind != GroupEventKind.unknown &&
-      !(kind == GroupEventKind.achievementUnlocked &&
-          (achievement == null ||
-              achievement!.achievement == GroupAchievement.unknown));
+  ///
+  /// So is a subcategory event about the phantom "null" block: older app builds
+  /// recorded block-less runs under that name, and a server that has not swept
+  /// those rows yet still serves the events derived from them (`block “null”:
+  /// 7/7`). There is no block to talk about, so there is nothing to show.
+  bool get isRenderable {
+    switch (kind) {
+      case GroupEventKind.unknown:
+        return false;
+      case GroupEventKind.achievementUnlocked:
+        final details = achievement;
+        if (details == null ||
+            details.achievement == GroupAchievement.unknown) {
+          return false;
+        }
+        return switch (details.achievement) {
+          GroupAchievement.flawlessSubcategory ||
+          GroupAchievement.almostFlawlessSubcategory => !isPhantomSubcategory(
+            details.subcategory,
+          ),
+          _ => true,
+        };
+      case GroupEventKind.subcategoryCompleted:
+        return !isPhantomSubcategory(subcategory?.subcategory);
+      default:
+        return true;
+    }
+  }
 }
 
 int? _int(Object? raw) => (raw as num?)?.toInt();

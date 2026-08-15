@@ -4,6 +4,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/db/dependencies.dart';
 import 'package:saobracaj/models/models.dart';
+import 'package:saobracaj/statistics/phantom_subcategory.dart';
 
 part 'quest_bloc.freezed.dart';
 
@@ -94,8 +95,12 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
       subcategory: subcategory,
     );
 
-    if (subcategory != null) {
-      await repository.addRecord(subcategory!, state.rightAnswers, state.questions.length);
+    // Only a run of a real block leaves a subcategory record. An empty id (or
+    // the stringified `null` an old link can carry) would create a phantom
+    // block that shows up in the statistics and the group feed as "null".
+    final block = subcategory;
+    if (block != null && !isPhantomSubcategory(block)) {
+      await repository.addRecord(block, state.rightAnswers, state.questions.length);
       // Push the new result to the back-end (no-op when signed out).
       statisticsSync.sync();
     }

@@ -148,6 +148,56 @@ void main() {
     expect(await db.getPracticeRecords(), hasLength(1));
   });
 
+  test('фантомный блок «null» не уходит на сервер и не принимается с него', () async {
+    // Старые сборки записывали прогоны без блока под именем «null»; такие
+    // строки могли остаться и на сервере. Ни туда, ни обратно они не ходят —
+    // иначе очищенное устройство получало бы их назад при первом же синке.
+    await db.insertSubCategory(
+      SubCategoryRecordsCompanion.insert(
+        subcategory: 'null',
+        rightAnswers: 7,
+        allAnswers: 7,
+      ),
+    );
+    await db.insertSubCategory(
+      SubCategoryRecordsCompanion.insert(
+        subcategory: '91',
+        rightAnswers: 5,
+        allAnswers: 6,
+      ),
+    );
+    client.response = {
+      'syncStatistics': {
+        'answers': <dynamic>[],
+        'subcategories': [
+          {
+            'id': 'server-null',
+            'subcategory': 'null',
+            'rightAnswers': 7,
+            'allAnswers': 7,
+          },
+          {
+            'id': 'server-ok',
+            'subcategory': '92',
+            'rightAnswers': 3,
+            'allAnswers': 4,
+          },
+        ],
+        'practices': <dynamic>[],
+      },
+    };
+
+    await service.sync();
+
+    final uploaded = (client.lastVariables!['input']['subcategories'] as List)
+        .map((s) => s['subcategory'])
+        .toList();
+    expect(uploaded, ['91']);
+    final local = (await db.getAllSubcategoryRecords()).map((s) => s.uuid);
+    expect(local, isNot(contains('server-null')));
+    expect(local, contains('server-ok'));
+  });
+
   test('keeps subcategory timestamps as the server reports them', () async {
     client.response = {
       'syncStatistics': {
