@@ -22,7 +22,9 @@ import '../state_management/question_attempts_state.dart';
 ///    the backend);
 /// 4. **key phrases** — cues a learner can memorise the answer by: whole
 ///    answers or phrases that are correct (or wrong) in every question of the
-///    bank where they occur, and "word in the question → this answer" links;
+///    bank where they occur, and "word in the question → this answer" links.
+///    Always Serbian wordings, whatever the interface language: the exam is
+///    sat in Serbian and the options on screen are Serbian;
 ///
 /// followed by the person's own attempt history, which is local (Drift) and
 /// therefore always there.
@@ -41,14 +43,14 @@ class QuestionAnalysisTab extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => getIt<QuestionAnalyticsBloc>(param1: questionId)
-            ..add(
-              QuestionAnalyticsRequested(context.locale.languageCode),
-            ),
+          create: (_) =>
+              getIt<QuestionAnalyticsBloc>(param1: questionId)
+                ..add(QuestionAnalyticsRequested()),
         ),
         BlocProvider(
           create: (_) =>
-              QuestionAttemptsBloc(questionId)..add(QuestionAttemptsRequested()),
+              QuestionAttemptsBloc(questionId)
+                ..add(QuestionAttemptsRequested()),
         ),
       ],
       child: BlocBuilder<QuestionAnalyticsBloc, QuestionAnalyticsState>(
@@ -186,7 +188,9 @@ class _ProbabilityBlock extends StatelessWidget {
         help: help,
         children: [
           Text(
-            LocaleKeys.questionAnalysis_valueNone.tr(args: ['${summary.exams}']),
+            LocaleKeys.questionAnalysis_valueNone.tr(
+              args: ['${summary.exams}'],
+            ),
             style: _body(context),
           ),
         ],
@@ -309,7 +313,10 @@ class _KeywordsBlock extends StatelessWidget {
       ),
       children: [
         if (byOption.isEmpty)
-          Text(LocaleKeys.questionAnalysis_keywordNone.tr(), style: _body(context))
+          Text(
+            LocaleKeys.questionAnalysis_keywordNone.tr(),
+            style: _body(context),
+          )
         else
           for (final MapEntry(key: option, value: cues) in byOption.entries)
             Padding(
@@ -447,7 +454,10 @@ class _AttemptsBlock extends StatelessWidget {
           title: LocaleKeys.questionAnalysis_attemptsTitle.tr(),
           children: [
             if (state.attempts.isEmpty)
-              Text(LocaleKeys.quest_noPreviousTries.tr(), style: _footnote(context))
+              Text(
+                LocaleKeys.quest_noPreviousTries.tr(),
+                style: _footnote(context),
+              )
             else ...[
               for (final (i, attempt) in state.attempts.reversed.indexed) ...[
                 if (i > 0) const Divider(height: 1),

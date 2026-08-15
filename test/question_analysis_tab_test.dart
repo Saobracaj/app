@@ -93,11 +93,15 @@ void main() {
     return getIt.reset();
   });
 
-  Widget wrap(int questionId, {bool authenticated = true}) => EasyLocalization(
+  Widget wrap(
+    int questionId, {
+    bool authenticated = true,
+    Locale locale = const Locale('sr'),
+  }) => EasyLocalization(
     useOnlyLangCode: true,
     supportedLocales: const [Locale('sr'), Locale('ru'), Locale('en')],
     fallbackLocale: const Locale('ru'),
-    startLocale: const Locale('sr'),
+    startLocale: locale,
     path: 'assets/translations',
     assetLoader: const CodegenLoader(),
     child: Builder(
@@ -127,7 +131,6 @@ void main() {
       },
     ),
   );
-
 
   /// Mounts the tab and waits for its data.
   ///
@@ -193,7 +196,10 @@ void main() {
     await tester.tap(find.byTooltip('Више').at(2));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.textContaining('Одговора: 500, корисника: 120'), findsOneWidget);
+    expect(
+      find.textContaining('Одговора: 500, корисника: 120'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a thin sample is labelled rather than quoted as measured', (
@@ -283,8 +289,29 @@ void main() {
     );
   });
 
+  testWidgets('cues are the Serbian wordings in every interface language', (
+    tester,
+  ) async {
+    // The exam is sat in Serbian and the options on screen are Serbian, so a
+    // Russian-speaking learner is shown the same Serbian cue, in a Russian
+    // sentence — never a cue mined from the Russian translation.
+    await show(tester, wrap(8354, locale: const Locale('ru')));
+
+    expect(find.text('Ключевые фразы'), findsOneWidget);
+    expect(
+      find.textContaining('Если в вопросе есть «паркира», этот ответ верный'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('«новчаном казном од 30» — всегда неверный ответ'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('штраф'), findsNothing);
+    expect(find.textContaining('паркует'), findsNothing);
+  });
+
   testWidgets('a question without cues says so', (tester) async {
-    // qId 8223 (category 38) carries no marker or link in either language.
+    // qId 8223 (category 38) carries no marker or link.
     await show(tester, wrap(8223));
 
     expect(
@@ -314,9 +341,6 @@ void main() {
     await show(tester, wrap(7921));
 
     expect(find.text('Вредност питања'), findsOneWidget);
-    expect(
-      find.text('Није могуће преузети податке о тежини.'),
-      findsOneWidget,
-    );
+    expect(find.text('Није могуће преузети податке о тежини.'), findsOneWidget);
   });
 }

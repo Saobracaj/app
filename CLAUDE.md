@@ -29,8 +29,7 @@ and nothing else:
 python3 tool/question_analytics.py --verify   # --verify prints the model checks
 ```
 
-**Re-run it after any change to either of those two assets** (or to
-`allQuestions_ru.json`, which the Russian keyword cues are read out of).
+**Re-run it after any change to either of those two assets.**
 `test/question_analytics_test.dart` fails when the asset and its inputs have
 drifted apart, so a forgotten regeneration is caught rather than shipped as
 stale percentages.
@@ -46,7 +45,10 @@ actual 98.12. The keyword block ("Ключевые фразы") is built the sam
 reports only *absolute* cues — whole answers or phrases that are correct (or
 wrong) in every question of the bank where they occur, and "word in the
 question → this answer" links; nothing "mostly", no option-length or
-stem-echo heuristics. The one figure it *cannot* produce is how hard a
+stem-echo heuristics. Cues are computed on the **Serbian** text only and shown
+as such in every interface language: the exam is sat in Serbian, the options on
+screen are Serbian, and `allQuestions_ru.json` is a reading aid, not a corpus
+(the operator asked for this explicitly). The one figure it *cannot* produce is how hard a
 question is for other people; that comes from `questionDifficulty` in
 `saobracaj_backend`.
 

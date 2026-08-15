@@ -20,7 +20,10 @@ Three families of numbers come out of it:
 3. **Keyword analysis** — cues a learner can memorise an answer by: answer
    options (whole, or a phrase inside them) that are correct — or wrong — in
    every question of the bank where they occur, and links "phrase in the
-   question → phrase in the correct answer" that hold across the bank.
+   question → the correct answer" that hold across the bank. Computed on the
+   Serbian text only: that is the language the exam is written in, and the
+   Russian translations (`allQuestions_ru.json`) exist purely to help a
+   learner read the Serbian, so cues found in them would be cues to nothing.
 
 Usage:
     python3 tool/question_analytics.py            # writes the asset
@@ -41,7 +44,7 @@ from pathlib import Path
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 OUTPUT = ASSETS / "question_analytics.json"
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 # ---------------------------------------------------------------------------
 # Exam model
@@ -151,10 +154,9 @@ _WORD = re.compile(r"[^\w]+", re.UNICODE)
 _CLAUSE = re.compile(r"[,;:.!?()\[\]«»„“”\"/–—-]+")
 
 # Function words carry no exam signal, and letting them into n-grams buries the
-# real phrases under "и на путу"-style noise. Serbian (Cyrillic and Latin) and
-# Russian, since the two catalogues are analysed separately.
+# real phrases under "и на путу"-style noise. Serbian only, Cyrillic and Latin:
+# the analysis runs on the Serbian catalogue alone.
 STOPWORDS = {
-    # sr
     "и", "или", "а", "али", "да", "је", "су", "се", "би", "бити", "сам", "сте",
     "смо", "си", "ће", "ћете", "ћу", "ли", "у", "на", "од", "до", "за", "са",
     "код", "по", "из", "о", "об", "уз", "низ", "пре", "после", "при", "кроз",
@@ -167,20 +169,11 @@ STOPWORDS = {
     "када", "кад", "где", "чија", "чије", "чији", "него", "односно",
     "i", "ili", "a", "ali", "da", "je", "su", "se", "u", "na", "od", "do",
     "za", "sa", "po", "iz", "o", "pre", "posle", "pri", "kroz", "kao", "sto",
-    # ru
-    "в", "во", "на", "с", "со", "по", "из", "за", "к", "ко", "от", "до", "для",
-    "при", "об", "о", "у", "и", "или", "а", "но", "что", "как", "если", "то",
-    "же", "бы", "ли", "быть", "есть", "это", "этот", "эта", "эти", "того",
-    "тот", "та", "те", "который", "которая", "которые", "которых", "которым",
-    "его", "их", "ее", "её", "он", "она", "они", "оно", "ему", "ей", "им",
-    "может", "можно", "должен", "должна", "должны", "также", "только", "уже",
-    "еще", "ещё", "все", "всех", "вы", "вам", "вас", "себя", "себе", "свой",
-    "свою", "своё", "свое", "своего", "когда", "где", "чем", "так", "либо",
 }
 
 # Negations are the one kind of function word that *is* the signal ("не сме",
 # "није дозвољено"), so a phrase may start with one — but not end on one.
-NEGATIONS = {"не", "није", "нису", "ни", "ne", "nije", "нельзя", "нет"}
+NEGATIONS = {"не", "није", "нису", "ни", "ne", "nije"}
 
 
 def _tokens(text: str):
@@ -240,9 +233,8 @@ def _phrase_key(phrase: str):
 def _markers(catalogue, correctness):
     """Answer-option cues that hold across the whole bank.
 
-    `catalogue` is `qId -> [option text]` in the language being analysed and
-    `correctness` is `qId -> [bool]` (taken from the Serbian catalogue, which is
-    the only one carrying `isCorrect`).
+    `catalogue` is `qId -> [option text]` (Serbian) and `correctness` is
+    `qId -> [bool]`.
 
     Two kinds of cue are looked for in every option: the option *as a whole*
     ("Униформисани полицијски службеници" is an answer in four questions and is
@@ -461,7 +453,6 @@ def _links(catalogue, stems, correctness):
 
 def build(verify: bool = False):
     questions = load("allQuestions.json")
-    questions_ru = {q["qId"]: q for q in load("allQuestions_ru.json")}
     exams = load("practice.json")
 
     pools = _pools(questions, exams)
@@ -485,35 +476,19 @@ def build(verify: bool = False):
     correctness = {
         q["qId"]: [bool(c["isCorrect"]) for c in q["Choices"]] for q in questions
     }
-    catalogues = {
-        "sr": {q["qId"]: [c["Text"] for c in q["Choices"]] for q in questions},
-        "ru": {
-            q["qId"]: [c["Text"] for c in questions_ru[q["qId"]]["Choices"]]
-            for q in questions
-        },
-    }
-    stems = {
-        "sr": {q["qId"]: q["Text"] for q in questions},
-        "ru": {q["qId"]: questions_ru[q["qId"]]["Text"] for q in questions},
-    }
+    # Serbian text only — the exam is written in Serbian, and the answer options
+    # on the question screen are always shown in Serbian (a translation is an
+    # optional gloss underneath), so a cue must be a Serbian wording.
+    catalogue = {q["qId"]: [c["Text"] for c in q["Choices"]] for q in questions}
+    stems = {q["qId"]: q["Text"] for q in questions}
 
-    markers = {}
-    marker_hits = {}
-    links = {}
-    link_hits = {}
-    stats = {}
-    for locale, catalogue in catalogues.items():
-        catalog, per_question, base = _markers(catalogue, correctness)
-        markers[locale] = catalog
-        marker_hits[locale] = per_question
-        links[locale], link_hits[locale] = _links(
-            catalogue, stems[locale], correctness
-        )
-        stats[locale] = {
-            "correctOptionRate": round(base, 4),
-            "markerQuestions": len(per_question),
-            "linkQuestions": len(link_hits[locale]),
-        }
+    markers, marker_hits, base = _markers(catalogue, correctness)
+    links, link_hits = _links(catalogue, stems, correctness)
+    stats = {
+        "correctOptionRate": round(base, 4),
+        "markerQuestions": len(marker_hits),
+        "linkQuestions": len(link_hits),
+    }
 
     out_questions = {}
     for q in questions:
@@ -531,17 +506,12 @@ def build(verify: bool = False):
             "poolSlots": pool["slots"],
             "sampleHits": seen.get(qid, 0),
         }
-        for locale in catalogues:
-            hits = marker_hits[locale].get(qid)
-            if hits:
-                entry.setdefault("markers", {})[locale] = sorted(
-                    hits, key=lambda h: (h["c"], h["m"])
-                )
-            hits = link_hits[locale].get(qid)
-            if hits:
-                entry.setdefault("links", {})[locale] = sorted(
-                    hits, key=lambda h: (h["c"], h["l"])
-                )
+        hits = marker_hits.get(qid)
+        if hits:
+            entry["markers"] = sorted(hits, key=lambda h: (h["c"], h["m"]))
+        hits = link_hits.get(qid)
+        if hits:
+            entry["links"] = sorted(hits, key=lambda h: (h["c"], h["l"]))
         out_questions[str(qid)] = entry
 
     document = {
@@ -639,11 +609,10 @@ def _verify(questions, exams, pools, probability, values, document):
     tiers = collections.Counter(e["tier"] for e in document["questions"].values())
     print(f"value tiers: {dict(tiers)}")
     print()
-    for locale, stat in document["stats"].items():
-        print(
-            f"[{locale}] markers: {len(document['markers'][locale])}, "
-            f"links: {len(document['links'][locale])}, {stat}"
-        )
+    print(
+        f"markers: {len(document['markers'])}, links: {len(document['links'])}, "
+        f"{document['stats']}"
+    )
 
 
 def main():
