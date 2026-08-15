@@ -4,6 +4,8 @@ import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/core/deep_links/deep_link_path.dart';
 import 'package:saobracaj/core/presentation/not_found_page.dart';
 import 'package:saobracaj/routes.dart';
+import 'package:saobracaj/test/quest/quest.dart';
+import 'package:saobracaj/test/start_test.dart';
 
 /// Экраны, которые вопрос умеет открывать поверх себя. Routemaster строит стек
 /// из URL, поэтому «поверх вопроса» должно существовать как путь: иначе
@@ -80,6 +82,22 @@ void main() {
     expect(_build('/quest?q=8084'), isA<MaterialPage>());
     expect(_build('/start'), isA<Redirect>());
     expect(_build('/start?q=8084'), isA<MaterialPage>());
+  });
+
+  test('блок «null» в адресе прогона не считается блоком', () {
+    // Прогон ошибок / списка идёт без блока, но старые сборки подставляли в
+    // адрес `subcategory=null` — маршрут принимал строку «null» за id блока,
+    // и результат уходил в статистику и в ленту группы как block “null”. Такие
+    // адреса ещё живут в истории браузера, поэтому маршрут их терпит.
+    Quest quest(String path) => (_build(path) as MaterialPage).child as Quest;
+    StartTest start(String path) =>
+        (_build(path) as MaterialPage).child as StartTest;
+    expect(quest('/quest?q=8084&subcategory=null').subcategory, isNull);
+    expect(quest('/quest?q=8084&subcategory=').subcategory, isNull);
+    expect(quest('/quest?q=8084').subcategory, isNull);
+    expect(quest('/quest?q=8084&subcategory=91').subcategory, '91');
+    expect(start('/start?q=8084&subcategory=null').subcategory, isNull);
+    expect(start('/start?q=8084&subcategory=91').subcategory, '91');
   });
 
   test('диплинк /question/{id} строится без загруженных вопросов', () {

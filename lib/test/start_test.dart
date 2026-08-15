@@ -6,6 +6,7 @@ import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/core/presentation/wide_layout.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
+import 'package:saobracaj/statistics/phantom_subcategory.dart';
 import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 
 class StartTest extends StatelessWidget {
@@ -15,10 +16,11 @@ class StartTest extends StatelessWidget {
   final String? subcategory;
 
   /// Адрес прогона с выбранными настройками.
-  String _runPath(StartTestState state) =>
-      '/quest?q=${questionIds.join(',')}'
-      '&randomOptionsOrder=${state.randomOptionsOrder}'
-      '&random=${state.random}&subcategory=$subcategory';
+  String _runPath(StartTestState state) => quizRunPath(
+    questionIds: questionIds,
+    subcategory: subcategory,
+    options: state,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -159,4 +161,25 @@ class StartTest extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Адрес экрана вопросов (`/quest`) для прогона [questionIds] с настройками
+/// [options].
+///
+/// `subcategory` попадает в адрес только когда он есть: прогон ошибок или
+/// списка вопросов идёт без блока, и интерполяция `null` давала
+/// `subcategory=null` — маршрут читал это как блок с именем «null», результат
+/// уходил в статистику и в ленту группы как `block "null"`.
+String quizRunPath({
+  required List<int> questionIds,
+  required StartTestState options,
+  String? subcategory,
+}) {
+  final path = StringBuffer('/quest?q=${questionIds.join(',')}')
+    ..write('&randomOptionsOrder=${options.randomOptionsOrder}')
+    ..write('&random=${options.random}');
+  if (!isPhantomSubcategory(subcategory)) {
+    path.write('&subcategory=${Uri.encodeQueryComponent(subcategory!.trim())}');
+  }
+  return path.toString();
 }

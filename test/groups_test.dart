@@ -205,6 +205,43 @@ void main() {
       expect(known.achievement?.streak, 3);
     });
 
+    test('события фантомного блока «null» не показываются', () {
+      // Старые сборки записывали прогоны без блока под именем «null»; сервер,
+      // ещё не вычистивший такие строки, отдаёт события про block “null”.
+      final finished = GroupEvent.fromJson(
+        _event(
+          'SUBCATEGORY_COMPLETED',
+          subcategory: {
+            'subcategory': 'null',
+            'rightAnswers': 7,
+            'allAnswers': 7,
+          },
+        ),
+      );
+      final flawless = GroupEvent.fromJson(
+        _event(
+          'ACHIEVEMENT_UNLOCKED',
+          achievement: {
+            'achievement': 'FLAWLESS_SUBCATEGORY',
+            'subcategory': 'null',
+          },
+        ),
+      );
+      final real = GroupEvent.fromJson(
+        _event(
+          'ACHIEVEMENT_UNLOCKED',
+          achievement: {
+            'achievement': 'FLAWLESS_SUBCATEGORY',
+            'subcategory': '91',
+          },
+        ),
+      );
+
+      expect(finished.isRenderable, isFalse);
+      expect(flawless.isRenderable, isFalse);
+      expect(real.isRenderable, isTrue);
+    });
+
     test('a payload with missing fields still parses', () {
       final event = GroupEvent.fromJson(
         _event('SUBCATEGORY_COMPLETED', subcategory: const {}),
