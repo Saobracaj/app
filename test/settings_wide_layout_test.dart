@@ -2,7 +2,9 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
+import 'package:saobracaj/auth/domain/settings_section.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
@@ -16,8 +18,10 @@ import 'package:saobracaj/theme/app_theme.dart';
 import 'package:saobracaj/theme/state_management/theme_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Тесты широкой раскладки настроек: пункт левого меню не открывает отдельный
-/// экран, а подменяет контент в правой панели (задача 1217350577802650).
+/// Тесты раскладки настроек: у каждого раздела свой адрес
+/// (`/settings/appearance`, …). На широком экране адрес подменяет контент в
+/// правой панели, меню слева остаётся на месте (задачи 1217350577802650,
+/// 1217510064568188).
 
 /// Клиент-заглушка: сеть в этих тестах не используется.
 class _FakeClient extends GraphqlClient {
@@ -45,34 +49,52 @@ Widget _localized({required Widget Function(BuildContext) builder}) {
   );
 }
 
-/// Экран настроек гостя со всеми нужными ему блоками. Роутера нет намеренно:
-/// переключение разделов на широком экране не должно трогать навигацию —
-/// попытка перехода уронила бы тест.
-Widget _settingsApp() {
+/// Экран настроек гостя со всеми нужными ему блоками, под настоящим роутером:
+/// пункты меню теперь переходят по адресу раздела, поэтому проверять их без
+/// навигации больше нельзя.
+RoutemasterDelegate _delegate({String initialPath = '/settings'}) =>
+    RoutemasterDelegate(
+      routesBuilder: (_) => RouteMap(
+        routes: {
+          '/': (_) => Redirect(initialPath),
+          '/settings': (_) => const MaterialPage(child: ProfilePage()),
+          '/settings/:section': (data) {
+            final section = SettingsSection.bySlug(
+              data.pathParameters['section'],
+            );
+            if (section == null) return const Redirect('/settings');
+            return MaterialPage(child: ProfilePage(section: section));
+          },
+        },
+      ),
+    );
+
+Widget _settingsApp({RoutemasterDelegate? delegate}) {
   final storage = TokenStorage();
   final client = _FakeClient(storage);
+  final router = delegate ?? _delegate();
   return _localized(
-    builder: (context) => MaterialApp(
-      localizationsDelegates: context.localizationDelegates,
-      supportedLocales: context.supportedLocales,
-      locale: context.locale,
-      theme: buildAppTheme(ColorScheme.fromSeed(seedColor: Colors.blue)),
-      home: MultiBlocProvider(
-        providers: [
-          BlocProvider(
-            create: (_) => AuthBloc(
-              AuthRepository(client, storage, AnalyticsService()),
-              GraphqlSubscriptionClient(client, storage),
-            ),
+    builder: (context) => MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) => AuthBloc(
+            AuthRepository(client, storage, AnalyticsService()),
+            GraphqlSubscriptionClient(client, storage),
           ),
-          BlocProvider(
-            create: (_) => FeatureFlagsBloc(
-              FeatureFlagsRepository(client, storage),
-            ),
-          ),
-          BlocProvider(create: (_) => ThemeBloc()),
-        ],
-        child: const ProfilePage(),
+        ),
+        BlocProvider(
+          create: (_) =>
+              FeatureFlagsBloc(FeatureFlagsRepository(client, storage)),
+        ),
+        BlocProvider(create: (_) => ThemeBloc()),
+      ],
+      child: MaterialApp.router(
+        localizationsDelegates: context.localizationDelegates,
+        supportedLocales: context.supportedLocales,
+        locale: context.locale,
+        theme: buildAppTheme(ColorScheme.fromSeed(seedColor: Colors.blue)),
+        routerDelegate: router,
+        routeInformationParser: const RoutemasterParser(),
       ),
     ),
   );
@@ -111,7 +133,8 @@ void main() {
     'экрана',
     (tester) async {
       _setScreenSize(tester, const Size(1440, 900));
-      await tester.pumpWidget(_settingsApp());
+      final router = _delegate();
+      await tester.pumpWidget(_settingsApp(delegate: router));
       await tester.pumpAndSettle();
 
       expect(find.byType(SegmentedButton<ThemeMode>), findsNothing);
@@ -124,8 +147,25 @@ void main() {
       expect(find.byType(FilledButton), findsNothing);
       expect(find.byIcon(Icons.tune), findsOneWidget);
       expect(_menuTile(tester, Icons.palette_outlined).selected, isTrue);
+      // …и у раздела появился собственный адрес.
+      expect(router.currentConfiguration?.path, '/settings/appearance');
     },
   );
+
+  testWidgets('широкий экран: адрес раздела открывает его сразу, с меню', (
+    tester,
+  ) async {
+    _setScreenSize(tester, const Size(1440, 900));
+    final router = _delegate(initialPath: '/settings/appearance');
+    await tester.pumpWidget(_settingsApp(delegate: router));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SegmentedButton<ThemeMode>), findsOneWidget);
+    expect(_menuTile(tester, Icons.palette_outlined).selected, isTrue);
+    // Меню слева никуда не делось — это то же самое состояние, что и после
+    // нажатия пункта.
+    expect(find.byIcon(Icons.tune), findsOneWidget);
+  });
 
   testWidgets('широкий экран: пункты переключаются между собой', (
     tester,

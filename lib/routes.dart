@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/auth/domain/settings_section.dart';
 import 'package:saobracaj/auth/presentation/confirm_code_page.dart';
 import 'package:saobracaj/auth/presentation/login_page.dart';
 import 'package:saobracaj/auth/presentation/profile_page.dart';
@@ -176,7 +177,15 @@ final routes = RouteMap(
       child: ConfirmCodePage(email: data.queryParameters['email'] ?? ''),
     ),
     '/settings': (_) => const MaterialPage(child: ProfilePage()),
-    '/profile': (_) => const MaterialPage(child: ProfilePage()),
+    // Каждый раздел настроек — свой адрес: на широком экране он выбирает
+    // раздел в правой панели (меню слева остаётся), на телефоне открывает его
+    // отдельным экраном. Незнакомый сегмент — обратно к настройкам; отдельного
+    // '/profile' больше нет, профиль это '/settings/profile'.
+    '/settings/:section': (data) {
+      final section = SettingsSection.bySlug(data.pathParameters['section']);
+      if (section == null) return const Redirect('/settings');
+      return MaterialPage(child: ProfilePage(section: section));
+    },
     '/appearance': (_) => const MaterialPage(child: AppearancePage()),
     '/features': (_) => const MaterialPage(child: FeatureFlagsPage()),
     '/notifications': (_) => const MaterialPage(child: NotificationsPage()),
