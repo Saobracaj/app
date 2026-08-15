@@ -27,17 +27,20 @@ void main() {
   late Map<String, dynamic> analytics;
 
   setUpAll(() async {
-    exams = (jsonDecode(await rootBundle.loadString('assets/practice.json'))
-            as List)
-        .map((e) => List<int>.from(e as List))
-        .toList();
+    exams =
+        (jsonDecode(await rootBundle.loadString('assets/practice.json'))
+                as List)
+            .map((e) => List<int>.from(e as List))
+            .toList();
     questions =
         (jsonDecode(await rootBundle.loadString('assets/allQuestions.json'))
                 as List)
             .cast<Map<String, dynamic>>();
-    analytics = jsonDecode(
-      await rootBundle.loadString('assets/question_analytics.json'),
-    ) as Map<String, dynamic>;
+    analytics =
+        jsonDecode(
+              await rootBundle.loadString('assets/question_analytics.json'),
+            )
+            as Map<String, dynamic>;
   });
 
   group('exam blueprint', () {
@@ -49,13 +52,17 @@ void main() {
       final category = {
         for (final q in questions) q['qId'] as int: q['categoryId'] as String,
       };
-      final profiles = exams.map((exam) {
-        final counts = <String, int>{};
-        for (final id in exam) {
-          counts[category[id]!] = (counts[category[id]] ?? 0) + 1;
-        }
-        return counts.entries.map((e) => '${e.key}:${e.value}').toList()..sort();
-      }).map((p) => p.join(',')).toSet();
+      final profiles = exams
+          .map((exam) {
+            final counts = <String, int>{};
+            for (final id in exam) {
+              counts[category[id]!] = (counts[category[id]] ?? 0) + 1;
+            }
+            return counts.entries.map((e) => '${e.key}:${e.value}').toList()
+              ..sort();
+          })
+          .map((p) => p.join(','))
+          .toSet();
 
       // One profile for all 699 variants — this is what makes a per-question
       // probability computable at all.
@@ -75,7 +82,8 @@ void main() {
         expect(
           entries.containsKey('${q['qId']}'),
           isTrue,
-          reason: 'qId ${q['qId']} is missing — re-run tool/question_analytics.py',
+          reason:
+              'qId ${q['qId']} is missing — re-run tool/question_analytics.py',
         );
       }
     });
@@ -133,8 +141,7 @@ void main() {
       }
     });
 
-    test('as many drawable questions are missing from the sample as expected',
-        () {
+    test('as many drawable questions are missing from the sample as expected', () {
       // 144 of the 1701 questions never occur in the 699 variants. 142 of them
       // cannot: the exam does not draw their category. The remaining handful is
       // the model's own prediction — a question at p is absent from N variants
@@ -180,8 +187,33 @@ void main() {
       }
     });
 
+    test('the keyword catalogue is a single Serbian one', () {
+      // Schema 3: no per-language catalogues. The exam is sat in Serbian and
+      // the options on screen are Serbian, so a cue is a Serbian wording in
+      // every interface language — the operator asked for exactly this.
+      expect(analytics['schema'], 3);
+      expect(analytics['markers'], isA<List>());
+      expect(analytics['links'], isA<List>());
+      expect(analytics['stats'], containsPair('markerQuestions', isA<int>()));
+      final serbian = RegExp(r'[ђјљњћџ]');
+      var serbianOnly = 0;
+      for (final marker in analytics['markers'] as List) {
+        final phrase = (marker as Map<String, dynamic>)['phrase'] as String;
+        // The Russian catalogue would betray itself by these letters.
+        expect(
+          phrase,
+          isNot(matches(RegExp(r'[ыэёщъ]'))),
+          reason: '"$phrase" looks Russian, not Serbian',
+        );
+        if (serbian.hasMatch(phrase)) serbianOnly++;
+      }
+      // "120 km h" is a legitimate whole answer, so not every cue has a
+      // Serbian-only letter — but plenty must.
+      expect(serbianOnly, greaterThan(10));
+    });
+
     test('every marker hit points at a real marker and a real option', () {
-      final markers = analytics['markers'] as Map<String, dynamic>;
+      final markers = analytics['markers'] as List;
       final choices = {
         for (final q in questions)
           q['qId'] as int: (q['Choices'] as List).length,
@@ -190,42 +222,112 @@ void main() {
 
       var hits = 0;
       entries.forEach((id, entry) {
-        final byLocale = (entry as Map<String, dynamic>)['markers'];
-        if (byLocale == null) return;
-        (byLocale as Map<String, dynamic>).forEach((locale, list) {
-          final catalogue = markers[locale] as List;
-          for (final hit in list as List) {
-            final h = hit as Map<String, dynamic>;
-            expect(h['m'], lessThan(catalogue.length));
-            expect(h['c'], lessThan(choices[int.parse(id)]!));
-            hits++;
-          }
-        });
+        final list = (entry as Map<String, dynamic>)['markers'];
+        if (list == null) return;
+        for (final hit in list as List) {
+          final h = hit as Map<String, dynamic>;
+          expect(h['m'], lessThan(markers.length));
+          expect(h['c'], lessThan(choices[int.parse(id)]!));
+          hits++;
+        }
       });
       expect(hits, greaterThan(0), reason: 'no keyword markers were recorded');
     });
 
-    test('a marker tally matches the kind it claims', () {
-      (analytics['markers'] as Map<String, dynamic>).forEach((_, list) {
-        for (final marker in list as List) {
-          final m = marker as Map<String, dynamic>;
-          final correct = m['correct'] as int;
-          final options = m['options'] as int;
-          expect(correct, inInclusiveRange(0, options));
-          switch (m['kind']) {
-            case 'alwaysCorrect':
-              expect(correct, options);
-            case 'alwaysWrong':
-              expect(correct, 0);
-            case 'mostlyCorrect':
-              expect(correct / options, greaterThanOrEqualTo(0.85));
-              expect(correct, lessThan(options));
-            case 'mostlyWrong':
-              expect(correct / options, lessThanOrEqualTo(0.08));
-              expect(correct, greaterThan(0));
+    test('only absolute markers are recorded, and their tally says so', () {
+      final list = analytics['markers'] as List;
+      expect(list, isNotEmpty);
+      for (final marker in list) {
+        final m = marker as Map<String, dynamic>;
+        final correct = m['correct'] as int;
+        final options = m['options'] as int;
+        switch (m['kind']) {
+          case 'alwaysCorrect':
+            expect(correct, options);
+          case 'alwaysWrong':
+            expect(correct, 0);
+          default:
+            fail(
+              'unexpected marker kind ${m['kind']} — "mostly" cues are '
+              'not shown any more',
+            );
+        }
+      }
+    });
+
+    test('a marker really is in the option it is attached to, with the '
+        'correctness it claims', () {
+      final markers = analytics['markers'] as List;
+      final bank = {for (final q in questions) q['qId'] as int: q};
+      final entries = analytics['questions'] as Map<String, dynamic>;
+
+      var whole = 0;
+      entries.forEach((id, entry) {
+        final list = (entry as Map<String, dynamic>)['markers'];
+        if (list == null) return;
+        final choices = bank[int.parse(id)]!['Choices'] as List;
+        for (final hit in list as List) {
+          final h = hit as Map<String, dynamic>;
+          final m = markers[h['m'] as int] as Map<String, dynamic>;
+          final choice = choices[h['c'] as int] as Map<String, dynamic>;
+          final text = _normal(choice['Text'] as String);
+          if (m['whole'] == true) {
+            whole++;
+            expect(text, m['phrase'], reason: 'qId $id: whole-answer marker');
+          } else {
+            expect(text, contains(m['phrase']), reason: 'qId $id');
           }
+          expect(
+            choice['isCorrect'],
+            m['kind'] == 'alwaysCorrect',
+            reason:
+                'qId $id, option ${h['c']}: "${m['phrase']}" is claimed '
+                'to be ${m['kind']}',
+          );
         }
       });
+      expect(whole, greaterThan(0), reason: 'no whole-answer markers');
+    });
+
+    test('a link names a word of the question and its correct answer', () {
+      final links = analytics['links'] as List;
+      expect(links, isNotEmpty);
+      final bank = {for (final q in questions) q['qId'] as int: q};
+      final entries = analytics['questions'] as Map<String, dynamic>;
+
+      var hits = 0;
+      entries.forEach((id, entry) {
+        final list = (entry as Map<String, dynamic>)['links'];
+        if (list == null) return;
+        final question = bank[int.parse(id)]!;
+        final choices = question['Choices'] as List;
+        for (final hit in list as List) {
+          final h = hit as Map<String, dynamic>;
+          final l = links[h['l'] as int] as Map<String, dynamic>;
+          final choice = choices[h['c'] as int] as Map<String, dynamic>;
+          expect(
+            _normal(question['Text'] as String),
+            contains(l['stem']),
+            reason: 'qId $id: link stem',
+          );
+          expect(_normal(choice['Text'] as String), l['answer']);
+          expect(
+            choice['isCorrect'],
+            isTrue,
+            reason: 'qId $id, option ${h['c']}',
+          );
+          hits++;
+        }
+      });
+      expect(hits, greaterThan(0));
     });
   });
 }
+
+/// The comparable form of a text, as `tool/question_analytics.py` computes it:
+/// lower-case words separated by single spaces, punctuation dropped.
+String _normal(String text) => text
+    .toLowerCase()
+    .split(RegExp(r'[^\p{L}\p{N}_]+', unicode: true))
+    .where((w) => w.isNotEmpty)
+    .join(' ');

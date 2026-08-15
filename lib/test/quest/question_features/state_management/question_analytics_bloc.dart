@@ -34,10 +34,7 @@ class QuestionAnalyticsBloc
     Emitter<QuestionAnalyticsState> emit,
   ) async {
     try {
-      final analytics = await _analytics.forQuestion(
-        questionId,
-        event.languageCode,
-      );
+      final analytics = await _analytics.forQuestion(questionId);
       final summary = await _analytics.summary();
       emit(
         state.copyWith(

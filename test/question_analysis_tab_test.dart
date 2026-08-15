@@ -93,11 +93,15 @@ void main() {
     return getIt.reset();
   });
 
-  Widget wrap(int questionId, {bool authenticated = true}) => EasyLocalization(
+  Widget wrap(
+    int questionId, {
+    bool authenticated = true,
+    Locale locale = const Locale('sr'),
+  }) => EasyLocalization(
     useOnlyLangCode: true,
     supportedLocales: const [Locale('sr'), Locale('ru'), Locale('en')],
     fallbackLocale: const Locale('ru'),
-    startLocale: const Locale('sr'),
+    startLocale: locale,
     path: 'assets/translations',
     assetLoader: const CodegenLoader(),
     child: Builder(
@@ -127,7 +131,6 @@ void main() {
       },
     ),
   );
-
 
   /// Mounts the tab and waits for its data.
   ///
@@ -188,7 +191,15 @@ void main() {
 
     expect(find.text('60% грешака'), findsOneWidget);
     expect(find.text('Теже од просека базе (30%)'), findsOneWidget);
-    expect(find.text('Одговора: 500 · Корисника: 120'), findsOneWidget);
+    // The sample size is evidence, not headline: it lives behind the "?".
+    expect(find.textContaining('Одговора: 500'), findsNothing);
+    await tester.tap(find.byTooltip('Више').at(2));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(
+      find.textContaining('Одговора: 500, корисника: 120'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a thin sample is labelled rather than quoted as measured', (
@@ -205,7 +216,106 @@ void main() {
     await show(tester, wrap(7921));
 
     expect(
-      find.text('Података је још мало, па је процена приближена просеку базе.'),
+      find.text('Података је још мало, процена је приближена просеку.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('the method behind each block sits behind a "?" button', (
+    tester,
+  ) async {
+    await show(tester, wrap(7921));
+
+    // Value, probability, key phrases — the difficulty block has no data in
+    // this test and therefore nothing to explain.
+    expect(find.byTooltip('Више'), findsNWidgets(3));
+    // The pool the question is drawn from is not on the tab itself…
+    expect(find.textContaining('групи од 109'), findsNothing);
+
+    // …but one tap away.
+    await tester.tap(find.byTooltip('Више').at(1));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('Вероватноћа на испиту'), findsNWidgets(2));
+    expect(find.textContaining('групи од 109 питања'), findsOneWidget);
+    expect(find.textContaining('699 званичних'), findsNothing);
+    expect(find.textContaining('узорку од 699'), findsOneWidget);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextButton),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('a whole answer that is always correct is called out', (
+    tester,
+  ) async {
+    // qId 7921: option 3 is "Униформисани полицијски службеници", an answer
+    // in four questions of the bank and correct in every one of them.
+    await show(tester, wrap(7921));
+
+    expect(find.text('Кључне фразе'), findsOneWidget);
+    expect(find.text('Одговор 3'), findsOneWidget);
+    expect(
+      find.text(
+        'Овај одговор у целини је увек тачан: тако је у свих 4 питања у бази '
+        'у којима се јавља.',
+      ),
+      findsOneWidget,
+    );
+    // Nothing about option length or echoing the question any more.
+    expect(find.textContaining('дужина'), findsNothing);
+  });
+
+  testWidgets('a question→answer link is shown next to its option', (
+    tester,
+  ) async {
+    // qId 8354: a parking fine question. "Новчаном казном од 5 000 динара" is
+    // wrong elsewhere in the bank, but always right when the question says
+    // "паркира"; the option with the 30 000-dinar fine is always wrong.
+    await show(tester, wrap(8354));
+
+    expect(
+      find.textContaining('Ако питање садржи „паркира“, овај одговор је тачан'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('„новчаном казном од 30“ — увек нетачан одговор'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('cues are the Serbian wordings in every interface language', (
+    tester,
+  ) async {
+    // The exam is sat in Serbian and the options on screen are Serbian, so a
+    // Russian-speaking learner is shown the same Serbian cue, in a Russian
+    // sentence — never a cue mined from the Russian translation.
+    await show(tester, wrap(8354, locale: const Locale('ru')));
+
+    expect(find.text('Ключевые фразы'), findsOneWidget);
+    expect(
+      find.textContaining('Если в вопросе есть «паркира», этот ответ верный'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('«новчаном казном од 30» — всегда неверный ответ'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('штраф'), findsNothing);
+    expect(find.textContaining('паркует'), findsNothing);
+  });
+
+  testWidgets('a question without cues says so', (tester) async {
+    // qId 8223 (category 38) carries no marker or link.
+    await show(tester, wrap(8223));
+
+    expect(
+      find.textContaining('нема фраза које би у целој бази'),
       findsOneWidget,
     );
   });
@@ -231,9 +341,6 @@ void main() {
     await show(tester, wrap(7921));
 
     expect(find.text('Вредност питања'), findsOneWidget);
-    expect(
-      find.text('Није могуће преузети податке о тежини.'),
-      findsOneWidget,
-    );
+    expect(find.text('Није могуће преузети податке о тежини.'), findsOneWidget);
   });
 }
