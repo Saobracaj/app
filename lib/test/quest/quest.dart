@@ -408,93 +408,106 @@ class QuestionContent extends StatelessWidget {
     return BlocBuilder<TranslationsBloc, TranslationsState>(
       builder: (context, translationState) {
         final showTranslation = translationState.showTranslation;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // The header (image + statement) deliberately sits outside the
-            // QuestContentBloc builder: markdown parsing is not free, and the
-            // statement does not change when a choice is tapped.
-            if (question.hasImage) ...[
-              QuestionImageCard(imageId: question.imageId),
-              SizedBox(height: 14),
-            ],
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  QuestMarkdown(
-                    text: question.text.trim().dict,
-                    pStyle: theme.textTheme.titleMedium,
-                  ),
-                  if (showTranslation && question.translation != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        question.translation!,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.6,
+        // SelectionArea makes the statement, the RU interlinear line and the
+        // answer texts copyable (long press on touch, mouse drag on
+        // desktop/web) without touching the tap-to-answer gesture: plain
+        // Text/RichText register with it, so no SelectableText is needed
+        // (SelectableText would swallow the taps on the answer cards).
+        return SelectionArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // The header (image + statement) deliberately sits outside the
+              // QuestContentBloc builder: markdown parsing is not free, and the
+              // statement does not change when a choice is tapped.
+              if (question.hasImage) ...[
+                QuestionImageCard(imageId: question.imageId),
+                SizedBox(height: 14),
+              ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    QuestMarkdown(
+                      text: question.text.trim().dict,
+                      pStyle: theme.textTheme.titleMedium,
+                    ),
+                    if (showTranslation && question.translation != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          question.translation!,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.6,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-            SizedBox(height: 10),
-            BlocConsumer<QuestContentBloc, QuesContentState>(
-              // Тап сверх лимита ничего не выбирает — вместо этого подсказка
-              // с вибрацией, чтобы отказ не выглядел «залипанием» интерфейса.
-              listenWhen: (prev, curr) => prev.limitHits != curr.limitHits,
-              listener: (context, state) => showSelectionLimitFeedback(
-                context,
-                LocaleKeys.quest_answerLimitReached.plural(rightAnswers),
-              ),
-              builder: (context, state) {
-                final bloc = context.read<QuestContentBloc>();
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (rightAnswers > 1) ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: ShakeOnTrigger(
-                          trigger: state.limitHits,
-                          child: _RequiredAnswersChip(count: rightAnswers),
-                        ),
-                      ),
-                      SizedBox(height: 12),
-                    ],
-                    for (var c in question.choices)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                        child: AnswerOptionCard(
-                          choice: c,
-                          selected: state.selectedChoices.contains(c),
-                          revealed: state.showCorrectAnswers,
-                          showTranslation: showTranslation,
-                          onTap: state.showCorrectAnswers
-                              ? null
-                              : () => bloc.add(AddChoice(c)),
-                        ),
-                      ),
-                    if (state.showCorrectAnswers && showFeatureTabs)
-                      QuestionFeaturesTabs(
-                        questionId: question.id,
-                        categoryId: question.categoryId,
-                        initialFeature: openComments
-                            ? AppFeature.publicQuestionComments
-                            : null,
-                        commentThreadId: openComments ? commentThreadId : null,
-                        autoScroll: openComments,
-                      ),
                   ],
-                );
-              },
-            ),
-            SizedBox(height: 24),
-          ],
+                ),
+              ),
+              SizedBox(height: 10),
+              BlocConsumer<QuestContentBloc, QuesContentState>(
+                // Тап сверх лимита ничего не выбирает — вместо этого подсказка
+                // с вибрацией, чтобы отказ не выглядел «залипанием» интерфейса.
+                listenWhen: (prev, curr) => prev.limitHits != curr.limitHits,
+                listener: (context, state) => showSelectionLimitFeedback(
+                  context,
+                  LocaleKeys.quest_answerLimitReached.plural(rightAnswers),
+                ),
+                builder: (context, state) {
+                  final bloc = context.read<QuestContentBloc>();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (rightAnswers > 1) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: ShakeOnTrigger(
+                            trigger: state.limitHits,
+                            child: _RequiredAnswersChip(count: rightAnswers),
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                      ],
+                      for (var c in question.choices)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                          child: AnswerOptionCard(
+                            choice: c,
+                            selected: state.selectedChoices.contains(c),
+                            revealed: state.showCorrectAnswers,
+                            showTranslation: showTranslation,
+                            onTap: state.showCorrectAnswers
+                                ? null
+                                : () => bloc.add(AddChoice(c)),
+                          ),
+                        ),
+                      if (state.showCorrectAnswers && showFeatureTabs)
+                        // The tabs host their own inputs and gestures (chat,
+                        // comments); keep them out of the selection scope.
+                        SelectionContainer.disabled(
+                          child: QuestionFeaturesTabs(
+                            questionId: question.id,
+                            categoryId: question.categoryId,
+                            initialFeature: openComments
+                                ? AppFeature.publicQuestionComments
+                                : null,
+                            commentThreadId: openComments
+                                ? commentThreadId
+                                : null,
+                            autoScroll: openComments,
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+              SizedBox(height: 24),
+            ],
+          ),
         );
       },
     );

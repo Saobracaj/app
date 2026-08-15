@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -182,7 +183,10 @@ void main() {
     await tester.pumpAndSettle();
 
     Finder segmentOf(String number) => find
-        .ancestor(of: find.text(number), matching: find.byType(AnimatedContainer))
+        .ancestor(
+          of: find.text(number),
+          matching: find.byType(AnimatedContainer),
+        )
         .first;
 
     // Свёрнуто: сегмент — тонкая полоска.
@@ -207,7 +211,10 @@ void main() {
     await tester.pumpAndSettle();
 
     Finder segmentOf(String number) => find
-        .ancestor(of: find.text(number), matching: find.byType(AnimatedContainer))
+        .ancestor(
+          of: find.text(number),
+          matching: find.byType(AnimatedContainer),
+        )
         .first;
     // Внешний ListView тела: вложенные списки (разметка вопроса) не скроллятся.
     final body = find.byType(ListView).first;
@@ -334,6 +341,87 @@ void main() {
     await tester.pump();
     expect(selected('Одговор број 2'), isTrue);
     expect(selected('Одговор број 0'), isFalse);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('текст вопроса и вариантов выделяется и копируется, тап по '
+      'варианту по-прежнему выбирает его', (tester) async {
+    // Перехватываем буфер обмена, чтобы прочитать скопированный текст.
+    String? clipboard;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'Clipboard.setData') {
+          clipboard = (call.arguments as Map)['text'] as String?;
+        }
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+
+    await tester.pumpWidget(_screen(_question()));
+    await tester.pumpAndSettle();
+
+    // Вопрос и варианты живут в одной SelectionArea — выделение может
+    // тянуться от текста вопроса до текста ответа.
+    final region = find.byType(SelectableRegion);
+    expect(region, findsOneWidget);
+    expect(
+      find.descendant(
+        of: region,
+        matching: find.text('Како треба да поступи возач?'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: region, matching: find.text('Одговор број 3')),
+      findsOneWidget,
+    );
+
+    // Долгий тап (touch) выделяет слово в тексте вопроса; «Копировать» кладёт
+    // его в буфер обмена.
+    await tester.longPress(find.text('Како треба да поступи возач?'));
+    await tester.pumpAndSettle();
+    final state = tester.state<SelectableRegionState>(region);
+    state.copySelection(SelectionChangedCause.toolbar);
+    await tester.pump();
+    expect(clipboard, isNotNull);
+    expect(clipboard, isNotEmpty);
+    expect('Како треба да поступи возач?', contains(clipboard!.trim()));
+
+    // Протяжка мышью от вопроса до ответа: в буфере и вопрос, и вариант.
+    clipboard = null;
+    final from = tester.getTopLeft(find.text('Како треба да поступи возач?'));
+    final to = tester.getBottomRight(find.text('Одговор број 1'));
+    final gesture = await tester.startGesture(
+      from + const Offset(1, 1),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump();
+    await gesture.moveTo(to - const Offset(1, 1));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+    state.copySelection(SelectionChangedCause.toolbar);
+    await tester.pump();
+    expect(clipboard, contains('Како треба да поступи возач?'));
+    expect(clipboard, contains('Одговор број 1'));
+
+    // Обычный тап по варианту не перехвачен выделением: карточка выбирается.
+    await tester.tap(find.text('Одговор број 2'));
+    await tester.pump();
+    final card = tester.widget<AnswerOptionCard>(
+      find.ancestor(
+        of: find.text('Одговор број 2'),
+        matching: find.byType(AnswerOptionCard),
+      ),
+    );
+    expect(card.selected, isTrue);
     await tester.pumpAndSettle();
   });
 }
