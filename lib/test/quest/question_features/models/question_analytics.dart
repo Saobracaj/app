@@ -25,36 +25,31 @@ enum QuestionValueTier {
   };
 }
 
-/// What a phrase found in an answer option says about that option.
+/// What a cue found in an answer option says about that option. Only absolute
+/// cues are recorded — a learner memorises a rule, not a tendency.
 enum MarkerKind {
   /// Every option in the bank containing the phrase is correct.
   alwaysCorrect,
 
   /// Every option containing it is wrong.
-  alwaysWrong,
-
-  /// Lopsided but not absolute — always reported with the raw tally.
-  mostlyCorrect,
-  mostlyWrong;
+  alwaysWrong;
 
   static MarkerKind? parse(String? raw) => switch (raw) {
     'alwaysCorrect' => MarkerKind.alwaysCorrect,
     'alwaysWrong' => MarkerKind.alwaysWrong,
-    'mostlyCorrect' => MarkerKind.mostlyCorrect,
-    'mostlyWrong' => MarkerKind.mostlyWrong,
     _ => null,
   };
 
-  bool get favoursCorrect =>
-      this == MarkerKind.alwaysCorrect || this == MarkerKind.mostlyCorrect;
-
-  bool get isAbsolute =>
-      this == MarkerKind.alwaysCorrect || this == MarkerKind.alwaysWrong;
+  bool get favoursCorrect => this == MarkerKind.alwaysCorrect;
 }
 
-/// A phrase whose presence in an answer option coincides with that option being
-/// correct (or wrong) across the whole question bank, together with the tally it
-/// rests on — `correct` of `options`.
+/// A cue whose presence in an answer option coincides with that option being
+/// correct (or wrong) in every question of the bank where it occurs, together
+/// with the tally it rests on — `correct` of `options`.
+///
+/// [whole] means the cue is the entire answer text ("Униформисани полицијски
+/// службеници" is an answer in four questions and correct in all four), as
+/// opposed to a phrase inside a longer answer.
 @freezed
 abstract class AnswerMarker with _$AnswerMarker {
   const factory AnswerMarker({
@@ -62,6 +57,7 @@ abstract class AnswerMarker with _$AnswerMarker {
     required MarkerKind kind,
     required int options,
     required int correct,
+    @Default(false) bool whole,
   }) = _AnswerMarker;
 }
 
@@ -73,6 +69,29 @@ abstract class QuestionMarkerHit with _$QuestionMarkerHit {
     required AnswerMarker marker,
     required int choiceIndex,
   }) = _QuestionMarkerHit;
+}
+
+/// A "phrase in the question → the correct answer" rule: in every one of
+/// [questions] questions of the bank whose text contains [stem] and which
+/// offers [answer], that answer is the correct one — although [answer] on its
+/// own is wrong elsewhere in the bank.
+@freezed
+abstract class AnswerLink with _$AnswerLink {
+  const factory AnswerLink({
+    required String stem,
+    required String answer,
+    required int questions,
+  }) = _AnswerLink;
+}
+
+/// One occurrence of a link inside a specific question: which option is the
+/// answer the rule points at.
+@freezed
+abstract class QuestionLinkHit with _$QuestionLinkHit {
+  const factory QuestionLinkHit({
+    required AnswerLink link,
+    required int choiceIndex,
+  }) = _QuestionLinkHit;
 }
 
 /// Everything the offline analysis knows about one question.
@@ -105,9 +124,12 @@ abstract class QuestionAnalytics with _$QuestionAnalytics {
     /// Markers matched by this question's options, in option order.
     @Default(<QuestionMarkerHit>[]) List<QuestionMarkerHit> markers,
 
-    /// Options that repeat a content word from the question stem.
-    @Default(<int>[]) List<int> stemEchoes,
+    /// Question→answer links that hold for this question, in option order.
+    @Default(<QuestionLinkHit>[]) List<QuestionLinkHit> links,
   }) = _QuestionAnalytics;
+
+  /// Whether the keyword block has anything to say.
+  bool get hasCues => markers.isNotEmpty || links.isNotEmpty;
 
   /// "Один раз на N экзаменов", rounded — the friendlier phrasing of
   /// [probability]. Infinite/zero probabilities are the caller's problem.
@@ -128,19 +150,12 @@ abstract class AnalyticsSummary with _$AnalyticsSummary {
     /// Expected points of the average question that can appear.
     required double meanValue,
 
-    /// Share of all answer options in the bank that are correct — the baseline
-    /// the option heuristics are compared against.
+    /// Share of all answer options in the bank that are correct — the base
+    /// rate a keyword cue's record is judged against.
     required double correctOptionRate,
 
-    /// How often the single longest option of a question is the correct one,
-    /// against what picking at random would give.
-    required double longestOptionCorrect,
-    required double longestOptionChance,
-
-    /// Correct-answer rate of options that echo a word from the question stem,
-    /// against those that do not.
-    required double echoCorrectRate,
-    required double noEchoCorrectRate,
+    /// How many questions of the bank carry at least one keyword cue.
+    required int markerQuestions,
   }) = _AnalyticsSummary;
 }
 

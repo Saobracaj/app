@@ -13,10 +13,10 @@ import '../models/question_analytics.dart';
 /// data files and nothing else: `practice.json` (699 real exam variants) and
 /// `allQuestions.json` (the question bank). It holds, per question, the
 /// probability of it appearing on an exam, what it is worth in points, and the
-/// answer-option keyword markers it matches. Re-run the script after either of
+/// keyword cues its answer options carry. Re-run the script after either of
 /// those assets changes.
 ///
-/// The file is ~220 KB of JSON, so it is decoded once on a background isolate
+/// The file is ~250 KB of JSON, so it is decoded once on a background isolate
 /// and kept for the session; concurrent callers share the one in-flight load.
 @lazySingleton
 class QuestionAnalyticsRepository {
@@ -25,7 +25,7 @@ class QuestionAnalyticsRepository {
   _Analytics? _loaded;
   Future<_Analytics>? _inFlight;
 
-  /// Bank-wide figures (sample size, averages, the option heuristics).
+  /// Bank-wide figures (sample size, averages, the keyword base rate).
   Future<AnalyticsSummary> summary() async => (await _load()).summary;
 
   /// Analytics for one question, or `null` when the question is not in the
@@ -45,6 +45,7 @@ class QuestionAnalyticsRepository {
 
     final locale = languageCode == 'ru' ? 'ru' : 'sr';
     final markers = analytics.markers[locale] ?? const <AnswerMarker>[];
+    final links = analytics.links[locale] ?? const <AnswerLink>[];
 
     final hits = <QuestionMarkerHit>[];
     for (final hit in _list(raw['markers'], locale)) {
@@ -53,6 +54,17 @@ class QuestionAnalyticsRepository {
       hits.add(
         QuestionMarkerHit(
           marker: markers[index],
+          choiceIndex: (hit['c'] as num).toInt(),
+        ),
+      );
+    }
+    final linkHits = <QuestionLinkHit>[];
+    for (final hit in _list(raw['links'], locale)) {
+      final index = (hit['l'] as num).toInt();
+      if (index < 0 || index >= links.length) continue;
+      linkHits.add(
+        QuestionLinkHit(
+          link: links[index],
           choiceIndex: (hit['c'] as num).toInt(),
         ),
       );
@@ -68,13 +80,11 @@ class QuestionAnalyticsRepository {
       poolSlots: (raw['poolSlots'] as num).toInt(),
       sampleHits: (raw['sampleHits'] as num?)?.toInt() ?? 0,
       markers: hits,
-      stemEchoes: [
-        for (final e in _list(raw['echo'], locale)) (e as num).toInt(),
-      ],
+      links: linkHits,
     );
   }
 
-  /// `raw[key][locale]` as a list — the per-question marker/echo entries are
+  /// `raw[key][locale]` as a list — the per-question marker/link entries are
   /// only written for the locales that have any, so both levels may be absent.
   List<dynamic> _list(dynamic byLocale, String locale) {
     if (byLocale is! Map<String, dynamic>) return const [];
@@ -109,14 +119,16 @@ class _Analytics {
   const _Analytics({
     required this.summary,
     required this.markers,
+    required this.links,
     required this.questions,
   });
 
   final AnalyticsSummary summary;
 
-  /// Language code → the marker catalogue, indexed as the per-question entries
-  /// reference it.
+  /// Language code → the marker / link catalogues, indexed as the per-question
+  /// entries reference them.
   final Map<String, List<AnswerMarker>> markers;
+  final Map<String, List<AnswerLink>> links;
   final Map<String, dynamic> questions;
 }
 
@@ -124,7 +136,7 @@ class _Analytics {
 _Analytics _parse(String source) {
   final json = jsonDecode(source) as Map<String, dynamic>;
   final src = json['source'] as Map<String, dynamic>;
-  // The option heuristics are measured per language; the summary shows the
+  // The keyword statistics are measured per language; the summary shows the
   // Serbian ones, which is the corpus the exam is actually written in.
   final stats = (json['stats'] as Map<String, dynamic>)['sr'] as Map<String, dynamic>;
 
@@ -134,9 +146,26 @@ _Analytics _parse(String source) {
       for (final m in list as List)
         AnswerMarker(
           phrase: m['phrase'] as String,
-          kind: MarkerKind.parse(m['kind'] as String?) ?? MarkerKind.mostlyCorrect,
+          // Only absolute cues are written; an unknown kind means an asset
+          // from a different schema, and reading it as "always" would be a
+          // lie — fail the load, and the tab falls back to no analytics.
+          kind:
+              MarkerKind.parse(m['kind'] as String?) ??
+              (throw FormatException('unknown marker kind: ${m['kind']}')),
           options: (m['options'] as num).toInt(),
           correct: (m['correct'] as num).toInt(),
+          whole: m['whole'] == true,
+        ),
+    ];
+  });
+  final links = <String, List<AnswerLink>>{};
+  ((json['links'] as Map<String, dynamic>?) ?? const {}).forEach((locale, list) {
+    links[locale] = [
+      for (final l in list as List)
+        AnswerLink(
+          stem: l['stem'] as String,
+          answer: l['answer'] as String,
+          questions: (l['questions'] as num).toInt(),
         ),
     ];
   });
@@ -149,12 +178,10 @@ _Analytics _parse(String source) {
       questions: (src['questions'] as num).toInt(),
       meanValue: (src['meanValue'] as num).toDouble(),
       correctOptionRate: (stats['correctOptionRate'] as num).toDouble(),
-      longestOptionCorrect: (stats['longestOptionCorrect'] as num).toDouble(),
-      longestOptionChance: (stats['longestOptionChance'] as num).toDouble(),
-      echoCorrectRate: (stats['echoCorrectRate'] as num).toDouble(),
-      noEchoCorrectRate: (stats['noEchoCorrectRate'] as num).toDouble(),
+      markerQuestions: (stats['markerQuestions'] as num?)?.toInt() ?? 0,
     ),
     markers: markers,
+    links: links,
     questions: json['questions'] as Map<String, dynamic>,
   );
 }

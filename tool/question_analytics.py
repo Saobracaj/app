@@ -17,9 +17,10 @@ Three families of numbers come out of it:
    too small to estimate 1557 individual probabilities (144 questions never
    occur in it at all).
 2. **What a question is worth** — expected points per exam, `p * Points`.
-3. **Keyword analysis** — phrases in the answer options whose correctness is
-   decided across the whole question bank, plus the two classic option-shape
-   heuristics (option length, overlap with the question stem).
+3. **Keyword analysis** — cues a learner can memorise an answer by: answer
+   options (whole, or a phrase inside them) that are correct — or wrong — in
+   every question of the bank where they occur, and links "phrase in the
+   question → phrase in the correct answer" that hold across the bank.
 
 Usage:
     python3 tool/question_analytics.py            # writes the asset
@@ -40,25 +41,29 @@ from pathlib import Path
 ASSETS = Path(__file__).resolve().parent.parent / "assets"
 OUTPUT = ASSETS / "question_analytics.json"
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # ---------------------------------------------------------------------------
 # Exam model
 # ---------------------------------------------------------------------------
 
-# A phrase must occur in at least this many answer options before its
-# correct/wrong record is worth reporting: below that, "always correct" is just
-# a small-sample accident.
-MIN_MARKER_OPTIONS = 8
-# A phrase that does not decide *every* option it appears in still counts when
-# it is this lopsided — reported as "почти всегда" with the raw tally, never as
-# a rule.
-MOSTLY_CORRECT_RATE = 0.85
-MOSTLY_WRONG_RATE = 0.08
-# Longest phrase considered, in words.
+# A keyword cue is reported only when it is *absolute* — every option in the
+# bank carrying it is correct (or every one is wrong) — and that record is
+# unlikely under the base rate. Only about 36% of options are correct, so four
+# correct ones in a row is a 1.6% coincidence while four wrong ones is a 17%
+# one; the p-value threshold, not a fixed count, therefore decides how many
+# occurrences a cue needs (4 for "always correct", 9 for "always wrong").
+MARKER_MAX_P_VALUE = 0.02
+# Longest phrase considered, in words. Whole option texts are always
+# considered as well, however long.
 MAX_MARKER_WORDS = 4
-# One-sided binomial tail against the base rate; anything weaker is noise.
-MARKER_MAX_P_VALUE = 1e-3
+# Longest phrase of the question stem used on the left-hand side of a link.
+MAX_STEM_WORDS = 3
+# A stem phrase found in more than this share of all questions ("возач",
+# "слици") conditions on nothing and is not offered as a link cue.
+MAX_LINK_STEM_SHARE = 0.15
+# A link must hold in at least this many distinct questions.
+MIN_LINK_QUESTIONS = 4
 
 
 def load(name: str):
@@ -141,51 +146,73 @@ def _probabilities(questions, pools):
 # ---------------------------------------------------------------------------
 
 _WORD = re.compile(r"[^\w]+", re.UNICODE)
+# Phrases are taken within a clause: "…на слици, дужни сте…" must not yield the
+# cross-comma fragment "слици дужни".
+_CLAUSE = re.compile(r"[,;:.!?()\[\]«»„“”\"/–—-]+")
 
 # Function words carry no exam signal, and letting them into n-grams buries the
 # real phrases under "и на путу"-style noise. Serbian (Cyrillic and Latin) and
 # Russian, since the two catalogues are analysed separately.
 STOPWORDS = {
     # sr
-    "и", "или", "а", "али", "да", "не", "је", "су", "се", "би", "бити", "сам",
-    "у", "на", "од", "до", "за", "са", "код", "по", "из", "о", "об", "уз", "низ",
-    "пре", "после", "при", "кроз", "ка", "к", "те", "тако", "као", "што", "који",
-    "која", "које", "којих", "којим", "коју", "ако", "већ", "још", "само", "сваки",
-    "свака", "свако", "тај", "та", "то", "тог", "тим", "ово", "овај", "ова",
-    "оних", "они", "оне", "она", "он", "му", "им", "их", "ме", "мора", "може",
-    "i", "ili", "a", "ali", "da", "ne", "je", "su", "se", "u", "na", "od", "do",
+    "и", "или", "а", "али", "да", "је", "су", "се", "би", "бити", "сам", "сте",
+    "смо", "си", "ће", "ћете", "ћу", "ли", "у", "на", "од", "до", "за", "са",
+    "код", "по", "из", "о", "об", "уз", "низ", "пре", "после", "при", "кроз",
+    "ка", "к", "те", "тако", "као", "што", "који", "која", "које", "којих",
+    "којим", "коју", "којој", "којем", "коме", "ако", "већ", "још", "само", "сваки",
+    "свака", "свако", "тај", "та", "то", "тог", "тим", "том", "ово", "овај",
+    "ова", "овом", "оних", "они", "оне", "она", "он", "оно", "му", "им", "их",
+    "ме", "га", "јој", "њега", "њему", "мора", "може", "себе", "себи", "свој",
+    "своје", "своју", "свог", "свом", "ваш", "ваше", "вам", "вас", "јер", "док",
+    "када", "кад", "где", "чија", "чије", "чији", "него", "односно",
+    "i", "ili", "a", "ali", "da", "je", "su", "se", "u", "na", "od", "do",
     "za", "sa", "po", "iz", "o", "pre", "posle", "pri", "kroz", "kao", "sto",
     # ru
     "в", "во", "на", "с", "со", "по", "из", "за", "к", "ко", "от", "до", "для",
     "при", "об", "о", "у", "и", "или", "а", "но", "что", "как", "если", "то",
-    "же", "бы", "ли", "не", "ни", "быть", "есть", "это", "этот", "эта", "эти",
+    "же", "бы", "ли", "быть", "есть", "это", "этот", "эта", "эти", "того",
     "тот", "та", "те", "который", "которая", "которые", "которых", "которым",
-    "его", "их", "ее", "её", "он", "она", "они", "может", "можно", "должен",
-    "должна", "должны", "также", "только", "уже", "еще", "ещё", "все", "всех",
+    "его", "их", "ее", "её", "он", "она", "они", "оно", "ему", "ей", "им",
+    "может", "можно", "должен", "должна", "должны", "также", "только", "уже",
+    "еще", "ещё", "все", "всех", "вы", "вам", "вас", "себя", "себе", "свой",
+    "свою", "своё", "свое", "своего", "когда", "где", "чем", "так", "либо",
 }
+
+# Negations are the one kind of function word that *is* the signal ("не сме",
+# "није дозвољено"), so a phrase may start with one — but not end on one.
+NEGATIONS = {"не", "није", "нису", "ни", "ne", "nije", "нельзя", "нет"}
 
 
 def _tokens(text: str):
     return [t for t in _WORD.split(text.lower()) if t]
 
 
-def _ngrams(text: str):
-    """Content n-grams of a piece of text, 1..MAX_MARKER_WORDS words.
+def _normal(text: str) -> str:
+    """The comparable form of a whole option: lower-case, punctuation-free."""
+    return " ".join(_tokens(text))
 
-    An n-gram may not start or end on a stopword (`"у случају"` is a phrase,
-    `"у"` and `"случају у"` are not), which keeps the candidate set to phrases a
-    person would recognise as one.
+
+def _ngrams(text: str, max_words: int):
+    """Content n-grams of a piece of text, 1..`max_words` words, within clauses.
+
+    An n-gram may not end on a stopword and may start on one only if it is a
+    negation (`"у случају"` and `"не сме"` are phrases; `"у"` and `"случају у"`
+    are not), which keeps the candidate set to phrases a person would recognise
+    as one.
     """
-    words = _tokens(text)
     out = set()
-    for n in range(1, MAX_MARKER_WORDS + 1):
-        for i in range(len(words) - n + 1):
-            gram = words[i : i + n]
-            if gram[0] in STOPWORDS or gram[-1] in STOPWORDS:
-                continue
-            if all(len(w) < 3 for w in gram):
-                continue
-            out.add(" ".join(gram))
+    for clause in _CLAUSE.split(text):
+        words = _tokens(clause)
+        for n in range(1, max_words + 1):
+            for i in range(len(words) - n + 1):
+                gram = words[i : i + n]
+                if gram[0] in STOPWORDS and gram[0] not in NEGATIONS:
+                    continue
+                if gram[-1] in STOPWORDS or gram[-1] in NEGATIONS:
+                    continue
+                if all(len(w) < 3 for w in gram):
+                    continue
+                out.add(" ".join(gram))
     return out
 
 
@@ -205,45 +232,54 @@ def _binom_tail(k: int, n: int, p: float) -> float:
     return min(1.0, total)
 
 
+def _phrase_key(phrase: str):
+    """Sort key preferring the shortest phrasing: fewer words, then fewer chars."""
+    return (len(phrase.split()), len(phrase))
+
+
 def _markers(catalogue, correctness):
-    """Phrases whose presence in an answer option decides that option.
+    """Answer-option cues that hold across the whole bank.
 
     `catalogue` is `qId -> [option text]` in the language being analysed and
     `correctness` is `qId -> [bool]` (taken from the Serbian catalogue, which is
     the only one carrying `isCorrect`).
 
-    A phrase is reported when it occurs in at least `MIN_MARKER_OPTIONS` options
-    across the bank, its options are all correct / all wrong (or lopsided enough
-    to pass `MOSTLY_*_RATE`), and that record is unlikely under the base rate —
-    only about 36% of options are correct, so 25 wrong ones in a row is not a
-    coincidence. Longer restatements of a phrase already kept are dropped.
+    Two kinds of cue are looked for in every option: the option *as a whole*
+    ("Униформисани полицијски службеници" is an answer in four questions and is
+    correct in all four) and every content phrase of up to `MAX_MARKER_WORDS`
+    inside it. A cue is kept when its options are all correct or all wrong and
+    that record is unlikely under the base rate (`MARKER_MAX_P_VALUE`); nothing
+    "mostly" is reported — a learner memorises a rule, not a tendency.
+
+    Redundant cues collapse onto one: a phrase whose options are all covered by
+    a whole-option cue of the same kind is dropped (the whole answer is the
+    better thing to remember), and among phrases the shortest one covering the
+    same options wins ("потреба" over "постоји потреба").
     """
     options = []  # (qId, choice index, is correct)
-    holders = collections.defaultdict(set)  # phrase -> option indices
+    holders = collections.defaultdict(set)  # (phrase, whole?) -> option indices
     for qid, texts in catalogue.items():
         for idx, text in enumerate(texts):
             option = len(options)
             options.append((qid, idx, correctness[qid][idx]))
-            for gram in _ngrams(text):
-                holders[gram].add(option)
+            whole = _normal(text)
+            if whole:
+                holders[(whole, True)].add(option)
+            for gram in _ngrams(text, MAX_MARKER_WORDS):
+                holders[(gram, False)].add(option)
 
     base = sum(1 for _, _, ok in options if ok) / len(options)
 
     found = []
-    for phrase, owners in holders.items():
+    for (phrase, whole), owners in holders.items():
         n = len(owners)
-        if n < MIN_MARKER_OPTIONS:
+        if n < 2:
             continue
         correct = sum(1 for o in owners if options[o][2])
-        rate = correct / n
-        if rate == 1.0:
-            kind, p_value = "alwaysCorrect", _binom_tail(correct, n, base)
-        elif rate == 0.0:
-            kind, p_value = "alwaysWrong", _binom_tail(n - correct, n, 1 - base)
-        elif rate >= MOSTLY_CORRECT_RATE:
-            kind, p_value = "mostlyCorrect", _binom_tail(correct, n, base)
-        elif rate <= MOSTLY_WRONG_RATE:
-            kind, p_value = "mostlyWrong", _binom_tail(n - correct, n, 1 - base)
+        if correct == n:
+            kind, p_value = "alwaysCorrect", _binom_tail(n, n, base)
+        elif correct == 0:
+            kind, p_value = "alwaysWrong", _binom_tail(n, n, 1 - base)
         else:
             continue
         if p_value > MARKER_MAX_P_VALUE:
@@ -252,29 +288,44 @@ def _markers(catalogue, correctness):
             {
                 "phrase": phrase,
                 "kind": kind,
+                "whole": whole,
                 "options": n,
                 "correct": correct,
                 "owners": owners,
-                "pValue": p_value,
             }
         )
 
-    # Prefer the shortest phrasing of the same rule: "потреба" and "постоји
-    # потреба" pointing at the same options is one finding, not two. A longer
-    # phrase survives only when it decides options the short one does not.
-    found.sort(key=lambda m: (len(m["phrase"].split()), len(m["phrase"])))
+    # Phrases that decide exactly the same options are one cue. Of those, the
+    # whole answer wins; among fragments a two- or three-word phrase is kept
+    # over a lone word ("пред сваком препреком", not "датим"), since it is the
+    # one a learner will recognise in the text.
+    groups = {}
+    for marker in found:
+        key = (marker["kind"], frozenset(marker["owners"]))
+        rank = (
+            not marker["whole"],
+            -min(len(marker["phrase"].split()), 3),
+            -len(marker["phrase"]),
+        )
+        if key not in groups or rank < groups[key][0]:
+            groups[key] = (rank, marker)
+    found = [marker for _, marker in groups.values()]
+
+    # Whole-option cues first, then phrases shortest first, so that each cue is
+    # compared against the ones that should absorb it.
+    found.sort(key=lambda m: (not m["whole"], _phrase_key(m["phrase"])))
     kept = []
     for marker in found:
         if any(
             k["kind"] == marker["kind"]
-            and k["phrase"] in marker["phrase"]
             and marker["owners"] <= k["owners"]
+            and (k["whole"] or k["phrase"] in marker["phrase"])
             for k in kept
         ):
             continue
         kept.append(marker)
 
-    kept.sort(key=lambda m: (-m["options"], m["phrase"]))
+    kept.sort(key=lambda m: (-m["options"], not m["whole"], m["phrase"]))
     per_question = collections.defaultdict(list)
     catalog = []
     for index, marker in enumerate(kept):
@@ -282,6 +333,7 @@ def _markers(catalogue, correctness):
             {
                 "phrase": marker["phrase"],
                 "kind": marker["kind"],
+                "whole": marker["whole"],
                 "options": marker["options"],
                 "correct": marker["correct"],
             }
@@ -292,75 +344,114 @@ def _markers(catalogue, correctness):
     return catalog, per_question, base
 
 
-def _shape_stats(catalogue, correctness):
-    """The two option-shape heuristics, measured over the whole bank.
+def _content(text: str) -> bool:
+    """Whether a phrase has a real word in it — "1" or "5 000" do not."""
+    return any(len(t) >= 4 and t.isalpha() for t in _tokens(text))
 
-    * **length** — is the longest option of a question the correct one more often
-      than chance (1 / number of options)?
-    * **stem overlap** — does an option that repeats a content word from the
-      question stem end up correct more often than the base rate?
 
-    Both are reported as measured rates so the UI can state them honestly
-    ("работает в 38% вопросов при случайных 33%") instead of selling a rule of
-    thumb as a law.
+def _links(catalogue, stems, correctness):
+    """"Phrase in the question → the correct answer" rules.
+
+    A link `(S, A)` says: in every question of the bank whose stem contains
+    `S` and offers the answer `A`, `A` is the correct one. It is worth reporting
+    only when `A` alone does *not* settle the matter — "Новчаном казном од
+    5 000 динара" is right in some questions and wrong in others, but in the
+    questions about parking ("паркира") it is always right; that is the thing
+    to remember. Only whole answers are considered on the right-hand side:
+    fragments of them ("без", "лица") pass every statistical test and mean
+    nothing to a learner.
+
+    A link is kept when it holds in at least `MIN_LINK_QUESTIONS` distinct
+    questions, `A` on its own is impure across the bank, the run of successes is
+    unlikely given `A`'s own correct rate (`MARKER_MAX_P_VALUE`), and `S` is
+    specific enough (`MAX_LINK_STEM_SHARE`). Links that hold on exactly the
+    same set of question-options are one rule, reported with the shortest `S`
+    (the broadest condition that still holds).
     """
-    longest_hits = longest_total = 0
-    longest_chance = 0.0
-    overlap_correct = overlap_total = 0
-    plain_correct = plain_total = 0
-
+    answer_record = collections.defaultdict(list)  # A -> [is correct]
+    stem_count = collections.Counter()  # S -> questions containing it
     for qid, texts in catalogue.items():
-        flags = correctness[qid]
-        if len(texts) < 2:
-            continue
-        lengths = [len(t) for t in texts]
-        top = max(lengths)
-        if lengths.count(top) == 1:
-            longest_total += 1
-            longest_chance += sum(flags) / len(texts)
-            if flags[lengths.index(top)]:
-                longest_hits += 1
+        for idx, text in enumerate(texts):
+            answer_record[_normal(text)].append(correctness[qid][idx])
+        for gram in _ngrams(stems[qid], MAX_STEM_WORDS):
+            stem_count[gram] += 1
 
-    return {
-        "longestOptionCorrect": round(longest_hits / longest_total, 4)
-        if longest_total
-        else 0.0,
-        "longestOptionChance": round(longest_chance / longest_total, 4)
-        if longest_total
-        else 0.0,
-        "longestOptionQuestions": longest_total,
+    max_stem = MAX_LINK_STEM_SHARE * len(catalogue)
+    # An answer that is already an absolute cue needs no condition; one with a
+    # single counter-example is too close to it to be worth a rule of its own.
+    impure = {
+        a
+        for a, record in answer_record.items()
+        if 0 < sum(record) < len(record)
+        and len(record) - sum(record) >= 2
+        and _content(a)
     }
 
-
-def _stem_overlap(catalogue, stems, correctness):
-    """Does an option echoing the question's wording tend to be the right one?"""
-    with_overlap_correct = with_overlap = without_correct = without = 0
-    per_question = {}
+    pairs = collections.defaultdict(list)  # (S, A) -> [(qid, idx, ok)]
     for qid, texts in catalogue.items():
-        stem_words = {w for w in _tokens(stems[qid]) if w not in STOPWORDS and len(w) > 3}
-        echoes = []
+        stem_grams = [
+            g for g in _ngrams(stems[qid], MAX_STEM_WORDS) if stem_count[g] <= max_stem
+        ]
+        if not stem_grams:
+            continue
         for idx, text in enumerate(texts):
-            words = {w for w in _tokens(text) if w not in STOPWORDS and len(w) > 3}
-            shared = stem_words & words
-            if shared:
-                echoes.append(idx)
-                with_overlap += 1
-                with_overlap_correct += correctness[qid][idx]
-            else:
-                without += 1
-                without_correct += correctness[qid][idx]
-        if echoes:
-            per_question[qid] = echoes
-    return (
-        {
-            "echoCorrectRate": round(with_overlap_correct / with_overlap, 4)
-            if with_overlap
-            else 0.0,
-            "noEchoCorrectRate": round(without_correct / without, 4) if without else 0.0,
-            "echoOptions": with_overlap,
-        },
-        per_question,
-    )
+            answer = _normal(text)
+            if answer not in impure:
+                continue
+            ok = correctness[qid][idx]
+            for s in stem_grams:
+                pairs[(s, answer)].append((qid, idx, ok))
+
+    found = []
+    for (s, a), owners in pairs.items():
+        if len({qid for qid, _, _ in owners}) < MIN_LINK_QUESTIONS:
+            continue
+        if not all(ok for _, _, ok in owners):
+            continue
+        record = answer_record[a]
+        rate = sum(record) / len(record)
+        if _binom_tail(len(owners), len(owners), rate) > MARKER_MAX_P_VALUE:
+            continue
+        found.append(
+            {
+                "stem": s,
+                "answer": a,
+                "owners": frozenset((qid, idx) for qid, idx, _ in owners),
+            }
+        )
+
+    # One rule per (answer, owner set): the shortest S.
+    best = {}
+    for link in found:
+        key = (link["answer"], link["owners"])
+        if key not in best or _phrase_key(link["stem"]) < _phrase_key(best[key]["stem"]):
+            best[key] = link
+    # A rule whose owners are a subset of another rule's for the same answer is
+    # the same rule under a narrower condition — drop it.
+    kept = sorted(best.values(), key=lambda l: -len(l["owners"]))
+    final = []
+    for link in kept:
+        if any(
+            f["answer"] == link["answer"] and link["owners"] <= f["owners"]
+            for f in final
+        ):
+            continue
+        final.append(link)
+
+    final.sort(key=lambda l: (-len(l["owners"]), l["stem"], l["answer"]))
+    per_question = collections.defaultdict(list)
+    catalog = []
+    for index, link in enumerate(final):
+        catalog.append(
+            {
+                "stem": link["stem"],
+                "answer": link["answer"],
+                "questions": len({qid for qid, _ in link["owners"]}),
+            }
+        )
+        for qid, idx in link["owners"]:
+            per_question[qid].append({"l": index, "c": idx})
+    return catalog, per_question
 
 
 # ---------------------------------------------------------------------------
@@ -408,16 +499,21 @@ def build(verify: bool = False):
 
     markers = {}
     marker_hits = {}
-    echoes = {}
+    links = {}
+    link_hits = {}
     stats = {}
     for locale, catalogue in catalogues.items():
         catalog, per_question, base = _markers(catalogue, correctness)
         markers[locale] = catalog
         marker_hits[locale] = per_question
-        shape = _shape_stats(catalogue, correctness)
-        overlap, per_q_echo = _stem_overlap(catalogue, stems[locale], correctness)
-        echoes[locale] = per_q_echo
-        stats[locale] = {**shape, **overlap, "correctOptionRate": round(base, 4)}
+        links[locale], link_hits[locale] = _links(
+            catalogue, stems[locale], correctness
+        )
+        stats[locale] = {
+            "correctOptionRate": round(base, 4),
+            "markerQuestions": len(per_question),
+            "linkQuestions": len(link_hits[locale]),
+        }
 
     out_questions = {}
     for q in questions:
@@ -441,9 +537,11 @@ def build(verify: bool = False):
                 entry.setdefault("markers", {})[locale] = sorted(
                     hits, key=lambda h: (h["c"], h["m"])
                 )
-            echo = echoes[locale].get(qid)
-            if echo:
-                entry.setdefault("echo", {})[locale] = echo
+            hits = link_hits[locale].get(qid)
+            if hits:
+                entry.setdefault("links", {})[locale] = sorted(
+                    hits, key=lambda h: (h["c"], h["l"])
+                )
         out_questions[str(qid)] = entry
 
     document = {
@@ -465,6 +563,7 @@ def build(verify: bool = False):
         },
         "stats": stats,
         "markers": markers,
+        "links": links,
         "questions": out_questions,
     }
 
@@ -541,7 +640,10 @@ def _verify(questions, exams, pools, probability, values, document):
     print(f"value tiers: {dict(tiers)}")
     print()
     for locale, stat in document["stats"].items():
-        print(f"[{locale}] markers: {len(document['markers'][locale])}, {stat}")
+        print(
+            f"[{locale}] markers: {len(document['markers'][locale])}, "
+            f"links: {len(document['links'][locale])}, {stat}"
+        )
 
 
 def main():

@@ -29,8 +29,8 @@ and nothing else:
 python3 tool/question_analytics.py --verify   # --verify prints the model checks
 ```
 
-**Re-run it after any change to either of those two assets** (or to the
-translations of the answer options, which the keyword markers are read out of).
+**Re-run it after any change to either of those two assets** (or to
+`allQuestions_ru.json`, which the Russian keyword cues are read out of).
 `test/question_analytics_test.dart` fails when the asset and its inputs have
 drifted apart, so a forgotten regeneration is caught rather than shipped as
 stale percentages.
@@ -42,8 +42,13 @@ drawn uniformly — verified by a chi-square test per pool), so a question's
 probability is `slots / pool size` rather than its raw frequency in a sample far
 too small for 1557 separate estimates. Summed over the bank the model reproduces
 a real exam to three decimals — 41.000 questions and 98.11 points against an
-actual 98.12. The one figure it *cannot* produce is how hard a question is for
-other people; that comes from `questionDifficulty` in `saobracaj_backend`.
+actual 98.12. The keyword block ("Ключевые фразы") is built the same way and
+reports only *absolute* cues — whole answers or phrases that are correct (or
+wrong) in every question of the bank where they occur, and "word in the
+question → this answer" links; nothing "mostly", no option-length or
+stem-echo heuristics. The one figure it *cannot* produce is how hard a
+question is for other people; that comes from `questionDifficulty` in
+`saobracaj_backend`.
 
 ## State-management conventions (follow these for all UI work)
 

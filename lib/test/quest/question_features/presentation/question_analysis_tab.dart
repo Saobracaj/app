@@ -20,16 +20,17 @@ import '../state_management/question_attempts_state.dart';
 /// 2. **how likely it is to turn up**, with the exam's own structure behind it;
 /// 3. **how hard it is** for everybody else (the only figure that comes from
 ///    the backend);
-/// 4. **what its answer options give away** — phrases whose correctness is
-///    settled across the whole question bank;
+/// 4. **key phrases** — cues a learner can memorise the answer by: whole
+///    answers or phrases that are correct (or wrong) in every question of the
+///    bank where they occur, and "word in the question → this answer" links;
 ///
 /// followed by the person's own attempt history, which is local (Drift) and
 /// therefore always there.
 ///
-/// Every number is stated with the evidence under it — the sample size, the
-/// pool, the tally — because the point of the tab is that these are measured,
-/// not guessed. Where a heuristic does *not* work (option length, echoing the
-/// question's wording), that is said outright rather than left out.
+/// Each block is one headline figure and one line of text; the method behind
+/// the number — the sample size, the pool, how it was computed — sits behind
+/// the block's "?" button, so the tab reads at a glance and the evidence is a
+/// tap away rather than in the way.
 class QuestionAnalysisTab extends StatelessWidget {
   const QuestionAnalysisTab({super.key, required this.questionId});
 
@@ -82,16 +83,7 @@ class QuestionAnalysisTab extends StatelessWidget {
                 _Gap(),
               ],
               const _AttemptsBlock(),
-              if (summary != null)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-                  child: Text(
-                    LocaleKeys.questionAnalysis_source.tr(
-                      args: ['${summary.exams}', '${summary.questions}'],
-                    ),
-                    style: _footnote(context),
-                  ),
-                ),
+              const SizedBox(height: 12),
             ],
           );
         },
@@ -138,6 +130,9 @@ class _ValueBlock extends StatelessWidget {
     return _Section(
       title: LocaleKeys.questionAnalysis_valueTitle.tr(),
       trailing: _Chip(label: label, color: color),
+      help: LocaleKeys.questionAnalysis_valueHelp.tr(
+        args: ['${summary.exams}', '${summary.questions}'],
+      ),
       children: [
         if (analytics.tier == QuestionValueTier.none)
           Text(
@@ -146,7 +141,7 @@ class _ValueBlock extends StatelessWidget {
             ),
             style: _body(context),
           )
-        else ...[
+        else
           Text(
             LocaleKeys.questionAnalysis_valueDetail.tr(
               args: [
@@ -157,9 +152,6 @@ class _ValueBlock extends StatelessWidget {
             ),
             style: _body(context),
           ),
-          const SizedBox(height: 4),
-          Text(LocaleKeys.questionAnalysis_valueMethod.tr(), style: _footnote(context)),
-        ],
       ],
     );
   }
@@ -175,6 +167,15 @@ class _ProbabilityBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final help = LocaleKeys.questionAnalysis_probabilityHelp.tr(
+      args: [
+        '${analytics.poolSize}',
+        '${analytics.poolSlots}',
+        '${summary.exams}',
+        '${analytics.sampleHits}',
+        '${summary.exams}',
+      ],
+    );
     if (analytics.probability <= 0) {
       return _Section(
         title: LocaleKeys.questionAnalysis_probabilityTitle.tr(),
@@ -182,6 +183,7 @@ class _ProbabilityBlock extends StatelessWidget {
           label: '0%',
           color: Theme.of(context).colorScheme.outline,
         ),
+        help: help,
         children: [
           Text(
             LocaleKeys.questionAnalysis_valueNone.tr(args: ['${summary.exams}']),
@@ -197,32 +199,13 @@ class _ProbabilityBlock extends StatelessWidget {
         label: _percent(analytics.probability),
         color: Theme.of(context).quiz.info,
       ),
+      help: help,
       children: [
         Text(
           LocaleKeys.questionAnalysis_probabilityDetail.tr(
             args: ['${analytics.oneInExams}'],
           ),
           style: _body(context),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          LocaleKeys.questionAnalysis_probabilityPool.tr(
-            args: ['${analytics.poolSize}', '${analytics.poolSlots}'],
-          ),
-          style: _body(context),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          LocaleKeys.questionAnalysis_probabilitySample.tr(
-            args: ['${summary.exams}', '${analytics.sampleHits}'],
-          ),
-          style: _footnote(context),
-        ),
-        Text(
-          LocaleKeys.questionAnalysis_probabilityMethod.tr(
-            args: ['${summary.exams}'],
-          ),
-          style: _footnote(context),
         ),
       ],
     );
@@ -280,17 +263,17 @@ class _DifficultyBlock extends StatelessWidget {
         ),
         color: color,
       ),
+      help: LocaleKeys.questionAnalysis_difficultyHelp.tr(
+        args: [
+          '${difficulty.attempts}',
+          '${difficulty.learners}',
+          _wholePercent(difficulty.baseline),
+        ],
+      ),
       children: [
         Text(
           comparison.tr(args: [_wholePercent(difficulty.baseline)]),
           style: _body(context),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          LocaleKeys.questionAnalysis_difficultySample.tr(
-            args: ['${difficulty.attempts}', '${difficulty.learners}'],
-          ),
-          style: _footnote(context),
         ),
         if (!difficulty.isReliable)
           Text(
@@ -302,107 +285,153 @@ class _DifficultyBlock extends StatelessWidget {
   }
 }
 
-/// What the wording gives away: phrases that decide an option across the whole
-/// bank, and the two option-shape heuristics — reported even though they turn
-/// out not to work, because "length is not a hint" is itself the finding.
+/// Key phrases: what a learner can memorise the answer by. Per option, the cues
+/// that hold across the whole bank — the whole answer being always correct or
+/// always wrong, a phrase inside it that is, and "word in the question → this
+/// answer" links. At most [_maxCuesPerOption] marker cues are shown per
+/// option, whole-answer cues first and then by how much evidence they carry;
+/// links are rare enough to always show.
 class _KeywordsBlock extends StatelessWidget {
   const _KeywordsBlock({required this.analytics, required this.summary});
 
   final QuestionAnalytics analytics;
   final AnalyticsSummary summary;
 
+  static const int _maxCuesPerOption = 2;
+
   @override
   Widget build(BuildContext context) {
-    final quiz = Theme.of(context).quiz;
+    final byOption = _cuesByOption();
     return _Section(
       title: LocaleKeys.questionAnalysis_keywordsTitle.tr(),
+      help: LocaleKeys.questionAnalysis_keywordsHelp.tr(
+        args: ['${summary.questions}', '${summary.markerQuestions}'],
+      ),
       children: [
-        if (analytics.markers.isEmpty)
+        if (byOption.isEmpty)
           Text(LocaleKeys.questionAnalysis_keywordNone.tr(), style: _body(context))
         else
-          for (final hit in analytics.markers)
+          for (final MapEntry(key: option, value: cues) in byOption.entries)
             Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 5, right: 8),
-                    child: Icon(
-                      hit.marker.kind.favoursCorrect
-                          ? Icons.check_circle_outline
-                          : Icons.cancel_outlined,
-                      size: 15,
-                      color: hit.marker.kind.favoursCorrect
-                          ? quiz.correct
-                          : quiz.wrong,
+                  Text(
+                    LocaleKeys.questionAnalysis_keywordOption.tr(
+                      args: ['${option + 1}'],
                     ),
+                    style: _footnote(context),
                   ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          LocaleKeys.questionAnalysis_keywordOption.tr(
-                            args: ['${hit.choiceIndex + 1}'],
-                          ),
-                          style: _footnote(context),
-                        ),
-                        Text(_markerText(hit.marker), style: _body(context)),
-                      ],
-                    ),
-                  ),
+                  for (final cue in cues) _CueRow(cue: cue),
                 ],
               ),
             ),
-        if (analytics.stemEchoes.isNotEmpty) ...[
-          const SizedBox(height: 2),
-          Text(
-            LocaleKeys.questionAnalysis_keywordEcho.tr(
-              args: [
-                analytics.stemEchoes.map((i) => '${i + 1}').join(', '),
-                _wholePercent(summary.echoCorrectRate),
-                _wholePercent(summary.noEchoCorrectRate),
-              ],
-            ),
-            style: _footnote(context),
-          ),
-        ],
-        const SizedBox(height: 2),
-        Text(
-          LocaleKeys.questionAnalysis_keywordLength.tr(
-            args: [
-              _wholePercent(summary.longestOptionCorrect),
-              _wholePercent(summary.longestOptionChance),
-            ],
-          ),
-          style: _footnote(context),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          LocaleKeys.questionAnalysis_keywordsDisclaimer.tr(),
-          style: _footnote(context),
-        ),
       ],
     );
   }
 
-  String _markerText(AnswerMarker marker) => switch (marker.kind) {
-    MarkerKind.alwaysCorrect => LocaleKeys.questionAnalysis_keywordAlwaysCorrect
-        .tr(args: [marker.phrase, '${marker.options}']),
-    MarkerKind.alwaysWrong => LocaleKeys.questionAnalysis_keywordAlwaysWrong.tr(
-      args: [marker.phrase, '${marker.options}'],
-    ),
-    MarkerKind.mostlyCorrect => LocaleKeys.questionAnalysis_keywordMostlyCorrect
-        .tr(args: [marker.phrase, '${marker.correct}', '${marker.options}']),
-    MarkerKind.mostlyWrong => LocaleKeys.questionAnalysis_keywordMostlyWrong.tr(
-      args: [
-        marker.phrase,
-        '${marker.options - marker.correct}',
-        '${marker.options}',
-      ],
-    ),
-  };
+  /// Option index → its cues, in option order; options without any are absent.
+  Map<int, List<_Cue>> _cuesByOption() {
+    final markers = <int, List<AnswerMarker>>{};
+    for (final hit in analytics.markers) {
+      (markers[hit.choiceIndex] ??= []).add(hit.marker);
+    }
+    final links = <int, List<AnswerLink>>{};
+    for (final hit in analytics.links) {
+      (links[hit.choiceIndex] ??= []).add(hit.link);
+    }
+
+    final options = {...markers.keys, ...links.keys}.toList()..sort();
+    return {
+      for (final option in options)
+        option: [
+          for (final marker in _ranked(markers[option]).take(_maxCuesPerOption))
+            _Cue.marker(marker),
+          for (final link in links[option] ?? const <AnswerLink>[])
+            _Cue.link(link),
+        ],
+    };
+  }
+
+  /// Whole-answer cues first, then the best-evidenced phrase.
+  static List<AnswerMarker> _ranked(List<AnswerMarker>? markers) =>
+      [...?markers]..sort(
+        (a, b) => a.whole != b.whole
+            ? (a.whole ? -1 : 1)
+            : b.options.compareTo(a.options),
+      );
+}
+
+/// One line of the key-phrases block: a marker or a link, with the verdict icon.
+class _Cue {
+  const _Cue.marker(AnswerMarker this.marker) : link = null;
+  const _Cue.link(AnswerLink this.link) : marker = null;
+
+  final AnswerMarker? marker;
+  final AnswerLink? link;
+
+  bool get favoursCorrect => marker?.kind.favoursCorrect ?? true;
+
+  String text() {
+    final marker = this.marker;
+    if (marker != null) {
+      return switch ((marker.whole, marker.kind)) {
+        (true, MarkerKind.alwaysCorrect) =>
+          LocaleKeys.questionAnalysis_keywordWholeCorrect.tr(
+            args: ['${marker.options}'],
+          ),
+        (true, MarkerKind.alwaysWrong) =>
+          LocaleKeys.questionAnalysis_keywordWholeWrong.tr(
+            args: ['${marker.options}'],
+          ),
+        (false, MarkerKind.alwaysCorrect) =>
+          LocaleKeys.questionAnalysis_keywordPhraseCorrect.tr(
+            args: [marker.phrase, '${marker.options}'],
+          ),
+        (false, MarkerKind.alwaysWrong) =>
+          LocaleKeys.questionAnalysis_keywordPhraseWrong.tr(
+            args: [marker.phrase, '${marker.options}'],
+          ),
+      };
+    }
+    final link = this.link!;
+    return LocaleKeys.questionAnalysis_keywordLink.tr(
+      args: [link.stem, '${link.questions}'],
+    );
+  }
+}
+
+class _CueRow extends StatelessWidget {
+  const _CueRow({required this.cue});
+
+  final _Cue cue;
+
+  @override
+  Widget build(BuildContext context) {
+    final quiz = Theme.of(context).quiz;
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 2, right: 8),
+            child: Icon(
+              cue.link != null
+                  ? Icons.link
+                  : cue.favoursCorrect
+                  ? Icons.check_circle_outline
+                  : Icons.cancel_outlined,
+              size: 15,
+              color: cue.favoursCorrect ? quiz.correct : quiz.wrong,
+            ),
+          ),
+          Expanded(child: Text(cue.text(), style: _body(context))),
+        ],
+      ),
+    );
+  }
 }
 
 /// The person's own history with this question — local, so it never loads.
@@ -491,12 +520,20 @@ class _AttemptRow extends StatelessWidget {
 // Chrome
 // ---------------------------------------------------------------------------
 
-/// A titled block with an optional headline figure on the right.
+/// A titled block with an optional headline figure on the right and, when
+/// [help] is given, a "?" button after the title that opens the explanation
+/// in a dialog — the long text stays out of the way until it is asked for.
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.children, this.trailing});
+  const _Section({
+    required this.title,
+    required this.children,
+    this.trailing,
+    this.help,
+  });
 
   final String title;
   final Widget? trailing;
+  final String? help;
   final List<Widget> children;
 
   @override
@@ -510,11 +547,19 @@ class _Section extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    if (help case final help?)
+                      _HelpButton(title: title, text: help),
+                  ],
                 ),
               ),
               ?trailing,
@@ -524,6 +569,45 @@ class _Section extends StatelessWidget {
           ...children,
         ],
       ),
+    );
+  }
+}
+
+/// The "?" next to a block title. Tapping it opens the block's explanation in
+/// a dialog rather than a hover tooltip: the texts are several sentences, and
+/// most readers are on a phone, where a tooltip would vanish under the finger.
+class _HelpButton extends StatelessWidget {
+  const _HelpButton({required this.title, required this.text});
+
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return IconButton(
+      onPressed: () => showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(title),
+          content: SingleChildScrollView(child: Text(text)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(MaterialLocalizations.of(context).okButtonLabel),
+            ),
+          ],
+        ),
+      ),
+      icon: Icon(
+        Icons.help_outline,
+        size: 17,
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+      ),
+      tooltip: LocaleKeys.questionAnalysis_helpTooltip.tr(),
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
     );
   }
 }
