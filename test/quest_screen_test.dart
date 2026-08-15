@@ -387,8 +387,14 @@ void main() {
     // его в буфер обмена.
     await tester.longPress(find.text('Како треба да поступи возач?'));
     await tester.pumpAndSettle();
-    final state = tester.state<SelectableRegionState>(region);
-    state.copySelection(SelectionChangedCause.toolbar);
+    // Копируем через CopySelectionTextIntent — тот же обработчик, что и у
+    // пункта «Копировать» контекстного меню (copySelection депрекейтнут).
+    // Контекст должен быть потомком SelectableRegion, иначе интент не найдёт
+    // Actions региона.
+    Actions.invoke(
+      tester.element(find.text('Како треба да поступи возач?')),
+      CopySelectionTextIntent.copy,
+    );
     await tester.pump();
     expect(clipboard, isNotNull);
     expect(clipboard, isNotEmpty);
@@ -407,7 +413,10 @@ void main() {
     await tester.pump();
     await gesture.up();
     await tester.pumpAndSettle();
-    state.copySelection(SelectionChangedCause.toolbar);
+    Actions.invoke(
+      tester.element(find.text('Како треба да поступи возач?')),
+      CopySelectionTextIntent.copy,
+    );
     await tester.pump();
     expect(clipboard, contains('Како треба да поступи возач?'));
     expect(clipboard, contains('Одговор број 1'));
