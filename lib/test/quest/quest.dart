@@ -24,6 +24,7 @@ import 'presentation/quest_app_bar.dart';
 import 'presentation/quest_bottom_bar.dart';
 import 'presentation/quest_markdown.dart';
 import 'presentation/question_image_card.dart';
+import 'presentation/question_pagination.dart';
 import 'presentation/question_progress_strip.dart';
 import 'question_features/presentation/question_features_tabs.dart';
 
@@ -157,6 +158,44 @@ class Quest extends StatelessWidget {
                       final last =
                           state.currentQuestionIndex ==
                           state.questions.length - 1;
+                      final body = wide
+                          ? _WideQuestBody(
+                              key: ValueKey(currentId),
+                              question: question,
+                              first: first,
+                              last: last,
+                              openComments: openComments,
+                              commentThreadId: commentThreadId,
+                            )
+                          : ListView(
+                              // Короткий вопрос тоже должен отзываться на
+                              // потяг — иначе полосу не раскрыть жестом.
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              children: [
+                                QuestionContent(
+                                  key: ValueKey(currentId),
+                                  question: question,
+                                  openComments: openComments,
+                                  commentThreadId: commentThreadId,
+                                ),
+                              ],
+                            );
+                      final bottomBar = wide
+                          // На широком экране действия стоят прямо под
+                          // вариантами ответа (см. _WideQuestBody) — мышью до
+                          // прибитой к низу окна панели тянуться неудобно.
+                          ? null
+                          : QuestBottomBar(
+                              question: question,
+                              first: first,
+                              last: last,
+                            );
+                      final pagination = QuestionPagination(
+                        entries: entries,
+                        currentQuestionId: currentId,
+                        onQuestionSelected: (picked) =>
+                            questBloc.add(MoveToQuestion(picked)),
+                      );
                       return Scaffold(
                         appBar: QuestAppBar(
                           questionNumber: state.currentQuestionIndex + 1,
@@ -167,45 +206,23 @@ class Quest extends StatelessWidget {
                         // Полоса закреплена под шапкой, а её раскрытием
                         // управляют жесты тела: потяг вниз у самого верха
                         // раскрывает навигатор, прокрутка вверх — сворачивает.
-                        body: QuestionProgressHeader(
-                          entries: entries,
-                          currentQuestionId: currentId,
-                          onQuestionSelected: (picked) =>
-                              questBloc.add(MoveToQuestion(picked)),
-                          child: wide
-                              ? _WideQuestBody(
-                                  key: ValueKey(currentId),
-                                  question: question,
-                                  first: first,
-                                  last: last,
-                                  openComments: openComments,
-                                  commentThreadId: commentThreadId,
-                                )
-                              : ListView(
-                                  // Короткий вопрос тоже должен отзываться на
-                                  // потяг — иначе полосу не раскрыть жестом.
-                                  physics:
-                                      const AlwaysScrollableScrollPhysics(),
-                                  children: [
-                                    QuestionContent(
-                                      key: ValueKey(currentId),
-                                      question: question,
-                                      openComments: openComments,
-                                      commentThreadId: commentThreadId,
-                                    ),
-                                  ],
-                                ),
-                        ),
-                        // На широком экране действия стоят прямо под
-                        // вариантами ответа (см. _WideQuestBody) — мышью до
-                        // прибитой к низу окна панели тянуться неудобно.
-                        bottomNavigationBar: wide
-                            ? null
-                            : QuestBottomBar(
-                                question: question,
-                                first: first,
-                                last: last,
+                        // На вебе полосы нет: там мышь, и вместо жеста внизу
+                        // страницы стоит раскрытая пагинация (см. ниже).
+                        body: kIsWeb
+                            ? body
+                            : QuestionProgressHeader(
+                                entries: entries,
+                                currentQuestionId: currentId,
+                                onQuestionSelected: (picked) =>
+                                    questBloc.add(MoveToQuestion(picked)),
+                                child: body,
                               ),
+                        bottomNavigationBar: kIsWeb
+                            ? Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [?bottomBar, pagination],
+                              )
+                            : bottomBar,
                       );
                     },
                   ),
@@ -279,26 +296,36 @@ class _WideQuestBody extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: ReadableWidth(
-                maxWidth: 640,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: [
-                    QuestionContent(
-                      question: question,
-                      openComments: openComments,
-                      commentThreadId: commentThreadId,
-                      showFeatureTabs: false,
+              // Прокручивается вся колонка, а колонка чтения ограничена уже
+              // внутри списка: иначе scrollbar рисуется по краю этих 640
+              // логических пикселей, то есть посреди экрана, а не у
+              // разделителя, где его ищет рука.
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  ReadableWidth(
+                    maxWidth: 640,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        QuestionContent(
+                          question: question,
+                          openComments: openComments,
+                          commentThreadId: commentThreadId,
+                          showFeatureTabs: false,
+                        ),
+                        QuestBottomBar(
+                          question: question,
+                          first: first,
+                          last: last,
+                          inline: true,
+                        ),
+                        const SizedBox(height: 24),
+                      ],
                     ),
-                    QuestBottomBar(
-                      question: question,
-                      first: first,
-                      last: last,
-                      inline: true,
-                    ),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             const VerticalDivider(width: 1, thickness: 1),

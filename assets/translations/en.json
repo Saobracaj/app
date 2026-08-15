@@ -152,7 +152,9 @@
       "emptyCode": "Enter the code",
       "socialFailed": "Sign-in failed. Please try again",
       "socialAccountExists": "An account with this email already exists. Sign in the way you registered",
-      "socialNetwork": "No connection to the server. Check your internet and try again"
+      "socialNetwork": "No connection to the server. Check your internet and try again",
+      "socialUnavailable": "Google/Apple sign-in is unavailable right now. We know about it — sign in with your email instead",
+      "socialPopupBlocked": "The browser blocked the sign-in window. Allow pop-ups for this site and try again"
     }
   },
   "settings": {

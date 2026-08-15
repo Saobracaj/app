@@ -70,9 +70,26 @@ class _GroupsSectionBody extends StatelessWidget {
             children: [
               SectionHeading(
                 title: LocaleKeys.groups_section.tr(),
-                action: TextButton(
-                  onPressed: state.busy ? null : () => joinGroupFlow(context),
-                  child: Text(LocaleKeys.groups_join.tr()),
+                // Обе точки входа стоят рядом в шапке раздела: «создать» —
+                // основное действие, «войти по коду» — рядом с ним.
+                action: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FilledButton.tonalIcon(
+                      onPressed: state.busy
+                          ? null
+                          : () => createGroupFlow(context),
+                      icon: const Icon(Icons.group_add_outlined),
+                      label: Text(LocaleKeys.groups_create.tr()),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: state.busy
+                          ? null
+                          : () => joinGroupFlow(context),
+                      child: Text(LocaleKeys.groups_join.tr()),
+                    ),
+                  ],
                 ),
               ),
               if (state.loading && !state.loaded)
@@ -80,15 +97,24 @@ class _GroupsSectionBody extends StatelessWidget {
                   padding: EdgeInsets.only(bottom: 12),
                   child: LinearProgressIndicator(),
                 ),
-              ResponsiveGrid(
-                minItemWidth: 340,
-                spacing: 16,
-                runSpacing: 16,
-                children: [
-                  for (final group in state.groups) GroupCard(group: group),
-                  _CreateGroupCard(busy: state.busy),
-                ],
-              ),
+              // Кнопка «создать» уехала в шапку раздела, поэтому пустой сетке
+              // нужна своя подсказка — иначе раздел выглядит сломанным.
+              if (state.isEmpty)
+                Text(
+                  LocaleKeys.groups_empty.tr(),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                )
+              else
+                ResponsiveGrid(
+                  minItemWidth: 340,
+                  spacing: 16,
+                  runSpacing: 16,
+                  children: [
+                    for (final group in state.groups) GroupCard(group: group),
+                  ],
+                ),
             ],
           );
         }
@@ -151,42 +177,6 @@ class _GroupActions extends StatelessWidget {
             onPressed: busy ? null : () => joinGroupFlow(context),
             icon: const Icon(Icons.qr_code_2_outlined),
             label: Text(LocaleKeys.groups_join.tr()),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Карточка-приглашение «Создать группу» в сетке широкого экрана: пунктирная
-/// рамка вместо залитой карточки, чтобы не спорить с настоящими группами.
-class _CreateGroupCard extends StatelessWidget {
-  const _CreateGroupCard({required this.busy});
-
-  final bool busy;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SurfaceCard(
-      dashed: true,
-      onTap: busy ? null : () => createGroupFlow(context),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            LocaleKeys.groups_create.tr(),
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            LocaleKeys.groups_createHint.tr(),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
           ),
         ],
       ),

@@ -12,6 +12,7 @@ import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_chat
 import 'package:saobracaj/test/quest/question_features/ask_ai/presentation/ask_ai_chat_page.dart';
 import 'package:saobracaj/test/practice/widgets/confetti.dart';
 import 'package:saobracaj/theme/quiz_colors.dart';
+import 'package:saobracaj/test/start_test.dart';
 
 const kMinPoints = 85;
 
@@ -450,9 +451,7 @@ class _Actions extends StatelessWidget {
                     minimumSize: const Size.fromHeight(48),
                     shape: const StadiumBorder(),
                   ),
-                  onPressed: () => Routemaster.of(
-                    context,
-                  ).push('/start?q=${wrongIds.join(',')}'),
+                  onPressed: () => openStartTest(context, wrongIds),
                   child: Text(
                     LocaleKeys.simulation_reviewErrors.plural(wrongIds.length),
                   ),
@@ -467,15 +466,15 @@ class _Actions extends StatelessWidget {
                   icon: const Icon(Icons.auto_awesome_outlined, size: 20),
                   // The root navigator: the chat covers the whole result
                   // screen, and popping it lands back here.
-                  onPressed: () => Navigator.of(context, rootNavigator: true)
-                      .push(
-                    MaterialPageRoute(
-                      builder: (_) => AskAiChatPage(
-                        scope: AskAiChatScope.examResult,
-                        scopeId: uuid,
+                  onPressed: () =>
+                      Navigator.of(context, rootNavigator: true).push(
+                        MaterialPageRoute(
+                          builder: (_) => AskAiChatPage(
+                            scope: AskAiChatScope.examResult,
+                            scopeId: uuid,
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
                   label: Text(LocaleKeys.askAi_examEntry.tr()),
                 ),
               ],

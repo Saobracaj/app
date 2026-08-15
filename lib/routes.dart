@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/auth/domain/settings_section.dart';
 import 'package:saobracaj/auth/presentation/confirm_code_page.dart';
 import 'package:saobracaj/auth/presentation/login_page.dart';
 import 'package:saobracaj/auth/presentation/profile_page.dart';
 import 'package:saobracaj/auth/presentation/register_page.dart';
 import 'package:saobracaj/auth/presentation/reset_password_page.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_flags_page.dart';
+import 'package:saobracaj/statistics/phantom_subcategory.dart';
 import 'package:saobracaj/theme/presentation/appearance_page.dart';
 import 'package:saobracaj/notifications/presentation/notifications_page.dart';
 import 'package:saobracaj/profile/presentation/display_name_page.dart';
@@ -78,7 +80,7 @@ final routes = RouteMap(
       return MaterialPage(
         child: StartTest(
           questionIds: ids,
-          subcategory: data.queryParameters['subcategory'],
+          subcategory: _subcategoryParam(data.queryParameters['subcategory']),
         ),
       );
     },
@@ -176,7 +178,15 @@ final routes = RouteMap(
       child: ConfirmCodePage(email: data.queryParameters['email'] ?? ''),
     ),
     '/settings': (_) => const MaterialPage(child: ProfilePage()),
-    '/profile': (_) => const MaterialPage(child: ProfilePage()),
+    // Каждый раздел настроек — свой адрес: на широком экране он выбирает
+    // раздел в правой панели (меню слева остаётся), на телефоне открывает его
+    // отдельным экраном. Незнакомый сегмент — обратно к настройкам; отдельного
+    // '/profile' больше нет, профиль это '/settings/profile'.
+    '/settings/:section': (data) {
+      final section = SettingsSection.bySlug(data.pathParameters['section']);
+      if (section == null) return const Redirect('/settings');
+      return MaterialPage(child: ProfilePage(section: section));
+    },
     '/appearance': (_) => const MaterialPage(child: AppearancePage()),
     '/features': (_) => const MaterialPage(child: FeatureFlagsPage()),
     '/notifications': (_) => const MaterialPage(child: NotificationsPage()),
@@ -216,6 +226,17 @@ MaterialPage questCommentsPage(dynamic data) {
   );
 }
 
+/// The subcategory (block) id of a `subcategory=91` query parameter, or `null`
+/// when the run is not tied to a block.
+///
+/// An absent, empty or literal `null` value all mean "no block": older builds
+/// interpolated a Dart `null` straight into the address (`subcategory=null`),
+/// and such links still live in browser history and bookmarks. Taken at face
+/// value they recorded a subcategory result for a block called "null", which
+/// then surfaced in the statistics and the group feed.
+String? _subcategoryParam(String? raw) =>
+    isPhantomSubcategory(raw) ? null : raw!.trim();
+
 /// The question ids of a `q=1,2,3` query parameter. A URL typed or mangled by
 /// hand can miss the parameter or hold garbage — those ids are simply dropped,
 /// and the routes above redirect instead of crashing the first frame into a
@@ -234,7 +255,7 @@ RouteSettings questPage(RouteData data) {
             data.queryParameters['randomOptionsOrder'] == 'true',
       ),
       questions: ids,
-      subcategory: data.queryParameters['subcategory'],
+      subcategory: _subcategoryParam(data.queryParameters['subcategory']),
     ),
   );
 }

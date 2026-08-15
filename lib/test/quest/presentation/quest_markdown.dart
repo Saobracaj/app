@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
+import 'package:saobracaj/zakon/presentation/zakon_panel.dart';
 import 'package:saobracaj/test/animations/animations_map.dart';
 import 'package:saobracaj/util/nav_to_url.dart';
 
@@ -81,9 +81,9 @@ class QuestMarkdown extends StatelessWidget {
       showMarkdown(context, Uri.decodeFull(link));
     } else if (href.startsWith('/zakon')) {
       final link = href.split('/')[1];
-      Routemaster.of(context).push(link);
+      openZakon(context, link);
     } else if (href.startsWith('zakon')) {
-      Routemaster.of(context).push(href);
+      openZakon(context, href);
     } else {
       // Ссылка на наш сайт открывается внутри приложения — этим занимается
       // navigateToUri, в браузер уходят только чужие адреса.
@@ -100,8 +100,6 @@ Future showMarkdown(BuildContext context, String link) async {
   final paragraph = o['paragraph'];
   final chlan = o['chlan'];
   final chapter = o['chapter'];
-
-  final uriPath = 'zakon?paragraph=$paragraph&chlan=$chlan&chapter=$chapter';
 
   final res = await showModalBottomSheet(
     context: context,
@@ -129,19 +127,40 @@ Future showMarkdown(BuildContext context, String link) async {
                 ),
               ),
               SizedBox(height: 16),
-              ListTile(
-                onTap: () {
-                  Routemaster.of(context).push(uriPath);
-                },
-                subtitle: Text(
-                  'Закон о безбедности саобраћаја на путевима, члан $chlan',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.secondary,
-                  ),
+              // Строка-ссылка на статью закона. ListTile разводил иконку и
+              // подпись по разным «этажам» (иконка по центру строки, текст —
+              // в слоте subtitle), поэтому здесь обычный Row: иконка и текст
+              // выровнены по своим базовым линиям.
+              InkWell(
+                onTap: () => openZakon(
+                  context,
+                  'zakon?paragraph=$paragraph&chlan=$chlan&chapter=$chapter',
                 ),
-                leading: Icon(
-                  Icons.info_outline_rounded,
-                  color: Theme.of(context).colorScheme.secondary,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Закон о безбедности саобраћаја на путевима, '
+                          'члан $chlan',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               SizedBox(height: 16),

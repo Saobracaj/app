@@ -16,7 +16,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   Future<int> insertAnswer(AnswerRecordsCompanion entry) => into(answerRecords).insert(entry);
 
@@ -94,6 +94,17 @@ class AppDatabase extends _$AppDatabase {
         // they happened, and guessing a time would make the group feed lie.
         if (from < 6) {
           await m.addColumn(subCategoryRecords, subCategoryRecords.occurredAt);
+        }
+        // v7: data cleanup only. Runs of the "mistakes" / question-list kind
+        // carry no block, but the run address used to interpolate a Dart
+        // `null` (`subcategory=null`) and every such run was recorded as a
+        // result for a block called "null" — visible in the statistics and,
+        // through sync, in the group feed. The rows never described a real
+        // block, so they go; the server drops the same rows on its side.
+        if (from < 7) {
+          await customStatement(
+            "DELETE FROM sub_category_records WHERE subcategory IN ('null', '')",
+          );
         }
       },
     );

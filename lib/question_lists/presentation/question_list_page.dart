@@ -16,6 +16,7 @@ import '../state_management/question_lists_events.dart';
 import '../state_management/question_lists_state.dart';
 import 'list_editor_dialog.dart';
 import 'question_lists_section.dart';
+import 'package:saobracaj/test/start_test.dart';
 
 /// A single question list: its questions plus a button that starts a test over
 /// all of them — the same shape as the History screen.
@@ -73,8 +74,7 @@ class QuestionListPage extends StatelessWidget {
                   ],
                 ),
                 actions: [
-                  if (!list.isAuto)
-                    _ListMenu(list: list, canEdit: canEdit),
+                  if (!list.isAuto) _ListMenu(list: list, canEdit: canEdit),
                 ],
               ),
               body: Column(
@@ -86,8 +86,9 @@ class QuestionListPage extends StatelessWidget {
                       child: OutlinedButton(
                         onPressed: questions.isEmpty
                             ? null
-                            : () => Routemaster.of(context).push(
-                                '/start?q=${questions.map((e) => e.id).join(',')}',
+                            : () => openStartTest(
+                                context,
+                                questions.map((e) => e.id).toList(),
                               ),
                         child: Text(LocaleKeys.questionLists_startAll.tr()),
                       ),
@@ -95,7 +96,9 @@ class QuestionListPage extends StatelessWidget {
                   ),
                   Expanded(
                     child: questions.isEmpty
-                        ? Center(child: Text(LocaleKeys.questionLists_empty.tr()))
+                        ? Center(
+                            child: Text(LocaleKeys.questionLists_empty.tr()),
+                          )
                         : editable
                         ? _EditableQuestions(list: list, questions: questions)
                         : _ReadOnlyQuestions(questions: questions),

@@ -20,52 +20,60 @@ import '../../support_chat/presentation/support_chat_page.dart';
 import '../../support_chat/presentation/support_threads_page.dart';
 import '../../test/about/about_page.dart';
 import '../../theme/presentation/appearance_page.dart';
+import '../domain/settings_section.dart';
 import '../state_management/auth/auth_bloc.dart';
 import '../state_management/auth/auth_events.dart';
 import '../state_management/auth/auth_state.dart';
-import '../state_management/settings_section/settings_section_bloc.dart';
-import '../state_management/settings_section/settings_section_events.dart';
-import '../state_management/settings_section/settings_section_state.dart';
 
-/// Один пункт меню настроек: раздел, его строка в списке и полноэкранный
-/// маршрут для телефонной раскладки.
+/// Один пункт меню настроек: раздел и его строка в списке.
 class _SettingsEntry {
   const _SettingsEntry({
     required this.section,
     required this.icon,
     required this.title,
     required this.subtitle,
-    required this.route,
   });
 
   final SettingsSection section;
   final IconData icon;
   final String title;
   final String subtitle;
-  final String route;
 }
 
 /// Settings menu (the "Settings" bottom-navigation tab, also reachable from the
 /// profile icon): account (login / logout) plus the settings sections.
 ///
-/// On phones every section opens as its own screen; on wide screens the menu
-/// stays on the left and the selected section's content is shown in the right
-/// pane (see [SettingsSectionBloc]).
+/// Раздел выбирается адресом ([SettingsSection.path]), а не внутренним
+/// состоянием экрана: на телефоне `/settings/appearance` — отдельный экран
+/// раздела, на широком экране — то же меню слева и раздел в правой панели.
+/// Поэтому нажатие на профиль в боковой колонке (`/settings/profile`) выглядит
+/// ровно так же, как выбор пункта «Профиль» в самом меню.
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+  const ProfilePage({super.key, this.section});
+
+  /// Открытый раздел; `null` — сам экран настроек (список пунктов на телефоне,
+  /// меню с карточкой аккаунта справа на широком экране).
+  final SettingsSection? section;
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, auth) {
+        final entries = _entries(context, auth);
+        // Адрес может называть раздел, которого у этого пользователя нет
+        // (ссылка на модерацию без прав, `/settings/notifications` после
+        // выхода) — тогда экран ведёт себя как обычные настройки.
+        final available = entries.map((e) => e.section).toSet();
+        final section = available.contains(this.section) ? this.section : null;
+
         // Широкий экран: слева — колонка разделов настроек, справа — панель
         // выбранного раздела (макет веб-версии).
         if (context.isExpandedScreen) {
-          return BlocProvider(
-            create: (_) => SettingsSectionBloc(),
-            child: _WideSettings(auth: auth, entries: _entries(context, auth)),
-          );
+          return _WideSettings(auth: auth, entries: entries, section: section);
         }
+
+        // Телефон: раздел — отдельный экран, как и раньше.
+        if (section != null) return _sectionScreen(section);
 
         return Scaffold(
           appBar: AppBar(title: Text(LocaleKeys.settings_title.tr())),
@@ -76,13 +84,14 @@ class ProfilePage extends StatelessWidget {
                   _SectionHeader(LocaleKeys.settings_account.tr()),
                   _accountTile(context, auth),
                   const Divider(height: 0),
-                  for (final entry in _entries(context, auth)) ...[
+                  for (final entry in entries) ...[
                     ListTile(
                       leading: Icon(entry.icon),
                       title: Text(entry.title),
                       subtitle: Text(entry.subtitle),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Routemaster.of(context).push(entry.route),
+                      onTap: () =>
+                          Routemaster.of(context).push(entry.section.path),
                     ),
                     const Divider(height: 0),
                   ],
@@ -95,6 +104,20 @@ class ProfilePage extends StatelessWidget {
       },
     );
   }
+
+  /// Полноэкранная версия раздела — те же экраны, что открываются по своим
+  /// собственным (историческим) адресам вроде `/appearance`.
+  Widget _sectionScreen(SettingsSection section) => switch (section) {
+    SettingsSection.profile => const DisplayNamePage(),
+    SettingsSection.appearance => const AppearancePage(),
+    SettingsSection.notifications => const NotificationsPage(),
+    SettingsSection.supportChat => const SupportChatPage(),
+    SettingsSection.supportThreads => const SupportThreadsPage(),
+    SettingsSection.moderation => const ModerationPage(),
+    SettingsSection.testPush => const TestPushPage(),
+    SettingsSection.features => const FeatureFlagsPage(),
+    SettingsSection.about => const AboutPage(),
+  };
 
   /// Строка аккаунта мобильного списка: кто вошёл (и выход) либо приглашение
   /// войти.
@@ -139,14 +162,12 @@ class ProfilePage extends StatelessWidget {
           icon: Icons.person_outline,
           title: 'settings.profile'.tr(),
           subtitle: 'settings.profileSubtitle'.tr(),
-          route: '/displayName',
         ),
       _SettingsEntry(
         section: SettingsSection.appearance,
         icon: Icons.palette_outlined,
         title: LocaleKeys.settings_appearance.tr(),
         subtitle: LocaleKeys.settings_appearanceSubtitle.tr(),
-        route: '/appearance',
       ),
       // Notifications only make sense for a signed-in account, so the
       // entry is hidden while signed out.
@@ -156,7 +177,6 @@ class ProfilePage extends StatelessWidget {
           icon: Icons.notifications_outlined,
           title: LocaleKeys.settings_notifications.tr(),
           subtitle: LocaleKeys.settings_notificationsSubtitle.tr(),
-          route: '/notifications',
         ),
       // The chat with the developers: signed-in only (the thread is
       // keyed by the account) and behind the `support_chat` flag,
@@ -170,7 +190,6 @@ class ProfilePage extends StatelessWidget {
           icon: Icons.support_agent_outlined,
           title: 'support.title'.tr(),
           subtitle: 'support.settingsSubtitle'.tr(),
-          route: '/support',
         ),
       // The list of обращения, gated on the backend
       // `moderate_support` permission, so only support staff see it.
@@ -180,7 +199,6 @@ class ProfilePage extends StatelessWidget {
           icon: Icons.inbox_outlined,
           title: 'support.threadsTitle'.tr(),
           subtitle: 'support.threadsSubtitle'.tr(),
-          route: '/support/threads',
         ),
       // Moderation is gated on the backend `moderate_comments`
       // permission, so the entry only appears for moderators.
@@ -190,7 +208,6 @@ class ProfilePage extends StatelessWidget {
           icon: Icons.shield_outlined,
           title: LocaleKeys.comments_moderation_title.tr(),
           subtitle: LocaleKeys.comments_moderation_subtitle.tr(),
-          route: '/moderation',
         ),
       // Инструмент администратора: тестовая отправка пуша по почте.
       // Гейт — бэкендовое право `send_test_push`, оно же проверяется
@@ -201,21 +218,18 @@ class ProfilePage extends StatelessWidget {
           icon: Icons.notifications_active_outlined,
           title: 'settings.testPush'.tr(),
           subtitle: 'settings.testPushSubtitle'.tr(),
-          route: '/testPush',
         ),
       _SettingsEntry(
         section: SettingsSection.features,
         icon: Icons.tune,
         title: 'settings.features'.tr(),
         subtitle: 'settings.featuresSubtitle'.tr(),
-        route: '/features',
       ),
       _SettingsEntry(
         section: SettingsSection.about,
         icon: Icons.info_outline_rounded,
         title: LocaleKeys.settings_about.tr(),
         subtitle: LocaleKeys.settings_aboutSubtitle.tr(),
-        route: '/about',
       ),
     ];
   }
@@ -246,10 +260,17 @@ class ProfilePage extends StatelessWidget {
 /// По задаче пункт меню не открывает отдельный экран — контент раздела
 /// подменяется прямо в правой панели.
 class _WideSettings extends StatelessWidget {
-  const _WideSettings({required this.auth, required this.entries});
+  const _WideSettings({
+    required this.auth,
+    required this.entries,
+    required this.section,
+  });
 
   final AuthState auth;
   final List<_SettingsEntry> entries;
+
+  /// Раздел из адреса; `null` — раздел не выбран, справа карточка аккаунта.
+  final SettingsSection? section;
 
   @override
   Widget build(BuildContext context) {
@@ -271,17 +292,11 @@ class _WideSettings extends StatelessWidget {
                 bottomSpacing: 24,
               ),
             Expanded(
-              child: BlocBuilder<SettingsSectionBloc, SettingsSectionState>(
-                builder: (context, sectionState) {
-                  // Выбранного раздела может уже не быть в меню (например,
-                  // после выхода из аккаунта) — тогда, как и до первого
-                  // выбора, справа показывается профиль/аккаунт.
-                  final available = entries.map((e) => e.section).toSet();
-                  final selected =
-                      sectionState.selected != null &&
-                          available.contains(sectionState.selected)
-                      ? sectionState.selected!
-                      : SettingsSection.profile;
+              // Раздела в адресе может не быть (`/settings`) — справа тогда,
+              // как и до первого выбора, карточка аккаунта/профиль.
+              child: Builder(
+                builder: (context) {
+                  final selected = section ?? SettingsSection.profile;
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -299,12 +314,9 @@ class _WideSettings extends StatelessWidget {
                                     title: Text(entry.title),
                                     trailing: const Icon(Icons.chevron_right),
                                     selected: entry.section == selected,
-                                    onTap: () =>
-                                        context.read<SettingsSectionBloc>().add(
-                                          SettingsSectionSelected(
-                                            entry.section,
-                                          ),
-                                        ),
+                                    onTap: () => Routemaster.of(
+                                      context,
+                                    ).push(entry.section.path),
                                   ),
                               ],
                             ),
