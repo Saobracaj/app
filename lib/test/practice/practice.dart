@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:saobracaj/core/keyboard_pagination.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
@@ -260,8 +261,27 @@ class _QuestionContent extends StatelessWidget {
             listener: (context, state) => showSelectionLimitFeedback(context, ExamStrings.answerLimitReached(rightAnswers)),
             builder: (context, state) {
               final bloc = context.read<PracticeContentBloc>();
+              final first = practiceState.currentQuestionIndex == 0;
 
-              return RadioGroup<Choice>(
+              // Клавиатура: ← / → работают как кнопки «претходно/следеће
+              // питање» экзаменационной оболочки — сохраняют выбор и
+              // переходят (при неверном числе ответов остаёмся с подсказкой,
+              // при неверном ответе с включённым показом — раскрываем
+              // верный); пробел = «прикажи одговор», если она вообще есть.
+              // Стрелки на самой радиокнопке (фокус с Tab) остаются за
+              // RadioGroup — он стоит ниже и перехватывает их первым.
+              return KeyboardPagination(
+                onPrevious: first
+                    ? null
+                    : () => _saveAndLoadNext(false, context, state, params),
+                onNext: last
+                    ? null
+                    : () => _saveAndLoadNext(true, context, state, params),
+                onShowAnswer:
+                    params.showRightAnswers && !state.showCorrectAnswers
+                    ? () => bloc.add(ShowCorrectAnswers())
+                    : null,
+                child: RadioGroup<Choice>(
                 groupValue: state.selectedChoices.firstOrNull,
                 onChanged: (value) {
                   if (value != null) bloc.add(AddChoice(value));
@@ -311,7 +331,7 @@ class _QuestionContent extends StatelessWidget {
 
                   SizedBox(height: 16),
                   if (params.buttonsLikeInExam) ...[
-                    if (practiceState.currentQuestionIndex != 0)
+                    if (!first)
                       Container(
                         width: 240,
                         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -398,6 +418,7 @@ class _QuestionContent extends StatelessWidget {
                       child: Text(ExamStrings.showAnswer),
                     ),
                 ],
+                ),
                 ),
               );
             },

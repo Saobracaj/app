@@ -1,12 +1,11 @@
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/models/models.dart';
 
-import '../state_management/quest_bloc.dart';
 import '../state_management/quest_content_bloc.dart';
+import 'quest_actions.dart';
 
 /// The pinned action bar of the question screen: "show answer" on the left,
 /// and on the right the back step-button next to the confirm-then-advance
@@ -15,6 +14,9 @@ import '../state_management/quest_content_bloc.dart';
 /// Going back is pure navigation — nothing is submitted or recorded — so it
 /// stays enabled even with a selection in progress. In a single-question run
 /// there is nowhere to step back to and the button disappears entirely.
+///
+/// The buttons only dispatch to [QuestActions] — the same object the keyboard
+/// shortcuts (← / → / space) call, so both inputs behave identically.
 class QuestBottomBar extends StatelessWidget {
   const QuestBottomBar({
     super.key,
@@ -38,6 +40,7 @@ class QuestBottomBar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return BlocBuilder<QuestContentBloc, QuesContentState>(
       builder: (context, state) {
+        final actions = QuestActions(context, question);
         return ColoredBox(
           color: inline ? Colors.transparent : scheme.surfaceContainerHigh,
           child: SafeArea(
@@ -52,9 +55,7 @@ class QuestBottomBar extends StatelessWidget {
                   TextButton(
                     onPressed: state.showCorrectAnswers
                         ? null
-                        : () => context.read<QuestContentBloc>().add(
-                            ShowCorrectAnswers(),
-                          ),
+                        : actions.showAnswer,
                     child: Text(LocaleKeys.quest_showAnswer.tr()),
                   ),
                   const Spacer(),
@@ -64,9 +65,7 @@ class QuestBottomBar extends StatelessWidget {
                       style: IconButton.styleFrom(
                         minimumSize: const Size(46, 46),
                       ),
-                      onPressed: first
-                          ? null
-                          : () => context.read<QuestBloc>().add(PrevQuestion()),
+                      onPressed: first ? null : actions.previous,
                       icon: const Icon(Icons.chevron_left),
                     ),
                     const SizedBox(width: 10),
@@ -76,8 +75,7 @@ class QuestBottomBar extends StatelessWidget {
                       minimumSize: const Size(64, 46),
                       shape: const StadiumBorder(),
                     ),
-                    onPressed: () =>
-                        last ? _finish(context, state) : _next(context, state),
+                    onPressed: last ? actions.finish : actions.next,
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -99,81 +97,6 @@ class QuestBottomBar extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-
-  void _next(BuildContext context, QuesContentState state) {
-    if (_submit(context, state)) {
-      context.read<QuestBloc>().add(NextQuestion());
-    }
-  }
-
-  Future<void> _finish(BuildContext context, QuesContentState state) async {
-    final questBloc = context.read<QuestBloc>();
-    if (!_submit(context, state)) return;
-    if (questBloc.state.answers.length != questBloc.state.questions.length) {
-      final confirmed = await _showFinishDialog(context);
-      if (confirmed != true) return;
-    }
-    questBloc.add(FinalizeTest());
-  }
-
-  /// Records the current selection and reports whether the flow may advance.
-  ///
-  /// Not revealed yet: an empty selection skips the question without recording
-  /// (deliberate — the only way back is the navigator sheet); a wrong-sized
-  /// selection blocks with a snackbar; otherwise the answer is recorded, and a
-  /// wrong one reveals the correct answers and stays on the question.
-  ///
-  /// Already revealed: advancing is always allowed, but if the user peeked
-  /// before any attempt was recorded, a selection made after the peek counts
-  /// as a wrong answer — and only once, so a normal wrong answer that was
-  /// recorded on the first press is not recorded again.
-  bool _submit(BuildContext context, QuesContentState state) {
-    final questBloc = context.read<QuestBloc>();
-    final correct = question.choices.where((c) => c.isCorrect).toSet();
-
-    if (!state.showCorrectAnswers) {
-      if (state.selectedChoices.isEmpty) return true;
-      if (correct.length != state.selectedChoices.length) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(LocaleKeys.quest_wrongAnswerCount.tr())),
-        );
-        return false;
-      }
-      questBloc.add(AddAnswer(question.id, state.selectedChoices));
-      if (!setEquals(state.selectedChoices, correct)) {
-        context.read<QuestContentBloc>().add(ShowCorrectAnswers());
-        return false;
-      }
-      return true;
-    }
-
-    if (state.selectedChoices.isNotEmpty &&
-        questBloc.state.answers[question.id] == null) {
-      questBloc.add(AddAnswer(question.id, {}));
-    }
-    return true;
-  }
-
-  Future<bool?> _showFinishDialog(BuildContext context) {
-    return showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text(LocaleKeys.quest_finalDialog_title.tr()),
-        content: Text(LocaleKeys.quest_finalDialog_content.tr()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(LocaleKeys.quest_finalDialog_cancelButton.tr()),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(LocaleKeys.quest_finalDialog_okButton.tr()),
-          ),
-        ],
-      ),
     );
   }
 }
