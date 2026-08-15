@@ -10,6 +10,7 @@ import 'package:saobracaj/questions/presentation/question_list_tile.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/test/quest/state_management/quest_bloc.dart';
 import 'package:saobracaj/theme/quiz_colors.dart';
+import 'package:saobracaj/test/start_test.dart';
 
 class FinalizeTestWidget extends StatelessWidget {
   const FinalizeTestWidget({super.key});
@@ -119,9 +120,8 @@ class FinalizeTestWidget extends StatelessWidget {
                             children: [
                               if (wrongNumber > 0) ...[
                                 FilledButton(
-                                  onPressed: () => Routemaster.of(
-                                    context,
-                                  ).push('/start?q=${wrongAnswers.join(',')}'),
+                                  onPressed: () =>
+                                      openStartTest(context, wrongAnswers),
                                   child: const Text('Работа над ошибками'),
                                 ),
                                 const SizedBox(width: 12),
@@ -200,9 +200,7 @@ class FinalizeTestWidget extends StatelessWidget {
                         padding: const EdgeInsets.all(16.0),
                         child: OutlinedButton(
                           onPressed: () {
-                            Routemaster.of(
-                              context,
-                            ).push('/start?q=${wrongAnswers.join(',')}');
+                            openStartTest(context, wrongAnswers);
                           },
                           child: Text('Пройти вопросы с ошибками заново'),
                         ),

@@ -88,20 +88,15 @@ class _Brand extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(10, 4, 10, 16),
       child: Row(
         children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              'S',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: theme.colorScheme.onPrimary,
-                fontWeight: FontWeight.w700,
-              ),
+          // Логотип — та же иконка, что у мобильных приложений и у favicon
+          // веб-версии (assets/img/app_icon.png), а не буква-заглушка.
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.asset(
+              'assets/img/app_icon.png',
+              width: 28,
+              height: 28,
+              filterQuality: FilterQuality.medium,
             ),
           ),
           const SizedBox(width: 10),
@@ -193,7 +188,7 @@ class _AccountBlock extends StatelessWidget {
             InkWell(
               onTap: () => Routemaster.of(
                 context,
-              ).push(auth.isAuthenticated ? '/profile' : '/login'),
+              ).push(auth.isAuthenticated ? '/settings/profile' : '/login'),
               borderRadius: BorderRadius.circular(12),
               child: Padding(
                 padding: const EdgeInsets.all(10),

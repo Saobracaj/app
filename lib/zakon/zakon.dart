@@ -13,11 +13,22 @@ import 'package:flutter/services.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 class Zakon extends StatefulWidget {
-  const Zakon({super.key, this.paragraph, this.chlan, this.chapter});
+  const Zakon({
+    super.key,
+    this.paragraph,
+    this.chlan,
+    this.chapter,
+    this.asPanel = false,
+  });
 
   final String? paragraph;
   final String? chlan;
   final String? chapter;
+
+  /// Закон показан выдвижной боковой панелью (см. `openZakon`), а не
+  /// страницей: шапку закрывает крестик, а не стрелка «назад», и заголовок
+  /// набран мельче — колонка панели уже экрана.
+  final bool asPanel;
 
   @override
   State<Zakon> createState() => _ZakonState();
@@ -35,7 +46,20 @@ class _ZakonState extends State<Zakon> {
           ZakonBloc(widget.paragraph, widget.chlan, widget.chapter),
       child: Scaffold(
         appBar: AppBar(
-          title: Text('ЗАКОН о безбедности саобраћаја на путевима'),
+          automaticallyImplyLeading: !widget.asPanel,
+          leading: widget.asPanel
+              ? IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
+                  onPressed: () => Navigator.of(context).pop(),
+                )
+              : null,
+          title: Text(
+            'ЗАКОН о безбедности саобраћаја на путевима',
+            style: widget.asPanel
+                ? Theme.of(context).textTheme.titleSmall
+                : null,
+          ),
           actions: [
             // Та же кнопка «РУ», что и на экране вопроса (вместо прежней
             // безликой иконки translate); isSr — сербский, т.е. перевод выкл.

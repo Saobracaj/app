@@ -34,7 +34,7 @@ class AuthButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: IconButton(
               tooltip: LocaleKeys.auth_profileTooltip.tr(),
-              onPressed: () => Routemaster.of(context).push('/profile'),
+              onPressed: () => Routemaster.of(context).push('/settings/profile'),
               icon: CircleAvatar(
                 radius: 16,
                 backgroundColor: Theme.of(context).colorScheme.primary,

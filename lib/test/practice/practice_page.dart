@@ -16,6 +16,7 @@ import 'package:saobracaj/test/practice/exam_strings.dart';
 import 'package:saobracaj/test/practice/widgets/quest_button.dart';
 import 'package:saobracaj/theme/exam_theme.dart';
 import 'package:saobracaj/theme/quiz_colors.dart';
+import 'package:saobracaj/test/start_test.dart';
 
 class PracticePage extends StatelessWidget {
   const PracticePage({super.key});
@@ -150,9 +151,7 @@ class PracticePage extends StatelessWidget {
                         onTap: record.wrongAnswers.isEmpty
                             ? null
                             : () {
-                                Routemaster.of(context).push(
-                                  '/start?q=${record.wrongAnswers.join(',')}',
-                                );
+                                openStartTest(context, record.wrongAnswers);
                               },
                       ),
                   ],
@@ -277,9 +276,7 @@ class _AttemptsTable extends StatelessWidget {
             // Разбор ошибок — там же, куда ведёт строка в мобильном списке.
             onTap: record.wrongAnswers.isEmpty
                 ? null
-                : () => Routemaster.of(
-                    context,
-                  ).push('/start?q=${record.wrongAnswers.join(',')}'),
+                : () => openStartTest(context, record.wrongAnswers),
             status: _StatusBadge(passed: record.points >= kMinPoints),
             points: Text('${record.points}', style: numeric),
             errors: Text('${record.mistakes}', style: numeric),

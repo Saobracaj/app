@@ -1,7 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/core/deep_links.dart';
 import 'package:saobracaj/core/navigation.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
@@ -10,6 +9,7 @@ import 'package:saobracaj/test/animations/animations_map.dart';
 import 'package:saobracaj/test/quest/presentation/quest_markdown.dart';
 import 'package:saobracaj/test/quest/preview/question_preview_sheet.dart';
 import 'package:saobracaj/util/nav_to_url.dart';
+import 'package:saobracaj/zakon/presentation/zakon_panel.dart';
 
 /// Markdown renderer for konspekt content. On top of the shared markdown
 /// styling it understands konspekt link schemes:
@@ -106,7 +106,7 @@ class KonspektMarkdown extends StatelessWidget {
       case 'zakon':
         // Relative: the law opens on top of whatever screen this text is on
         // (a konspekt, a question, the preview sheet), so "back" returns here.
-        Routemaster.of(context).push('zakon', queryParameters: uri.queryParameters);
+        openZakon(context, 'zakon', queryParameters: uri.queryParameters);
       default:
         navigateToUri(context, Uri.parse(href));
     }

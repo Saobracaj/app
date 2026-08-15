@@ -512,7 +512,9 @@ class _ComposerFieldState extends State<_ComposerField> {
       child: TextField(
         controller: _controller,
         onChanged: widget.onChanged,
-        minLines: 3,
+        // Поле начинается с одной строки и растёт под текст: пустое поле в три
+        // строки съедало половину переписки на веб-версии.
+        minLines: 1,
         maxLines: 8,
         textInputAction: TextInputAction.newline,
         keyboardType: TextInputType.multiline,

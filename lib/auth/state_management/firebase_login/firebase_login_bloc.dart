@@ -1,7 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fba;
 import 'package:firebase_ui_auth/firebase_ui_auth.dart' as fb_ui_auth;
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
@@ -190,16 +190,37 @@ class FirebaseLoginBloc extends Bloc<FirebaseLoginEvent, FirebaseLoginState> {
 
 /// Человекочитаемый текст ошибки соц-входа, либо `null`, если вход отменил сам
 /// пользователь (закрыл окно/попап) — такое сообщением показывать не нужно.
+///
+/// Код ошибки всегда уходит в консоль: разбирать «не удалось войти» по
+/// скриншоту невозможно, а половина web-поломок соц-входа — это настройка
+/// проекта Firebase (домен сайта не в списке authorized domains, провайдер не
+/// включён), которую видно только по коду.
 String? _errorMessage(Exception exception) {
   if (exception is fb_ui_auth.AuthCancelledException) return null;
   if (exception is! fba.FirebaseAuthException) {
+    debugPrint('social sign-in failed: $exception');
     return LocaleKeys.auth_errors_socialFailed.tr();
   }
   if (_cancellationCodes.contains(exception.code)) return null;
+  debugPrint(
+    'social sign-in failed: [${exception.code}] ${exception.message}',
+  );
   return switch (exception.code) {
     'account-exists-with-different-credential' =>
       LocaleKeys.auth_errors_socialAccountExists.tr(),
     'network-request-failed' => LocaleKeys.auth_errors_socialNetwork.tr(),
+    // Всплывающее окно заблокировано браузером — это чинит сам пользователь.
+    'popup-blocked' => LocaleKeys.auth_errors_socialPopupBlocked.tr(),
+    // Настройка проекта Firebase, а не что-то, что можно «попробовать ещё
+    // раз»: домен сайта не внесён в authorized domains, провайдер выключен,
+    // ключ не тот. Предлагаем рабочий обходной путь — вход по почте.
+    'unauthorized-domain' ||
+    'operation-not-allowed' ||
+    'operation-not-supported-in-this-environment' ||
+    'invalid-api-key' ||
+    'auth-domain-config-required' ||
+    'unauthorized-continue-uri' =>
+      LocaleKeys.auth_errors_socialUnavailable.tr(),
     _ => LocaleKeys.auth_errors_socialFailed.tr(),
   };
 }
