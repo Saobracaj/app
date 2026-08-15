@@ -144,11 +144,13 @@ class AppRouteInformationParser extends RoutemasterParser {
         RouteInformation(uri: Uri.parse(path)),
       );
     }
-    final state = routeInformation.state;
+    final state = normalizeHistoryState(routeInformation.state);
     if (state is Map && state[_sessionKey] != _session) {
       return super.parseRouteInformation(RouteInformation(uri: uri));
     }
-    return super.parseRouteInformation(routeInformation);
+    return super.parseRouteInformation(
+      RouteInformation(uri: uri, state: state),
+    );
   }
 
   @override
@@ -165,6 +167,39 @@ class AppRouteInformationParser extends RoutemasterParser {
   }
 
   static const _sessionKey = 'appSession';
+}
+
+/// Приводит состояние истории браузера к типам, которые ожидает routemaster.
+///
+/// Всё, что уходит в `history.pushState`, возвращается оттуда уже как
+/// JS-объект, и движок разбирает его обратно в Dart. В JS-сборке это проходит
+/// незаметно: там `Map<dynamic, dynamic>` подходит под `Map<String, dynamic>`,
+/// а int и double — вообще одно и то же. В wasm-сборке (`flutter build web
+/// --wasm`, ею собирается прод) типы настоящие: карта возвращается как
+/// `Map<Object?, Object?>`, а числа — как `double`. Жёсткие приведения внутри
+/// `RouteData.fromRouteInformation` (`as Map<String, dynamic>`,
+/// `as int?`) на этом падают с «Runtime type check failed», разбор адреса
+/// обрывается — и кнопки «назад/вперёд» перестают работать: адресная строка
+/// ходит по истории, а приложение остаётся на прежнем экране.
+///
+/// Именно поэтому поломка была только в Chrome: WasmGC поддерживают Chrome и
+/// Edge, а Firefox получает ту же сборку в JS-варианте, где приведения типов
+/// проходят.
+Object? normalizeHistoryState(Object? state) {
+  if (state is Map) {
+    return <String, dynamic>{
+      for (final entry in state.entries)
+        '${entry.key}': normalizeHistoryState(entry.value),
+    };
+  }
+  if (state is List) {
+    return [for (final value in state) normalizeHistoryState(value)];
+  }
+  // Целые числа возвращаются из истории как double — routemaster ждёт int.
+  if (state is double && state.isFinite && state == state.roundToDouble()) {
+    return state.toInt();
+  }
+  return state;
 }
 
 class MyApp extends StatefulWidget {
