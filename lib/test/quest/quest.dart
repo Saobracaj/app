@@ -5,8 +5,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
+import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
+import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/question_lists/state_management/question_lists_bloc.dart';
@@ -27,6 +29,9 @@ import 'presentation/question_image_card.dart';
 import 'presentation/question_pagination.dart';
 import 'presentation/question_progress_strip.dart';
 import 'question_features/presentation/question_features_tabs.dart';
+import 'question_features/state_management/question_cues_bloc.dart';
+import 'question_features/state_management/question_cues_events.dart';
+import 'question_features/state_management/question_cues_state.dart';
 
 class Quest extends StatelessWidget {
   const Quest({
@@ -405,99 +410,150 @@ class QuestionContent extends StatelessWidget {
         .where((element) => element.isCorrect)
         .length;
 
-    return BlocBuilder<TranslationsBloc, TranslationsState>(
-      builder: (context, translationState) {
-        final showTranslation = translationState.showTranslation;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // The header (image + statement) deliberately sits outside the
-            // QuestContentBloc builder: markdown parsing is not free, and the
-            // statement does not change when a choice is tapped.
-            if (question.hasImage) ...[
-              QuestionImageCard(imageId: question.imageId),
-              SizedBox(height: 14),
-            ],
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  QuestMarkdown(
-                    text: question.text.trim().dict,
-                    pStyle: theme.textTheme.titleMedium,
-                  ),
-                  if (showTranslation && question.translation != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(
-                        question.translation!,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.6,
+    return BlocProvider(
+      // Lazy: built (and the asset read) only once a highlight is actually
+      // asked for — i.e. after the reveal, and only for users who have the
+      // analysis tab.
+      create: (_) =>
+          getIt<QuestionCuesBloc>(param1: question.id)
+            ..add(QuestionCuesRequested()),
+      child: BlocBuilder<TranslationsBloc, TranslationsState>(
+        builder: (context, translationState) {
+          final showTranslation = translationState.showTranslation;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // The header (image + statement) deliberately sits outside the
+              // QuestContentBloc builder: markdown parsing is not free, and the
+              // statement does not change when a choice is tapped.
+              if (question.hasImage) ...[
+                QuestionImageCard(imageId: question.imageId),
+                SizedBox(height: 14),
+              ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _WithCues(
+                      builder: (context, cues) => QuestMarkdown(
+                        text: question.text.trim().dict,
+                        highlights: cues.questionHighlights,
+                        pStyle: theme.textTheme.titleMedium,
+                      ),
+                    ),
+                    if (showTranslation && question.translation != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          question.translation!,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurface.withValues(
+                              alpha: 0.6,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
-              ),
-            ),
-            SizedBox(height: 10),
-            BlocConsumer<QuestContentBloc, QuesContentState>(
-              // Тап сверх лимита ничего не выбирает — вместо этого подсказка
-              // с вибрацией, чтобы отказ не выглядел «залипанием» интерфейса.
-              listenWhen: (prev, curr) => prev.limitHits != curr.limitHits,
-              listener: (context, state) => showSelectionLimitFeedback(
-                context,
-                LocaleKeys.quest_answerLimitReached.plural(rightAnswers),
-              ),
-              builder: (context, state) {
-                final bloc = context.read<QuestContentBloc>();
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (rightAnswers > 1) ...[
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: ShakeOnTrigger(
-                          trigger: state.limitHits,
-                          child: _RequiredAnswersChip(count: rightAnswers),
-                        ),
-                      ),
-                      SizedBox(height: 12),
-                    ],
-                    for (var c in question.choices)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                        child: AnswerOptionCard(
-                          choice: c,
-                          selected: state.selectedChoices.contains(c),
-                          revealed: state.showCorrectAnswers,
-                          showTranslation: showTranslation,
-                          onTap: state.showCorrectAnswers
-                              ? null
-                              : () => bloc.add(AddChoice(c)),
-                        ),
-                      ),
-                    if (state.showCorrectAnswers && showFeatureTabs)
-                      QuestionFeaturesTabs(
-                        questionId: question.id,
-                        categoryId: question.categoryId,
-                        initialFeature: openComments
-                            ? AppFeature.publicQuestionComments
-                            : null,
-                        commentThreadId: openComments ? commentThreadId : null,
-                        autoScroll: openComments,
-                      ),
                   ],
-                );
-              },
-            ),
-            SizedBox(height: 24),
-          ],
-        );
-      },
+                ),
+              ),
+              SizedBox(height: 10),
+              BlocConsumer<QuestContentBloc, QuesContentState>(
+                // Тап сверх лимита ничего не выбирает — вместо этого подсказка
+                // с вибрацией, чтобы отказ не выглядел «залипанием» интерфейса.
+                listenWhen: (prev, curr) => prev.limitHits != curr.limitHits,
+                listener: (context, state) => showSelectionLimitFeedback(
+                  context,
+                  LocaleKeys.quest_answerLimitReached.plural(rightAnswers),
+                ),
+                builder: (context, state) {
+                  final bloc = context.read<QuestContentBloc>();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (rightAnswers > 1) ...[
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: ShakeOnTrigger(
+                            trigger: state.limitHits,
+                            child: _RequiredAnswersChip(count: rightAnswers),
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                      ],
+                      _WithCues(
+                        builder: (context, cues) => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            for (var c in question.choices)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  0,
+                                  16,
+                                  8,
+                                ),
+                                child: AnswerOptionCard(
+                                  choice: c,
+                                  selected: state.selectedChoices.contains(c),
+                                  revealed: state.showCorrectAnswers,
+                                  showTranslation: showTranslation,
+                                  highlights: cues.optionHighlights,
+                                  onTap: state.showCorrectAnswers
+                                      ? null
+                                      : () => bloc.add(AddChoice(c)),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (state.showCorrectAnswers && showFeatureTabs)
+                        QuestionFeaturesTabs(
+                          questionId: question.id,
+                          categoryId: question.categoryId,
+                          initialFeature: openComments
+                              ? AppFeature.publicQuestionComments
+                              : null,
+                          commentThreadId: openComments
+                              ? commentThreadId
+                              : null,
+                          autoScroll: openComments,
+                        ),
+                    ],
+                  );
+                },
+              ),
+              SizedBox(height: 24),
+            ],
+          );
+        },
+      ),
     );
+  }
+}
+
+/// Resolves the key-phrase highlights for the question text and the answer
+/// cards: the cues of the analysis tab, but only once the answers are revealed
+/// (the tabs are on screen, so the tab explaining the highlights is a tap
+/// away) and only for users who have that tab at all. Until then — and for
+/// everybody else — the builder gets an empty state and nothing is marked.
+class _WithCues extends StatelessWidget {
+  const _WithCues({required this.builder});
+
+  final Widget Function(BuildContext context, QuestionCuesState cues) builder;
+
+  @override
+  Widget build(BuildContext context) {
+    final active =
+        context.select(
+          (FeatureFlagsBloc bloc) =>
+              bloc.state.isEnabled(AppFeature.questionAnalysis),
+        ) &&
+        context.select(
+          (QuestContentBloc bloc) => bloc.state.showCorrectAnswers,
+        );
+    if (!active) return builder(context, const QuestionCuesState());
+    return BlocBuilder<QuestionCuesBloc, QuestionCuesState>(builder: builder);
   }
 }
 

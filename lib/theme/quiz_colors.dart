@@ -39,6 +39,7 @@ class QuizColors extends ThemeExtension<QuizColors> {
     required this.onInfoContainer,
     required this.unanswered,
     required this.onUnanswered,
+    required this.highlight,
   });
 
   /// A correct answer: the emphatic colour (indicator dots, chart bars).
@@ -72,6 +73,11 @@ class QuizColors extends ThemeExtension<QuizColors> {
   /// recedes behind the answered ones.
   final Color unanswered;
   final Color onUnanswered;
+
+  /// A highlighter stroke behind key phrases in the question and answer texts
+  /// (the "Анализа" cues). Translucent, so it works on top of a correct (green)
+  /// or wrong (red) answer card as well as on the plain surface.
+  final Color highlight;
 
   /// Reference hues. Chosen to stay distinguishable after harmonisation with an
   /// arbitrary accent; they are seeds, not the rendered colours.
@@ -114,6 +120,12 @@ class QuizColors extends ThemeExtension<QuizColors> {
       // surrounding surface.
       unanswered: scheme.surfaceContainerHighest,
       onUnanswered: scheme.onSurfaceVariant,
+      // Pale amber in the light theme, like a marker pen; in the dark theme
+      // the light container tone would glare, so the amber accent is laid on
+      // thinly instead.
+      highlight: brightness == Brightness.light
+          ? warning.primaryContainer.withValues(alpha: 0.9)
+          : warning.primary.withValues(alpha: 0.35),
     );
   }
 
@@ -137,6 +149,7 @@ class QuizColors extends ThemeExtension<QuizColors> {
     Color? onInfoContainer,
     Color? unanswered,
     Color? onUnanswered,
+    Color? highlight,
   }) {
     return QuizColors(
       correct: correct ?? this.correct,
@@ -157,6 +170,7 @@ class QuizColors extends ThemeExtension<QuizColors> {
       onInfoContainer: onInfoContainer ?? this.onInfoContainer,
       unanswered: unanswered ?? this.unanswered,
       onUnanswered: onUnanswered ?? this.onUnanswered,
+      highlight: highlight ?? this.highlight,
     );
   }
 
@@ -183,6 +197,7 @@ class QuizColors extends ThemeExtension<QuizColors> {
       onInfoContainer: c(onInfoContainer, other.onInfoContainer),
       unanswered: c(unanswered, other.unanswered),
       onUnanswered: c(onUnanswered, other.onUnanswered),
+      highlight: c(highlight, other.highlight),
     );
   }
 }

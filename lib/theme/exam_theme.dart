@@ -112,6 +112,9 @@ ThemeData _buildExamTheme() {
         onInfoContainer: Colors.white,
         unanswered: ExamPalette.unanswered,
         onUnanswered: ExamPalette.onSurface,
+        // The exam simulation has no analysis cues, but the role must exist;
+        // a marker-pen yellow, should it ever be drawn.
+        highlight: Color(0x66FFEB3B),
       ),
     ],
   );

@@ -151,20 +151,52 @@ void main() {
     await tester.pump();
   }
 
-  testWidgets('shows the value, the probability and its pool', (tester) async {
+  testWidgets('the three figures are graded, not quoted', (tester) async {
     // qId 7921 is in category 25: one of 109 questions sharing a single slot,
-    // worth 1 point — see tool/question_analytics.py.
+    // worth 1 point — see tool/question_analytics.py. Both its value and its
+    // chance are far below the average question.
     await show(tester, wrap(7921));
 
-    expect(find.text('Вредност питања'), findsOneWidget);
+    expect(find.text('Вредност'), findsOneWidget);
+    expect(find.text('Шанса на испиту'), findsOneWidget);
+    expect(find.text('Тежина'), findsOneWidget);
+    // Value: low; chance: low. Words, not numbers.
+    expect(find.text('Ниска'), findsNWidgets(2));
+    expect(find.text('0.9%'), findsNothing);
+    expect(find.textContaining('109'), findsNothing);
+  });
+
+  testWidgets('tapping a figure opens the number and the method behind it', (
+    tester,
+  ) async {
+    await show(tester, wrap(7921));
+
+    await tester.tap(find.text('Шанса на испиту'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsOneWidget);
     expect(find.text('Вероватноћа на испиту'), findsOneWidget);
-    // 1 of 109 → 0.9%, i.e. one exam in 109.
-    expect(find.text('0.9%'), findsOneWidget);
+    // 1 of 109 → 0.9%, i.e. one exam in 109, and the pool it is drawn from.
     expect(
-      find.textContaining('109', findRichText: true),
-      findsWidgets,
-      reason: 'the pool the question is drawn from must be stated',
+      find.textContaining('Вероватноћа 0.9%: приближно један испит од 109.'),
+      findsOneWidget,
     );
+    expect(find.textContaining('групи од 109 питања'), findsOneWidget);
+    expect(find.textContaining('узорку од 699'), findsOneWidget);
+
+    await tester.tap(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextButton),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(AlertDialog), findsNothing);
+
+    await tester.tap(find.text('Вредност'));
+    await tester.pumpAndSettle();
+    expect(find.text('Вредност питања'), findsOneWidget);
+    expect(find.textContaining('од 98.12 поена испита'), findsOneWidget);
+    expect(find.textContaining('699 званичних'), findsOneWidget);
   });
 
   testWidgets('a question the exam never draws is called out', (tester) async {
@@ -173,10 +205,10 @@ void main() {
     await show(tester, wrap(qId));
 
     expect(find.text('Не појављује се'), findsOneWidget);
-    expect(find.text('0%'), findsOneWidget);
+    expect(find.text('Никад'), findsOneWidget);
   });
 
-  testWidgets('difficulty is rendered with the evidence under it', (
+  testWidgets('difficulty is graded with the evidence behind a tap', (
     tester,
   ) async {
     difficulty.answer = const QuestionDifficulty(
@@ -189,13 +221,18 @@ void main() {
     );
     await show(tester, wrap(7921));
 
-    expect(find.text('60% грешака'), findsOneWidget);
-    expect(find.text('Теже од просека базе (30%)'), findsOneWidget);
-    // The sample size is evidence, not headline: it lives behind the "?".
+    // 60% wrong against a 30% baseline: hard. The number is not on the tab.
+    expect(find.text('Висока'), findsOneWidget);
+    expect(find.textContaining('60%'), findsNothing);
     expect(find.textContaining('Одговора: 500'), findsNothing);
-    await tester.tap(find.byTooltip('Више').at(2));
+
+    await tester.tap(find.text('Тежина'));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
+    expect(
+      find.textContaining('60% грешака. Теже од просека базе (30%).'),
+      findsOneWidget,
+    );
     expect(
       find.textContaining('Одговора: 500, корисника: 120'),
       findsOneWidget,
@@ -215,40 +252,28 @@ void main() {
     );
     await show(tester, wrap(7921));
 
+    expect(find.text('Средња'), findsOneWidget);
+    await tester.tap(find.text('Тежина'));
+    await tester.pumpAndSettle();
     expect(
-      find.text('Података је још мало, процена је приближена просеку.'),
+      find.textContaining(
+        'Података је још мало, процена је приближена просеку.',
+      ),
       findsOneWidget,
     );
   });
 
-  testWidgets('the method behind each block sits behind a "?" button', (
-    tester,
-  ) async {
+  testWidgets('only the key phrases keep a "?" button', (tester) async {
     await show(tester, wrap(7921));
 
-    // Value, probability, key phrases — the difficulty block has no data in
-    // this test and therefore nothing to explain.
-    expect(find.byTooltip('Више'), findsNWidgets(3));
-    // The pool the question is drawn from is not on the tab itself…
-    expect(find.textContaining('групи од 109'), findsNothing);
-
-    // …but one tap away.
-    await tester.tap(find.byTooltip('Више').at(1));
+    // The three figures explain themselves on tap; the phrase list is the one
+    // block whose method still sits behind a "?".
+    expect(find.byTooltip('Више'), findsOneWidget);
+    await tester.tap(find.byTooltip('Више'));
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
-    expect(find.text('Вероватноћа на испиту'), findsNWidgets(2));
-    expect(find.textContaining('групи од 109 питања'), findsOneWidget);
-    expect(find.textContaining('699 званичних'), findsNothing);
-    expect(find.textContaining('узорку од 699'), findsOneWidget);
-
-    await tester.tap(
-      find.descendant(
-        of: find.byType(AlertDialog),
-        matching: find.byType(TextButton),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.byType(AlertDialog), findsNothing);
+    expect(find.text('Кључне фразе'), findsNWidgets(2));
+    expect(find.textContaining('целој бази од 1701 питања'), findsOneWidget);
   });
 
   testWidgets('a whole answer that is always correct is called out', (
@@ -259,11 +284,13 @@ void main() {
     await show(tester, wrap(7921));
 
     expect(find.text('Кључне фразе'), findsOneWidget);
-    expect(find.text('Одговор 3'), findsOneWidget);
+    // The options are shuffled on screen, so the cue quotes the answer in
+    // full instead of pointing at "option 3".
+    expect(find.textContaining('Одговор 3'), findsNothing);
     expect(
       find.text(
-        'Овај одговор у целини је увек тачан: тако је у свих 4 питања у бази '
-        'у којима се јавља.',
+        '„униформисани полицијски службеници“ — овај одговор у целини је увек '
+        'тачан: тако је у свих 4 питања у бази у којима се јавља.',
       ),
       findsOneWidget,
     );
@@ -280,7 +307,10 @@ void main() {
     await show(tester, wrap(8354));
 
     expect(
-      find.textContaining('Ако питање садржи „паркира“, овај одговор је тачан'),
+      find.textContaining(
+        'Ако питање садржи „паркира“, одговор „новчаном казном од 5 000 '
+        'динара“ је тачан',
+      ),
       findsOneWidget,
     );
     expect(
@@ -299,7 +329,10 @@ void main() {
 
     expect(find.text('Ключевые фразы'), findsOneWidget);
     expect(
-      find.textContaining('Если в вопросе есть «паркира», этот ответ верный'),
+      find.textContaining(
+        'Если в вопросе есть «паркира», ответ «новчаном казном од 5 000 '
+        'динара» верный',
+      ),
       findsOneWidget,
     );
     expect(
@@ -325,7 +358,10 @@ void main() {
   ) async {
     await show(tester, wrap(7921, authenticated: false));
 
-    expect(find.text('Вредност питања'), findsOneWidget);
+    expect(find.text('Вредност'), findsOneWidget);
+    expect(find.text('Пријавите се'), findsOneWidget);
+    await tester.tap(find.text('Тежина'));
+    await tester.pumpAndSettle();
     expect(
       find.text(
         'Пријавите се да видите колико често други греше на овом питању.',
@@ -340,7 +376,10 @@ void main() {
     difficulty.fail = true;
     await show(tester, wrap(7921));
 
-    expect(find.text('Вредност питања'), findsOneWidget);
+    expect(find.text('Вредност'), findsOneWidget);
+    expect(find.text('Грешка'), findsOneWidget);
+    await tester.tap(find.text('Тежина'));
+    await tester.pumpAndSettle();
     expect(find.text('Није могуће преузети податке о тежини.'), findsOneWidget);
   });
 }
