@@ -34,6 +34,32 @@ extension ResponsiveContext on BuildContext {
   bool get isLargeScreen => _width >= Breakpoints.large;
 }
 
+/// Горизонтальные поля, центрирующие содержимое скроллируемого в [maxWidth],
+/// не сужая сам скроллируемый.
+///
+/// Альтернатива [ReadableWidth] там, где важно поведение прокрутки: [ReadableWidth]
+/// сужает сам список, поэтому и полоса прокрутки, и колесо мыши работают только
+/// внутри узкой колонки — полоса оказывается посреди экрана, а над полями
+/// страница не крутится. Если вместо этого оставить список во всю ширину и
+/// раздать поля через `padding`, полоса встаёт у края окна, а колесо работает в
+/// любом месте страницы.
+///
+/// Цена — та самая, о которой предупреждает [ReadableWidth]: элементы больше не
+/// знают полной ширины списка, так что разделители и подсветка нажатия
+/// заканчиваются по краю содержимого, а не окна. Для экранов из карточек это
+/// незаметно, для длинных списков со `Divider` — нет.
+EdgeInsets readableInsets(
+  BuildContext context, {
+  double maxWidth = kReadableContentWidth,
+  double horizontal = 16,
+  double top = 0,
+  double bottom = 0,
+}) {
+  final free = (MediaQuery.sizeOf(context).width - maxWidth) / 2;
+  final gutter = free > horizontal ? free : horizontal;
+  return EdgeInsets.fromLTRB(gutter, top, gutter, bottom);
+}
+
 /// Centers [child] inside [maxWidth] once the screen is wider than that, and
 /// is a no-op on phones — the standard wrapper that keeps full-width phone
 /// scrollables from stretching edge-to-edge on tablets and web.
@@ -41,6 +67,9 @@ extension ResponsiveContext on BuildContext {
 /// Wrap the *scrollable* (ListView and the like), not its items — item-level
 /// wrapping breaks ink splashes and separators that expect the list's full
 /// width. The side gutters this leaves are plain Scaffold background.
+///
+/// Если полоса прокрутки должна идти по краю окна, а не по краю колонки,
+/// используйте [readableInsets] вместо этого виджета.
 class ReadableWidth extends StatelessWidget {
   const ReadableWidth({
     super.key,

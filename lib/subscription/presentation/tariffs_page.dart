@@ -51,28 +51,33 @@ class TariffsPage extends StatelessWidget {
                 ),
               );
             }
-            return ReadableWidth(
-              maxWidth: 900,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                children: [
-                  // Уже созданный заказ — сверху: человек вернулся доплатить,
-                  // а не выбрать второй тариф.
-                  if (state.pendingOrder != null) ...[
-                    PendingOrderCard(order: state.pendingOrder!),
-                    const SizedBox(height: 16),
-                  ],
-                  const _OneTimeNote(),
-                  const SizedBox(height: 16),
-                  _TermRow(state: state),
-                  const SizedBox(height: 12),
-                  _RussianAddon(state: state),
-                  const SizedBox(height: 28),
-                  const PlanFeaturesComparison(),
-                  const SizedBox(height: 16),
-                  const _FreeTierCard(),
-                ],
+            // Список во всю ширину, поля — в его padding: полоса прокрутки
+            // тогда идёт по краю окна, а не посреди экрана, и колесо мыши
+            // работает над любой точкой страницы, а не только над колонкой.
+            return ListView(
+              padding: readableInsets(
+                context,
+                maxWidth: 900,
+                top: 16,
+                bottom: 32,
               ),
+              children: [
+                // Уже созданный заказ — сверху: человек вернулся доплатить,
+                // а не выбрать второй тариф.
+                if (state.pendingOrder != null) ...[
+                  PendingOrderCard(order: state.pendingOrder!),
+                  const SizedBox(height: 16),
+                ],
+                const _OneTimeNote(),
+                const SizedBox(height: 16),
+                _TermRow(state: state),
+                const SizedBox(height: 12),
+                _RussianAddon(state: state),
+                const SizedBox(height: 28),
+                const PlanFeaturesComparison(),
+                const SizedBox(height: 16),
+                const _FreeTierCard(),
+              ],
             );
           },
         ),

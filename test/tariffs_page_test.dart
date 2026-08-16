@@ -268,6 +268,23 @@ void main() {
     }
   }
 
+  testWidgets('на широком экране крутится вся страница, а не колонка', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1600, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap(russianContent: false));
+    await tester.pumpAndSettle();
+
+    // Список во всю ширину окна: полоса прокрутки у правого края, колесо мыши
+    // работает и над боковыми полями.
+    expect(tester.getSize(find.byType(ListView)).width, 1600);
+    // Содержимое при этом не растянуто — поля отданы в padding.
+    expect(tester.getSize(find.byType(Table)).width, lessThanOrEqualTo(900));
+  });
+
   testWidgets('таблица объясняет разницу объёмом, а не галочками', (
     tester,
   ) async {
