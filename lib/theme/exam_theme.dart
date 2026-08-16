@@ -46,6 +46,10 @@ abstract final class ExamPalette {
   /// Neutral borders and an unanswered question in the report table.
   static const Color outline = Color(0xFF9E9E9E);
   static const Color unanswered = Color(0xFFEEEEEE);
+
+  /// The light-grey strip along the bottom of the page that carries the
+  /// buttons on a wide screen.
+  static const Color actionBar = Color(0xFFF5F5F5);
 }
 
 /// The theme applied to the exam simulation while "buttons like in the exam" is

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saobracaj/core/keyboard_pagination.dart';
+import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
@@ -32,10 +33,17 @@ class Practice extends StatelessWidget {
     return BlocBuilder<AllQuestionsBloc, AllQuestionsBlocState>(
       builder: (context, state) {
         return BlocProvider(
-          create: (context) => PracticeBloc(state.questionsData!, params)..add(Init()),
+          create: (context) =>
+              PracticeBloc(state.questionsData!, params)..add(Init()),
           child: BlocConsumer<PracticeBloc, PracticeState>(
-            listener: (context, state) => _scrollController.jumpTo(0),
-            listenWhen: (previous, current) => previous.currentQuestionIndex != current.currentQuestionIndex,
+            // The scroll view is recreated together with the question's
+            // content (it sits under the per-question key), so the controller
+            // may momentarily have no position to jump.
+            listener: (context, state) {
+              if (_scrollController.hasClients) _scrollController.jumpTo(0);
+            },
+            listenWhen: (previous, current) =>
+                previous.currentQuestionIndex != current.currentQuestionIndex,
             builder: (context, state) {
               final questBloc = context.read<PracticeBloc>();
               if (state.finalizeTest) {
@@ -92,9 +100,14 @@ class Practice extends StatelessWidget {
                     state.currentQuestionIndex,
                   ),
                   onChanged: (value) {
-                    questBloc.add(ToggleMarkQuestion(state.currentQuestionIndex));
+                    questBloc.add(
+                      ToggleMarkQuestion(state.currentQuestionIndex),
+                    );
                   },
                   label: ExamStrings.markQuestion,
+                  // Room for the whole caption once the header is not
+                  // squeezed between the two chips on a phone.
+                  width: context.isExpandedScreen ? 220 : 150,
                 ),
                 _HeaderChip(
                   // The countdown is the one element the real software renders
@@ -125,18 +138,15 @@ class Practice extends StatelessWidget {
       ),
       body: state.currentQuestion == null
           ? SizedBox()
-          : SingleChildScrollView(
-              controller: _scrollController,
-              child: _QuestionContent(
-                key: ValueKey(state.currentQuestion),
-                randomOptions: true,
-                question: state.currentQuestion!,
-                answers: state.currentAnswers,
-                last:
-                    state.currentQuestionIndex == state.questions.length - 1,
-                showPreviousTries: params.showStats,
-                params: params,
-              ),
+          : _QuestionContent(
+              key: ValueKey(state.currentQuestion),
+              randomOptions: true,
+              question: state.currentQuestion!,
+              answers: state.currentAnswers,
+              last: state.currentQuestionIndex == state.questions.length - 1,
+              showPreviousTries: params.showStats,
+              params: params,
+              scrollController: _scrollController,
             ),
       bottomNavigationBar: params.buttonsLikeInExam
           ? null
@@ -233,6 +243,7 @@ class _QuestionContent extends StatelessWidget {
     required this.last,
     required this.showPreviousTries,
     required this.params,
+    required this.scrollController,
   });
 
   final bool randomOptions;
@@ -241,24 +252,32 @@ class _QuestionContent extends StatelessWidget {
   final bool last;
   final bool showPreviousTries;
   final PracticeParams params;
+  final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context) {
-    final rightAnswers = question.choices.where((element) => element.isCorrect).length;
+    final rightAnswers = question.choices
+        .where((element) => element.isCorrect)
+        .length;
     final quiz = Theme.of(context).quiz;
     final questBloc = context.read<PracticeBloc>();
     var choices = [...question.choices];
 
     return BlocProvider(
       key: ValueKey(question.id),
-      create: (context) => PracticeContentBloc(choices.toSet(), answers ?? {}, question.id),
+      create: (context) =>
+          PracticeContentBloc(choices.toSet(), answers ?? {}, question.id),
       child: BlocBuilder<PracticeBloc, PracticeState>(
         builder: (context, practiceState) {
           return BlocConsumer<PracticeContentBloc, PracticeContentState>(
             // Лишний тап не выбирается — вместо молчаливого отказа даём
             // вибрацию и подсказку с нужным количеством ответов.
-            listenWhen: (previous, current) => previous.limitHits != current.limitHits,
-            listener: (context, state) => showSelectionLimitFeedback(context, ExamStrings.answerLimitReached(rightAnswers)),
+            listenWhen: (previous, current) =>
+                previous.limitHits != current.limitHits,
+            listener: (context, state) => showSelectionLimitFeedback(
+              context,
+              ExamStrings.answerLimitReached(rightAnswers),
+            ),
             builder: (context, state) {
               final bloc = context.read<PracticeContentBloc>();
               final first = practiceState.currentQuestionIndex == 0;
@@ -270,26 +289,44 @@ class _QuestionContent extends StatelessWidget {
               // верный); пробел = «прикажи одговор», если она вообще есть.
               // Стрелки на самой радиокнопке (фокус с Tab) остаются за
               // RadioGroup — он стоит ниже и перехватывает их первым.
-              return KeyboardPagination(
-                onPrevious: first
+              // The actions of the exam replica; which of them exist depends
+              // on the position in the run and on the training options.
+              final examActions = _ExamActions(
+                previous: first
                     ? null
                     : () => _saveAndLoadNext(false, context, state, params),
-                onNext: last
+                next: last
                     ? null
                     : () => _saveAndLoadNext(true, context, state, params),
-                onShowAnswer:
-                    params.showRightAnswers && !state.showCorrectAnswers
+                endExam: () async =>
+                    await _finalizeTest(context, state, params),
+                report: () async {
+                  final res = await _showTable(context, questBloc.state);
+                  if (res != null) {
+                    questBloc.add(NavigateToQuestion(res));
+                  }
+                },
+                showAnswer: params.showRightAnswers
                     ? () => bloc.add(ShowCorrectAnswers())
                     : null,
-                child: RadioGroup<Choice>(
-                groupValue: state.selectedChoices.firstOrNull,
-                onChanged: (value) {
-                  if (value != null) bloc.add(AddChoice(value));
-                },
-                child: Column(
+              );
+              // On a wide screen the replica follows the real software's
+              // layout: the question fills the page from the left and the
+              // buttons sit in a bar pinned to the bottom of the window —
+              // navigation on the left, "show the answer" in the middle,
+              // the report and the end of the exam on the right. On phones
+              // the buttons stay stacked under the answers, where a thumb
+              // reaches them.
+              final wideExam =
+                  params.buttonsLikeInExam && context.isExpandedScreen;
+
+              final content = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (showPreviousTries) ...[QuestionTries(question.id), SizedBox(height: 16)],
+                  if (showPreviousTries) ...[
+                    QuestionTries(question.id),
+                    SizedBox(height: 16),
+                  ],
                   // Текст вопроса и вариантов можно выделить и скопировать
                   // (долгий тап / протяжка мышью); тап по варианту по-прежнему
                   // выбирает его — SelectionArea не перехватывает обычные тапы.
@@ -300,10 +337,18 @@ class _QuestionContent extends StatelessWidget {
                         ListTile(title: Text(question.text.trim())),
                         if (question.hasImage)
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                            ),
                             child: ConstrainedBox(
-                              constraints: BoxConstraints(minHeight: 200, maxHeight: 600, maxWidth: 600),
-                              child: Image.asset('assets/img/${question.imageId}.jpeg'),
+                              constraints: BoxConstraints(
+                                minHeight: 200,
+                                maxHeight: 600,
+                                maxWidth: 600,
+                              ),
+                              child: Image.asset(
+                                'assets/img/${question.imageId}.jpeg',
+                              ),
                             ),
                           ),
                         if (rightAnswers > 1)
@@ -311,25 +356,42 @@ class _QuestionContent extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(horizontal: 16),
                             child: ShakeOnTrigger(
                               trigger: state.limitHits,
-                              child: Text(ExamStrings.requiredAnswers(rightAnswers), style: TextStyle(color: quiz.info, fontStyle: FontStyle.italic)),
+                              child: Text(
+                                ExamStrings.requiredAnswers(rightAnswers),
+                                style: TextStyle(
+                                  color: quiz.info,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
                             ),
                           ),
                         for (var c in choices)
                           if (rightAnswers > 1)
                             AnimatedContainer(
                               duration: Duration(milliseconds: 200),
-                              color: !state.showCorrectAnswers ? Colors.transparent : (c.isCorrect ? quiz.correctContainer : quiz.wrongContainer),
+                              color: !state.showCorrectAnswers
+                                  ? Colors.transparent
+                                  : (c.isCorrect
+                                        ? quiz.correctContainer
+                                        : quiz.wrongContainer),
                               child: CheckboxListTile(
                                 title: Text(c.text),
                                 value: state.selectedChoices.contains(c),
-                                onChanged: (value) => context.read<PracticeContentBloc>().add(AddChoice(c)),
-                                controlAffinity: ListTileControlAffinity.leading,
+                                onChanged: (value) => context
+                                    .read<PracticeContentBloc>()
+                                    .add(AddChoice(c)),
+                                controlAffinity:
+                                    ListTileControlAffinity.leading,
                               ),
                             )
                           else
                             AnimatedContainer(
                               duration: Duration(milliseconds: 200),
-                              color: !state.showCorrectAnswers ? Colors.transparent : (c.isCorrect ? quiz.correctContainer : quiz.wrongContainer),
+                              color: !state.showCorrectAnswers
+                                  ? Colors.transparent
+                                  : (c.isCorrect
+                                        ? quiz.correctContainer
+                                        : quiz.wrongContainer),
                               child: RadioListTile<Choice>(
                                 title: Text(c.text),
                                 value: c,
@@ -340,95 +402,70 @@ class _QuestionContent extends StatelessWidget {
                   ),
 
                   SizedBox(height: 16),
-                  if (params.buttonsLikeInExam) ...[
-                    if (!first)
-                      Container(
-                        width: 240,
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: CustomIconButton(
-                          onPressed: () => _saveAndLoadNext(false, context, state, params),
-                          icon: Icons.arrow_back,
-                          iconPosition: IconPosition.left,
-                          label: ExamStrings.previousQuestion,
-                          color: ExamPalette.navigation,
-                        ),
-                      ),
-                    if (practiceState.currentQuestionIndex != practiceState.questions.length - 1)
-                      Container(
-                        width: 240,
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        child: CustomIconButton(
-                          onPressed: () => _saveAndLoadNext(true, context, state, params),
-                          icon: Icons.arrow_forward,
-                          label: ExamStrings.nextQuestion,
-                          color: ExamPalette.navigation,
-                        ),
-                      ),
-                    Container(
-                      width: 240,
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      child: CustomIconButton(
-                        onPressed: () async => await _finalizeTest(context, state, params),
-                        icon: Icons.exit_to_app,
-                        label: ExamStrings.endExam,
-                        color: ExamPalette.danger,
-                      ),
-                    ),
-                    Container(
-                      width: 240,
-                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                      child: CustomIconButton(
-                        onPressed: () async {
-                          final res = await _showTable(context, questBloc.state);
-                          if (res != null) {
-                            questBloc.add(NavigateToQuestion(res));
-                          }
-                        },
-                        icon: Icons.format_list_numbered,
-                        label: ExamStrings.report,
-                        color: ExamPalette.report,
-                        textColor: ExamPalette.onReport,
-                      ),
-                    ),
-                    if (params.showRightAnswers)
-                      Container(
-                        width: 240,
-                        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        child: CustomIconButton(
-                          onPressed: () => bloc.add(ShowCorrectAnswers()),
-                          icon: Icons.check,
-                          label: ExamStrings.showAnswer,
-                          color: ExamPalette.success,
-                        ),
-                      ),
-                  ],
+                  if (params.buttonsLikeInExam && !wideExam)
+                    _ExamButtonsColumn(actions: examActions),
                   if (!params.buttonsLikeInExam)
                     Container(
                       width: double.infinity,
                       padding: EdgeInsets.all(16),
                       child: FilledButton(
-                        onPressed: last ? null : () => _saveAndLoadNext(true, context, state, params),
+                        onPressed: last
+                            ? null
+                            : () => _saveAndLoadNext(
+                                true,
+                                context,
+                                state,
+                                params,
+                              ),
                         child: Text(ExamStrings.nextQuestion),
                       ),
                     ),
                   if (last && !params.buttonsLikeInExam)
                     Padding(
                       padding: const EdgeInsets.all(16.0),
-                      child: FilledButton(onPressed: () async => await _finalizeTest(context, state, params), child: Text(ExamStrings.endExam)),
+                      child: FilledButton(
+                        onPressed: () async =>
+                            await _finalizeTest(context, state, params),
+                        child: Text(ExamStrings.endExam),
+                      ),
                     ),
                   SizedBox(height: 16),
                   if (!params.buttonsLikeInExam && params.showRightAnswers)
                     TextButton(
-                      onPressed:
-                          state.showCorrectAnswers
-                              ? null
-                              : () {
-                                bloc.add(ShowCorrectAnswers());
-                              },
+                      onPressed: state.showCorrectAnswers
+                          ? null
+                          : () {
+                              bloc.add(ShowCorrectAnswers());
+                            },
                       child: Text(ExamStrings.showAnswer),
                     ),
                 ],
-                ),
+              );
+
+              final scrollable = SingleChildScrollView(
+                controller: scrollController,
+                child: content,
+              );
+
+              return KeyboardPagination(
+                onPrevious: examActions.previous,
+                onNext: examActions.next,
+                onShowAnswer: state.showCorrectAnswers
+                    ? null
+                    : examActions.showAnswer,
+                child: RadioGroup<Choice>(
+                  groupValue: state.selectedChoices.firstOrNull,
+                  onChanged: (value) {
+                    if (value != null) bloc.add(AddChoice(value));
+                  },
+                  child: wideExam
+                      ? Column(
+                          children: [
+                            Expanded(child: scrollable),
+                            _ExamActionBar(actions: examActions),
+                          ],
+                        )
+                      : scrollable,
                 ),
               );
             },
@@ -438,35 +475,50 @@ class _QuestionContent extends StatelessWidget {
     );
   }
 
-  Future<SavedAnswer> _saveAnswer(BuildContext context, PracticeContentState state, PracticeParams params) async {
+  Future<SavedAnswer> _saveAnswer(
+    BuildContext context,
+    PracticeContentState state,
+    PracticeParams params,
+  ) async {
     final questBloc = context.read<PracticeBloc>();
 
     if (state.selectedChoices.isNotEmpty) {
-      var correctAnswer = question.choices.where((element) => element.isCorrect).toSet();
+      var correctAnswer = question.choices
+          .where((element) => element.isCorrect)
+          .toSet();
       if (correctAnswer.length != state.selectedChoices.length) {
         const snackBar = SnackBar(content: Text(ExamStrings.wrongAnswerCount));
         ScaffoldMessenger.of(context).showSnackBar(snackBar);
         return SavedAnswer.wrongNumber;
       }
       questBloc.add(AddAnswer(question.id, state.selectedChoices));
-      return setEquals(state.selectedChoices, correctAnswer) ? SavedAnswer.correct : SavedAnswer.incorrect;
+      return setEquals(state.selectedChoices, correctAnswer)
+          ? SavedAnswer.correct
+          : SavedAnswer.incorrect;
     } else {
       // no answer, can be next
       return SavedAnswer.empty;
     }
   }
 
-  Future<void> _finalizeTest(BuildContext context, PracticeContentState state, PracticeParams params) async {
+  Future<void> _finalizeTest(
+    BuildContext context,
+    PracticeContentState state,
+    PracticeParams params,
+  ) async {
     final questBloc = context.read<PracticeBloc>();
     final bloc = context.read<PracticeContentBloc>();
     final saved = await _saveAnswer(context, state, params);
     // if (saved == null) return;
-    if (saved == SavedAnswer.incorrect && params.showRightAnswers && !state.showCorrectAnswers) {
+    if (saved == SavedAnswer.incorrect &&
+        params.showRightAnswers &&
+        !state.showCorrectAnswers) {
       // нужно показать правильный ответ перед завершением
       bloc.add(ShowCorrectAnswers());
       return;
     }
-    if (params.buttonsLikeInExam || questBloc.state.answers.length != questBloc.state.questions.length) {
+    if (params.buttonsLikeInExam ||
+        questBloc.state.answers.length != questBloc.state.questions.length) {
       if (!context.mounted) return;
       final res = await _showMyDialog(context);
       if (res != true) {
@@ -476,12 +528,19 @@ class _QuestionContent extends StatelessWidget {
     questBloc.add(FinalizeTest());
   }
 
-  Future<void> _saveAndLoadNext(bool isNext, BuildContext context, PracticeContentState state, PracticeParams params) async {
+  Future<void> _saveAndLoadNext(
+    bool isNext,
+    BuildContext context,
+    PracticeContentState state,
+    PracticeParams params,
+  ) async {
     final practiceBloc = context.read<PracticeBloc>();
     final bloc = context.read<PracticeContentBloc>();
     final saved = await _saveAnswer(context, state, params);
 
-    if (saved == SavedAnswer.incorrect && params.showRightAnswers && !state.showCorrectAnswers) {
+    if (saved == SavedAnswer.incorrect &&
+        params.showRightAnswers &&
+        !state.showCorrectAnswers) {
       //  ответ неверный, показываем верный
       bloc.add(ShowCorrectAnswers());
       return;
@@ -495,36 +554,213 @@ class _QuestionContent extends StatelessWidget {
   }
 }
 
+/// The callbacks behind the buttons of the exam replica. A `null` callback
+/// means the button does not exist at this point of the run (no "previous"
+/// on the first question, no "next" on the last one, no "show the answer"
+/// unless the training option is on).
+class _ExamActions {
+  const _ExamActions({
+    required this.previous,
+    required this.next,
+    required this.endExam,
+    required this.report,
+    required this.showAnswer,
+  });
+
+  final VoidCallback? previous;
+  final VoidCallback? next;
+  final VoidCallback endExam;
+  final VoidCallback report;
+  final VoidCallback? showAnswer;
+}
+
+/// Phone layout of the replica's buttons: a stack of fixed-width buttons
+/// under the answers, in the order the real software lists them.
+class _ExamButtonsColumn extends StatelessWidget {
+  const _ExamButtonsColumn({required this.actions});
+
+  final _ExamActions actions;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget item(Widget button, {double top = 4}) => Container(
+      width: 240,
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: top),
+      child: button,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (actions.previous != null)
+          item(_ExamButton.previous(actions.previous), top: 8),
+        if (actions.next != null) item(_ExamButton.next(actions.next)),
+        item(_ExamButton.endExam(actions.endExam)),
+        item(_ExamButton.report(actions.report)),
+        if (actions.showAnswer != null)
+          item(_ExamButton.showAnswer(actions.showAnswer)),
+      ],
+    );
+  }
+}
+
+/// Wide-screen layout of the replica's buttons — the bar the real
+/// examination software pins to the bottom of the page: navigation on the
+/// left, "show the answer" (training only) centred, the report and the end of
+/// the exam on the right. Drawn on the software's light-grey strip; the
+/// button groups shrink gracefully on medium widths instead of overflowing.
+class _ExamActionBar extends StatelessWidget {
+  const _ExamActionBar({required this.actions});
+
+  final _ExamActions actions;
+
+  static const double _gap = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget slot(Widget button) => Flexible(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 220, minHeight: 48),
+        child: button,
+      ),
+    );
+    // Three regions with symmetric flex factors: the middle one is always
+    // centred in the window whatever the sides hold, and on medium widths
+    // every group shrinks proportionally rather than one of them being
+    // squeezed out.
+    return Material(
+      color: ExamPalette.actionBar,
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          child: Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: Row(
+                  children: [
+                    if (actions.previous != null) ...[
+                      slot(_ExamButton.previous(actions.previous)),
+                      const SizedBox(width: _gap),
+                    ],
+                    if (actions.next != null)
+                      slot(_ExamButton.next(actions.next)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: _gap),
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (actions.showAnswer != null)
+                      slot(_ExamButton.showAnswer(actions.showAnswer)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: _gap),
+              Expanded(
+                flex: 2,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    slot(_ExamButton.report(actions.report)),
+                    const SizedBox(width: _gap),
+                    slot(_ExamButton.endExam(actions.endExam)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The five buttons of the exam replica, each with its fixed colour, icon and
+/// Serbian caption — shared by the phone stack and the wide bar so both
+/// layouts show the very same buttons.
+abstract final class _ExamButton {
+  static Widget previous(VoidCallback? onPressed) => CustomIconButton(
+    onPressed: onPressed,
+    icon: Icons.arrow_back,
+    iconPosition: IconPosition.left,
+    label: ExamStrings.previousQuestion,
+    color: ExamPalette.navigation,
+  );
+
+  static Widget next(VoidCallback? onPressed) => CustomIconButton(
+    onPressed: onPressed,
+    icon: Icons.arrow_forward,
+    label: ExamStrings.nextQuestion,
+    color: ExamPalette.navigation,
+  );
+
+  static Widget endExam(VoidCallback? onPressed) => CustomIconButton(
+    onPressed: onPressed,
+    icon: Icons.exit_to_app,
+    label: ExamStrings.endExam,
+    color: ExamPalette.danger,
+  );
+
+  static Widget report(VoidCallback? onPressed) => CustomIconButton(
+    onPressed: onPressed,
+    icon: Icons.format_list_numbered,
+    label: ExamStrings.report,
+    color: ExamPalette.report,
+    textColor: ExamPalette.onReport,
+  );
+
+  static Widget showAnswer(VoidCallback? onPressed) => CustomIconButton(
+    onPressed: onPressed,
+    icon: Icons.check,
+    label: ExamStrings.showAnswer,
+    color: ExamPalette.success,
+  );
+}
+
 Future<int?> _showTable(BuildContext context, PracticeState state) async {
   final res = await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
     isDismissible: true,
     showDragHandle: true,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
-    builder:
-        (context) => DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.3,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (_, controller) {
-            final allQuestions = context.read<AllQuestionsBloc>().state.questionsData?.questions ?? [];
-            List<TableEntry> entries = [];
-            for (var i = 0; i < state.questions.length; i++) {
-              final q = state.questions[i];
-              final question = allQuestions.firstWhere((element) => element.id == q);
-              final t = TableEntry(
-                question: ExamStrings.reportRow(i + 1),
-                points: question.points,
-                answered: state.answers.containsKey(q),
-                marked: state.markedQuestions.contains(i),
-              );
-              entries.add(t);
-            }
-            return SingleChildScrollView(controller: controller, child: QuestionsTable(entries: entries, onAnswerToggle: (index, value) {}));
-          },
-        ),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    builder: (context) => DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      minChildSize: 0.3,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, controller) {
+        final allQuestions =
+            context.read<AllQuestionsBloc>().state.questionsData?.questions ??
+            [];
+        List<TableEntry> entries = [];
+        for (var i = 0; i < state.questions.length; i++) {
+          final q = state.questions[i];
+          final question = allQuestions.firstWhere(
+            (element) => element.id == q,
+          );
+          final t = TableEntry(
+            question: ExamStrings.reportRow(i + 1),
+            points: question.points,
+            answered: state.answers.containsKey(q),
+            marked: state.markedQuestions.contains(i),
+          );
+          entries.add(t);
+        }
+        return SingleChildScrollView(
+          controller: controller,
+          child: QuestionsTable(
+            entries: entries,
+            onAnswerToggle: (index, value) {},
+          ),
+        );
+      },
+    ),
   );
   return res;
 }
@@ -537,9 +773,7 @@ Future<bool?> _showMyDialog(BuildContext context) async {
       return AlertDialog(
         title: Text(ExamStrings.finishTitle),
         content: const SingleChildScrollView(
-          child: ListBody(
-            children: <Widget>[Text(ExamStrings.finishBody)],
-          ),
+          child: ListBody(children: <Widget>[Text(ExamStrings.finishBody)]),
         ),
         actions: <Widget>[
           TextButton(
