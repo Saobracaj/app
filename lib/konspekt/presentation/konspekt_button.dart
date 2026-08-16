@@ -20,6 +20,7 @@ class KonspektButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return FeatureGate(
       feature: AppFeature.categorySummaries,
+      categoryId: categoryId,
       child: BlocBuilder<KonspektCatalogBloc, KonspektCatalogState>(
         buildWhen: (prev, curr) => prev.categories.contains(categoryId) != curr.categories.contains(categoryId),
         builder: (context, state) {

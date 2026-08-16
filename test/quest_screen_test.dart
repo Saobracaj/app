@@ -100,6 +100,7 @@ Widget _screen(Question question, {ValueChanged<int>? onQuestionSelected}) {
                 questionCount: 2,
                 points: question.points,
                 questionId: question.id,
+                categoryId: question.categoryId,
               ),
               body: QuestionProgressHeader(
                 entries: entries,

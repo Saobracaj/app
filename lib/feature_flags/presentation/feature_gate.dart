@@ -16,11 +16,18 @@ class FeatureGate extends StatelessWidget {
     super.key,
     required this.feature,
     required this.child,
+    this.categoryId,
     this.placeholder = const SizedBox.shrink(),
   });
 
   /// The feature that must be enabled for [child] to be shown.
   final AppFeature feature;
+
+  /// The category of the question this content belongs to, when there is one.
+  /// The free categories (25/26/28) open the premium content features for
+  /// everybody — see [FeatureFlagsSnapshot.isEnabledForCategory]. Leave `null`
+  /// for content that is not attached to a question.
+  final String? categoryId;
 
   /// Rendered when [feature] is enabled.
   final Widget child;
@@ -32,9 +39,10 @@ class FeatureGate extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<FeatureFlagsBloc, FeatureFlagsState>(
       buildWhen: (prev, curr) =>
-          prev.isEnabled(feature) != curr.isEnabled(feature),
+          prev.isEnabledForCategory(feature, categoryId) !=
+          curr.isEnabledForCategory(feature, categoryId),
       builder: (context, state) =>
-          state.isEnabled(feature) ? child : placeholder,
+          state.isEnabledForCategory(feature, categoryId) ? child : placeholder,
     );
   }
 }

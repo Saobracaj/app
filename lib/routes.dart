@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/auth/domain/settings_section.dart';
@@ -8,6 +9,8 @@ import 'package:saobracaj/auth/presentation/register_page.dart';
 import 'package:saobracaj/auth/presentation/reset_password_page.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_flags_page.dart';
 import 'package:saobracaj/statistics/phantom_subcategory.dart';
+import 'package:saobracaj/subscription/presentation/subscription_page.dart';
+import 'package:saobracaj/subscription/presentation/tariffs_page.dart';
 import 'package:saobracaj/theme/presentation/appearance_page.dart';
 import 'package:saobracaj/notifications/presentation/notifications_page.dart';
 import 'package:saobracaj/profile/presentation/display_name_page.dart';
@@ -185,8 +188,19 @@ final routes = RouteMap(
     '/settings/:section': (data) {
       final section = SettingsSection.bySlug(data.pathParameters['section']);
       if (section == null) return const Redirect('/settings');
+      // Раздел подписки существует только в вебе — на мобильных прямая ссылка
+      // ведёт обратно в настройки, а не открывает разговор о деньгах.
+      if (section == SettingsSection.subscription && !kIsWeb) {
+        return const Redirect('/settings');
+      }
       return MaterialPage(child: ProfilePage(section: section));
     },
+    // Продажа подписки живёт только в вебе: в мобильных сборках маршрутов нет
+    // вовсе, поэтому ни витрины, ни раздела аккаунта там не существует даже по
+    // прямой ссылке (App Store 3.1.3(b) — о подписке в приложении не говорим).
+    if (kIsWeb) '/tariffs': (_) => const MaterialPage(child: TariffsPage()),
+    if (kIsWeb)
+      '/subscription': (_) => const MaterialPage(child: SubscriptionPage()),
     '/appearance': (_) => const MaterialPage(child: AppearancePage()),
     '/features': (_) => const MaterialPage(child: FeatureFlagsPage()),
     '/notifications': (_) => const MaterialPage(child: NotificationsPage()),

@@ -7,6 +7,9 @@
 /// разделам так же, как по остальным экранам.
 enum SettingsSection {
   profile('profile'),
+  /// Только в вебе: текущий тариф, срок действия и заказы. В мобильных
+  /// сборках пункт не показывается — подписка там не упоминается вовсе.
+  subscription('subscription'),
   appearance('appearance'),
   notifications('notifications'),
   supportChat('support'),

@@ -745,5 +745,55 @@
   },
   "znaciPolicajca": {
     "note": "An authorised officer's signals outrank traffic lights, signs and road markings: when the officer signals, the light does not count."
+  },
+  "subscription": {
+    "title": "Subscription",
+    "settingsSubtitle": "Plan, expiry date and orders",
+    "tariffsTitle": "Plans",
+    "loadFailed": "Could not load the subscription data",
+    "retry": "Retry",
+    "kindBasic": "Basic",
+    "kindRussian": "With Russian content",
+    "kindBasicSummary": "Explanations, konspekts, analytics and key phrases in every category, plus the AI chat.",
+    "kindRussianSummary": "Everything in Basic plus konspekts and explanations in Russian.",
+    "months": {
+      "one": "{} month",
+      "other": "{} months"
+    },
+    "perMonth": "{} RSD per month",
+    "price": "{} RSD",
+    "best": "Best value",
+    "choose": "Choose",
+    "signInToBuy": "Sign in to place an order",
+    "freeTitle": "What is free",
+    "freeBody": "Three categories are fully open without a subscription: “Osnove bezbednosti saobraćaja”, “Vozač” and “Put” — explanations, konspekts, analytics and Russian content. In every category the questions themselves, practice runs, “my mistakes”, question lists, discussions and the developer chat are always free.",
+    "activeTitle": "Current plan",
+    "activeUntil": "valid until {}",
+    "daysLeft": {
+      "one": "{} day left",
+      "other": "{} days left"
+    },
+    "noSubscriptionTitle": "No subscription",
+    "toTariffs": "See the plans",
+    "renewSoon": "Your subscription ends on {}. Renew it to keep the access.",
+    "renewUrgent": "Your subscription ends in {}. Renew now — access closes automatically.",
+    "renew": "Renew",
+    "pendingTitle": "Waiting for the payment",
+    "pendingBody": "Order for “{tariff}” — {amount} RSD. Transfer the amount quoting the payment reference and we will open the access as soon as we see it.",
+    "reference": "Payment reference (model 97)",
+    "referenceCopied": "Payment reference copied",
+    "paymentStub": "The payment details (IPS QR and the slip) are coming very soon — we will e-mail them. The reference is already tied to your order.",
+    "payUntil": "The order is payable until {}",
+    "cancelOrder": "Cancel the order",
+    "ordersTitle": "Order history",
+    "periodsTitle": "Subscription periods",
+    "periodRow": "{from} — {to}",
+    "revoked": "revoked",
+    "statusPending": "waiting for payment",
+    "statusPaid": "paid",
+    "statusCancelled": "cancelled",
+    "statusExpired": "expired",
+    "remindersTitle": "Reminder e-mails",
+    "remindersSubtitle": "14 and 3 days before the subscription ends. Order and payment e-mails always arrive."
   }
 }

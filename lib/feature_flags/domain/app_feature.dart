@@ -7,6 +7,20 @@
 /// verbatim with the backend — never rename one without migrating both sides.
 library;
 
+/// Question categories that are open to everybody in full — explanations,
+/// konspekts, analytics, key phrases and the Russian content alike. Mirrors
+/// `FREE_CATEGORY_IDS` in `saobracaj_backend/src/billing/model.rs`; the server
+/// enforces the same rule, this list only keeps the UI from offering a lock
+/// where there is none.
+///
+/// Deliberately **not** "the first three": 27 («Трајање управљања») is paid.
+const freeCategoryIds = <String>{'25', '26', '28'};
+
+/// Whether premium content attached to a question of [categoryId] is free for
+/// everybody. Unknown/absent category → not free (fall back to the flag).
+bool isFreeCategory(String? categoryId) =>
+    categoryId != null && freeCategoryIds.contains(categoryId.trim());
+
 /// How a feature becomes available to the user.
 enum FeatureAccess {
   /// Available to everyone, even signed-out guests.
@@ -33,7 +47,10 @@ enum AppFeature {
     FeatureAccess.authenticated,
   ),
   questionAnalysis('question_analysis', FeatureAccess.premium),
-  askAi('ask_ai', FeatureAccess.premium),
+  // The live AI chat is the one premium feature the free categories do *not*
+  // open: it is the only function with a variable cost per message, so it has
+  // no demo mode (`freeInFreeCategories: false`).
+  askAi('ask_ai', FeatureAccess.premium, freeInFreeCategories: false),
   lawDefinitionsHighlight('law_definitions_highlight', FeatureAccess.guest),
   questionFeedback('question_feedback', FeatureAccess.guest),
   // 3. Category summaries ("Конспекты")
@@ -45,21 +62,26 @@ enum AppFeature {
   // 6/7. Sharing
   shareQuestion('share_question', FeatureAccess.guest),
   shareMultipleQuestions('share_multiple_questions', FeatureAccess.guest),
-  // 8. Question lists
+  // 8. Question lists — free for everybody and without a count limit.
   autoQuestionLists('auto_question_lists', FeatureAccess.guest),
-  customQuestionLists('custom_question_lists', FeatureAccess.premium),
+  customQuestionLists('custom_question_lists', FeatureAccess.guest),
   // 9. Support chat
   supportChat('support_chat', FeatureAccess.authenticated),
   // Standalone option: Russian materials & translations.
   russianContent('russian_content', FeatureAccess.premium);
 
-  const AppFeature(this.key, this.access);
+  const AppFeature(this.key, this.access, {this.freeInFreeCategories = true});
 
   /// Stable identifier shared with the backend.
   final String key;
 
   /// The tier that gates this feature.
   final FeatureAccess access;
+
+  /// Whether a question from one of the [freeCategoryIds] unlocks this feature
+  /// for everybody. True for the content features (explanation, konspekt,
+  /// analysis, Russian materials); false for the live AI chat.
+  final bool freeInFreeCategories;
 
   /// The catalog entry with this [key], or `null` if unknown (e.g. a key the
   /// backend added that this client build doesn't know yet).

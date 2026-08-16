@@ -70,6 +70,27 @@ class FeatureFlagsSnapshot {
   /// Whether [feature] is available to the user right now.
   bool isEnabled(AppFeature feature) => enabled[feature] ?? false;
 
+  /// Whether [feature] is available **for a question of [categoryId]**.
+  ///
+  /// The premium gate is a property of the question, not of the screen: in the
+  /// free categories (25/26/28) the content features are open to everybody, so
+  /// a question from a paid category sitting in a personal list still opens and
+  /// is answerable — only its explanation stays locked. Ask any content widget
+  /// this instead of [isEnabled].
+  ///
+  /// Only the *premium grant* is waived; the tier below it (a feature needing a
+  /// signed-in user) and the user's own local toggle still apply, and features
+  /// marked [AppFeature.freeInFreeCategories] `= false` (the live AI chat) are
+  /// never opened this way.
+  bool isEnabledForCategory(AppFeature feature, String? categoryId) {
+    if (isEnabled(feature)) return true;
+    if (feature.access != FeatureAccess.premium) return false;
+    if (!feature.freeInFreeCategories || !isFreeCategory(categoryId)) {
+      return false;
+    }
+    return localEnabled(feature);
+  }
+
   /// The user's local toggle for [feature] (defaults to on).
   bool localEnabled(AppFeature feature) =>
       localOverrides[feature.key] ?? true;

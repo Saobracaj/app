@@ -37,13 +37,19 @@ class _StubKonspektRepository extends KonspektRepository {
 /// A feature-flags repository reporting fixed premium grants, so a test can
 /// render the page both as an entitled user and as one without the entitlement.
 class _StubFeatureFlagsRepository extends FeatureFlagsRepository {
-  _StubFeatureFlagsRepository(this._grants) : super(GraphqlClient(TokenStorage()), TokenStorage());
+  _StubFeatureFlagsRepository(this._grants, this._locals)
+      : super(GraphqlClient(TokenStorage()), TokenStorage());
 
   final Set<String> _grants;
 
+  /// Локальные тумблеры. По умолчанию русский контент выключен — так его
+  /// держит настоящий репозиторий на несербском… точнее, на нерусском
+  /// устройстве, пока пользователь не ответил на вопрос о русских материалах.
+  final Map<String, bool> _locals;
+
   @override
   FeatureFlagsSnapshot get snapshot =>
-      FeatureFlagsSnapshot.resolve(localOverrides: const {}, grants: _grants, authenticated: true);
+      FeatureFlagsSnapshot.resolve(localOverrides: _locals, grants: _grants, authenticated: true);
 
   @override
   Stream<FeatureFlagsSnapshot> get changes => Stream.value(snapshot);
@@ -64,8 +70,12 @@ void main() {
   /// EasyLocalization здесь не для красоты: в тексте конспекта есть маркеры
   /// `anim/…`, а виджеты-иллюстрации читают подписи через `context.tr` и без
   /// локализации в дереве падают с LocalizationNotFoundException.
-  Widget wrap(Widget child, {Set<String> grants = const {'category_summaries'}}) {
-    final flags = FeatureFlagsBloc(_StubFeatureFlagsRepository(grants));
+  Widget wrap(
+    Widget child, {
+    Set<String> grants = const {'category_summaries'},
+    Map<String, bool> locals = const {'russian_content': false},
+  }) {
+    final flags = FeatureFlagsBloc(_StubFeatureFlagsRepository(grants, locals));
     return EasyLocalization(
       useOnlyLangCode: true,
       ignorePluralRules: false,
@@ -100,6 +110,7 @@ void main() {
     await tester.pumpWidget(wrap(
       const KonspektPage(categoryId: '25'),
       grants: const {'category_summaries', 'russian_content'},
+      locals: const {},
     ));
     await tester.pumpAndSettle();
 
@@ -120,11 +131,26 @@ void main() {
     expect(find.text('Конспект не найден'), findsOneWidget);
   });
 
+  // Гейт — свойство вопроса: категория 27 платная, поэтому без гранта конспект
+  // закрыт…
   testWidgets('KonspektPage stays closed without the category_summaries entitlement', (tester) async {
-    await tester.pumpWidget(wrap(const KonspektPage(categoryId: '25'), grants: const {}));
+    await tester.pumpWidget(wrap(const KonspektPage(categoryId: '27'), grants: const {}));
     await tester.pumpAndSettle();
 
     expect(find.text('Конспект недоступен'), findsOneWidget);
-    expect(find.text('Основы безопасности дорожного движения'), findsNothing);
+  });
+
+  // …а бесплатная категория 25 открыта всем, в том числе с русским контентом:
+  // премиум-гранта нет, а конспект показывается.
+  testWidgets('KonspektPage opens a free category without any entitlement', (tester) async {
+    await tester.pumpWidget(wrap(
+      const KonspektPage(categoryId: '25'),
+      grants: const {},
+      locals: const {},
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Конспект недоступен'), findsNothing);
+    expect(find.text('Основы безопасности дорожного движения'), findsOneWidget);
   });
 }
