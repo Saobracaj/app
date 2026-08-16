@@ -1,4 +1,7 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+
+import '../../generated/locale_keys.g.dart';
 
 part 'public_comment.freezed.dart';
 
@@ -58,4 +61,16 @@ abstract class PublicComment with _$PublicComment {
 
   /// Whether this is a reply (second level) rather than a top-level comment.
   bool get isReply => parentId != null;
+
+  /// The literal the backend stores as the body when the author deleted their
+  /// account and chose to take their comments with them. Rendered as a
+  /// localised placeholder — see [displayBody].
+  static const deletedBodyMarker = 'deleted';
+
+  /// The author erased this comment along with their account.
+  bool get isDeleted => body == deletedBodyMarker;
+
+  /// The text to show: the body, or the «message deleted» placeholder.
+  String get displayBody =>
+      isDeleted ? LocaleKeys.comments_deletedBody.tr() : body;
 }

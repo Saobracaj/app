@@ -90,10 +90,17 @@ class StatisticsSyncService {
   /// after every finished test, and once more just before an explicit logout),
   /// so logging back in pulls them down again. Keeping them would fold this
   /// user's numbers into whichever account signs in next on this device.
-  Future<void> onLoggedOut() async {
+  ///
+  /// [keepLocalRecords] is the account-deletion case: the server copy no
+  /// longer exists, so the local records are the only ones and stay as the
+  /// guest's history when the user asked for that. The in-flight sync is still
+  /// invalidated — its session is over.
+  Future<void> onLoggedOut({bool keepLocalRecords = false}) async {
     _session++;
     _pending = false;
-    await _db.clearStatistics();
+    if (!keepLocalRecords) {
+      await _db.clearStatistics();
+    }
     _synced.add(null);
   }
 
@@ -190,7 +197,9 @@ class StatisticsSyncService {
           allAnswers: (s['allAnswers'] as num).toInt(),
           // Passed explicitly (even when null) so the column's clientDefault
           // does not stamp a downloaded record with the time of the download.
-          occurredAt: Value(occurredAt == null ? null : DateTime.parse(occurredAt).toLocal()),
+          occurredAt: Value(
+            occurredAt == null ? null : DateTime.parse(occurredAt).toLocal(),
+          ),
           uuid: Value(id),
         ),
       );
@@ -207,9 +216,10 @@ class StatisticsSyncService {
           time: DateTime.parse(p['occurredAt'] as String).toLocal(),
           mistakes: (p['mistakes'] as num).toInt(),
           durationSeconds: (p['durationSeconds'] as num).toInt(),
-          wrongAnswers: Value(
-            [for (final w in (p['wrongAnswers'] as List? ?? const [])) (w as num).toInt()],
-          ),
+          wrongAnswers: Value([
+            for (final w in (p['wrongAnswers'] as List? ?? const []))
+              (w as num).toInt(),
+          ]),
           uuid: Value(id),
         ),
       );

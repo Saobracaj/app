@@ -14,11 +14,12 @@ enum SupportAttachmentKind {
   /// «вопрос 1234» and opens the existing preview sheet on tap.
   question;
 
-  static SupportAttachmentKind parse(String? raw) => switch (raw?.toUpperCase()) {
-    'IMAGE' => SupportAttachmentKind.image,
-    'QUESTION' => SupportAttachmentKind.question,
-    _ => SupportAttachmentKind.file,
-  };
+  static SupportAttachmentKind parse(String? raw) =>
+      switch (raw?.toUpperCase()) {
+        'IMAGE' => SupportAttachmentKind.image,
+        'QUESTION' => SupportAttachmentKind.question,
+        _ => SupportAttachmentKind.file,
+      };
 }
 
 /// Extensions the app treats as pictures when nothing else says so.
@@ -54,8 +55,7 @@ const _contentTypesByExtension = <String, String>{
   'docx':
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'xls': 'application/vnd.ms-excel',
-  'xlsx':
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 };
 
 /// The lower-case extension of [fileName], without the dot, or `''`.
@@ -92,6 +92,10 @@ abstract class SupportAttachment with _$SupportAttachment {
     @Default(0) int sizeBytes,
     int? questionId,
     String? url,
+
+    /// The stored bytes are gone: the uploader deleted their account and took
+    /// their photos and files with them. Rendered as a placeholder.
+    @Default(false) bool deleted,
     required DateTime createdAt,
   }) = _SupportAttachment;
 
@@ -106,6 +110,7 @@ abstract class SupportAttachment with _$SupportAttachment {
         sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
         questionId: (json['questionId'] as num?)?.toInt(),
         url: json['url']?.toString(),
+        deleted: json['deleted'] == true,
         createdAt:
             DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ??
             DateTime.now(),
@@ -223,8 +228,7 @@ abstract class SupportThread with _$SupportThread {
   );
 
   /// What to show as the thread's name in the moderator list.
-  String get title =>
-      userDisplayName.isNotEmpty ? userDisplayName : userEmail;
+  String get title => userDisplayName.isNotEmpty ? userDisplayName : userEmail;
 }
 
 /// A page of messages, oldest first.

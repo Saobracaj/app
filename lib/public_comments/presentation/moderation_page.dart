@@ -128,7 +128,7 @@ class _ModerationTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 4),
-          Text(comment.body),
+          Text(comment.displayBody),
           const SizedBox(height: 4),
           Text(
             '${LocaleKeys.comments_moderation_questionLabel.tr(args: ['${comment.questionId}'])}'
