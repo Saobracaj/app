@@ -301,6 +301,29 @@ abstract class GroupEvent with _$GroupEvent {
         return true;
     }
   }
+
+  /// Whether the feed shows this event at all — the one rule the pager and the
+  /// list must agree on. A page that loses every one of its events to this
+  /// filter still has to be paged through, so the reader is not left with a
+  /// list too short to scroll and a page of history nobody asks for.
+  bool get isVisibleInFeed => isRenderable && groupEventIsWorthShowing(this);
+}
+
+/// В симуляции экзамена всегда 41 вопрос — размера выборки в событии нет,
+/// поэтому число правильных ответов восстанавливается из числа ошибок.
+const _practiceQuestionCount = 41;
+
+/// Результаты, где правильных ответов меньше пяти, в ленту не попадают: это
+/// почти всегда брошенный на первых вопросах прогон, а не результат, которым
+/// имеет смысл делиться с группой.
+bool groupEventIsWorthShowing(GroupEvent event) {
+  return switch (event.kind) {
+    GroupEventKind.subcategoryCompleted when event.subcategory != null =>
+      event.subcategory!.rightAnswers >= 5,
+    GroupEventKind.practiceFinished when event.practice != null =>
+      _practiceQuestionCount - event.practice!.mistakes >= 5,
+    _ => true,
+  };
 }
 
 int? _int(Object? raw) => (raw as num?)?.toInt();

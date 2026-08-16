@@ -48,6 +48,16 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
   /// How many events one page holds. The server caps a page at 50.
   static const pageSize = 20;
 
+  /// How many new lines one "load more" tries to put on screen. A server page
+  /// is not a screenful: abandoned runs, unknown kinds and blocks that no longer
+  /// exist are filtered out, and a page can lose all of its events that way.
+  static const _visibleTarget = pageSize;
+
+  /// The ceiling on how many pages one "load more" reads while looking for those
+  /// lines — a group where almost everything is filtered out must not turn one
+  /// scroll into a march through the whole history.
+  static const _maxPagesPerRequest = 5;
+
   @override
   Future<void> close() {
     _live?.cancel();
@@ -66,28 +76,28 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
   /// still reads and pages perfectly well, and the screen says so with the
   /// "live" indicator rather than with an error the reader can do nothing about.
   void _listen() {
-    _live ??= _groups.feedChanges(state.groupId).listen(
-      (update) {
-        switch (update) {
-          case GroupFeedEventReceived(:final event):
-            add(GroupFeedEventArrived(event));
-          case GroupFeedResumed(:final firstConnect):
-            add(
-              GroupFeedLiveChanged(live: true, missedEvents: !firstConnect),
-            );
-          case GroupFeedInterrupted():
-            add(
-              const GroupFeedLiveChanged(live: false, missedEvents: false),
-            );
-        }
-      },
-      onError: (_) => add(
-        const GroupFeedLiveChanged(live: false, missedEvents: false),
-      ),
-      onDone: () => add(
-        const GroupFeedLiveChanged(live: false, missedEvents: false),
-      ),
-    );
+    _live ??= _groups
+        .feedChanges(state.groupId)
+        .listen(
+          (update) {
+            switch (update) {
+              case GroupFeedEventReceived(:final event):
+                add(GroupFeedEventArrived(event));
+              case GroupFeedResumed(:final firstConnect):
+                add(
+                  GroupFeedLiveChanged(live: true, missedEvents: !firstConnect),
+                );
+              case GroupFeedInterrupted():
+                add(
+                  const GroupFeedLiveChanged(live: false, missedEvents: false),
+                );
+            }
+          },
+          onError: (_) =>
+              add(const GroupFeedLiveChanged(live: false, missedEvents: false)),
+          onDone: () =>
+              add(const GroupFeedLiveChanged(live: false, missedEvents: false)),
+        );
   }
 
   /// Read the newest page and fold it into what is on screen. Used for the first
@@ -109,7 +119,7 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
             ? state.copyWith(
                 loading: false,
                 loaded: true,
-                events: page.events.where((e) => e.isRenderable).toList(),
+                events: page.events.where((e) => e.isVisibleInFeed).toList(),
                 hasMore: page.hasMore,
                 nextBefore: page.nextBefore,
                 nextBeforeId: page.nextBeforeId,
@@ -120,42 +130,90 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
                 events: _mergeHead(page.events),
               ),
       );
+      // The whole page was filtered out while there is history behind it: say
+      // "nothing has happened here" and the reader would never see the events
+      // that have. Dig for them instead.
+      if (state.events.isEmpty && state.hasMore) {
+        add(const GroupFeedMoreRequested());
+      }
     } catch (e) {
       if (emit.isDone) return;
       emit(state.copyWith(loading: false, errorMessage: e.toString()));
     }
   }
 
+  /// Read history until there is something new to show.
+  ///
+  /// Reading exactly one page is not enough: the page may be filtered away to
+  /// nothing (see [GroupEvent.isVisibleInFeed]) and leave the list as short as it
+  /// was — with more history behind it. On a list too short to scroll that was
+  /// the end of it: only scrolling asks for the next page, so the spinner at the
+  /// bottom stayed on screen forever. So one request keeps reading, up to
+  /// [_maxPagesPerRequest] pages, until it has [_visibleTarget] lines to add or
+  /// runs out of history.
   Future<void> _onMore(
     GroupFeedMoreRequested event,
     Emitter<GroupFeedState> emit,
   ) async {
     if (!state.hasMore || state.loadingMore || state.loading) return;
     emit(state.copyWith(loadingMore: true, errorMessage: null));
+    final events = [...state.events];
+    final known = events.map((e) => e.id).toSet();
+    var before = state.nextBefore;
+    var beforeId = state.nextBeforeId;
+    var hasMore = state.hasMore;
+    var added = 0;
+    var pagesRead = 0;
     try {
-      final page = await _groups.feed(
-        state.groupId,
-        limit: pageSize,
-        before: state.nextBefore,
-        beforeId: state.nextBeforeId,
-      );
-      if (emit.isDone) return;
-      final known = state.events.map((e) => e.id).toSet();
+      while (hasMore &&
+          added < _visibleTarget &&
+          pagesRead < _maxPagesPerRequest) {
+        pagesRead++;
+        final page = await _groups.feed(
+          state.groupId,
+          limit: pageSize,
+          before: before,
+          beforeId: beforeId,
+        );
+        if (emit.isDone) return;
+        for (final older in page.events) {
+          if (!older.isVisibleInFeed || !known.add(older.id)) continue;
+          events.add(older);
+          added++;
+        }
+        // A cursor that does not move means the next read would return this very
+        // page again — better to call it the end than to loop over it.
+        final stalled =
+            page.nextBefore == null ||
+            (page.nextBefore == before && page.nextBeforeId == beforeId);
+        hasMore = page.hasMore && !stalled;
+        before = page.nextBefore;
+        beforeId = page.nextBeforeId;
+      }
       emit(
         state.copyWith(
           loadingMore: false,
-          events: [
-            ...state.events,
-            ...page.events.where((e) => e.isRenderable && !known.contains(e.id)),
-          ],
-          hasMore: page.hasMore,
-          nextBefore: page.nextBefore,
-          nextBeforeId: page.nextBeforeId,
+          events: events,
+          hasMore: hasMore,
+          nextBefore: before,
+          nextBeforeId: beforeId,
         ),
       );
     } catch (e) {
       if (emit.isDone) return;
-      emit(state.copyWith(loadingMore: false, errorMessage: e.toString()));
+      // Прочитанное до сбоя остаётся на экране вместе со сдвинутым курсором:
+      // иначе следующая попытка пошла бы с самого начала и снова уткнулась бы в
+      // ту же страницу.
+      emit(
+        state.copyWith(
+          loadingMore: false,
+          events: events,
+          hasMore: hasMore,
+          nextBefore: before,
+          nextBeforeId: beforeId,
+          errorMessage: e.toString(),
+        ),
+      );
     }
   }
 
@@ -184,7 +242,7 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
     final oldest = state.oldest;
     final byId = {for (final event in state.events) event.id: event};
     for (final event in incoming) {
-      if (!event.isRenderable || byId.containsKey(event.id)) continue;
+      if (!event.isVisibleInFeed || byId.containsKey(event.id)) continue;
       if (state.hasMore && oldest != null && _isOlder(event, oldest)) continue;
       byId[event.id] = event;
     }

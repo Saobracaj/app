@@ -990,5 +990,8 @@
     "close": "Close",
     "signInRequired": "Sign in to delete the account.",
     "retry": "Retry"
+  },
+  "common": {
+    "loadMore": "Show more"
   }
 }

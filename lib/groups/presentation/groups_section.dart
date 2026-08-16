@@ -9,12 +9,12 @@ import '../../feature_flags/presentation/feature_gate.dart';
 import '../../generated/locale_keys.g.dart';
 import '../../public_comments/presentation/relative_time.dart';
 import '../models/group.dart';
+import '../models/group_event.dart' show groupEventIsWorthShowing;
 import '../state_management/groups_bloc.dart';
 import '../state_management/groups_events.dart';
 import '../state_management/groups_state.dart';
 import 'group_dialogs.dart';
 import 'group_event_summary.dart';
-import 'group_feed_page.dart' show groupEventIsWorthShowing;
 
 /// The "groups" block of the home screen: one card per group the user belongs
 /// to, plus the two entry points — create a group, or join one with a code.

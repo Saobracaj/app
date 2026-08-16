@@ -1,7 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/groups/models/group_event.dart';
-import 'package:saobracaj/groups/presentation/group_feed_page.dart'
-    show groupEventIsWorthShowing;
 
 GroupEvent _event({
   GroupEventKind kind = GroupEventKind.memberJoined,
