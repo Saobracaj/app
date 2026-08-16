@@ -16,55 +16,68 @@ class StatisticsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AllQuestionsBloc, AllQuestionsBlocState>(
-      builder: (context, allQuestionsState) => BlocProvider(
-        create: (context) =>
-            HistoryBloc(allQuestionsState.questionsData!.questions),
-        child: BlocBuilder<HistoryBloc, HistoryState>(
-          builder: (context, state) {
-            return Scaffold(
-              appBar: AppBar(
-                title: Text(LocaleKeys.home_history.tr()),
-                actions: const [AuthButton()],
-              ),
-              body: ReadableWidth(
-                child: ListView(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: FilledButton(
-                        onPressed: () {
-                          openStartTest(
-                            context,
-                            state.questions.take(100).map((e) => e.id).toList(),
-                          );
-                        },
-                        child: Text('Пройти последние ошибки'),
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    ListTile(
-                      title: Text(
-                        'Последние ошибки:',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
-                    ...state.questions.map(
-                      (e) => QuestionListTile(
-                        question: e,
-                        onTap: () {
-                          Routemaster.of(
-                            context,
-                          ).push('q?q=${e.id}&randomOptionsOrder=true');
-                        },
-                      ),
-                    ),
-                  ],
+      builder: (context, allQuestionsState) {
+        // A cold start on '/statistics' builds this before the question bank
+        // has loaded; wait for it rather than dereference a null.
+        final data = allQuestionsState.questionsData;
+        if (data == null) {
+          return Scaffold(
+            appBar: AppBar(title: Text(LocaleKeys.home_history.tr())),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        return BlocProvider(
+          create: (context) => HistoryBloc(data.questions),
+          child: BlocBuilder<HistoryBloc, HistoryState>(
+            builder: (context, state) {
+              return Scaffold(
+                appBar: AppBar(
+                  title: Text(LocaleKeys.home_history.tr()),
+                  actions: const [AuthButton()],
                 ),
-              ),
-            );
-          },
-        ),
-      ),
+                body: ReadableWidth(
+                  child: ListView(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: FilledButton(
+                          onPressed: () {
+                            openStartTest(
+                              context,
+                              state.questions
+                                  .take(100)
+                                  .map((e) => e.id)
+                                  .toList(),
+                            );
+                          },
+                          child: Text('Пройти последние ошибки'),
+                        ),
+                      ),
+                      SizedBox(height: 16),
+                      ListTile(
+                        title: Text(
+                          'Последние ошибки:',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                      ),
+                      ...state.questions.map(
+                        (e) => QuestionListTile(
+                          question: e,
+                          onTap: () {
+                            Routemaster.of(
+                              context,
+                            ).push('q?q=${e.id}&randomOptionsOrder=true');
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

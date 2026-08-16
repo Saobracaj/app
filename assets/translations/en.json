@@ -16,6 +16,7 @@
       "buttonsLikeInExam": "Buttons like in the exam"
     },
     "start": "Start Simulation",
+    "retry": "Retry",
     "previousTries": "Previous attempts ({}):",
     "previousTriesItem": "Points: {}, errors: {}, time: {}",
     "success": "Test passed successfully",
