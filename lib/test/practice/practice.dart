@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:saobracaj/core/keyboard_hints.dart';
 import 'package:saobracaj/core/keyboard_pagination.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
@@ -174,7 +175,14 @@ class Practice extends StatelessWidget {
                             },
                       icon: Icon(Icons.arrow_forward_ios_outlined),
                     ),
-                    Spacer(),
+                    // Между стрелками и отчётом — мелкая подсказка про
+                    // клавиши (только на вебе, см. KeyboardHints).
+                    Expanded(
+                      child: KeyboardHints(
+                        showAnswer: params.showRightAnswers,
+                        padding: EdgeInsets.zero,
+                      ),
+                    ),
                     IconButton(
                       onPressed: () async {
                         final res = await _showTable(context, questBloc.state);
@@ -402,8 +410,13 @@ class _QuestionContent extends StatelessWidget {
                   ),
 
                   SizedBox(height: 16),
-                  if (params.buttonsLikeInExam && !wideExam)
+                  if (params.buttonsLikeInExam && !wideExam) ...[
                     _ExamButtonsColumn(actions: examActions),
+                    KeyboardHints(
+                      showAnswer: examActions.showAnswer != null,
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    ),
+                  ],
                   if (!params.buttonsLikeInExam)
                     Container(
                       width: double.infinity,
@@ -627,48 +640,59 @@ class _ExamActionBar extends StatelessWidget {
     // centred in the window whatever the sides hold, and on medium widths
     // every group shrinks proportionally rather than one of them being
     // squeezed out.
+    final buttons = Row(
+      children: [
+        Expanded(
+          flex: 2,
+          child: Row(
+            children: [
+              if (actions.previous != null) ...[
+                slot(_ExamButton.previous(actions.previous)),
+                const SizedBox(width: _gap),
+              ],
+              if (actions.next != null) slot(_ExamButton.next(actions.next)),
+            ],
+          ),
+        ),
+        const SizedBox(width: _gap),
+        Expanded(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              if (actions.showAnswer != null)
+                slot(_ExamButton.showAnswer(actions.showAnswer)),
+            ],
+          ),
+        ),
+        const SizedBox(width: _gap),
+        Expanded(
+          flex: 2,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              slot(_ExamButton.report(actions.report)),
+              const SizedBox(width: _gap),
+              slot(_ExamButton.endExam(actions.endExam)),
+            ],
+          ),
+        ),
+      ],
+    );
     return Material(
       color: ExamPalette.actionBar,
       child: SafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(
-                flex: 2,
-                child: Row(
-                  children: [
-                    if (actions.previous != null) ...[
-                      slot(_ExamButton.previous(actions.previous)),
-                      const SizedBox(width: _gap),
-                    ],
-                    if (actions.next != null)
-                      slot(_ExamButton.next(actions.next)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: _gap),
-              Expanded(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (actions.showAnswer != null)
-                      slot(_ExamButton.showAnswer(actions.showAnswer)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: _gap),
-              Expanded(
-                flex: 2,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    slot(_ExamButton.report(actions.report)),
-                    const SizedBox(width: _gap),
-                    slot(_ExamButton.endExam(actions.endExam)),
-                  ],
-                ),
+              buttons,
+              // A discreet reminder under the buttons that ← / → / space do
+              // the same (web only, see KeyboardHints).
+              KeyboardHints(
+                showAnswer: actions.showAnswer != null,
+                padding: const EdgeInsets.only(top: 10),
               ),
             ],
           ),
