@@ -24,6 +24,8 @@ import '../auth/state_management/login/login_bloc.dart' as _i10;
 import '../auth/state_management/register/register_bloc.dart' as _i830;
 import '../auth/state_management/reset_password/reset_password_bloc.dart'
     as _i940;
+import '../billing_admin/data/billing_admin_repository.dart' as _i512;
+import '../billing_admin/state_management/billing_admin_bloc.dart' as _i443;
 import '../feature_flags/data/feature_flags_repository.dart' as _i389;
 import '../feature_flags/domain/app_feature.dart' as _i392;
 import '../groups/data/groups_repository.dart' as _i685;
@@ -164,6 +166,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i25.TokenStorage>(),
       ),
     );
+    gh.lazySingleton<_i512.BillingAdminRepository>(
+      () => _i512.BillingAdminRepository(gh<_i483.GraphqlClient>()),
+    );
     gh.lazySingleton<_i491.KonspektRepository>(
       () => _i491.KonspektRepository(gh<_i483.GraphqlClient>()),
     );
@@ -236,6 +241,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i483.GraphqlClient>(),
         gh<_i389.FeatureFlagsRepository>(),
       ),
+    );
+    gh.factory<_i443.BillingAdminBloc>(
+      () => _i443.BillingAdminBloc(gh<_i512.BillingAdminRepository>()),
     );
     gh.factoryParam<_i192.QuestionKonspektBloc, int, String>(
       (questionId, categoryId) => _i192.QuestionKonspektBloc(

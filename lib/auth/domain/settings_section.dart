@@ -15,6 +15,9 @@ enum SettingsSection {
   supportChat('support'),
   supportThreads('support-threads'),
   moderation('moderation'),
+  /// Денежный стол — админка платежей и подписок для держателей
+  /// `manage_billing` (перенесена из Angular-панели).
+  billing('billing'),
   testPush('test-push'),
   features('features'),
   about('about');

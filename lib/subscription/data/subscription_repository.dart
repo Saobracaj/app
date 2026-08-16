@@ -19,10 +19,7 @@ class SubscriptionRepository {
   final GraphqlClient _client;
   final FeatureFlagsRepository _flags;
 
-  static const _orderFields = '''
-    id sku tariffKind months amountRsd status referenceDisplay
-    createdAt paymentDueAt
-  ''';
+  static const _orderFields = Order.fields;
 
   /// Витрина: активные тарифы. Запрос публичный — цены видно и без входа.
   Future<List<Tariff>> tariffs() async {

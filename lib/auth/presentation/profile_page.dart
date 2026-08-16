@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
+import '../../billing_admin/presentation/billing_admin_page.dart';
 import '../../core/di.dart';
 import '../../core/presentation/wide_layout.dart';
 import '../../core/responsive.dart';
@@ -117,6 +118,7 @@ class ProfilePage extends StatelessWidget {
     SettingsSection.supportChat => const SupportChatPage(),
     SettingsSection.supportThreads => const SupportThreadsPage(),
     SettingsSection.moderation => const ModerationPage(),
+    SettingsSection.billing => const BillingAdminPage(),
     SettingsSection.testPush => const TestPushPage(),
     SettingsSection.features => const FeatureFlagsPage(),
     SettingsSection.about => const AboutPage(),
@@ -220,6 +222,17 @@ class ProfilePage extends StatelessWidget {
           icon: Icons.shield_outlined,
           title: LocaleKeys.comments_moderation_title.tr(),
           subtitle: LocaleKeys.comments_moderation_subtitle.tr(),
+        ),
+      // Денежный стол: заказы, подтверждение оплаты, подписки вручную,
+      // тарифы и реквизиты. Гейт — бэкендовое право `manage_billing`; оно
+      // же стоит на каждом запросе. Показывается и в мобильных сборках: это
+      // инструмент оператора, а не разговор с покупателем о подписке.
+      if (permissions.contains('manage_billing'))
+        _SettingsEntry(
+          section: SettingsSection.billing,
+          icon: Icons.payments_outlined,
+          title: LocaleKeys.billingAdmin_title.tr(),
+          subtitle: LocaleKeys.billingAdmin_settingsSubtitle.tr(),
         ),
       // Инструмент администратора: тестовая отправка пуша по почте.
       // Гейт — бэкендовое право `send_test_push`, оно же проверяется
@@ -393,6 +406,10 @@ class _SectionPanel extends StatelessWidget {
       SettingsSection.moderation => const SurfaceCard(
         padding: EdgeInsets.symmetric(vertical: 8),
         child: ModerationContent(),
+      ),
+      SettingsSection.billing => const SurfaceCard(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: BillingAdminContent(),
       ),
       SettingsSection.testPush => hug(
         const SurfaceCard(

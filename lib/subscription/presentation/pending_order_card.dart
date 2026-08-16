@@ -7,15 +7,17 @@ import '../../generated/locale_keys.g.dart';
 import '../models/subscription_models.dart';
 import '../state_management/subscription_bloc.dart';
 import '../state_management/subscription_events.dart';
+import 'payment_slip_view.dart';
 import 'tariff_formatting.dart';
 
-/// Заказ в статусе «ждём оплату»: сумма, позив на број и срок, до которого
-/// заказ оплачиваем.
+/// Заказ в статусе «ждём оплату»: сумма, позив на број, срок, до которого
+/// заказ оплачиваем, и — когда оператор ввёл реквизиты получателя — уплатница
+/// с IPS QR-кодом ([PaymentSlipView]).
 ///
-/// Сами реквизиты (IPS QR и печатная квитанция) на этой итерации — заглушка:
-/// показываем номер и честно пишем, что платёжные данные вот-вот появятся.
-/// Позив на број настоящий и уже закреплён за заказом, по нему оператор найдёт
-/// перевод в банковской выписке.
+/// Пока реквизитов нет ([Order.payment] == null), показываем один позив на
+/// број и честно пишем, что платёжные данные появятся здесь. Позив на број
+/// настоящий и уже закреплён за заказом, по нему оператор найдёт перевод в
+/// банковской выписке.
 class PendingOrderCard extends StatelessWidget {
   const PendingOrderCard({super.key, required this.order});
 
@@ -50,10 +52,13 @@ class PendingOrderCard extends StatelessWidget {
             const SizedBox(height: 12),
             _ReferenceRow(reference: order.referenceDisplay),
             const SizedBox(height: 12),
-            Text(
-              LocaleKeys.subscription_paymentStub.tr(),
-              style: theme.textTheme.bodySmall,
-            ),
+            if (order.payment != null)
+              PaymentSlipView(slip: order.payment!)
+            else
+              Text(
+                LocaleKeys.subscription_paymentStub.tr(),
+                style: theme.textTheme.bodySmall,
+              ),
             const SizedBox(height: 8),
             Text(
               LocaleKeys.subscription_payUntil.tr(
