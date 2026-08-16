@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
+import '../../generated/locale_keys.g.dart';
 import '../../core/responsive.dart';
 import '../domain/display_name_rules.dart';
 import '../state_management/display_name_bloc.dart';
@@ -12,7 +15,7 @@ import '../state_management/display_name_state.dart';
 /// Profile settings screen opened by tapping the account (email) row in the
 /// settings list. Lets the signed-in user set their public **display name**
 /// (autosaved as they type, debounced via rxdart in [DisplayNameBloc]) and hosts
-/// a placeholder "Delete account" action.
+/// the "Delete account" entry point (`/deleteAccount`).
 class DisplayNamePage extends StatelessWidget {
   const DisplayNamePage({super.key});
 
@@ -129,7 +132,7 @@ class _DisplayNameContentState extends State<DisplayNameContent> {
                 onPressed: () => _confirmDeleteAccount(context),
                 icon: Icon(Icons.delete_outline, color: scheme.error),
                 label: Text(
-                  'Удалить аккаунт',
+                  LocaleKeys.settings_deleteAccount.tr(),
                   style: TextStyle(color: scheme.error),
                 ),
               ),
@@ -140,21 +143,10 @@ class _DisplayNameContentState extends State<DisplayNameContent> {
     );
   }
 
-  Future<void> _confirmDeleteAccount(BuildContext context) async {
-    // Placeholder: the button exists but performs no action yet (per spec).
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Удалить аккаунт'),
-        content: const Text('Удаление аккаунта будет доступно позже.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Понятно'),
-          ),
-        ],
-      ),
-    );
+  /// Opens the deletion flow (checklist → consents → e-mailed code); the
+  /// screen itself ends the session on success.
+  void _confirmDeleteAccount(BuildContext context) {
+    Routemaster.of(context).push('/deleteAccount');
   }
 }
 

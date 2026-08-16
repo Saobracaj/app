@@ -13,3 +13,13 @@ class SessionStatusChanged extends AuthEvent {
 
 /// User asked to sign out.
 class LogoutRequested extends AuthEvent {}
+
+/// The account was just deleted on the server; end the session. Unlike a plain
+/// sign-out the local statistics are *kept* unless [clearLocalData] — there is
+/// no account left they could be pulled back from, so wiping them would throw
+/// away the only copy; the user chose whether to keep them as a guest's
+/// history. With [clearLocalData] every local trace goes (statistics, caches).
+class AccountDeleted extends AuthEvent {
+  AccountDeleted({required this.clearLocalData});
+  final bool clearLocalData;
+}

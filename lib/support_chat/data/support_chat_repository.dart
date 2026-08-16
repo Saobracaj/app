@@ -25,7 +25,7 @@ class SupportChatRepository {
   final GraphqlSubscriptionClient _subscriptions;
 
   static const _attachmentFields = r'''
-    id kind fileName contentType sizeBytes questionId url createdAt
+    id kind fileName contentType sizeBytes questionId url deleted createdAt
   ''';
 
   static final _messageFields =

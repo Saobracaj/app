@@ -12,6 +12,10 @@
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:injectable/injectable.dart' as _i526;
 
+import '../account_deletion/data/account_deletion_repository.dart' as _i854;
+import '../account_deletion/data/local_data_cleaner.dart' as _i663;
+import '../account_deletion/state_management/account_deletion_bloc.dart'
+    as _i251;
 import '../auth/data/auth_repository.dart' as _i880;
 import '../auth/data/graphql_client.dart' as _i483;
 import '../auth/data/graphql_subscription_client.dart' as _i966;
@@ -97,6 +101,7 @@ extension GetItInjectableX on _i174.GetIt {
   }) {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final registerModule = _$RegisterModule();
+    gh.lazySingleton<_i663.LocalDataCleaner>(() => _i663.LocalDataCleaner());
     gh.lazySingleton<_i25.TokenStorage>(() => _i25.TokenStorage());
     gh.lazySingleton<_i811.AnalyticsService>(() => _i811.AnalyticsService());
     gh.lazySingleton<_i547.DeepLinkService>(() => _i547.DeepLinkService());
@@ -166,6 +171,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i25.TokenStorage>(),
       ),
     );
+    gh.lazySingleton<_i854.AccountDeletionRepository>(
+      () => _i854.AccountDeletionRepository(gh<_i483.GraphqlClient>()),
+    );
     gh.lazySingleton<_i512.BillingAdminRepository>(
       () => _i512.BillingAdminRepository(gh<_i483.GraphqlClient>()),
     );
@@ -187,35 +195,8 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i147.QuestionDifficultyRepository>(
       () => _i147.QuestionDifficultyRepository(gh<_i483.GraphqlClient>()),
     );
-    gh.lazySingleton<_i388.AuthBloc>(
-      () => _i388.AuthBloc(
-        gh<_i880.AuthRepository>(),
-        gh<_i966.GraphqlSubscriptionClient>(),
-      ),
-    );
-    gh.factory<_i618.NotificationsBloc>(
-      () => _i618.NotificationsBloc(
-        gh<_i880.AuthRepository>(),
-        gh<_i388.AuthBloc>(),
-        gh<_i426.NotificationPermissions>(),
-      ),
-    );
-    gh.factoryParam<_i480.QuestionAnalyticsBloc, int, dynamic>(
-      (questionId, _) => _i480.QuestionAnalyticsBloc(
-        gh<_i1002.QuestionAnalyticsRepository>(),
-        gh<_i147.QuestionDifficultyRepository>(),
-        gh<_i388.AuthBloc>(),
-        questionId,
-      ),
-    );
     gh.factory<_i187.KonspektCatalogBloc>(
       () => _i187.KonspektCatalogBloc(gh<_i491.KonspektRepository>()),
-    );
-    gh.factory<_i246.TestPushBloc>(
-      () => _i246.TestPushBloc(
-        gh<_i548.PushTestRepository>(),
-        gh<_i388.AuthBloc>(),
-      ),
     );
     gh.factoryParam<_i198.KonspektBloc, String, String?>(
       (categoryId, initialSection) => _i198.KonspektBloc(
@@ -273,13 +254,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i966.GraphqlSubscriptionClient>(),
       ),
     );
-    gh.factoryParam<_i955.CommentCountBloc, int, dynamic>(
-      (questionId, _) => _i955.CommentCountBloc(
-        gh<_i989.PublicCommentsRepository>(),
-        gh<_i388.AuthBloc>(),
-        questionId,
-      ),
-    );
     gh.factory<_i252.SupportThreadsBloc>(
       () => _i252.SupportThreadsBloc(gh<_i968.SupportChatRepository>()),
     );
@@ -294,6 +268,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factoryParam<_i681.SupportImageBloc, _i163.SupportAttachment, dynamic>(
       (attachment, _) =>
           _i681.SupportImageBloc(gh<_i968.SupportChatRepository>(), attachment),
+    );
+    gh.lazySingleton<_i388.AuthBloc>(
+      () => _i388.AuthBloc(
+        gh<_i880.AuthRepository>(),
+        gh<_i966.GraphqlSubscriptionClient>(),
+        localData: gh<_i663.LocalDataCleaner>(),
+      ),
     );
     gh.factory<_i957.DisplayNameBloc>(
       () => _i957.DisplayNameBloc(gh<_i311.ProfileRepository>()),
@@ -334,6 +315,21 @@ extension GetItInjectableX on _i174.GetIt {
         threadId,
       ),
     );
+    gh.factory<_i618.NotificationsBloc>(
+      () => _i618.NotificationsBloc(
+        gh<_i880.AuthRepository>(),
+        gh<_i388.AuthBloc>(),
+        gh<_i426.NotificationPermissions>(),
+      ),
+    );
+    gh.factoryParam<_i480.QuestionAnalyticsBloc, int, dynamic>(
+      (questionId, _) => _i480.QuestionAnalyticsBloc(
+        gh<_i1002.QuestionAnalyticsRepository>(),
+        gh<_i147.QuestionDifficultyRepository>(),
+        gh<_i388.AuthBloc>(),
+        questionId,
+      ),
+    );
     gh.factory<_i1032.GroupsBloc>(
       () => _i1032.GroupsBloc(
         gh<_i685.GroupsRepository>(),
@@ -346,6 +342,12 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i335.SubscriptionBloc(
         gh<_i731.SubscriptionRepository>(),
         gh<_i389.FeatureFlagsRepository>(),
+      ),
+    );
+    gh.factory<_i246.TestPushBloc>(
+      () => _i246.TestPushBloc(
+        gh<_i548.PushTestRepository>(),
+        gh<_i388.AuthBloc>(),
       ),
     );
     gh.factoryParam<_i481.GroupFeedBloc, String, dynamic>(
@@ -364,6 +366,19 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i388.AuthBloc>(),
         questionId,
         source,
+      ),
+    );
+    gh.factoryParam<_i955.CommentCountBloc, int, dynamic>(
+      (questionId, _) => _i955.CommentCountBloc(
+        gh<_i989.PublicCommentsRepository>(),
+        gh<_i388.AuthBloc>(),
+        questionId,
+      ),
+    );
+    gh.factory<_i251.AccountDeletionBloc>(
+      () => _i251.AccountDeletionBloc(
+        gh<_i854.AccountDeletionRepository>(),
+        gh<_i388.AuthBloc>(),
       ),
     );
     return this;

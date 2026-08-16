@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../account_deletion/data/local_data_cleaner.dart';
 import '../../../db/dependencies.dart';
 import '../../data/auth_repository.dart';
 import '../../data/graphql_subscription_client.dart';
@@ -17,10 +18,13 @@ import 'auth_state.dart';
 /// their own feature (`lib/notifications/`).
 @lazySingleton
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  AuthBloc(this.repository, this.subscriptions) : super(const AuthState()) {
+  AuthBloc(this.repository, this.subscriptions, {LocalDataCleaner? localData})
+    : localData = localData ?? LocalDataCleaner(),
+      super(const AuthState()) {
     on<AuthBootstrapRequested>(_onBootstrap);
     on<SessionStatusChanged>(_onSessionStatusChanged);
     on<LogoutRequested>(_onLogout);
+    on<AccountDeleted>(_onAccountDeleted);
 
     _sub = repository.sessionStatus.distinct().listen(
       (status) => add(SessionStatusChanged(status)),
@@ -33,7 +37,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   /// subscription belongs to the user who opened it.
   final GraphqlSubscriptionClient subscriptions;
 
+  /// Wipes the device-side history when a deleted account asked for it.
+  final LocalDataCleaner localData;
+
   late final StreamSubscription<AuthStatus> _sub;
+
+  /// Set by [AccountDeleted] when the user chose to keep the local history:
+  /// the very next sign-out then leaves the local statistics alone (see
+  /// [AccountDeleted]). One-shot — a later ordinary sign-out wipes as usual.
+  bool _keepLocalStatisticsOnce = false;
 
   @override
   Future<void> close() {
@@ -88,7 +100,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         // reacts to the logout (e.g. the "recent mistakes" row) already reads an
         // empty database.
         if (state.status == AuthStatus.authenticated) {
-          await statisticsSync.onLoggedOut();
+          final keep = _keepLocalStatisticsOnce;
+          _keepLocalStatisticsOnce = false;
+          await statisticsSync.onLoggedOut(keepLocalRecords: keep);
         }
         emit(
           state.copyWith(status: AuthStatus.unauthenticated, clearViewer: true),
@@ -113,6 +127,20 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       const Duration(seconds: 3),
       onTimeout: () {},
     );
+    await repository.logout();
+  }
+
+  /// The server has already anonymised the account, so nothing is synced: the
+  /// records it held are gone. Wipe the device on request, then end the session
+  /// — the token is dead anyway (the account's e-mail changed).
+  Future<void> _onAccountDeleted(
+    AccountDeleted event,
+    Emitter<AuthState> emit,
+  ) async {
+    _keepLocalStatisticsOnce = !event.clearLocalData;
+    if (event.clearLocalData) {
+      await localData.wipe();
+    }
     await repository.logout();
   }
 }

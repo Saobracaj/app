@@ -40,8 +40,9 @@ class PublicCommentsWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => getIt<CommentsBloc>(param1: questionId, param2: threadId)
-        ..add(CommentsStarted()),
+      create: (_) =>
+          getIt<CommentsBloc>(param1: questionId, param2: threadId)
+            ..add(CommentsStarted()),
       child: BlocConsumer<CommentsBloc, CommentsState>(
         listenWhen: (prev, curr) =>
             (curr.errorMessage != null &&
@@ -50,9 +51,9 @@ class PublicCommentsWidget extends StatelessWidget {
                 curr.subscriptionPromptFor != prev.subscriptionPromptFor),
         listener: (context, state) {
           if (state.errorMessage != null) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.errorMessage!)),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
           }
           if (state.subscriptionPromptFor != null) {
             _offerSubscription(context, state.subscriptionPromptFor!);
@@ -272,8 +273,14 @@ class _CommentTileState extends State<_CommentTile> {
                     ],
                   ),
                   Text(
-                    comment.body,
-                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.5),
+                    comment.displayBody,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      height: 1.5,
+                      fontStyle: comment.isDeleted ? FontStyle.italic : null,
+                      color: comment.isDeleted
+                          ? theme.colorScheme.onSurfaceVariant
+                          : null,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Row(
@@ -322,7 +329,8 @@ class _CommentTileState extends State<_CommentTile> {
     final isOwn =
         comment.authorId.isNotEmpty && comment.authorId == state.viewerId;
     final reported = state.reportedIds.contains(comment.id);
-    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
 
     final action = await showMenu<_CommentAction>(
       context: context,
@@ -377,7 +385,7 @@ class _CommentTileState extends State<_CommentTile> {
       case _CommentAction.subscribe:
         bloc.add(CommentSubscriptionToggled(top!, !top.subscribedByMe));
       case _CommentAction.copy:
-        await Clipboard.setData(ClipboardData(text: comment.body));
+        await Clipboard.setData(ClipboardData(text: comment.displayBody));
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(LocaleKeys.comments_copied.tr())),
@@ -437,9 +445,9 @@ Future<void> _confirmReport(
   if (ok != true) return;
   bloc.add(CommentReported(comment.id));
   if (context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(LocaleKeys.comments_reported.tr())),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(LocaleKeys.comments_reported.tr())));
   }
 }
 
@@ -487,16 +495,18 @@ class _AuthorLine extends StatelessWidget {
             comment.authorDisplayName.isEmpty
                 ? LocaleKeys.comments_anonymous.tr()
                 : comment.authorDisplayName,
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
             overflow: TextOverflow.ellipsis,
           ),
         ),
         const SizedBox(width: 8),
         Text(
           relativeTime(comment.createdAt),
-          style: theme.textTheme.bodySmall
-              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -518,7 +528,8 @@ class _LikeButton extends StatelessWidget {
     // hardcoded red, so likes follow the app's colour scheme.
     final color = liked ? scheme.primary : scheme.onSurfaceVariant;
     return InkResponse(
-      onTap: () => context.read<CommentsBloc>().add(CommentLikeToggled(comment)),
+      onTap: () =>
+          context.read<CommentsBloc>().add(CommentLikeToggled(comment)),
       radius: 20,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
@@ -656,9 +667,10 @@ class _Avatar extends StatelessWidget {
       (scheme.tertiaryContainer, scheme.onTertiaryContainer),
     ];
     // String.hashCode is not stable across runs; a code-unit sum is.
-    final hash = (displayName ?? '')
-        .codeUnits
-        .fold<int>(0, (sum, unit) => sum + unit);
+    final hash = (displayName ?? '').codeUnits.fold<int>(
+      0,
+      (sum, unit) => sum + unit,
+    );
     final (background, foreground) = initials.isEmpty
         ? (scheme.surfaceContainerHighest, scheme.onSurfaceVariant)
         : palette[hash % palette.length];

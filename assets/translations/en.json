@@ -192,7 +192,8 @@
     "pushBlockedInBrowser": "Notifications are blocked for this site. Allow them in your browser settings and try again.",
     "testPush": "Test push",
     "testPushSubtitle": "Send a test notification by email",
-    "signedIn": "Signed in"
+    "signedIn": "Signed in",
+    "deleteAccount": "Delete account"
   },
   "featureFlags": {
     "title": "Features",
@@ -333,7 +334,8 @@
         "one": "{} year ago",
         "other": "{} years ago"
       }
-    }
+    },
+    "deletedBody": "Message deleted"
   },
   "questionLists": {
     "section": "Question lists",
@@ -552,7 +554,9 @@
     "threadsCount": {
       "one": "{} request",
       "other": "{} requests"
-    }
+    },
+    "imageDeleted": "Image deleted",
+    "fileDeleted": "File deleted"
   },
   "questionFeedback": {
     "report": "Report a problem",
@@ -929,5 +933,40 @@
     "save": "Save",
     "payeeSaved": "Payee saved",
     "requestFailed": "The request failed"
+  },
+  "accountDeletion": {
+    "title": "Delete account",
+    "intro": "The account is deleted completely and forever. Choose which content goes with it, then confirm the deletion with the code from the e-mail.",
+    "loadError": "Could not load the account data.",
+    "whatToDelete": "What will be deleted",
+    "itemAccount": "Account and e-mail",
+    "itemAccountHint": "Required. The e-mail is replaced with an anonymous one; signing in becomes impossible.",
+    "itemDisplayName": "Display name",
+    "itemDisplayNameHint": "Required. Your comments will be shown as written by «Deleted user».",
+    "itemComments": "Public comments ({})",
+    "itemCommentsHint": "The text of the comments is replaced with «Message deleted».",
+    "itemAttachments": "Photos and files in the developer chat ({})",
+    "itemAttachmentsHint": "An «Image deleted» note is left in their place.",
+    "itemSupportChat": "Support conversations ({})",
+    "itemSupportChatHint": "Deletes the whole conversation with the developer. Tick it only if the data-protection law of your country requires it — otherwise the conversation stays as support history.",
+    "itemGroupHistory": "Group history ({})",
+    "itemGroupHistoryHint": "Your learning events disappear from the group feeds. You leave every group either way: groups you own ({}) pass to the longest-standing member or are closed.",
+    "itemLocal": "Local history and cache on this device",
+    "itemLocalHint": "Answer statistics, downloaded notes and explanations. If unticked, the history stays on the device as a guest's history.",
+    "alwaysDeleted": "Also deleted, with no choice: server-side statistics, question lists, AI conversations, notification devices and active sessions.",
+    "acceptIrreversible": "I understand that the account and the selected data are deleted completely and cannot be restored.",
+    "acceptSubscription": "I understand that my subscription (until {}) ends immediately and the money is not refunded.",
+    "sendCode": "Send confirmation code",
+    "codeSentTo": "We sent a code to {}. Enter it to confirm the deletion.",
+    "codeLabel": "Code from the e-mail",
+    "resend": "Send the code again",
+    "resent": "The code was sent again",
+    "confirmDelete": "Delete the account forever",
+    "back": "Back",
+    "doneTitle": "Account deleted",
+    "doneBody": "You have been signed out. Thank you for being with us.",
+    "close": "Close",
+    "signInRequired": "Sign in to delete the account.",
+    "retry": "Retry"
   }
 }

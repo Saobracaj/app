@@ -14,6 +14,7 @@ import 'package:saobracaj/subscription/presentation/tariffs_page.dart';
 import 'package:saobracaj/theme/presentation/appearance_page.dart';
 import 'package:saobracaj/notifications/presentation/notifications_page.dart';
 import 'package:saobracaj/profile/presentation/display_name_page.dart';
+import 'package:saobracaj/account_deletion/presentation/account_deletion_page.dart';
 import 'package:saobracaj/public_comments/presentation/moderation_page.dart';
 import 'package:saobracaj/billing_admin/presentation/billing_admin_page.dart';
 import 'package:saobracaj/push_test/presentation/test_push_page.dart';
@@ -206,6 +207,8 @@ final routes = RouteMap(
     '/features': (_) => const MaterialPage(child: FeatureFlagsPage()),
     '/notifications': (_) => const MaterialPage(child: NotificationsPage()),
     '/displayName': (_) => const MaterialPage(child: DisplayNamePage()),
+    // Удаление аккаунта: чек-лист контента, согласия, код из письма.
+    '/deleteAccount': (_) => const MaterialPage(child: AccountDeletionPage()),
     '/moderation': (_) => const MaterialPage(child: ModerationPage()),
     // Денежный стол оператора (право `manage_billing` проверяет бэкенд).
     '/billing': (_) => const MaterialPage(child: BillingAdminPage()),

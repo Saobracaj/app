@@ -56,6 +56,12 @@ class SupportAttachmentView extends StatelessWidget {
         onSurface: onSurface,
       );
     }
+    if (attachment.deleted) {
+      return _DeletedAttachment(
+        isImage: attachment.isImage,
+        onSurface: onSurface,
+      );
+    }
     // Deliberately `isImage` and not `kind`: a picture uploaded before the app
     // reported MIME types is stored as a plain file and would otherwise stay
     // hidden behind a download row forever.
@@ -184,6 +190,47 @@ class _ImageTile extends StatelessWidget {
 
 /// What fills the picture's box before it arrives, and instead of it when it
 /// never does — the same size either way, so nothing moves.
+/// What is left of a photo or file whose uploader deleted their account: a
+/// muted note in the attachment's place, so the conversation keeps its shape.
+class _DeletedAttachment extends StatelessWidget {
+  const _DeletedAttachment({required this.isImage, required this.onSurface});
+
+  final bool isImage;
+  final Color onSurface;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: onSurface.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isImage ? Icons.hide_image_outlined : Icons.file_present_outlined,
+            size: 18,
+            color: onSurface.withValues(alpha: 0.7),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              (isImage ? 'support.imageDeleted' : 'support.fileDeleted').tr(),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: onSurface.withValues(alpha: 0.7),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ImagePlaceholder extends StatelessWidget {
   const _ImagePlaceholder({required this.fileName, this.loading = false});
 
@@ -244,7 +291,11 @@ class _FileAttachment extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.insert_drive_file_outlined, size: 20, color: onSurface),
+              Icon(
+                Icons.insert_drive_file_outlined,
+                size: 20,
+                color: onSurface,
+              ),
               const SizedBox(width: 8),
               Flexible(
                 child: Column(
@@ -282,7 +333,10 @@ class _FileAttachment extends StatelessWidget {
 /// Open the signed URL with the platform handler: the browser downloads it (the
 /// backend signs `Content-Disposition: attachment` with the original file name),
 /// and on mobile the OS decides what opens it.
-Future<void> _download(BuildContext context, SupportAttachment attachment) async {
+Future<void> _download(
+  BuildContext context,
+  SupportAttachment attachment,
+) async {
   final url = attachment.url;
   final messenger = ScaffoldMessenger.maybeOf(context);
   if (url == null || url.isEmpty) {
@@ -363,14 +417,11 @@ Future<double?> _imageAspectRatio(String url) {
     stream.removeListener(listener);
   }
 
-  listener = ImageStreamListener(
-    (info, _) {
-      final ratio = info.image.width / info.image.height;
-      info.dispose();
-      finish(ratio.isFinite && ratio > 0 ? ratio : null);
-    },
-    onError: (_, _) => finish(null),
-  );
+  listener = ImageStreamListener((info, _) {
+    final ratio = info.image.width / info.image.height;
+    info.dispose();
+    finish(ratio.isFinite && ratio > 0 ? ratio : null);
+  }, onError: (_, _) => finish(null));
   stream.addListener(listener);
   return completer.future.timeout(
     const Duration(milliseconds: 300),
