@@ -8,7 +8,7 @@ void main() {
       expect(analyticsScreenName('/'), '/');
       expect(analyticsScreenName('/home'), '/home');
       expect(analyticsScreenName('/practice'), '/practice');
-      expect(analyticsScreenName('/about/privacyPolicy'), '/about/privacyPolicy');
+      expect(analyticsScreenName('/about'), '/about');
       expect(analyticsScreenName('/quest/q/zakon'), '/quest/q/zakon');
     });
 

@@ -50,7 +50,8 @@
   },
   "info": {
     "contactsMarkdown": "#### Контакт информације:\nЕмаил: [info@gleb.at](mailto:info@gleb.at)\n\nТелеграм: [GlebKl](https://t.me/GlebKl)",
-    "privacyPolicy": "Политика приватности"
+    "privacyPolicy": "Политика приватности",
+    "termsOfUse": "Услови коришћења"
   },
   "quest": {
     "start": "Почни тест",
@@ -817,6 +818,7 @@
     "remindersTitle": "Podsetnici mejlom",
     "remindersSubtitle": "14 i 3 dana pre isteka pretplate. Mejlovi o porudžbini i uplati stižu uvek.",
     "oneTimeNote": "Jedna uplata za ceo period. Ništa se ne naplaćuje automatski — pretplata se jednostavno završava, a mi vas podsetimo unapred.",
+    "legalNote": "Наручивањем прихватате услове коришћења (укључујући услове плаћања и повраћаја) и политику приватности.",
     "perMonthUnit": "mesečno",
     "payTotal": "Za uplatu {}",
     "saveBadge": "−{}%",
