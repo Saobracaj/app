@@ -31,7 +31,6 @@ import 'package:saobracaj/statistics/statistics_page.dart';
 import 'package:saobracaj/support_chat/presentation/support_chat_page.dart';
 import 'package:saobracaj/support_chat/presentation/support_threads_page.dart';
 import 'package:saobracaj/test/about/about_page.dart';
-import 'package:saobracaj/test/about/privacy_policy.dart';
 import 'package:saobracaj/test/practice/practice.dart';
 import 'package:saobracaj/test/practice/practice_page.dart';
 import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
@@ -153,7 +152,6 @@ final routes = RouteMap(
       ),
     ),
     '/about': (_) => MaterialPage(child: AboutPage()),
-    '/about/privacyPolicy': (_) => MaterialPage(child: PrivacyPolicyWidget()),
     '/zakon': zakonPage,
     // Deep link to a category konspekt, optionally straight to one section:
     // /konspekt?category=25&section=manevri

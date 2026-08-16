@@ -49,7 +49,8 @@
   },
   "info": {
     "contactsMarkdown": "#### Contact Information:\nEmail: [info@gleb.at](mailto:info@gleb.at)\n\nTelegram: [GlebKl](https://t.me/GlebKl)",
-    "privacyPolicy": "Privacy Policy"
+    "privacyPolicy": "Privacy Policy",
+    "termsOfUse": "Terms of Use"
   },
   "quest": {
     "start": "Start Test",
@@ -796,6 +797,7 @@
     "remindersTitle": "Reminder e-mails",
     "remindersSubtitle": "14 and 3 days before the subscription ends. Order and payment e-mails always arrive.",
     "oneTimeNote": "One payment for the whole term. Nothing is charged automatically — the subscription simply ends, and we remind you in advance.",
+    "legalNote": "By placing an order you accept the terms of use (including payment and refund terms) and the privacy policy.",
     "perMonthUnit": "per month",
     "payTotal": "Total {}",
     "saveBadge": "−{}%",

@@ -2,9 +2,11 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../core/di.dart';
+import '../../core/legal_documents.dart';
 import '../../core/responsive.dart';
 import '../../generated/locale_keys.g.dart';
 import '../models/subscription_models.dart';
@@ -77,11 +79,66 @@ class TariffsPage extends StatelessWidget {
                 const PlanFeaturesComparison(),
                 const SizedBox(height: 16),
                 const _FreeTierCard(),
+                const SizedBox(height: 16),
+                const _LegalFooter(),
               ],
             );
           },
         ),
       ),
+    );
+  }
+}
+
+/// Ссылки на условия использования (там же условия оплаты и возврата) и
+/// политику конфиденциальности — обязательная преддоговорная информация при
+/// продаже на расстоянии. Документы внешние, открываются в браузере.
+class _LegalFooter extends StatelessWidget {
+  const _LegalFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final lang = context.locale.languageCode;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          LocaleKeys.subscription_legalNote.tr(),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Wrap(
+          spacing: 8,
+          children: [
+            _LegalLink(
+              label: LocaleKeys.info_termsOfUse.tr(),
+              uri: legalDocumentUri(LegalDocument.termsOfUse, lang),
+            ),
+            _LegalLink(
+              label: LocaleKeys.info_privacyPolicy.tr(),
+              uri: legalDocumentUri(LegalDocument.privacyPolicy, lang),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _LegalLink extends StatelessWidget {
+  const _LegalLink({required this.label, required this.uri});
+
+  final String label;
+  final Uri uri;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: () => launchUrl(uri, mode: LaunchMode.externalApplication),
+      icon: const Icon(Icons.open_in_new, size: 16),
+      label: Text(label),
     );
   }
 }
