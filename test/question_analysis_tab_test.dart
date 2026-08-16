@@ -199,15 +199,6 @@ void main() {
     expect(find.textContaining('699 званичних'), findsOneWidget);
   });
 
-  testWidgets('a question the exam never draws is called out', (tester) async {
-    // Category 38 has no slot in any of the 699 sampled variants.
-    const qId = 8223;
-    await show(tester, wrap(qId));
-
-    expect(find.text('Не појављује се'), findsOneWidget);
-    expect(find.text('Никад'), findsOneWidget);
-  });
-
   testWidgets('difficulty is graded with the evidence behind a tap', (
     tester,
   ) async {
@@ -273,7 +264,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AlertDialog), findsOneWidget);
     expect(find.text('Кључне фразе'), findsNWidgets(2));
-    expect(find.textContaining('целој бази од 1701 питања'), findsOneWidget);
+    expect(find.textContaining('целој бази од 1559 питања'), findsOneWidget);
   });
 
   testWidgets('a whole answer that is always correct is called out', (
@@ -298,54 +289,29 @@ void main() {
     expect(find.textContaining('дужина'), findsNothing);
   });
 
-  testWidgets('a question→answer link is shown next to its option', (
-    tester,
-  ) async {
-    // qId 8354: a parking fine question. "Новчаном казном од 5 000 динара" is
-    // wrong elsewhere in the bank, but always right when the question says
-    // "паркира"; the option with the 30 000-dinar fine is always wrong.
-    await show(tester, wrap(8354));
-
-    expect(
-      find.textContaining(
-        'Ако питање садржи „паркира“, одговор „новчаном казном од 5 000 '
-        'динара“ је тачан',
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('„новчаном казном од 30“ — увек нетачан одговор'),
-      findsOneWidget,
-    );
-  });
-
   testWidgets('cues are the Serbian wordings in every interface language', (
     tester,
   ) async {
     // The exam is sat in Serbian and the options on screen are Serbian, so a
     // Russian-speaking learner is shown the same Serbian cue, in a Russian
     // sentence — never a cue mined from the Russian translation.
-    await show(tester, wrap(8354, locale: const Locale('ru')));
+    await show(tester, wrap(7921, locale: const Locale('ru')));
 
     expect(find.text('Ключевые фразы'), findsOneWidget);
     expect(
       find.textContaining(
-        'Если в вопросе есть «паркира», ответ «новчаном казном од 5 000 '
-        'динара» верный',
+        '«униформисани полицијски службеници» — этот ответ целиком всегда '
+        'верный',
       ),
       findsOneWidget,
     );
-    expect(
-      find.textContaining('«новчаном казном од 30» — всегда неверный ответ'),
-      findsOneWidget,
-    );
-    expect(find.textContaining('штраф'), findsNothing);
-    expect(find.textContaining('паркует'), findsNothing);
+    // The Russian wording of the same option, which the cue must not quote.
+    expect(find.textContaining('«полицейские в форме»'), findsNothing);
   });
 
   testWidgets('a question without cues says so', (tester) async {
-    // qId 8223 (category 38) carries no marker or link.
-    await show(tester, wrap(8223));
+    // qId 7930 carries no marker or link.
+    await show(tester, wrap(7930));
 
     expect(
       find.textContaining('нема фраза које би у целој бази'),

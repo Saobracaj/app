@@ -15,9 +15,12 @@ themselves. See `reference/api.md` for the exact `CommentStatus` state
 machine — `DRAFT` is *not* the same thing as the literal `PENDING` enum value
 (those are two different, unrelated states).
 
-There are ~1701 questions and only a few dozen already have an approved
-comment — most of the work is a large, repetitive backlog. Process it in
-small batches (see "Segmentation plan" below), not all at once.
+There are 1559 questions in the app's bank and only a few dozen already have an
+approved comment — most of the work is a large, repetitive backlog. Process it
+in small batches (see "Segmentation plan" below), not all at once. (The backend
+still holds 1701 comment rows: 142 of them belong to the category-38 questions
+that were dropped from the bank because the B exam never draws them. Those rows
+are dead weight — don't spend work on them.)
 
 ## Setup: an editor account is required
 

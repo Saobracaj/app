@@ -32,7 +32,7 @@ import '../state_management/question_attempts_state.dart';
 /// therefore always there.
 ///
 /// The three figures are graded, not quoted: a learner cannot tell whether
-/// "2.6%" is a lot for one question out of 1700, so each cell shows *high /
+/// "2.6%" is a lot for one question out of 1559, so each cell shows *high /
 /// medium / low* and nothing else. The number itself, the sentence behind it
 /// and the method (sample size, pool, how it was computed) open in a dialog
 /// when the cell is tapped — the tab reads at a glance and the evidence is a

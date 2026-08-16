@@ -21,7 +21,6 @@ class StatisticsPage extends StatelessWidget {
             HistoryBloc(allQuestionsState.questionsData!.questions),
         child: BlocBuilder<HistoryBloc, HistoryState>(
           builder: (context, state) {
-            final qs = allQuestionsState.questionsData!.questions;
             return Scaffold(
               appBar: AppBar(
                 title: Text(LocaleKeys.home_history.tr()),
@@ -51,9 +50,7 @@ class StatisticsPage extends StatelessWidget {
                     ),
                     ...state.questions.map(
                       (e) => QuestionListTile(
-                        question: qs.firstWhere(
-                          (element) => element.id == e.id,
-                        ),
+                        question: e,
                         onTap: () {
                           Routemaster.of(
                             context,

@@ -17,10 +17,11 @@ class HistoryBloc extends Bloc<HistoryEvent, HistoryState> {
 
   void _init(Init event, Emitter<HistoryState> emit) async {
     final res = await repository.getQuestionsWhereLastAnswerWasWrong();
-    final arr = <Question>[];
-    for (int qid in res) {
-      arr.add(allQuestions.firstWhere((element) => element.id == qid));
-    }
+    final byId = {for (final q in allQuestions) q.id: q};
+    // The history outlives the bank: a question answered before a content
+    // update may no longer exist, and looking it up unconditionally would
+    // crash the whole screen. Such ids are simply dropped from the list.
+    final arr = [for (final qid in res) ?byId[qid]];
 
     emit(state.copyWith(questions: arr));
   }

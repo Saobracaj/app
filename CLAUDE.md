@@ -39,9 +39,12 @@ reverse-engineered from the sample (every variant is 41 questions with the same
 category profile; each subcategory pool contributes a fixed number of slots,
 drawn uniformly — verified by a chi-square test per pool), so a question's
 probability is `slots / pool size` rather than its raw frequency in a sample far
-too small for 1557 separate estimates. Summed over the bank the model reproduces
+too small for 1559 separate estimates. Summed over the bank the model reproduces
 a real exam to three decimals — 41.000 questions and 98.11 points against an
-actual 98.12. The keyword block ("Ключевые фразы") is built the same way and
+actual 98.12. The bank holds only what the B exam can draw: the 142 questions of
+category 38 ("последице непоштовања прописа", an area that belongs to the C/D
+test and appears in none of the 699 variants) were removed, so every question
+now has a non-zero chance. The keyword block ("Ключевые фразы") is built the same way and
 reports only *absolute* cues — whole answers or phrases that are correct (or
 wrong) in every question of the bank where they occur, and "word in the
 question → this answer" links; nothing "mostly", no option-length or

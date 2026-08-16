@@ -6,7 +6,7 @@ Everything here is derived from the two bundled assets and nothing else:
 
 * `assets/practice.json` — 699 real exam variants (the official sample), each a
   list of 41 question ids;
-* `assets/allQuestions.json` — the 1701-question catalogue (points, category,
+* `assets/allQuestions.json` — the 1559-question catalogue (points, category,
   subcategory, answer options with their correctness).
 
 Three families of numbers come out of it:
@@ -14,8 +14,8 @@ Three families of numbers come out of it:
 1. **How the exam is assembled.** Reverse-engineered from the sample and then
    verified against it (see `_pools` and `--verify`), so the probability of a
    question showing up is a model number, not a raw frequency: the sample is far
-   too small to estimate 1557 individual probabilities (144 questions never
-   occur in it at all).
+   too small to estimate 1559 individual probabilities (two questions never
+   occur in it at all, both of them perfectly drawable).
 2. **What a question is worth** — expected points per exam, `p * Points`.
 3. **Keyword analysis** — cues a learner can memorise an answer by: answer
    options (whole, or a phrase inside them) that are correct — or wrong — in
@@ -551,8 +551,10 @@ def build(verify: bool = False):
 def _tier(value: float, mean_value: float) -> str:
     """High / medium / low, cut at 2× and ½× the average question's worth.
 
-    Questions from category 38 (never drawn by the exam) come out at 0 and get
-    their own tier — calling them "low" would imply they might still show up.
+    A question the exam cannot draw comes out at 0 and gets its own tier —
+    calling it "low" would imply it might still show up. The bank holds no such
+    question now (category 38, the only area the B exam never draws, was
+    removed), but a content update could bring one back.
     """
     if value <= 0:
         return "none"

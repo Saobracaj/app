@@ -17,9 +17,12 @@ enum QuestionValueTier {
   /// Below half the average.
   low,
 
-  /// Not drawn by the exam at all (the whole of category 38): its subcategory
-  /// has no slot in any of the 699 sampled variants, so the probability is a
-  /// structural zero, not a small number.
+  /// Not drawn by the exam at all: the question's subcategory has no slot in
+  /// any of the 699 sampled variants, so the probability is a structural zero,
+  /// not a small number. No question in the bank is in this state any more —
+  /// the one area that was (category 38, examined only for C and D) has been
+  /// removed — but the tier is kept so a content update that reintroduces one
+  /// is labelled rather than called "low".
   none;
 
   static QuestionValueTier parse(String? raw) => switch (raw) {
@@ -236,7 +239,7 @@ abstract class QuestionAnalytics with _$QuestionAnalytics {
 
   /// [probability] graded against the average answerable question, at the
   /// same 2× / ½× cuts as [tier] — a percentage alone does not tell a learner
-  /// whether 2.6% is a lot for one question out of 1700.
+  /// whether 2.6% is a lot for one question out of 1559.
   QuestionValueTier probabilityTier(AnalyticsSummary summary) {
     if (probability <= 0) return QuestionValueTier.none;
     final mean = summary.meanProbability;
