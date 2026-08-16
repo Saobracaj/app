@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/core/keyboard_pagination.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
@@ -20,6 +21,7 @@ import 'package:saobracaj/theme/quiz_colors.dart';
 
 import 'finalize_test.dart';
 import 'presentation/answer_option_card.dart';
+import 'presentation/quest_actions.dart';
 import 'presentation/quest_app_bar.dart';
 import 'presentation/quest_bottom_bar.dart';
 import 'presentation/quest_markdown.dart';
@@ -196,33 +198,44 @@ class Quest extends StatelessWidget {
                         onQuestionSelected: (picked) =>
                             questBloc.add(MoveToQuestion(picked)),
                       );
-                      return Scaffold(
-                        appBar: QuestAppBar(
-                          questionNumber: state.currentQuestionIndex + 1,
-                          questionCount: state.questions.length,
-                          points: question.points,
-                          questionId: currentId,
+                      // Клавиатура: ← / → листают вопросы теми же путями,
+                      // что кнопки нижней панели (→ записывает выбор, как
+                      // «Дальше»; на последнем вопросе → ничего не делает —
+                      // завершение прогона остаётся за явным нажатием
+                      // кнопки), пробел = «показать ответ».
+                      final actions = QuestActions(context, question);
+                      return KeyboardPagination(
+                        onPrevious: first ? null : actions.previous,
+                        onNext: last ? null : actions.next,
+                        onShowAnswer: actions.showAnswer,
+                        child: Scaffold(
+                          appBar: QuestAppBar(
+                            questionNumber: state.currentQuestionIndex + 1,
+                            questionCount: state.questions.length,
+                            points: question.points,
+                            questionId: currentId,
+                          ),
+                          // Полоса закреплена под шапкой, а её раскрытием
+                          // управляют жесты тела: потяг вниз у самого верха
+                          // раскрывает навигатор, прокрутка вверх — сворачивает.
+                          // На вебе полосы нет: там мышь, и вместо жеста внизу
+                          // страницы стоит раскрытая пагинация (см. ниже).
+                          body: kIsWeb
+                              ? body
+                              : QuestionProgressHeader(
+                                  entries: entries,
+                                  currentQuestionId: currentId,
+                                  onQuestionSelected: (picked) =>
+                                      questBloc.add(MoveToQuestion(picked)),
+                                  child: body,
+                                ),
+                          bottomNavigationBar: kIsWeb
+                              ? Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [?bottomBar, pagination],
+                                )
+                              : bottomBar,
                         ),
-                        // Полоса закреплена под шапкой, а её раскрытием
-                        // управляют жесты тела: потяг вниз у самого верха
-                        // раскрывает навигатор, прокрутка вверх — сворачивает.
-                        // На вебе полосы нет: там мышь, и вместо жеста внизу
-                        // страницы стоит раскрытая пагинация (см. ниже).
-                        body: kIsWeb
-                            ? body
-                            : QuestionProgressHeader(
-                                entries: entries,
-                                currentQuestionId: currentId,
-                                onQuestionSelected: (picked) =>
-                                    questBloc.add(MoveToQuestion(picked)),
-                                child: body,
-                              ),
-                        bottomNavigationBar: kIsWeb
-                            ? Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [?bottomBar, pagination],
-                              )
-                            : bottomBar,
                       );
                     },
                   ),
