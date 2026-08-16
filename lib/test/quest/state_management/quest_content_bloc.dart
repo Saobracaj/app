@@ -14,18 +14,23 @@ part 'quest_content_bloc.freezed.dart';
 class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
   int questionId;
 
+  /// «Режим презентации»: каждый вопрос открывается уже раскрытым — как будто
+  /// «показать ответ» нажали заранее, — и остаётся таким при переходах.
+  final bool presentation;
+
   QuestContentBloc(
     Set<Choice> choices,
     Set<Choice> currentAnswers,
     this.questionId, {
     bool revealAnswers = false,
+    this.presentation = false,
   }) : super(
          QuesContentState(
            choices: choices,
            selectedChoices: currentAnswers,
            // Deep links into the discussion reveal the feature tabs (which host
            // the comments) immediately, without requiring an attempt first.
-           showCorrectAnswers: revealAnswers,
+           showCorrectAnswers: revealAnswers || presentation,
          ),
        ) {
     on<AddChoice>(_onAddChoise);
@@ -35,12 +40,16 @@ class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
 
   /// Full reset for the newly shown question: selection must not leak between
   /// questions, and a previously recorded answer comes back pre-selected.
-  void _onQuestionChanged(QuestionChanged event, Emitter<QuesContentState> emit) {
+  void _onQuestionChanged(
+    QuestionChanged event,
+    Emitter<QuesContentState> emit,
+  ) {
     questionId = event.questionId;
     emit(
       QuesContentState(
         choices: event.choices,
         selectedChoices: event.currentAnswers,
+        showCorrectAnswers: presentation,
       ),
     );
   }
@@ -52,13 +61,17 @@ class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
     final limit = state.choices.where((element) => element.isCorrect).length;
     if (limit > 1) {
       if (state.selectedChoices.contains(event.choice)) {
-        emit(state.copyWith(
-          selectedChoices: {...state.selectedChoices}..remove(event.choice),
-        ));
+        emit(
+          state.copyWith(
+            selectedChoices: {...state.selectedChoices}..remove(event.choice),
+          ),
+        );
       } else if (state.selectedChoices.length < limit) {
-        emit(state.copyWith(
-          selectedChoices: {...state.selectedChoices, event.choice},
-        ));
+        emit(
+          state.copyWith(
+            selectedChoices: {...state.selectedChoices, event.choice},
+          ),
+        );
       } else {
         emit(state.copyWith(limitHits: state.limitHits + 1));
       }

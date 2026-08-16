@@ -271,6 +271,8 @@ RouteSettings questPage(RouteData data) {
         random: data.queryParameters['random'] == 'true',
         randomOptionsOrder:
             data.queryParameters['randomOptionsOrder'] == 'true',
+        // «Режим презентации»: ответы раскрыты, статистика не пишется.
+        presentation: data.queryParameters['presentation'] == 'true',
       ),
       questions: ids,
       subcategory: _subcategoryParam(data.queryParameters['subcategory']),

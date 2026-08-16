@@ -89,6 +89,14 @@ class StartTestDialog extends StatelessWidget {
                     value: state.randomOptionsOrder,
                     onChanged: (_) => bloc.add(ToggleRandomOptionsOrder()),
                   ),
+                  SwitchListTile(
+                    title: Text(LocaleKeys.quest_options_presentation.tr()),
+                    subtitle: Text(
+                      LocaleKeys.quest_options_presentationHint.tr(),
+                    ),
+                    value: state.presentation,
+                    onChanged: (_) => bloc.add(TogglePresentation()),
+                  ),
                   Padding(
                     padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
                     child: Text(
@@ -172,6 +180,19 @@ class StartTest extends StatelessWidget {
                                 onChanged: (_) =>
                                     bloc.add(ToggleRandomOptionsOrder()),
                               ),
+                              Divider(height: 1),
+                              SwitchListTile(
+                                title: Text(
+                                  LocaleKeys.quest_options_presentation.tr(),
+                                ),
+                                subtitle: Text(
+                                  LocaleKeys.quest_options_presentationHint
+                                      .tr(),
+                                ),
+                                value: state.presentation,
+                                onChanged: (_) =>
+                                    bloc.add(TogglePresentation()),
+                              ),
                             ],
                           ),
                         ),
@@ -239,6 +260,14 @@ class StartTest extends StatelessWidget {
                     value: state.randomOptionsOrder,
                     onChanged: (value) => bloc.add(ToggleRandomOptionsOrder()),
                   ),
+                  CheckboxListTile(
+                    title: Text(LocaleKeys.quest_options_presentation.tr()),
+                    subtitle: Text(
+                      LocaleKeys.quest_options_presentationHint.tr(),
+                    ),
+                    value: state.presentation,
+                    onChanged: (value) => bloc.add(TogglePresentation()),
+                  ),
                   /* CheckboxListTile(
                   title: Text('Перемешивать варианты ответов'),
                   value: state.randomOptionsOrder,
@@ -287,6 +316,8 @@ String quizRunPath({
   final path = StringBuffer('/quest?q=${questionIds.join(',')}')
     ..write('&randomOptionsOrder=${options.randomOptionsOrder}')
     ..write('&random=${options.random}');
+  // Флаг только когда он включён: старые ссылки без него — обычный прогон.
+  if (options.presentation) path.write('&presentation=true');
   if (!isPhantomSubcategory(subcategory)) {
     path.write('&subcategory=${Uri.encodeQueryComponent(subcategory!.trim())}');
   }

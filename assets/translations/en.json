@@ -56,7 +56,9 @@
     "start": "Start Test",
     "options": {
       "shuffleQuestions": "Shuffle questions",
-      "shuffleOptions": "Shuffle answer options"
+      "shuffleOptions": "Shuffle answer options",
+      "presentation": "Presentation mode",
+      "presentationHint": "Answers are revealed at once, the “Show answer” button is hidden and nothing is recorded in the statistics."
     },
     "questions": "Questions: {}",
     "random": "Start Test",
@@ -95,6 +97,7 @@
     "next": "Next",
     "previous": "Previous question",
     "finish": "Finish test",
+    "close": "Close",
     "ruToggle": "RU",
     "share": "Share question",
     "linkCopied": "Link copied",

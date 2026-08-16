@@ -17,6 +17,7 @@ class StartTestBloc extends Bloc<StartTestEvent, StartTestState> {
     on<ToggleRandom>(_setRandom);
     on<ToggleRandomOptionsOrder>(_setRandomOptionsOrder);
     on<ToggleShowWrongAnswers>(_setShowWrongAnswers);
+    on<TogglePresentation>(_setPresentation);
   }
 
   final QuizPreferencesRepository _preferences;
@@ -27,6 +28,7 @@ class StartTestBloc extends Bloc<StartTestEvent, StartTestState> {
         randomOptionsOrder: preferences.isEnabled(
           QuizOption.shuffleAnswerOptions,
         ),
+        presentation: preferences.isEnabled(QuizOption.presentationMode),
       );
 
   void _setRandom(ToggleRandom event, Emitter<StartTestState> emit) {
@@ -35,14 +37,29 @@ class StartTestBloc extends Bloc<StartTestEvent, StartTestState> {
     emit(state.copyWith(random: value));
   }
 
-  void _setRandomOptionsOrder(ToggleRandomOptionsOrder event, Emitter<StartTestState> emit) {
+  void _setRandomOptionsOrder(
+    ToggleRandomOptionsOrder event,
+    Emitter<StartTestState> emit,
+  ) {
     final value = !state.randomOptionsOrder;
     _preferences.setEnabled(QuizOption.shuffleAnswerOptions, value);
     emit(state.copyWith(randomOptionsOrder: value));
   }
 
-  void _setShowWrongAnswers(ToggleShowWrongAnswers event, Emitter<StartTestState> emit) {
+  void _setShowWrongAnswers(
+    ToggleShowWrongAnswers event,
+    Emitter<StartTestState> emit,
+  ) {
     emit(state.copyWith(showWrongAnswers: !state.showWrongAnswers));
+  }
+
+  void _setPresentation(
+    TogglePresentation event,
+    Emitter<StartTestState> emit,
+  ) {
+    final value = !state.presentation;
+    _preferences.setEnabled(QuizOption.presentationMode, value);
+    emit(state.copyWith(presentation: value));
   }
 }
 
@@ -54,8 +71,16 @@ class ToggleRandomOptionsOrder extends StartTestEvent {}
 
 class ToggleShowWrongAnswers extends StartTestEvent {}
 
+class TogglePresentation extends StartTestEvent {}
+
 @freezed
 sealed class StartTestState with _$StartTestState {
-  const factory StartTestState({@Default(true) bool random, @Default(true) bool randomOptionsOrder, @Default(true) bool showWrongAnswers}) =
-      _StartTestState;
+  const factory StartTestState({
+    @Default(true) bool random,
+    @Default(true) bool randomOptionsOrder,
+    @Default(true) bool showWrongAnswers,
+
+    /// «Режим презентации» — см. [QuizOption.presentationMode].
+    @Default(false) bool presentation,
+  }) = _StartTestState;
 }

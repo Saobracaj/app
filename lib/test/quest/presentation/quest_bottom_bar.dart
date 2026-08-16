@@ -17,6 +17,10 @@ import 'quest_actions.dart';
 ///
 /// The buttons only dispatch to [QuestActions] — the same object the keyboard
 /// shortcuts (← / → / space) call, so both inputs behave identically.
+///
+/// В режиме презентации ([QuestBloc.presentation]) «показать ответ» не нужна —
+/// ответы и так раскрыты, — а на последнем вопросе вместо «завершить» стоит
+/// «закрыть»: без итогов и без вопроса «точно завершить?».
 class QuestBottomBar extends StatelessWidget {
   const QuestBottomBar({
     super.key,
@@ -41,6 +45,7 @@ class QuestBottomBar extends StatelessWidget {
     return BlocBuilder<QuestContentBloc, QuesContentState>(
       builder: (context, state) {
         final actions = QuestActions(context, question);
+        final presentation = actions.presentation;
         return ColoredBox(
           color: inline ? Colors.transparent : scheme.surfaceContainerHigh,
           child: SafeArea(
@@ -52,12 +57,13 @@ class QuestBottomBar extends StatelessWidget {
                   : const EdgeInsets.fromLTRB(16, 10, 16, 14),
               child: Row(
                 children: [
-                  TextButton(
-                    onPressed: state.showCorrectAnswers
-                        ? null
-                        : actions.showAnswer,
-                    child: Text(LocaleKeys.quest_showAnswer.tr()),
-                  ),
+                  if (!presentation)
+                    TextButton(
+                      onPressed: state.showCorrectAnswers
+                          ? null
+                          : actions.showAnswer,
+                      child: Text(LocaleKeys.quest_showAnswer.tr()),
+                    ),
                   const Spacer(),
                   if (!(first && last)) ...[
                     IconButton.filledTonal(
@@ -81,7 +87,9 @@ class QuestBottomBar extends StatelessWidget {
                       children: [
                         Text(
                           last
-                              ? LocaleKeys.quest_finish.tr()
+                              ? (presentation
+                                    ? LocaleKeys.quest_close.tr()
+                                    : LocaleKeys.quest_finish.tr())
                               : LocaleKeys.quest_next.tr(),
                         ),
                         if (!last) ...[

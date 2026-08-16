@@ -101,6 +101,7 @@ class Quest extends StatelessWidget {
             data.copyWith(questions: qs),
             options.random ? (requested..shuffle()) : requested,
             subcategory,
+            presentation: options.presentation,
           ),
           child: BlocBuilder<QuestBloc, QuestState>(
             builder: (context, state) {
@@ -138,6 +139,7 @@ class Quest extends StatelessWidget {
                       state.answers[currentId] ?? answers ?? {},
                       currentId,
                       revealAnswers: openComments || revealAnswers,
+                      presentation: options.presentation,
                     ),
                   ),
                 ],

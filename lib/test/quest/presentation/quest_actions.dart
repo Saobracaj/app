@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/models/models.dart';
 
@@ -24,6 +25,9 @@ class QuestActions {
   QuestBloc get _questBloc => context.read<QuestBloc>();
   QuestContentBloc get _contentBloc => context.read<QuestContentBloc>();
 
+  /// «Режим презентации» текущего прогона (см. [QuestBloc.presentation]).
+  bool get presentation => _questBloc.presentation;
+
   /// Раскрывает верные ответы. Повторный вызов после раскрытия — no-op, как и
   /// погашенная кнопка «показать ответ».
   void showAnswer() {
@@ -40,9 +44,17 @@ class QuestActions {
     if (submit()) _questBloc.add(NextQuestion());
   }
 
+  /// Закрывает прогон без итогов и без подтверждения — «Закрыть» в режиме
+  /// презентации: показывать нечего, записывать нечего.
+  void close() => Routemaster.of(context).pop();
+
   /// Записывает текущий выбор и завершает прогон (с подтверждением, если
-  /// отвечены не все вопросы).
+  /// отвечены не все вопросы). В режиме презентации — просто закрывает.
   Future<void> finish() async {
+    if (presentation) {
+      close();
+      return;
+    }
     final questBloc = _questBloc;
     if (!submit()) return;
     if (questBloc.state.answers.length != questBloc.state.questions.length) {
