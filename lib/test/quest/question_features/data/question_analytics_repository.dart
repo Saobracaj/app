@@ -164,6 +164,7 @@ _Analytics _parse(String source) {
       examPoints: (src['examPoints'] as num).toDouble(),
       questions: (src['questions'] as num).toInt(),
       meanValue: (src['meanValue'] as num).toDouble(),
+      meanProbability: (src['meanProbability'] as num).toDouble(),
       correctOptionRate: (stats['correctOptionRate'] as num).toDouble(),
       markerQuestions: (stats['markerQuestions'] as num?)?.toInt() ?? 0,
     ),

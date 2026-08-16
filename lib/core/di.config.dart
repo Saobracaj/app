@@ -74,6 +74,8 @@ import '../test/quest/question_features/data/question_difficulty_repository.dart
     as _i147;
 import '../test/quest/question_features/state_management/question_analytics_bloc.dart'
     as _i480;
+import '../test/quest/question_features/state_management/question_cues_bloc.dart'
+    as _i986;
 import '../test/quest/question_features/state_management/question_features_bloc.dart'
     as _i269;
 import '../test/quest/question_features/state_management/question_konspekt_bloc.dart'
@@ -122,6 +124,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i811.AnalyticsService>(),
       ),
       dispose: (i) => i.dispose(),
+    );
+    gh.factoryParam<_i986.QuestionCuesBloc, int, dynamic>(
+      (questionId, _) => _i986.QuestionCuesBloc(
+        gh<_i1002.QuestionAnalyticsRepository>(),
+        questionId,
+      ),
     );
     gh.factoryParam<_i892.ConfirmCodeBloc, String, dynamic>(
       (email, _) => _i892.ConfirmCodeBloc(gh<_i880.AuthRepository>(), email),

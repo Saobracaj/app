@@ -472,6 +472,11 @@ def build(verify: bool = False):
         values[q["qId"]] = p * q["Points"]
     live = [v for v in values.values() if v > 0]
     mean_value = sum(live) / len(live)
+    # The same yardstick for the bare probability: the app cuts the chance of
+    # being drawn into high / medium / low against it, at the same 2x and 1/2x
+    # as the value tiers.
+    live_p = [probability[q["qId"]][0] for q in questions if probability[q["qId"]][0] > 0]
+    mean_probability = sum(live_p) / len(live_p)
 
     correctness = {
         q["qId"]: [bool(c["isCorrect"]) for c in q["Choices"]] for q in questions
@@ -530,6 +535,7 @@ def build(verify: bool = False):
             ),
             "questions": len(questions),
             "meanValue": round(mean_value, 6),
+            "meanProbability": round(mean_probability, 6),
         },
         "stats": stats,
         "markers": markers,

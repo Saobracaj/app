@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:saobracaj/core/markdown/phrase_highlight.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
+import 'package:saobracaj/theme/quiz_colors.dart';
 import 'package:saobracaj/zakon/presentation/zakon_panel.dart';
 import 'package:saobracaj/test/animations/animations_map.dart';
 import 'package:saobracaj/util/nav_to_url.dart';
@@ -12,11 +14,17 @@ class QuestMarkdown extends StatelessWidget {
     this.padding,
     this.useLargeText = true,
     this.pStyle,
+    this.highlights = const [],
   });
 
   final String text;
   final EdgeInsets? padding;
   final bool useLargeText;
+
+  /// Phrases to draw with a highlighter background — the key-phrase cues of a
+  /// revealed question. Matched by whole words, case-insensitive; see
+  /// [markPhrases].
+  final List<PhraseHighlight> highlights;
 
   /// Overrides the paragraph style. Markdown ignores [DefaultTextStyle], so
   /// this is the only way a host (e.g. a highlighted answer card) can tint the
@@ -25,11 +33,18 @@ class QuestMarkdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Highlights ride on the `~~…~~` (strikethrough) syntax: it is the one
+    // inline span the style sheet lets us restyle freely, it nests dictionary
+    // links, and none of the texts shown with highlights (question and answer
+    // wordings) use strikethrough for its own meaning. The `del` slot is
+    // therefore turned into a marker background — only when there is
+    // something to mark, so ordinary markdown elsewhere is untouched.
+    final marked = highlights.isEmpty ? text : markPhrases(text, highlights);
     return Markdown(
       shrinkWrap: true,
       selectable: false,
       physics: NeverScrollableScrollPhysics(),
-      data: text,
+      data: marked,
       onTapLink: (text, href, title) => openDictionary(context, href),
       padding: padding ?? EdgeInsets.zero,
       styleSheet: MarkdownStyleSheet(
@@ -37,6 +52,12 @@ class QuestMarkdown extends StatelessWidget {
             pStyle ??
             (useLargeText ? Theme.of(context).textTheme.bodyLarge : null),
         a: TextStyle(color: Theme.of(context).colorScheme.primary),
+        del: highlights.isEmpty
+            ? null
+            : TextStyle(
+                backgroundColor: Theme.of(context).quiz.highlight,
+                decoration: TextDecoration.none,
+              ),
         blockquoteDecoration: BoxDecoration(
           color: Theme.of(context).colorScheme.secondary.withAlpha(40),
           borderRadius: BorderRadius.circular(2.0),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:saobracaj/core/markdown/phrase_highlight.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/theme/quiz_colors.dart';
@@ -17,6 +18,7 @@ class AnswerOptionCard extends StatelessWidget {
     required this.revealed,
     required this.showTranslation,
     this.onTap,
+    this.highlights = const [],
   });
 
   final Choice choice;
@@ -24,6 +26,10 @@ class AnswerOptionCard extends StatelessWidget {
   final bool revealed;
   final bool showTranslation;
   final VoidCallback? onTap;
+
+  /// Key phrases to light up in the answer text (only after the reveal — see
+  /// the analysis tab, which lists the same cues).
+  final List<PhraseHighlight> highlights;
 
   @override
   Widget build(BuildContext context) {
@@ -89,6 +95,7 @@ class AnswerOptionCard extends StatelessWidget {
                     children: [
                       QuestMarkdown(
                         text: choice.text.trim().dict,
+                        highlights: highlights,
                         pStyle: theme.textTheme.bodyMedium?.copyWith(
                           color: foreground,
                         ),
