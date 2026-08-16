@@ -1,30 +1,21 @@
 // Специальные полосы внутри коловоза: что где лежит и как называется.
 //
-// Верхняя схема — участок аутопута (та же геометрия и палитра, что в
-// autoput_trake.dart: обе картинки объясняют одни и те же полосы, и дорога
+// Верхняя схема — участок аутопута (дорога общая с autoput_trake.dart, см.
+// autoput_road.dart: обе картинки объясняют одни и те же полосы, и дорога
 // должна выглядеть одинаково). Ниже две врезки: полоса для медленных
 // транспортных средств и полоса общественного транспорта — они на аутопуте
 // не встречаются, поэтому вынесены отдельно.
 
 import 'package:flutter/material.dart';
+import 'package:saobracaj/test/animations/autoput_road.dart';
 import 'package:saobracaj/test/animations/painters.dart';
 
-const double _w = 400;
+const double _w = kAutoputRoadWidth;
 const double _h = 404;
 
-/// Оси полос аутопута. Две ходовые полосы разделены прерывистой на y = 82.
-const double _yShoulder = 133; // зауставна трака
-const double _roadTop = 46;
-const double _shoulderTop = 118;
-const double _shoulderBottom = 148;
-
-const Offset _rampInStart = Offset(-14, 196);
-const Offset _rampInControl = Offset(60, 190);
-const Offset _rampInEnd = Offset(140, _yShoulder);
-
-const Offset _rampOutStart = Offset(296, _yShoulder);
-const Offset _rampOutControl = Offset(360, 150);
-const Offset _rampOutEnd = Offset(416, 200);
+/// Участок аутопута: верхний край коловоза на y = 46, ниже — две ходовые
+/// полосы и зауставна трака.
+final AutoputRoad _road = AutoputRoad(top: 46);
 
 class PosebneTrakeAutoput extends StatelessWidget {
   const PosebneTrakeAutoput({super.key});
@@ -77,65 +68,15 @@ class _PosebneTrakePainter extends CustomPainter {
   // --- верхняя схема: аутопут ---------------------------------------------
 
   void _drawMotorway(Canvas canvas) {
-    canvas.drawRect(
-      const Rect.fromLTRB(0, _roadTop, _w, _shoulderTop),
-      Paint()..color = kAsphalt,
-    );
-    canvas.drawRect(
-      const Rect.fromLTRB(0, _shoulderTop, _w, _shoulderBottom),
-      Paint()..color = kAsphaltShoulder,
-    );
-    _drawRamps(canvas);
-
-    final solid = Paint()
-      ..color = kLineWhite
-      ..strokeWidth = 2.5;
-    canvas.drawLine(
-      const Offset(0, _roadTop),
-      const Offset(_w, _roadTop),
-      solid,
-    );
-    // Нижний край коловоза есть только между съездами.
-    canvas.drawLine(
-      const Offset(150, _shoulderBottom),
-      const Offset(292, _shoulderBottom),
-      solid,
-    );
-    drawDashedLine(
-      canvas,
-      const Offset(0, 82),
-      const Offset(_w, 82),
-      kLineWhite,
-      strokeWidth: 2.5,
-    );
-    // Зауставна трака отделена сплошной: заезжать на неё без нужды нельзя.
-    // На длине полос разгона и торможения линия прерывистая.
-    drawDashedLine(
-      canvas,
-      const Offset(0, _shoulderTop),
-      const Offset(150, _shoulderTop),
-      kLineWhite,
-      strokeWidth: 2.5,
-    );
-    canvas.drawLine(
-      const Offset(150, _shoulderTop),
-      const Offset(292, _shoulderTop),
-      solid,
-    );
-    drawDashedLine(
-      canvas,
-      const Offset(292, _shoulderTop),
-      const Offset(_w, _shoulderTop),
-      kLineWhite,
-      strokeWidth: 2.5,
-    );
+    _road.paint(canvas);
+    _drawRampArrows(canvas);
 
     // Сломавшаяся машина с аварийкой — единственное, ради чего остановочная
     // полоса и существует.
     drawSchematicCarTopView(
       canvas,
       Rect.fromCenter(
-        center: const Offset(215, _yShoulder),
+        center: Offset(215, _road.yShoulder),
         width: 42,
         height: 20,
       ),
@@ -146,7 +87,7 @@ class _PosebneTrakePainter extends CustomPainter {
     drawSchemeChip(
       canvas,
       'две саобраћајне траке',
-      const Offset(72, 82),
+      Offset(72, _road.laneDivider),
       scheme.surface,
       scheme.onSurface,
       maxWidth: 130,
@@ -164,7 +105,7 @@ class _PosebneTrakePainter extends CustomPainter {
     drawSchemeArrow(
       canvas,
       const Offset(215, 164),
-      const Offset(215, 148),
+      Offset(215, _road.bandBottom + 3),
       scheme.onSurface,
     );
     drawSchemeChip(
@@ -187,60 +128,45 @@ class _PosebneTrakePainter extends CustomPainter {
       maxWidth: 120,
       bold: true,
     );
+    // Стрелки упираются в нижнюю кромку съездов.
     drawSchemeArrow(
       canvas,
-      const Offset(70, 208),
-      const Offset(88, 190),
+      const Offset(60, 206),
+      _road.rampIn.offsetAt(0.45, kAutoputAuxWidth / 2 + 3),
       scheme.onSurface,
     );
     drawSchemeArrow(
       canvas,
-      const Offset(330, 208),
-      const Offset(350, 190),
+      const Offset(348, 206),
+      _road.rampOut.offsetAt(0.55, kAutoputAuxWidth / 2 + 3),
       scheme.onSurface,
     );
   }
 
-  void _drawRamps(Canvas canvas) {
-    for (final ramp in [
-      (_rampInStart, _rampInControl, _rampInEnd),
-      (_rampOutStart, _rampOutControl, _rampOutEnd),
-    ]) {
-      final path = Path()
-        ..moveTo(ramp.$1.dx, ramp.$1.dy)
-        ..quadraticBezierTo(ramp.$2.dx, ramp.$2.dy, ramp.$3.dx, ramp.$3.dy);
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = kLineWhite
-          ..strokeWidth = 34
-          ..style = PaintingStyle.stroke,
-      );
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = kAsphaltShoulder
-          ..strokeWidth = 30
-          ..style = PaintingStyle.stroke,
-      );
-    }
+  /// Куда едет тот, кто на этой полосе: «улазим» — вливаюсь в поток,
+  /// «излазим» — ухожу с дороги. Стрелка идёт по оси съезда.
+  void _drawRampArrows(Canvas canvas) {
+    _drawCurveArrow(canvas, _road.rampIn, from: 0.12, to: 0.9);
+    _drawCurveArrow(canvas, _road.rampOut, from: 0.1, to: 0.72);
+  }
 
-    // Куда едет тот, кто на этой полосе: «улазим» — вливаюсь в поток,
-    // «излазим» — ухожу с дороги.
+  /// Квадратичная стрелка, повторяющая кусок кубической оси съезда: концы
+  /// совпадают, контрольная точка подобрана так, чтобы пройти через середину.
+  void _drawCurveArrow(
+    Canvas canvas,
+    CubicCurve curve, {
+    required double from,
+    required double to,
+  }) {
+    final start = curve.pointAt(from);
+    final end = curve.pointAt(to);
+    final middle = curve.pointAt((from + to) / 2);
+    final control = middle * 2 - (start + end) / 2;
     drawSchemeCurvedArrow(
       canvas,
-      const Offset(16, 176),
-      const Offset(70, 172),
-      const Offset(126, 130),
-      kLineWhite,
-      strokeWidth: 3,
-      headLength: 11,
-    );
-    drawSchemeCurvedArrow(
-      canvas,
-      const Offset(306, 130),
-      const Offset(356, 158),
-      const Offset(392, 186),
+      start,
+      control,
+      end,
       kLineWhite,
       strokeWidth: 3,
       headLength: 11,
@@ -299,20 +225,12 @@ class _PosebneTrakePainter extends CustomPainter {
 
     drawSchematicCarTopView(
       canvas,
-      Rect.fromCenter(
-        center: const Offset(130, 316),
-        width: 38,
-        height: 18,
-      ),
+      Rect.fromCenter(center: const Offset(130, 316), width: 38, height: 18),
       kCarBlue,
     );
     drawTruckTopView(
       canvas,
-      Rect.fromCenter(
-        center: const Offset(96, 344),
-        width: 70,
-        height: 20,
-      ),
+      Rect.fromCenter(center: const Offset(96, 344), width: 70, height: 20),
       kCarGreen,
     );
 
@@ -365,20 +283,12 @@ class _PosebneTrakePainter extends CustomPainter {
 
     drawSchematicCarTopView(
       canvas,
-      Rect.fromCenter(
-        center: const Offset(250, 316),
-        width: 38,
-        height: 18,
-      ),
+      Rect.fromCenter(center: const Offset(250, 316), width: 38, height: 18),
       kCarBlue,
     );
     drawBusTopView(
       canvas,
-      Rect.fromCenter(
-        center: const Offset(310, 344),
-        width: 84,
-        height: 20,
-      ),
+      Rect.fromCenter(center: const Offset(310, 344), width: 84, height: 20),
       kCarGreen,
     );
 

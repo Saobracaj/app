@@ -2,38 +2,18 @@
 // въезжать/съезжать. Одна машина проходит весь путь по фазам, подпись сверху
 // меняется вместе с фазой — стоп-кадр любой фазы читается сам по себе.
 //
-// Геометрия дороги (полосы, порядок полос, положение съездов) намеренно та же,
-// что в posebne_trake_autoput.dart: обе картинки объясняют одни и те же полосы.
+// Дорога (полосы, съезды, разметка) — общая с posebne_trake_autoput.dart,
+// см. autoput_road.dart: обе картинки объясняют одни и те же полосы.
 
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:saobracaj/test/animations/autoput_road.dart';
 import 'package:saobracaj/test/animations/painters.dart';
 
 /// Ширина холста: всё рисуется в этих координатах и целиком масштабируется.
-const double _w = 400;
+const double _w = kAutoputRoadWidth;
 const double _h = 262;
-
-/// Оси полос по вертикали.
-const double _yLeftLane = 58; // лева трака — за претицање
-const double _yRightLane = 94; // десна трака — обычная езда
-const double _yShoulder = 127; // зауставна трака / съезды
-
-/// Кривая полосы для въезда: снизу слева до края коловоза.
-const Offset _rampInStart = Offset(-14, 188);
-const Offset _rampInControl = Offset(60, 182);
-const Offset _rampInEnd = Offset(140, _yShoulder);
-
-/// Кривая полосы для съезда: отделяется от коловоза и уводит вниз направо.
-const Offset _rampOutStart = Offset(296, _yShoulder);
-const Offset _rampOutControl = Offset(360, 142);
-const Offset _rampOutEnd = Offset(416, 192);
-
-/// Траектория съезда для машины: из правой полосы через остановочную на
-/// полосу торможения.
-const Offset _exitStart = Offset(300, _yRightLane);
-const Offset _exitControl = Offset(360, 130);
-const Offset _exitEnd = Offset(416, 190);
 
 const double _carLength = 42;
 const double _carWidth = 20;
@@ -103,116 +83,92 @@ enum _Phase {
   final String caption;
 }
 
+/// Хронометраж цикла (доли от 0 до 1). Границы подобраны так, чтобы наша
+/// машина ни в одной фазе не наезжала на медленную: перед выездом на левую
+/// полосу она ещё позади неё, при возврате — уже впереди с запасом.
+const double _tRampInEnd = 0.18; // конец полосы для включения
+const double _tMergeEnd = 0.25; // перестроились в правую полосу
+const double _tRightEnd = 0.36; // подъехали к медленной машине
+const double _tPullOutEnd = 0.43; // вышли на левую полосу
+const double _tLeftEnd = 0.53; // прошли медленную
+const double _tReturnEnd = 0.60; // вернулись в правую полосу
+const double _tExitLaneEnd = 0.68; // перешли на полосу для исключения
+const double _tRampOutEnd = 0.92; // уехали по съезду; дальше пауза
+
+/// Ключевые x нашей машины на прямых участках.
+const double _xMergeEnd = 142;
+const double _xRightEnd = 177;
+const double _xPullOutEnd = 211;
+const double _xLeftEnd = 260;
+const double _xReturnEnd = 295;
+
+/// Точка съезда, в которой мы встаём на его ось после перестроения:
+/// чуть дальше начала, где съезд ещё почти горизонтален.
+const double _tRampOutJoin = 0.08;
+
 class _AutoputTrakePainter extends CustomPainter {
   _AutoputTrakePainter({required this.scheme, required this.progress});
 
   final ColorScheme scheme;
   final double progress;
 
+  static final AutoputRoad _road = AutoputRoad(top: 40);
+
   @override
   void paint(Canvas canvas, Size size) {
     // Съезды начинаются и заканчиваются за краем холста — обрезаем, чтобы
     // асфальт не вылезал за картинку.
     canvas.clipRect(Offset.zero & size);
-    _drawRoadSurface(canvas);
-    _drawRamps(canvas);
-    _drawMarkings(canvas);
-    _drawLaneLabels(canvas);
+    _road.paint(canvas);
+    _drawLabels(canvas);
     _drawStoppedCar(canvas);
     _drawSlowCar(canvas);
     _drawMovingCar(canvas);
     _drawCaption(canvas);
   }
 
-  // --- дорога -------------------------------------------------------------
+  // --- подписи ------------------------------------------------------------
 
-  void _drawRoadSurface(Canvas canvas) {
-    // Ходовые полосы и остановочная — разным тоном асфальта: остановочная
-    // отличается от ходовых даже до того, как прочитана подпись.
-    canvas.drawRect(
-      const Rect.fromLTRB(0, 40, _w, _yShoulder - 15),
-      Paint()..color = kAsphalt,
-    );
-    canvas.drawRect(
-      const Rect.fromLTRB(0, _yShoulder - 15, _w, _yShoulder + 15),
-      Paint()..color = kAsphaltShoulder,
-    );
-  }
-
-  void _drawMarkings(Canvas canvas) {
-    final solid = Paint()
-      ..color = kLineWhite
-      ..strokeWidth = 2.5;
-    // Внешние края коловоза. Нижний край рисуется только между съездами —
-    // там, где съезд примыкает, края у коловоза нет.
-    canvas.drawLine(const Offset(0, 40), const Offset(_w, 40), solid);
-    canvas.drawLine(
-      const Offset(150, _yShoulder + 15),
-      const Offset(292, _yShoulder + 15),
-      solid,
-    );
-    // Прерывистая между ходовыми полосами — её пересекать можно.
-    drawDashedLine(
+  void _drawLabels(Canvas canvas) {
+    // Подписи полос стоят в начале дороги: машины туда не заезжают, поэтому
+    // ничего не перекрывают ни в одном кадре.
+    drawSchemeChip(
       canvas,
-      const Offset(0, 76),
-      const Offset(_w, 76),
-      kLineWhite,
-      strokeWidth: 2.5,
+      'лева трака\n(само претицање)',
+      Offset(4, _road.yLeftLane),
+      scheme.surface,
+      scheme.onSurface,
+      align: const Alignment(-1, 0),
+      maxWidth: 110,
+      fontSize: 10,
+      bold: true,
     );
-    // Сплошная перед остановочной полосой: заезжать на неё просто так нельзя.
-    // На длине полос разгона и торможения она прерывистая — там перестроение
-    // как раз и происходит.
-    drawDashedLine(
+    drawSchemeChip(
       canvas,
-      const Offset(0, _yShoulder - 15),
-      const Offset(150, _yShoulder - 15),
-      kLineWhite,
-      strokeWidth: 2.5,
+      'десна трака\n(вожња)',
+      Offset(4, _road.yRightLane),
+      scheme.surface,
+      scheme.onSurface,
+      align: const Alignment(-1, 0),
+      maxWidth: 110,
+      fontSize: 10,
+      bold: true,
     );
-    canvas.drawLine(
-      const Offset(150, _yShoulder - 15),
-      const Offset(285, _yShoulder - 15),
-      solid,
-    );
-    drawDashedLine(
+    drawSchemeChip(
       canvas,
-      const Offset(285, _yShoulder - 15),
-      const Offset(_w, _yShoulder - 15),
-      kLineWhite,
-      strokeWidth: 2.5,
+      'зауставна трака —\nсамо за принудно заустављање',
+      const Offset(200, 178),
+      scheme.errorContainer,
+      scheme.onErrorContainer,
+      maxWidth: 170,
+      bold: true,
     );
-  }
-
-  void _drawRamps(Canvas canvas) {
-    for (final ramp in [
-      (_rampInStart, _rampInControl, _rampInEnd),
-      (_rampOutStart, _rampOutControl, _rampOutEnd),
-    ]) {
-      final path = Path()
-        ..moveTo(ramp.$1.dx, ramp.$1.dy)
-        ..quadraticBezierTo(
-          ramp.$2.dx,
-          ramp.$2.dy,
-          ramp.$3.dx,
-          ramp.$3.dy,
-        );
-      // Белая подложка чуть шире асфальта — так у съезда появляются края
-      // разметки, и он не сливается с остановочной полосой.
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = kLineWhite
-          ..strokeWidth = 34
-          ..style = PaintingStyle.stroke,
-      );
-      canvas.drawPath(
-        path,
-        Paint()
-          ..color = kAsphaltShoulder
-          ..strokeWidth = 30
-          ..style = PaintingStyle.stroke,
-      );
-    }
+    drawSchemeArrow(
+      canvas,
+      const Offset(215, 162),
+      Offset(215, _road.bandBottom + 3),
+      scheme.onSurface,
+    );
 
     drawSchemeChip(
       canvas,
@@ -234,58 +190,17 @@ class _AutoputTrakePainter extends CustomPainter {
       maxWidth: 120,
       bold: true,
     );
+    // Стрелки упираются в нижнюю кромку съездов.
     drawSchemeArrow(
       canvas,
-      const Offset(66, 212),
-      const Offset(84, 190),
+      const Offset(60, 210),
+      _road.rampIn.offsetAt(0.45, kAutoputAuxWidth / 2 + 3),
       scheme.onSurface,
-    );
-    drawSchemeArrow(
-      canvas,
-      const Offset(330, 212),
-      const Offset(350, 190),
-      scheme.onSurface,
-    );
-  }
-
-  void _drawLaneLabels(Canvas canvas) {
-    // Подписи полос стоят в начале дороги: машины туда не заезжают, поэтому
-    // ничего не перекрывают ни в одном кадре.
-    drawSchemeChip(
-      canvas,
-      'лева трака\n(само претицање)',
-      const Offset(4, _yLeftLane),
-      scheme.surface,
-      scheme.onSurface,
-      align: const Alignment(-1, 0),
-      maxWidth: 110,
-      fontSize: 10,
-      bold: true,
-    );
-    drawSchemeChip(
-      canvas,
-      'десна трака\n(вожња)',
-      const Offset(4, _yRightLane),
-      scheme.surface,
-      scheme.onSurface,
-      align: const Alignment(-1, 0),
-      maxWidth: 110,
-      fontSize: 10,
-      bold: true,
-    );
-    drawSchemeChip(
-      canvas,
-      'зауставна трака —\nсамо за принудно заустављање',
-      const Offset(196, 178),
-      scheme.errorContainer,
-      scheme.onErrorContainer,
-      maxWidth: 170,
-      bold: true,
     );
     drawSchemeArrow(
       canvas,
-      const Offset(215, 162),
-      const Offset(215, 145),
+      const Offset(348, 210),
+      _road.rampOut.offsetAt(0.55, kAutoputAuxWidth / 2 + 3),
       scheme.onSurface,
     );
   }
@@ -298,7 +213,7 @@ class _AutoputTrakePainter extends CustomPainter {
     drawSchematicCarTopView(
       canvas,
       Rect.fromCenter(
-        center: const Offset(215, _yShoulder),
+        center: Offset(215, _road.yShoulder),
         width: _carLength,
         height: _carWidth,
       ),
@@ -308,14 +223,16 @@ class _AutoputTrakePainter extends CustomPainter {
     );
   }
 
-  /// Медленная машина в правой полосе — то, что мы обгоняем.
+  /// Медленная машина в правой полосе — то, что мы обгоняем. Ползёт чуть
+  /// вперёд, чтобы не выглядеть припаркованной, но так медленно, что за цикл
+  /// почти не смещается — иначе не хватило бы дороги её объехать.
+  double get _slowCarX => 234 + progress * 5;
+
   void _drawSlowCar(Canvas canvas) {
-    // Едет медленнее нашей: к началу обгона она впереди, к концу — позади.
-    final x = 200 + progress * 55;
     drawSchematicCarTopView(
       canvas,
       Rect.fromCenter(
-        center: Offset(x, _yRightLane),
+        center: Offset(_slowCarX, _road.yRightLane),
         width: _carLength,
         height: _carWidth,
       ),
@@ -343,62 +260,83 @@ class _AutoputTrakePainter extends CustomPainter {
   /// Положение и поворот нашей машины по фазам.
   (Offset, double) _carPose() {
     final t = progress;
-    if (t < 0.20) {
-      // Разгон по полосе включения — едем по кривой, машина повёрнута по ней.
-      final s = t / 0.20;
-      return (
-        _quad(_rampInStart, _rampInControl, _rampInEnd, s),
-        _quadAngle(_rampInStart, _rampInControl, _rampInEnd, s),
+    final yRight = _road.yRightLane;
+    final yLeft = _road.yLeftLane;
+    final yAux = _road.yShoulder;
+
+    if (t < _tRampInEnd) {
+      // По полосе для включения — по кривой, машина повёрнута вдоль неё.
+      final tc = _road.rampIn.tAtFraction(t / _tRampInEnd);
+      return (_road.rampIn.pointAt(tc), _road.rampIn.angleAt(tc));
+    }
+    if (t < _tMergeEnd) {
+      // Перестроение с полосы для включения в правую полосу.
+      return _laneChange(
+        Offset(AutoputRoad.rampInEnd, yAux),
+        Offset(_xMergeEnd, yRight),
+        _unit(t, _tRampInEnd, _tMergeEnd),
       );
     }
-    if (t < 0.28) {
-      // Перестроение с полосы включения в правую полосу.
-      final s = (t - 0.20) / 0.08;
+    if (t < _tRightEnd) {
       return (
-        Offset(_lerp(140, 180, s), _lerp(_yShoulder, _yRightLane, s)),
-        _slopeAngle(180 - 140, _yRightLane - _yShoulder, s),
+        Offset(
+          _lerp(_xMergeEnd, _xRightEnd, _unit(t, _tMergeEnd, _tRightEnd)),
+          yRight,
+        ),
+        0,
       );
     }
-    if (t < 0.36) {
-      final s = (t - 0.28) / 0.08;
-      return (Offset(_lerp(180, 205, s), _yRightLane), 0);
-    }
-    if (t < 0.44) {
+    if (t < _tPullOutEnd) {
       // Выезд на левую полосу — только для обгона.
-      final s = (t - 0.36) / 0.08;
-      return (
-        Offset(_lerp(205, 235, s), _lerp(_yRightLane, _yLeftLane, s)),
-        _slopeAngle(235 - 205, _yLeftLane - _yRightLane, s),
+      return _laneChange(
+        Offset(_xRightEnd, yRight),
+        Offset(_xPullOutEnd, yLeft),
+        _unit(t, _tRightEnd, _tPullOutEnd),
       );
     }
-    if (t < 0.54) {
-      final s = (t - 0.44) / 0.10;
-      return (Offset(_lerp(235, 275, s), _yLeftLane), 0);
+    if (t < _tLeftEnd) {
+      return (
+        Offset(
+          _lerp(_xPullOutEnd, _xLeftEnd, _unit(t, _tPullOutEnd, _tLeftEnd)),
+          yLeft,
+        ),
+        0,
+      );
     }
-    if (t < 0.62) {
+    if (t < _tReturnEnd) {
       // Возврат в правую полосу: левая занимается только на время обгона.
-      final s = (t - 0.54) / 0.08;
-      return (
-        Offset(_lerp(275, 305, s), _lerp(_yLeftLane, _yRightLane, s)),
-        _slopeAngle(305 - 275, _yRightLane - _yLeftLane, s),
+      return _laneChange(
+        Offset(_xLeftEnd, yLeft),
+        Offset(_xReturnEnd, yRight),
+        _unit(t, _tLeftEnd, _tReturnEnd),
       );
     }
-    if (t < 0.85) {
-      // Съезд по полосе торможения.
-      final s = (t - 0.62) / 0.23;
-      return (
-        _quad(_exitStart, _exitControl, _exitEnd, s),
-        _quadAngle(_exitStart, _exitControl, _exitEnd, s),
+    final rampOut = _road.rampOut;
+    if (t < _tExitLaneEnd) {
+      // Переход на полосу для исключения: в конце манёвра машина уже стоит
+      // вдоль оси съезда, чтобы дальше ехать по нему без рывка.
+      return _laneChange(
+        Offset(_xReturnEnd, yRight),
+        rampOut.pointAt(_tRampOutJoin),
+        _unit(t, _tReturnEnd, _tExitLaneEnd),
+        endAngle: rampOut.angleAt(_tRampOutJoin),
       );
+    }
+    if (t < _tRampOutEnd) {
+      // Съезд по полосе для исключения.
+      final from = rampOut.fractionAt(_tRampOutJoin);
+      final s = _lerp(from, 1, _unit(t, _tExitLaneEnd, _tRampOutEnd));
+      final tc = rampOut.tAtFraction(s);
+      return (rampOut.pointAt(tc), rampOut.angleAt(tc));
     }
     // Пауза в конце цикла: без неё петля выглядит дёрганой.
-    return (_exitEnd, _quadAngle(_exitStart, _exitControl, _exitEnd, 1));
+    return (rampOut.pointAt(1), rampOut.angleAt(1));
   }
 
   _Phase get _phase {
-    if (progress < 0.20) return _Phase.ukljucivanje;
-    if (progress < 0.36) return _Phase.desnaTraka;
-    if (progress < 0.62) return _Phase.preticanje;
+    if (progress < _tMergeEnd) return _Phase.ukljucivanje;
+    if (progress < _tRightEnd) return _Phase.desnaTraka;
+    if (progress < _tReturnEnd) return _Phase.preticanje;
     return _Phase.iskljucivanje;
   }
 
@@ -425,28 +363,24 @@ class _AutoputTrakePainter extends CustomPainter {
 
   static double _lerp(double a, double b, double t) => a + (b - a) * t;
 
-  static Offset _quad(Offset p0, Offset p1, Offset p2, double t) {
-    final u = 1 - t;
-    return Offset(
-      u * u * p0.dx + 2 * u * t * p1.dx + t * t * p2.dx,
-      u * u * p0.dy + 2 * u * t * p1.dy + t * t * p2.dy,
-    );
-  }
+  /// Доля пройденного отрезка [from, to] для момента t.
+  static double _unit(double t, double from, double to) =>
+      ((t - from) / (to - from)).clamp(0.0, 1.0);
 
-  static double _quadAngle(Offset p0, Offset p1, Offset p2, double t) {
-    final u = 1 - t;
-    final dx = 2 * u * (p1.dx - p0.dx) + 2 * t * (p2.dx - p1.dx);
-    final dy = 2 * u * (p1.dy - p0.dy) + 2 * t * (p2.dy - p1.dy);
-    return math.atan2(dy, dx);
-  }
-
-  /// Наклон машины при перестроении: в середине манёвра он максимальный,
-  /// в начале и в конце машина стоит ровно вдоль полосы.
-  static double _slopeAngle(double dx, double dy, double s) {
+  /// Перестроение по прямой из [from] в [to]: в середине манёвра машина
+  /// наклонена сильнее всего, в начале стоит ровно, в конце — под [endAngle]
+  /// (обычно 0, вдоль полосы).
+  static (Offset, double) _laneChange(
+    Offset from,
+    Offset to,
+    double s, {
+    double endAngle = 0,
+  }) {
+    final delta = to - from;
     // 0.55 — иначе на коротком перестроении машина встаёт почти поперёк
     // полосы, чего в жизни не бывает.
-    final k = math.sin(s * math.pi);
-    return math.atan2(dy, dx) * k * 0.55;
+    final tilt = math.atan2(delta.dy, delta.dx) * math.sin(s * math.pi) * 0.55;
+    return (from + delta * s, tilt * (1 - s) + endAngle * s);
   }
 
   @override
