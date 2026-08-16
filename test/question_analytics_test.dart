@@ -17,8 +17,10 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// (This file replaces `practice_contains_all_questions_test.dart`, whose
 /// premise — every question occurs somewhere in `practice.json` — is simply not
-/// true: 144 do not, 142 of them because the exam never draws their category at
-/// all. That is the fact the "Стоимость вопроса" block reports.)
+/// true: two questions do not, both of them drawable but unlucky in a sample of
+/// 699. The 142 questions the exam never draws at all — category 38, the
+/// "последице непоштовања прописа" area, which belongs to the C/D test — were
+/// dropped from the bank instead.)
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -101,7 +103,7 @@ void main() {
       for (final entry in entries.values) {
         total += (entry as Map<String, dynamic>)['p'] as num;
       }
-      // Rounding in the asset (6 decimals × 1701 entries) is the only slack.
+      // Rounding in the asset (6 decimals × 1559 entries) is the only slack.
       expect(total, closeTo(exams.first.length.toDouble(), 0.01));
     });
 
@@ -123,30 +125,25 @@ void main() {
       expect(modelled, closeTo(actual, 0.05));
     });
 
-    test('a question the model never draws never occurs in the sample', () {
-      final seen = <int>{for (final exam in exams) ...exam};
+    test('every question in the bank is one the exam can draw', () {
+      // The areas the B test never draws were removed from the bank, so a
+      // question at p=0 now means the bank and the blueprint have drifted
+      // apart — a new category the model has no slot for, say.
       final entries = analytics['questions'] as Map<String, dynamic>;
       final unreachable = entries.entries
           .where((e) => (e.value as Map<String, dynamic>)['p'] as num == 0)
           .map((e) => int.parse(e.key))
           .toList();
 
-      expect(unreachable, isNotEmpty, reason: 'category 38 is never examined');
-      for (final id in unreachable) {
-        expect(
-          seen.contains(id),
-          isFalse,
-          reason: 'qId $id is modelled at p=0 but occurs in the sample',
-        );
-      }
+      expect(unreachable, isEmpty, reason: 'questions the exam never draws');
     });
 
     test('as many drawable questions are missing from the sample as expected', () {
-      // 144 of the 1701 questions never occur in the 699 variants. 142 of them
-      // cannot: the exam does not draw their category. The remaining handful is
-      // the model's own prediction — a question at p is absent from N variants
-      // with probability (1-p)^N — and if the model were wrong about which
-      // questions are rare, this count is where it would show.
+      // Two of the 1559 questions never occur in the 699 variants, and both are
+      // drawable. That handful is the model's own prediction — a question at p
+      // is absent from N variants with probability (1-p)^N — and if the model
+      // were wrong about which questions are rare, this count is where it would
+      // show.
       final seen = <int>{for (final exam in exams) ...exam};
       final entries = analytics['questions'] as Map<String, dynamic>;
 
@@ -290,8 +287,11 @@ void main() {
     });
 
     test('a link names a word of the question and its correct answer', () {
+      // The bank currently yields no links at all — both of the ones it used to
+      // have hung off category 38, which the B exam never draws and which was
+      // dropped. The shape is still asserted so a future link cannot ship
+      // malformed; only the "there is at least one" claim is gone.
       final links = analytics['links'] as List;
-      expect(links, isNotEmpty);
       final bank = {for (final q in questions) q['qId'] as int: q};
       final entries = analytics['questions'] as Map<String, dynamic>;
 
@@ -319,7 +319,7 @@ void main() {
           hits++;
         }
       });
-      expect(hits, greaterThan(0));
+      expect(hits, links.isEmpty ? 0 : greaterThan(0));
     });
   });
 }

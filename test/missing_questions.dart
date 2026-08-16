@@ -21,23 +21,20 @@ Future<void> main() async {
 
   final List<dynamic> questionsData = jsonDecode(questionsJson);
 
-  // Оставляем только вопросы, у которых categoryId != "38"
-  final filteredQuestions = questionsData.where((e) => e['categoryId'] != '38');
-
-  // Список qId из отфильтрованных вопросов
-  final List<int> filteredQIds = filteredQuestions
-      .map((e) => e['qId'] as int)
-      .toList();
+  // Банк содержит только то, что экзамен категории B вообще вытягивает:
+  // категория 38 («последице непоштовања прописа», тест C и D) удалена, так
+  // что фильтровать больше нечего.
+  final List<int> qIds = questionsData.map((e) => e['qId'] as int).toList();
 
   // Нахождение отсутствующих в практике вопросов
-  final missingQIds = filteredQIds
+  final missingQIds = qIds
       .where((qId) => !practiceIds.contains(qId))
       .toList();
 
   if (missingQIds.isEmpty) {
-    print('✅ Все вопросы из practice.json охватывают нужные qId из allQuestions.json (без categoryId=38)');
+    print('✅ Все вопросы из allQuestions.json встречаются в practice.json');
   } else {
-    print('❌ Найдены вопросы (кроме categoryId=38), не представленные в практике:\n');
+    print('❌ Найдены вопросы, не представленные в практике:\n');
     for (final id in missingQIds) {
       print('https://saobracaj.gleb.at/?qid=$id');
     }

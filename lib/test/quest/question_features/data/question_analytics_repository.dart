@@ -103,7 +103,7 @@ class QuestionAnalyticsRepository {
   }
 }
 
-/// The decoded asset, kept in the shape it is stored in: 1700 question entries
+/// The decoded asset, kept in the shape it is stored in: 1559 question entries
 /// are only ever read one at a time, so turning all of them into objects up
 /// front would cost more than it saves.
 class _Analytics {
