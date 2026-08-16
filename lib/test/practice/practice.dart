@@ -270,44 +270,54 @@ class _QuestionContent extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (showPreviousTries) ...[QuestionTries(question.id), SizedBox(height: 16)],
-                  ListTile(title: Text(question.text.trim())),
-                  if (question.hasImage)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(minHeight: 200, maxHeight: 600, maxWidth: 600),
-                        child: Image.asset('assets/img/${question.imageId}.jpeg'),
-                      ),
+                  // Текст вопроса и вариантов можно выделить и скопировать
+                  // (долгий тап / протяжка мышью); тап по варианту по-прежнему
+                  // выбирает его — SelectionArea не перехватывает обычные тапы.
+                  SelectionArea(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ListTile(title: Text(question.text.trim())),
+                        if (question.hasImage)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(minHeight: 200, maxHeight: 600, maxWidth: 600),
+                              child: Image.asset('assets/img/${question.imageId}.jpeg'),
+                            ),
+                          ),
+                        if (rightAnswers > 1)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: ShakeOnTrigger(
+                              trigger: state.limitHits,
+                              child: Text(ExamStrings.requiredAnswers(rightAnswers), style: TextStyle(color: quiz.info, fontStyle: FontStyle.italic)),
+                            ),
+                          ),
+                        for (var c in choices)
+                          if (rightAnswers > 1)
+                            AnimatedContainer(
+                              duration: Duration(milliseconds: 200),
+                              color: !state.showCorrectAnswers ? Colors.transparent : (c.isCorrect ? quiz.correctContainer : quiz.wrongContainer),
+                              child: CheckboxListTile(
+                                title: Text(c.text),
+                                value: state.selectedChoices.contains(c),
+                                onChanged: (value) => context.read<PracticeContentBloc>().add(AddChoice(c)),
+                                controlAffinity: ListTileControlAffinity.leading,
+                              ),
+                            )
+                          else
+                            AnimatedContainer(
+                              duration: Duration(milliseconds: 200),
+                              color: !state.showCorrectAnswers ? Colors.transparent : (c.isCorrect ? quiz.correctContainer : quiz.wrongContainer),
+                              child: RadioListTile<Choice>(
+                                title: Text(c.text),
+                                value: c,
+                              ),
+                            ),
+                      ],
                     ),
-                  if (rightAnswers > 1)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: ShakeOnTrigger(
-                        trigger: state.limitHits,
-                        child: Text(ExamStrings.requiredAnswers(rightAnswers), style: TextStyle(color: quiz.info, fontStyle: FontStyle.italic)),
-                      ),
-                    ),
-                  for (var c in choices)
-                    if (rightAnswers > 1)
-                      AnimatedContainer(
-                        duration: Duration(milliseconds: 200),
-                        color: !state.showCorrectAnswers ? Colors.transparent : (c.isCorrect ? quiz.correctContainer : quiz.wrongContainer),
-                        child: CheckboxListTile(
-                          title: Text(c.text),
-                          value: state.selectedChoices.contains(c),
-                          onChanged: (value) => context.read<PracticeContentBloc>().add(AddChoice(c)),
-                          controlAffinity: ListTileControlAffinity.leading,
-                        ),
-                      )
-                    else
-                      AnimatedContainer(
-                        duration: Duration(milliseconds: 200),
-                        color: !state.showCorrectAnswers ? Colors.transparent : (c.isCorrect ? quiz.correctContainer : quiz.wrongContainer),
-                        child: RadioListTile<Choice>(
-                          title: Text(c.text),
-                          value: c,
-                        ),
-                      ),
+                  ),
 
                   SizedBox(height: 16),
                   if (params.buttonsLikeInExam) ...[
