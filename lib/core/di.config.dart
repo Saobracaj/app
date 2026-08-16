@@ -326,14 +326,17 @@ extension GetItInjectableX on _i174.GetIt {
         threadId,
       ),
     );
-    gh.factory<_i335.SubscriptionBloc>(
-      () => _i335.SubscriptionBloc(gh<_i731.SubscriptionRepository>()),
-    );
     gh.factory<_i1032.GroupsBloc>(
       () => _i1032.GroupsBloc(
         gh<_i685.GroupsRepository>(),
         gh<_i311.ProfileRepository>(),
         gh<_i388.AuthBloc>(),
+        gh<_i389.FeatureFlagsRepository>(),
+      ),
+    );
+    gh.factory<_i335.SubscriptionBloc>(
+      () => _i335.SubscriptionBloc(
+        gh<_i731.SubscriptionRepository>(),
         gh<_i389.FeatureFlagsRepository>(),
       ),
     );

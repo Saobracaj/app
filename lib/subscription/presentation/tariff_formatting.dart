@@ -18,11 +18,26 @@ String tariffKindSummary(TariffKind kind) => switch (kind) {
   TariffKind.russian => LocaleKeys.subscription_kindRussianSummary.tr(),
 };
 
-String monthsLabel(int months) =>
-    LocaleKeys.subscription_months.plural(months);
+String monthsLabel(int months) => LocaleKeys.subscription_months.plural(months);
+
+/// Сумма с разделителем разрядов по текущей локали: «3 490», а не «3490».
+/// Четырёхзначные цены на витрине стоят рядом с трёхзначными, и без разделителя
+/// их приходится пересчитывать глазами.
+String amountLabel(int rsd) => NumberFormat.decimalPattern().format(rsd);
 
 String priceLabel(int rsd) =>
-    LocaleKeys.subscription_price.tr(args: ['$rsd']);
+    LocaleKeys.subscription_price.tr(args: [amountLabel(rsd)]);
+
+/// «К оплате 3 490 RSD» — полная сумма за срок. На витрине она подписана мелко
+/// под ценой за месяц: крупная цифра там — стоимость месяца, иначе годовой
+/// тариф пугает суммой раньше, чем человек увидит, во сколько раз он дешевле.
+String payTotalLabel(int rsd) =>
+    LocaleKeys.subscription_payTotal.tr(args: [priceLabel(rsd)]);
+
+/// Цена за месяц у тарифа на несколько месяцев — округляем до динара: дробная
+/// часть в такой подписи только мешает сравнивать.
+String pricePerMonthLabel(Tariff tariff) =>
+    priceLabel(tariff.pricePerMonth.round());
 
 String orderStatusLabel(OrderStatus status) => switch (status) {
   OrderStatus.pending => LocaleKeys.subscription_statusPending.tr(),

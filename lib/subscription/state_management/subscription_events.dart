@@ -19,6 +19,15 @@ class OrderCancelled extends SubscriptionEvent {
   final String orderId;
 }
 
+/// Включить/выключить надбавку за русские материалы на витрине. Меняет только
+/// то, какие SKU показаны, — ничего не покупает и не трогает локальный флаг
+/// `russian_content`.
+class RussianAddonToggled extends SubscriptionEvent {
+  RussianAddonToggled(this.enabled);
+
+  final bool enabled;
+}
+
 /// Переключить письма-напоминания об окончании подписки.
 class RemindersToggled extends SubscriptionEvent {
   RemindersToggled(this.enabled);

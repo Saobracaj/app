@@ -286,7 +286,8 @@ class _OrdersCard extends StatelessWidget {
                 child: Text(
                   '${formatDate(order.createdAt)} · '
                   '${tariffKindName(order.kind)}, ${monthsLabel(order.months)} · '
-                  '${order.amountRsd} RSD · ${orderStatusLabel(order.status)}',
+                  '${priceLabel(order.amountRsd)} · '
+                  '${orderStatusLabel(order.status)}',
                   style: theme.textTheme.bodyMedium,
                 ),
               ),

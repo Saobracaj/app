@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../auth/data/graphql_client.dart';
+import '../../feature_flags/data/feature_flags_repository.dart';
+import '../../feature_flags/domain/app_feature.dart';
 import '../../generated/locale_keys.g.dart';
 import '../data/subscription_repository.dart';
 import '../models/subscription_models.dart';
@@ -16,10 +18,22 @@ import 'subscription_state.dart';
 /// заказами просто не делаются.
 @injectable
 class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
-  SubscriptionBloc(this._repository) : super(const SubscriptionState()) {
+  /// Надбавка за русские материалы предвыбрана по тому же локальному флагу,
+  /// которым человек уже ответил на вопрос о языке контента при первом запуске
+  /// (для русского устройства он включён без вопроса). Берём именно локальный
+  /// тумблер, а не `snapshot.russianContent`: последний у непокупателя всегда
+  /// выключен — премиум-гранта у него нет, и витрина предлагала бы базовый
+  /// тариф русскоязычному человеку.
+  SubscriptionBloc(this._repository, FeatureFlagsRepository flags)
+    : super(
+        SubscriptionState(
+          withRussian: flags.snapshot.localEnabled(AppFeature.russianContent),
+        ),
+      ) {
     on<SubscriptionRequested>(_onRequested);
     on<OrderRequested>(_onOrderRequested);
     on<OrderCancelled>(_onOrderCancelled);
+    on<RussianAddonToggled>(_onRussianAddonToggled);
     on<RemindersToggled>(_onRemindersToggled);
     add(SubscriptionRequested());
   }
@@ -100,6 +114,13 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     } on GraphqlException catch (e) {
       emit(state.copyWith(submitting: false, errorMessage: e.message));
     }
+  }
+
+  void _onRussianAddonToggled(
+    RussianAddonToggled event,
+    Emitter<SubscriptionState> emit,
+  ) {
+    emit(state.copyWith(withRussian: event.enabled));
   }
 
   Future<void> _onRemindersToggled(

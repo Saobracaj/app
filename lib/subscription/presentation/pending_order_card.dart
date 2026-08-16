@@ -42,7 +42,7 @@ class PendingOrderCard extends StatelessWidget {
                 namedArgs: {
                   'tariff':
                       '${tariffKindName(order.kind)}, ${monthsLabel(order.months)}',
-                  'amount': '${order.amountRsd}',
+                  'amount': amountLabel(order.amountRsd),
                 },
               ),
               style: theme.textTheme.bodyMedium,

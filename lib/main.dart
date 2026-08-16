@@ -303,6 +303,11 @@ class _MyAppState extends State<MyApp> {
                   seedColor: themeState.seedColor,
                   brightness: Brightness.dark,
                 );
+          // `intl` форматирует числа и даты по своей глобальной локали, а не по
+          // локали Flutter: без этой строки `DateFormat`/`NumberFormat` молча
+          // работают по en_US — русские даты выходят как «Aug 16, 2026», а
+          // суммы с запятой вместо пробела.
+          Intl.defaultLocale = context.locale.toLanguageTag();
           return MaterialApp.router(
             locale: context.locale,
             supportedLocales: context.supportedLocales,
