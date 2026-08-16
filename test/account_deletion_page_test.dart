@@ -7,7 +7,6 @@ import 'package:saobracaj/account_deletion/models/account_deletion_preview.dart'
 import 'package:saobracaj/account_deletion/presentation/account_deletion_page.dart';
 import 'package:saobracaj/account_deletion/state_management/account_deletion_bloc.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
-import 'package:saobracaj/auth/data/auth_status.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
