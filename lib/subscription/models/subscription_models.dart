@@ -55,8 +55,95 @@ class Tariff {
   double get pricePerMonth => priceRsd / months;
 }
 
+/// Платёжные реквизиты заказа в форме сербской уплатницы — зеркало
+/// `PaymentSlip` бэкенда. Приходят только у неоплаченного заказа и только после
+/// того, как оператор ввёл реквизиты получателя; до того `Order.payment == null`
+/// и карточка заказа показывает один позив на број.
+class PaymentSlip {
+  const PaymentSlip({
+    required this.payer,
+    required this.purpose,
+    required this.payeeName,
+    this.payeeAddress,
+    required this.paymentCode,
+    required this.currency,
+    required this.amountRsd,
+    required this.amountDisplay,
+    required this.payeeAccount,
+    required this.model,
+    required this.reference,
+    required this.referenceDisplay,
+    required this.ipsQrText,
+    required this.ipsQrUrl,
+  });
+
+  factory PaymentSlip.fromJson(Map<String, dynamic> json) => PaymentSlip(
+    payer: json['payer'] as String? ?? '',
+    purpose: json['purpose'] as String? ?? '',
+    payeeName: json['payeeName'] as String? ?? '',
+    payeeAddress: json['payeeAddress'] as String?,
+    paymentCode: json['paymentCode'] as String? ?? '',
+    currency: json['currency'] as String? ?? 'RSD',
+    amountRsd: (json['amountRsd'] as num?)?.toInt() ?? 0,
+    amountDisplay: json['amountDisplay'] as String? ?? '',
+    payeeAccount: json['payeeAccount'] as String? ?? '',
+    model: json['model'] as String? ?? '97',
+    reference: json['reference'] as String? ?? '',
+    referenceDisplay: json['referenceDisplay'] as String? ?? '',
+    ipsQrText: json['ipsQrText'] as String? ?? '',
+    ipsQrUrl: json['ipsQrUrl'] as String? ?? '',
+  );
+
+  /// GraphQL-выборка полей — общая для пользовательских и админских запросов.
+  static const fields = '''
+    payer purpose payeeName payeeAddress paymentCode currency amountRsd
+    amountDisplay payeeAccount model reference referenceDisplay ipsQrText
+    ipsQrUrl
+  ''';
+
+  /// «Уплатилац».
+  final String payer;
+
+  /// «Сврха уплате».
+  final String purpose;
+
+  /// «Прималац» — имя и адрес.
+  final String payeeName;
+  final String? payeeAddress;
+
+  /// «Шифра плаћања».
+  final String paymentCode;
+  final String currency;
+  final int amountRsd;
+
+  /// Сумма как на бланке: `3.490,00`.
+  final String amountDisplay;
+
+  /// «Рачун примаоца» в виде `BBB-AAAAAAAAAAAAA-KK`.
+  final String payeeAccount;
+
+  /// «Модел» — всегда 97.
+  final String model;
+
+  /// «Позив на број (одобрење)» — только цифры.
+  final String reference;
+  final String referenceDisplay;
+
+  /// Текст IPS QR (стандарт НБС) — рисуем QR прямо в приложении.
+  final String ipsQrText;
+
+  /// Тот же QR как PNG по ссылке (его же вставляет письмо).
+  final String ipsQrUrl;
+
+  /// «Прималац» одной строкой — для копирования и компактных списков.
+  String get payeeLine => payeeAddress == null || payeeAddress!.isEmpty
+      ? payeeName
+      : '$payeeName, $payeeAddress';
+}
+
 /// Заказ: «хочу этот тариф». Пока не оплачен — несёт позив на број, по
-/// которому оператор найдёт платёж в банковской выписке.
+/// которому оператор найдёт платёж в банковской выписке, и (когда оператор ввёл
+/// реквизиты) уплатницу с IPS QR.
 class Order {
   const Order({
     required this.id,
@@ -68,6 +155,10 @@ class Order {
     required this.referenceDisplay,
     required this.createdAt,
     required this.paymentDueAt,
+    this.payment,
+    this.userEmail,
+    this.userId,
+    this.paidAt,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => Order(
@@ -80,7 +171,23 @@ class Order {
     referenceDisplay: json['referenceDisplay'] as String? ?? '',
     createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
     paymentDueAt: DateTime.parse(json['paymentDueAt'] as String).toLocal(),
+    payment: json['payment'] == null
+        ? null
+        : PaymentSlip.fromJson(json['payment'] as Map<String, dynamic>),
+    userEmail: json['userEmail'] as String?,
+    userId: json['userId'] as String?,
+    paidAt: json['paidAt'] == null
+        ? null
+        : DateTime.parse(json['paidAt'] as String).toLocal(),
   );
+
+  /// GraphQL-выборка полей заказа вместе с уплатницей.
+  static const fields =
+      '''
+    id userId userEmail sku tariffKind months amountRsd status referenceDisplay
+    createdAt paymentDueAt paidAt
+    payment { ${PaymentSlip.fields} }
+  ''';
 
   final String id;
   final String sku;
@@ -91,6 +198,16 @@ class Order {
   final String referenceDisplay;
   final DateTime createdAt;
   final DateTime paymentDueAt;
+
+  /// Уплатница с IPS QR; `null`, пока заказ не оплачиваем или реквизиты не
+  /// введены.
+  final PaymentSlip? payment;
+
+  /// Покупатель — заполняется в админских выборках (в своих запросах это
+  /// сам вызывающий).
+  final String? userEmail;
+  final String? userId;
+  final DateTime? paidAt;
 
   bool get isPending => status == OrderStatus.pending;
 }
@@ -103,6 +220,7 @@ class SubscriptionStatus {
     this.endsAt,
     this.daysLeft,
     this.remindersEnabled = true,
+    this.featureKeys = const [],
   });
 
   /// Состояние «подписки нет» — им же инициализируется экран.
@@ -118,6 +236,9 @@ class SubscriptionStatus {
       endsAt: endsAt == null ? null : DateTime.parse(endsAt).toLocal(),
       daysLeft: (json['daysLeft'] as num?)?.toInt(),
       remindersEnabled: json['remindersEnabled'] as bool? ?? true,
+      featureKeys: [
+        for (final k in json['featureKeys'] as List? ?? const []) k as String,
+      ],
     );
   }
 
@@ -127,10 +248,12 @@ class SubscriptionStatus {
   final int? daysLeft;
   final bool remindersEnabled;
 
+  /// Ключи фич, которые сейчас даёт подписка (админская карточка).
+  final List<String> featureKeys;
+
   /// Пора ли предложить продлить: за 14 и за 3 дня до конца — те же пороги, на
   /// которых бэкенд шлёт письма-напоминания.
-  bool get shouldOfferRenewal =>
-      active && daysLeft != null && daysLeft! <= 14;
+  bool get shouldOfferRenewal => active && daysLeft != null && daysLeft! <= 14;
 
   /// Срочная плашка — осталось три дня или меньше.
   bool get renewalIsUrgent => active && daysLeft != null && daysLeft! <= 3;
@@ -143,6 +266,8 @@ class SubscriptionPeriod {
     required this.endsAt,
     required this.kind,
     required this.revoked,
+    this.fromOrder = true,
+    this.note,
   });
 
   factory SubscriptionPeriod.fromJson(Map<String, dynamic> json) =>
@@ -153,10 +278,18 @@ class SubscriptionPeriod {
             ? null
             : TariffKind.parse(json['tariffKind'] as String?),
         revoked: json['revokedAt'] != null,
+        fromOrder: (json['source'] as String?)?.toUpperCase() != 'MANUAL',
+        note: json['note'] as String?,
       );
 
   final DateTime startsAt;
   final DateTime endsAt;
   final TariffKind? kind;
   final bool revoked;
+
+  /// Откуда период: из оплаченного заказа или выдан оператором вручную.
+  final bool fromOrder;
+
+  /// Комментарий оператора (ручные выдачи/продления/отзывы).
+  final String? note;
 }

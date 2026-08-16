@@ -48,3 +48,8 @@ String orderStatusLabel(OrderStatus status) => switch (status) {
 
 /// Дата без времени: срок подписки и срок оплаты — вопрос дня, не минуты.
 String formatDate(DateTime date) => DateFormat.yMMMd().format(date);
+
+/// Дата со временем — для журнала и списка заказов, где важен порядок
+/// операций внутри дня.
+String formatDateTime(DateTime date) =>
+    DateFormat.yMMMd().add_Hm().format(date);
