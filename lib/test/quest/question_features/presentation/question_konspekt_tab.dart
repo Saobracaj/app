@@ -29,7 +29,10 @@ class QuestionKonspektTab extends StatelessWidget {
       builder: (context, state) {
         if (state.failed) return const _KonspektLoadFailed();
         if (state.sections.isEmpty) return const SizedBox.shrink();
-        final russian = context.watch<FeatureFlagsBloc>().state.russianContent;
+        final russian = context
+            .watch<FeatureFlagsBloc>()
+            .state
+            .russianContentForCategory(categoryId);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

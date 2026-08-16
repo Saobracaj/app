@@ -40,6 +40,7 @@ class _KonspektPageState extends State<KonspektPage> {
     // backend would refuse the query anyway).
     return FeatureGate(
       feature: AppFeature.categorySummaries,
+      categoryId: widget.categoryId,
       placeholder: const _UnavailablePage(),
       child: _content(),
     );
@@ -58,7 +59,7 @@ class _KonspektPageState extends State<KonspektPage> {
               final russian = context
                   .watch<FeatureFlagsBloc>()
                   .state
-                  .russianContent;
+                  .russianContentForCategory(widget.categoryId);
               return Text(
                 state.konspekt?.categoryName.select(russian: russian) ??
                     LocaleKeys.konspekt_title.tr(),
@@ -68,6 +69,7 @@ class _KonspektPageState extends State<KonspektPage> {
           actions: [
             FeatureGate(
               feature: AppFeature.russianContent,
+              categoryId: widget.categoryId,
               child: BlocBuilder<KonspektBloc, KonspektState>(
                 builder: (context, state) {
                   final dictionary = state.konspekt?.dictionary;
@@ -113,7 +115,7 @@ class _KonspektPageState extends State<KonspektPage> {
             final russian = context
                 .watch<FeatureFlagsBloc>()
                 .state
-                .russianContent;
+                .russianContentForCategory(widget.categoryId);
             // Markdown конспекта на всю ширину окна нечитаем — колонка
             // ограничена шириной комфортного чтения.
             final article = ReadableWidth(

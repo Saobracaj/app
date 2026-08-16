@@ -1,4 +1,5 @@
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
@@ -16,6 +17,7 @@ import '../../profile/state_management/display_name_bloc.dart';
 import '../../profile/state_management/display_name_events.dart';
 import '../../public_comments/presentation/moderation_page.dart';
 import '../../push_test/presentation/test_push_page.dart';
+import '../../subscription/presentation/subscription_page.dart';
 import '../../support_chat/presentation/support_chat_page.dart';
 import '../../support_chat/presentation/support_threads_page.dart';
 import '../../test/about/about_page.dart';
@@ -109,6 +111,7 @@ class ProfilePage extends StatelessWidget {
   /// собственным (историческим) адресам вроде `/appearance`.
   Widget _sectionScreen(SettingsSection section) => switch (section) {
     SettingsSection.profile => const DisplayNamePage(),
+    SettingsSection.subscription => const SubscriptionPage(),
     SettingsSection.appearance => const AppearancePage(),
     SettingsSection.notifications => const NotificationsPage(),
     SettingsSection.supportChat => const SupportChatPage(),
@@ -162,6 +165,15 @@ class ProfilePage extends StatelessWidget {
           icon: Icons.person_outline,
           title: 'settings.profile'.tr(),
           subtitle: 'settings.profileSubtitle'.tr(),
+        ),
+      // Подписка — только веб и только для вошедшего: заказ привязан к
+      // аккаунту, а в мобильных сборках о подписке не говорим вовсе.
+      if (kIsWeb && auth.isAuthenticated)
+        _SettingsEntry(
+          section: SettingsSection.subscription,
+          icon: Icons.card_membership_outlined,
+          title: LocaleKeys.subscription_title.tr(),
+          subtitle: LocaleKeys.subscription_settingsSubtitle.tr(),
         ),
       _SettingsEntry(
         section: SettingsSection.appearance,
@@ -357,6 +369,7 @@ class _SectionPanel extends StatelessWidget {
 
     return switch (section) {
       SettingsSection.profile => hug(_AccountPanel(auth: auth)),
+      SettingsSection.subscription => const SubscriptionContent(),
       SettingsSection.appearance => hug(
         const SurfaceCard(
           padding: EdgeInsets.symmetric(vertical: 12),

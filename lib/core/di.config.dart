@@ -49,6 +49,8 @@ import '../question_feedback/state_management/question_feedback_bloc.dart'
     as _i751;
 import '../question_lists/data/question_lists_repository.dart' as _i206;
 import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
+import '../subscription/data/subscription_repository.dart' as _i731;
+import '../subscription/state_management/subscription_bloc.dart' as _i335;
 import '../support_chat/data/support_chat_repository.dart' as _i968;
 import '../support_chat/models/support_chat.dart' as _i163;
 import '../support_chat/state_management/support_chat_bloc.dart' as _i639;
@@ -209,6 +211,12 @@ extension GetItInjectableX on _i174.GetIt {
         initialSection,
       ),
     );
+    gh.lazySingleton<_i731.SubscriptionRepository>(
+      () => _i731.SubscriptionRepository(
+        gh<_i483.GraphqlClient>(),
+        gh<_i389.FeatureFlagsRepository>(),
+      ),
+    );
     gh.lazySingleton<_i359.CommentRepository>(
       () => _i359.CommentRepository(
         gh<_i483.GraphqlClient>(),
@@ -309,6 +317,9 @@ extension GetItInjectableX on _i174.GetIt {
         questionId,
         threadId,
       ),
+    );
+    gh.factory<_i335.SubscriptionBloc>(
+      () => _i335.SubscriptionBloc(gh<_i731.SubscriptionRepository>()),
     );
     gh.factory<_i1032.GroupsBloc>(
       () => _i1032.GroupsBloc(

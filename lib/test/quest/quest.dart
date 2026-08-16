@@ -202,6 +202,7 @@ class Quest extends StatelessWidget {
                           questionCount: state.questions.length,
                           points: question.points,
                           questionId: currentId,
+                          categoryId: question.categoryId,
                         ),
                         // Полоса закреплена под шапкой, а её раскрытием
                         // управляют жесты тела: потяг вниз у самого верха

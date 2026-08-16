@@ -21,6 +21,7 @@ class QuestAppBar extends StatelessWidget implements PreferredSizeWidget {
     required this.questionCount,
     required this.points,
     required this.questionId,
+    required this.categoryId,
   });
 
   /// 1-based position of the current question in the run.
@@ -28,6 +29,10 @@ class QuestAppBar extends StatelessWidget implements PreferredSizeWidget {
   final int questionCount;
   final int points;
   final int questionId;
+
+  /// The question's category — decides whether the Russian materials are open
+  /// to everybody here (free categories) or need the subscription.
+  final String categoryId;
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
@@ -65,9 +70,10 @@ class QuestAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: [
-        const FeatureGate(
+        FeatureGate(
           feature: AppFeature.russianContent,
-          child: _TranslationChip(),
+          categoryId: categoryId,
+          child: const _TranslationChip(),
         ),
         // Ticking lists here keeps the menu open — see AddToListsButton.
         AddToListsButton(questionId: questionId),

@@ -67,9 +67,13 @@ class QuestionFeaturesTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final flags = context.watch<FeatureFlagsBloc>().state;
-    // Enabled by flags; the konspekt tab is additionally dropped below unless
-    // the category's konspekt actually has sections about this question.
-    final enabled = _features.where(flags.isEnabled).toList();
+    // Enabled by flags *for this question's category* — in the free categories
+    // (25/26/28) the content tabs are open to everybody, the AI chat is not.
+    // The konspekt tab is additionally dropped below unless the category's
+    // konspekt actually has sections about this question.
+    final enabled = _features
+        .where((f) => flags.isEnabledForCategory(f, categoryId))
+        .toList();
     if (enabled.isEmpty) return const SizedBox.shrink();
 
     // Honour a deep-linked initial tab only when that feature is actually
