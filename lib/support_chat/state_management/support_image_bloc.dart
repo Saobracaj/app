@@ -6,7 +6,13 @@ import '../models/support_chat.dart';
 import 'support_image_events.dart';
 import 'support_image_state.dart';
 
-/// One inline picture in a message bubble.
+/// Where a fresh signed link for an attachment comes from. The support chat and
+/// the group wall sign through different queries, and this is the whole of the
+/// difference — everything else about showing a picture is shared.
+typedef AttachmentUrlResolver = Future<String> Function(String attachmentId);
+
+/// One inline picture in a message bubble — or in a group post, which carries
+/// the very same attachments.
 ///
 /// Attachment links are signed for fifteen minutes only, and a chat that stays
 /// open outlives that easily — the message list is re-read on every server
@@ -16,8 +22,11 @@ import 'support_image_state.dart';
 /// genuinely broken attachment from re-signing forever.
 @injectable
 class SupportImageBloc extends Bloc<SupportImageEvent, SupportImageState> {
-  SupportImageBloc(this._chat, @factoryParam this.attachment)
-    : super(SupportImageState(url: attachment.url ?? '')) {
+  SupportImageBloc(
+    this._chat,
+    @factoryParam this.attachment,
+    @factoryParam this.resolveUrl,
+  ) : super(SupportImageState(url: attachment.url ?? '')) {
     on<SupportImageLoadFailed>(_onLoadFailed);
   }
 
@@ -25,6 +34,10 @@ class SupportImageBloc extends Bloc<SupportImageEvent, SupportImageState> {
 
   /// The attachment being shown. Its own `url` is only the starting point.
   final SupportAttachment attachment;
+
+  /// How to re-sign it; `null` means the support chat's own query, which is
+  /// where this started and still where most attachments live.
+  final AttachmentUrlResolver? resolveUrl;
 
   Future<void> _onLoadFailed(
     SupportImageLoadFailed event,
@@ -36,9 +49,11 @@ class SupportImageBloc extends Bloc<SupportImageEvent, SupportImageState> {
     }
     emit(state.copyWith(refreshed: true));
     try {
-      final url = await _chat.attachmentUrl(attachment.id);
+      final url = await (resolveUrl ?? _chat.attachmentUrl)(attachment.id);
       if (emit.isDone) return;
-      emit(url.isEmpty ? state.copyWith(failed: true) : state.copyWith(url: url));
+      emit(
+        url.isEmpty ? state.copyWith(failed: true) : state.copyWith(url: url),
+      );
     } catch (_) {
       // Nothing the reader can act on: the bubble shows the placeholder, and
       // the next re-read of the thread brings a freshly signed link anyway.

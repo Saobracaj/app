@@ -453,7 +453,9 @@
       "firstPracticePass": "{} — first mock exam passed",
       "flawlessSubcategory": "{} — block “{}” without a mistake",
       "almostFlawlessSubcategory": "{} — block “{}” almost without mistakes",
-      "practiceStreak": "{} — mock exams passed in a row: {}"
+      "practiceStreak": "{} — mock exams passed in a row: {}",
+      "postCreated": "{} wrote a post",
+      "postCommented": "{} commented on a post"
     },
     "feed": {
       "title": "Group activity",
@@ -468,9 +470,27 @@
       "mistakes": "Questions that gave trouble: {}",
       "noMistakes": "No mistakes",
       "openMistakes": "Practise these questions",
-      "offline": "No connection to the server — refresh"
+      "offline": "No connection to the server — refresh",
+      "tab": "Activity"
     },
-    "createHint": "Study together: a shared feed and members’ stats."
+    "createHint": "Study together: a shared feed and members’ stats.",
+    "posts": {
+      "tab": "Posts",
+      "empty": "Nobody has posted in this group yet",
+      "hint": "Write to the group…",
+      "attachFile": "Attach a file",
+      "attachList": "Attach a question list",
+      "noLists": "You have no question lists of your own yet",
+      "listQuestions": "Questions: {}",
+      "comment": "Comment",
+      "commentsCount": "Comments: {}",
+      "commentsTitle": "Comments",
+      "commentHint": "Your comment…",
+      "noComments": "No comments yet",
+      "delete": "Delete",
+      "deleteConfirmTitle": "Delete this post?",
+      "deleteConfirmBody": "The post and its comments will be deleted. This cannot be undone."
+    }
   },
   "questionAnalysis": {
     "valueTitle": "Question value",

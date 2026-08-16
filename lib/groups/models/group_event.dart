@@ -25,6 +25,8 @@ enum GroupEventKind {
   subcategoryCompleted('SUBCATEGORY_COMPLETED'),
   practiceFinished('PRACTICE_FINISHED'),
   achievementUnlocked('ACHIEVEMENT_UNLOCKED'),
+  postCreated('POST_CREATED'),
+  postCommented('POST_COMMENTED'),
 
   /// A kind added by a newer server than this build knows.
   unknown('');
@@ -202,6 +204,24 @@ abstract class GroupRenamedDetails with _$GroupRenamedDetails {
   }
 }
 
+/// Somebody wrote a post on the group's wall, or commented on one. The entry
+/// carries the post's id (tapping it opens the «Посты» tab) and a snippet, so
+/// the timeline reads without a second query per line.
+@freezed
+abstract class PostDetails with _$PostDetails {
+  const factory PostDetails({
+    @Default('') String postId,
+    @Default('') String preview,
+  }) = _PostDetails;
+
+  factory PostDetails.fromJson(Map<String, dynamic> json) {
+    return PostDetails(
+      postId: json['postId']?.toString() ?? '',
+      preview: json['preview']?.toString() ?? '',
+    );
+  }
+}
+
 /// One feed entry: a [kind] plus whichever detail object that kind carries.
 ///
 /// Deliberately one flat type rather than a sealed hierarchy — it mirrors the
@@ -224,6 +244,7 @@ abstract class GroupEvent with _$GroupEvent {
     PracticeFinishedDetails? practice,
     AchievementDetails? achievement,
     GroupRenamedDetails? rename,
+    PostDetails? post,
   }) = _GroupEvent;
 
   const GroupEvent._();
@@ -246,6 +267,7 @@ abstract class GroupEvent with _$GroupEvent {
       practice: _object(json['practice'], PracticeFinishedDetails.fromJson),
       achievement: _object(json['achievement'], AchievementDetails.fromJson),
       rename: _object(json['rename'], GroupRenamedDetails.fromJson),
+      post: _object(json['post'], PostDetails.fromJson),
     );
   }
 

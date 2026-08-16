@@ -11,6 +11,9 @@ import '../../questions/state_management/all_questions_bloc.dart';
 import '../../test/practice/practice.dart' show formatDuration;
 import '../../test/quest/preview/question_preview_sheet.dart';
 import '../../theme/quiz_colors.dart';
+import '../../group_posts/presentation/group_posts_tab.dart';
+import '../../group_posts/state_management/group_posts_bloc.dart';
+import '../../group_posts/state_management/group_posts_events.dart';
 import '../models/group_event.dart';
 import '../state_management/group_feed_bloc.dart';
 import '../state_management/group_feed_events.dart';
@@ -18,7 +21,12 @@ import '../state_management/group_feed_state.dart';
 import '../state_management/groups_bloc.dart';
 import 'group_event_summary.dart';
 
-/// Everything that has happened in a group, newest first.
+/// The group screen: two tabs over one group — «Посты», the wall members write
+/// on, and «Лента», everything that has happened in the group.
+///
+/// Both are fed by the same facts: a post and a comment are feed events too, so
+/// the wall has no live stream of its own — when the feed's subscription reports
+/// one, the wall re-reads its first page.
 ///
 /// The list grows in both directions: pages of history load as the reader
 /// scrolls down, and new events arrive over the subscription while the screen is
@@ -35,11 +43,44 @@ class GroupFeedPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) =>
-          getIt<GroupFeedBloc>(param1: groupId)..add(const GroupFeedOpened()),
-      child: _FeedView(groupId: groupId),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) =>
+              getIt<GroupFeedBloc>(param1: groupId)
+                ..add(const GroupFeedOpened()),
+        ),
+        BlocProvider(
+          create: (_) =>
+              getIt<GroupPostsBloc>(param1: groupId)
+                ..add(const GroupPostsOpened()),
+        ),
+      ],
+      child: DefaultTabController(
+        length: 2,
+        child: BlocListener<GroupFeedBloc, GroupFeedState>(
+          // Somebody else posted or commented: the wall is now stale, and its
+          // own screen has no other way of hearing about it.
+          listenWhen: (prev, curr) =>
+              _newestPostEvent(prev) != _newestPostEvent(curr),
+          listener: (context, state) =>
+              context.read<GroupPostsBloc>().add(const GroupPostsRefreshed()),
+          child: _FeedView(groupId: groupId),
+        ),
+      ),
     );
+  }
+
+  /// The id of the newest post-related event, or `null` when there is none —
+  /// enough to tell "something was posted" from "somebody finished a block".
+  static String? _newestPostEvent(GroupFeedState state) {
+    for (final event in state.events) {
+      if (event.kind == GroupEventKind.postCreated ||
+          event.kind == GroupEventKind.postCommented) {
+        return event.id;
+      }
+    }
+    return null;
   }
 }
 
@@ -114,21 +155,41 @@ class _FeedView extends StatelessWidget {
                 ],
               ),
             ],
-            bottom: state.loading && state.loaded
-                ? const PreferredSize(
-                    preferredSize: Size.fromHeight(4),
-                    child: LinearProgressIndicator(),
-                  )
-                : null,
+            bottom: PreferredSize(
+              preferredSize: Size.fromHeight(
+                state.loading && state.loaded ? 52 : 48,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TabBar(
+                    tabs: [
+                      Tab(text: LocaleKeys.groups_posts_tab.tr()),
+                      Tab(text: LocaleKeys.groups_feed_tab.tr()),
+                    ],
+                  ),
+                  if (state.loading && state.loaded)
+                    const LinearProgressIndicator(),
+                ],
+              ),
+            ),
           ),
-          body: RefreshIndicator(
-            onRefresh: () async =>
-                context.read<GroupFeedBloc>().add(const GroupFeedRefreshed()),
-            child: switch ((state.loaded, state.isEmpty)) {
-              (false, _) => const Center(child: CircularProgressIndicator()),
-              (_, true) => _EmptyFeed(),
-              _ => _FeedList(state: state),
-            },
+          body: TabBarView(
+            children: [
+              GroupPostsTab(groupId: groupId),
+              RefreshIndicator(
+                onRefresh: () async => context.read<GroupFeedBloc>().add(
+                  const GroupFeedRefreshed(),
+                ),
+                child: switch ((state.loaded, state.isEmpty)) {
+                  (false, _) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                  (_, true) => _EmptyFeed(),
+                  _ => _FeedList(state: state),
+                },
+              ),
+            ],
           ),
         );
       },
@@ -243,7 +304,21 @@ class _SimpleTile extends StatelessWidget {
         child: Icon(_icon, color: Theme.of(context).colorScheme.outline),
       ),
       title: Text(groupEventSummary(context, event)),
-      subtitle: _EventTime(event.occurredAt),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // A post event carries a snippet, so the timeline says what the post
+          // was about instead of only that there is one.
+          if (event.post != null && event.post!.preview.isNotEmpty)
+            Text(
+              event.post!.preview,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          _EventTime(event.occurredAt),
+        ],
+      ),
     );
   }
 
@@ -254,6 +329,8 @@ class _SimpleTile extends StatelessWidget {
     GroupEventKind.ownerChanged => Icons.workspace_premium_outlined,
     GroupEventKind.groupRenamed => Icons.drive_file_rename_outline,
     GroupEventKind.achievementUnlocked => Icons.emoji_events_outlined,
+    GroupEventKind.postCreated => Icons.article_outlined,
+    GroupEventKind.postCommented => Icons.mode_comment_outlined,
     _ => Icons.circle_outlined,
   };
 }
@@ -445,9 +522,9 @@ class _PracticeTile extends StatelessWidget {
               alignment: AlignmentDirectional.centerStart,
               child: TextButton.icon(
                 // Относительный путь — см. комментарий в _SubcategoryTile.
-                onPressed: () => Routemaster.of(context).push(
-                  'q?q=${wrong.map((q) => q.id).join(',')}',
-                ),
+                onPressed: () => Routemaster.of(
+                  context,
+                ).push('q?q=${wrong.map((q) => q.id).join(',')}'),
                 icon: const Icon(Icons.play_arrow_outlined),
                 label: Text(LocaleKeys.groups_feed_openMistakes.tr()),
               ),

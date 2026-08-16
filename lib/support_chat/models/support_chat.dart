@@ -12,12 +12,17 @@ enum SupportAttachmentKind {
 
   /// A reference to an exam question — nothing is stored; the client renders
   /// «вопрос 1234» and opens the existing preview sheet on tap.
-  question;
+  question,
+
+  /// A shared question list — nothing is stored either: a snapshot of the
+  /// list's name and its question ids, rendered as one chip.
+  questionList;
 
   static SupportAttachmentKind parse(String? raw) =>
       switch (raw?.toUpperCase()) {
         'IMAGE' => SupportAttachmentKind.image,
         'QUESTION' => SupportAttachmentKind.question,
+        'QUESTION_LIST' => SupportAttachmentKind.questionList,
         _ => SupportAttachmentKind.file,
       };
 }
@@ -91,6 +96,10 @@ abstract class SupportAttachment with _$SupportAttachment {
     @Default('') String contentType,
     @Default(0) int sizeBytes,
     int? questionId,
+
+    /// The questions of a shared list, for [SupportAttachmentKind.questionList];
+    /// the list's name is in [fileName].
+    @Default(<int>[]) List<int> questionIds,
     String? url,
 
     /// The stored bytes are gone: the uploader deleted their account and took
@@ -109,6 +118,11 @@ abstract class SupportAttachment with _$SupportAttachment {
         contentType: json['contentType']?.toString() ?? '',
         sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
         questionId: (json['questionId'] as num?)?.toInt(),
+        questionIds:
+            (json['questionIds'] as List?)
+                ?.map((e) => (e as num).toInt())
+                .toList() ??
+            const <int>[],
         url: json['url']?.toString(),
         deleted: json['deleted'] == true,
         createdAt:
@@ -124,13 +138,19 @@ abstract class SupportAttachment with _$SupportAttachment {
   /// anything still marked `file` is given a second chance by its content type
   /// and its extension.
   bool get isImage {
-    if (kind == SupportAttachmentKind.question) return false;
+    if (isReference) return false;
     if (kind == SupportAttachmentKind.image) return true;
     return contentType.toLowerCase().startsWith('image/') ||
         _imageExtensions.contains(_extensionOf(fileName));
   }
 
-  /// A human-readable size ("1,2 МБ"), empty for a question reference.
+  /// Whether the attachment stores nothing at all — a reference to something
+  /// the app already has (a question, a shared list).
+  bool get isReference =>
+      kind == SupportAttachmentKind.question ||
+      kind == SupportAttachmentKind.questionList;
+
+  /// A human-readable size ("1,2 МБ"), empty for a reference.
   String get readableSize {
     if (sizeBytes <= 0) return '';
     const units = ['B', 'KB', 'MB'];
