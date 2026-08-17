@@ -1,12 +1,15 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/core/deep_links.dart';
 import 'package:saobracaj/core/presentation/translation_chip.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
 import 'package:saobracaj/data/zakon_o_bezbednosti_data_source.dart';
+import 'package:saobracaj/zakon/domain/zakon_contents.dart';
 import 'package:saobracaj/zakon/state_management/zakon_bloc.dart';
 import 'package:flutter/services.dart';
 
@@ -34,10 +37,19 @@ class Zakon extends StatefulWidget {
   State<Zakon> createState() => _ZakonState();
 }
 
+/// Ширина закреплённой колонки с оглавлением на широком экране.
+const double _kTocWidth = 300;
+
 class _ZakonState extends State<Zakon> {
   final ItemScrollController _itemScrollController = ItemScrollController();
   final ItemPositionsListener _itemPositionsListener =
       ItemPositionsListener.create();
+
+  /// Оглавление стоит сбоку только на широком экране и только когда закон
+  /// открыт страницей: выдвижная панель (`asPanel`) сама узкая колонка, там
+  /// оглавление по-прежнему вызывается кнопкой.
+  bool _showsSideToc(BuildContext context) =>
+      !widget.asPanel && context.isExpandedScreen;
 
   @override
   Widget build(BuildContext context) {
@@ -77,21 +89,26 @@ class _ZakonState extends State<Zakon> {
             const SizedBox(width: 8),
           ],
         ),
-        floatingActionButton: BlocBuilder<ZakonBloc, ZakonState>(
-          builder: (context, state) {
-            return FloatingActionButton.extended(
-              onPressed: () async {
-                final res = await _showTableOfContents(context, state);
-                if (res != null && context.mounted) {
-                  context.read<ZakonBloc>().add(
-                    ScrollTo(res.$1, res.$2, res.$3),
+        // На широком экране оглавление стоит сбоку (см. `_ZakonToc`), и
+        // кнопка, открывающая его снизу, там не нужна.
+        floatingActionButton: _showsSideToc(context)
+            ? null
+            : BlocBuilder<ZakonBloc, ZakonState>(
+                builder: (context, state) {
+                  return FloatingActionButton.extended(
+                    onPressed: () async {
+                      final res = await _showTableOfContents(context, state);
+                      if (res != null && context.mounted) {
+                        context.read<ZakonBloc>().add(
+                          ScrollTo(res.$1, res.$2, res.$3),
+                        );
+                      }
+                    },
+                    tooltip: LocaleKeys.zakon_contents.tr(),
+                    label: Icon(Icons.list_alt_outlined),
                   );
-                }
-              },
-              label: Icon(Icons.list_alt_outlined),
-            );
-          },
-        ),
+                },
+              ),
         body: BlocConsumer<ZakonBloc, ZakonState>(
           listener: (context, state) {
             if (state.scrollTo != null) {
@@ -105,20 +122,46 @@ class _ZakonState extends State<Zakon> {
             }
           },
           builder: (context, state) {
+            final withToc = _showsSideToc(context);
             // Строки закона на всю ширину планшета/окна нечитаемы — колонка
-            // ограничена шириной комфортного чтения.
-            return ReadableWidth(
-              child: ScrollablePositionedList.builder(
-                itemCount: state.zakon.length,
-                itemScrollController: _itemScrollController,
-                itemPositionsListener: _itemPositionsListener,
-                itemBuilder: (context, index) {
-                  return _Paragraph(
-                    paragraph: state.zakon[index],
-                    isSerbian: state.isSr,
-                  );
-                },
+            // ограничена шириной комфортного чтения. Сужаются именно поля, а
+            // не сам список: полоса прокрутки должна идти по правому краю
+            // окна, а колесо мыши — работать в любой его точке, а не только
+            // над колонкой текста.
+            final article = ScrollablePositionedList.builder(
+              padding: readableInsets(
+                context,
+                horizontal: 0,
+                availableWidth: withToc
+                    ? MediaQuery.sizeOf(context).width - _kTocWidth - 1
+                    : null,
               ),
+              itemCount: state.zakon.length,
+              itemScrollController: _itemScrollController,
+              itemPositionsListener: _itemPositionsListener,
+              itemBuilder: (context, index) {
+                return _Paragraph(
+                  paragraph: state.zakon[index],
+                  isSerbian: state.isSr,
+                );
+              },
+            );
+            if (!withToc) return article;
+            // Широкий экран: слева закреплённое оглавление, справа — текст
+            // (как в конспектах).
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _ZakonToc(
+                  paragraphs: state.zakon,
+                  isSerbian: state.isSr,
+                  onSelected: (p) => context.read<ZakonBloc>().add(
+                    ScrollTo(p.paragraph, p.chlan, p.chapter),
+                  ),
+                ),
+                const VerticalDivider(width: 1, thickness: 1),
+                Expanded(child: article),
+              ],
             );
           },
         ),
@@ -216,36 +259,7 @@ Future<(String?, String?, String?)?> _showTableOfContents(
       maxChildSize: 0.95,
       expand: false,
       builder: (_, controller) {
-        final List<BezbParagraph> paragraphs = state.zakon
-            .where(
-              (element) =>
-                  element.isTitle || element.isChapter || element.isChlan,
-            )
-            .toList();
-        List<List<BezbParagraph>> list = [];
-
-        var i = 0;
-        while (i < paragraphs.length) {
-          final p = paragraphs[i];
-
-          if (!p.isChlan) {
-            list.add([p]);
-            i++;
-          } else {
-            final chlans = <BezbParagraph>[];
-
-            BezbParagraph chlan = p;
-
-            while (chlan.isChlan && i < paragraphs.length) {
-              chlan = paragraphs[i];
-              if (chlan.isChlan) {
-                chlans.add(chlan);
-                i++;
-              }
-            }
-            list.add(chlans);
-          }
-        }
+        final list = zakonTableOfContents(state.zakon);
 
         return ListView.builder(
           controller: controller,
@@ -253,6 +267,8 @@ Future<(String?, String?, String?)?> _showTableOfContents(
           itemBuilder: (context, index) => _TableOfContentsItem(
             paragraphs: list[index],
             isSerbian: state.isSr,
+            onSelected: (p) =>
+                Navigator.pop(context, (p.paragraph, p.chlan, p.chapter)),
           ),
         );
         /*
@@ -276,39 +292,99 @@ Future<(String?, String?, String?)?> _showTableOfContents(
   return res;
 }
 
-extension _ParagraphExt on BezbParagraph {
-  bool get isChapter => chapter != null && chlan == null && paragraph == null;
+/// Закреплённая колонка с оглавлением для широкого экрана — тот же список, что
+/// и во всплывающем оглавлении, но всегда на виду (как в конспектах).
+class _ZakonToc extends StatelessWidget {
+  const _ZakonToc({
+    required this.paragraphs,
+    required this.isSerbian,
+    required this.onSelected,
+  });
 
-  bool get isChlan => chapter != null && chlan != null && paragraph == '0';
+  final List<BezbParagraph> paragraphs;
+  final bool isSerbian;
+  final void Function(BezbParagraph paragraph) onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final list = zakonTableOfContents(paragraphs);
+    return SizedBox(
+      width: _kTocWidth,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+            child: Text(
+              LocaleKeys.zakon_contents.tr().toUpperCase(),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+              ),
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.only(bottom: 24),
+              itemCount: list.length,
+              itemBuilder: (context, index) => _TableOfContentsItem(
+                paragraphs: list[index],
+                isSerbian: isSerbian,
+                dense: true,
+                onSelected: onSelected,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _TableOfContentsItem extends StatelessWidget {
   const _TableOfContentsItem({
     required this.paragraphs,
     required this.isSerbian,
+    required this.onSelected,
+    this.dense = false,
   });
 
   final List<BezbParagraph> paragraphs;
   final bool isSerbian;
+  final void Function(BezbParagraph paragraph) onSelected;
+
+  /// Оглавление показано в узкой боковой колонке: заголовки мельче, кнопки
+  /// членов плотнее — иначе список глав не помещается по ширине.
+  final bool dense;
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
     if (paragraphs.isNotEmpty && !paragraphs.first.isChlan) {
       final paragraph = paragraphs.first;
       String text = isSerbian
           ? (paragraph.sr ?? '')
           : (paragraph.ru ?? paragraph.sr ?? '');
 
+      final TextStyle? style;
+      if (dense) {
+        style = paragraph.isTitle ? textTheme.labelLarge : textTheme.titleSmall;
+      } else {
+        style = paragraph.isTitle
+            ? textTheme.titleMedium
+            : textTheme.titleLarge;
+      }
+
       return InkWell(
-        onTap: () => _onTap(context, paragraph),
+        onTap: () => onSelected(paragraph),
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: Text(
             text.fixMd,
             // textAlign: TextAlign.center,
-            style: paragraph.isTitle
-                ? Theme.of(context).textTheme.titleMedium
-                : Theme.of(context).textTheme.titleLarge,
+            style: style,
           ),
         ),
       );
@@ -316,14 +392,26 @@ class _TableOfContentsItem extends StatelessWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
         child: Wrap(
+          spacing: dense ? 4 : 0,
           children: paragraphs.map((e) {
             var text = Text(
               (isSerbian ? (e.sr ?? '') : (e.ru ?? e.sr ?? '')).fixMd,
+              style: dense ? textTheme.bodySmall : null,
             );
 
             return TextButton(
+              style: dense
+                  ? TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    )
+                  : null,
               onPressed: () {
-                _onTap(context, e);
+                onSelected(e);
               },
               child: text,
             );
@@ -331,10 +419,6 @@ class _TableOfContentsItem extends StatelessWidget {
         ),
       );
     }
-  }
-
-  void _onTap(BuildContext context, BezbParagraph p) {
-    Navigator.pop(context, (p.paragraph, p.chlan, p.chapter));
   }
 }
 

@@ -1035,5 +1035,8 @@
     "offlineBody": "You can go to the questions or take an exam simulation. Everything else loads once the network is back.",
     "goToQuestions": "Go to questions",
     "goToExam": "Exam simulation"
+  },
+  "zakon": {
+    "contents": "Contents"
   }
 }
