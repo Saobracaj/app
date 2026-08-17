@@ -8,7 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/di.dart';
 import '../../test/quest/preview/question_preview_sheet.dart';
 import '../models/support_chat.dart';
-import '../state_management/support_image_bloc.dart';
+import '../state_management/support_image_bloc.dart'
+    show AttachmentUrlResolver, SupportImageBloc;
 import '../state_management/support_image_events.dart';
 import '../state_management/support_image_state.dart';
 
@@ -29,24 +30,32 @@ const double kSupportImageRadius = 12;
 String supportImageHeroTag(SupportAttachment attachment) =>
     'support-image-${attachment.id}';
 
-/// How one attachment is rendered inside a message bubble.
+/// How one attachment is rendered — inside a message bubble, and inside a group
+/// post, which carries attachments of exactly the same shape.
 ///
 /// * an **image** is previewed inline and opens full-screen on tap, with a
 ///   download action in the viewer;
 /// * a **file** is a row that downloads on tap;
 /// * a **question** is a chip «вопрос 1234» that opens the existing preview
-///   sheet — the same one the konspekt's question links use.
+///   sheet — the same one the konspekt's question links use;
+/// * a **question list** is one chip too: the list's name, and a sheet with the
+///   questions behind it.
 class SupportAttachmentView extends StatelessWidget {
   const SupportAttachmentView({
     super.key,
     required this.attachment,
     required this.onSurface,
+    this.resolveUrl,
   });
 
   final SupportAttachment attachment;
 
   /// Colour to draw on, so the widget reads on both bubble backgrounds.
   final Color onSurface;
+
+  /// How to re-sign an expired link. `null` for the support chat's own
+  /// attachments; the group wall passes its own query.
+  final AttachmentUrlResolver? resolveUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +64,9 @@ class SupportAttachmentView extends StatelessWidget {
         questionId: attachment.questionId,
         onSurface: onSurface,
       );
+    }
+    if (attachment.kind == SupportAttachmentKind.questionList) {
+      return _QuestionListChip(attachment: attachment, onSurface: onSurface);
     }
     if (attachment.deleted) {
       return _DeletedAttachment(
@@ -66,7 +78,7 @@ class SupportAttachmentView extends StatelessWidget {
     // reported MIME types is stored as a plain file and would otherwise stay
     // hidden behind a download row forever.
     return attachment.isImage
-        ? _ImageAttachment(attachment: attachment)
+        ? _ImageAttachment(attachment: attachment, resolveUrl: resolveUrl)
         : _FileAttachment(attachment: attachment, onSurface: onSurface);
   }
 }
@@ -93,10 +105,80 @@ class _QuestionChip extends StatelessWidget {
   }
 }
 
-class _ImageAttachment extends StatelessWidget {
-  const _ImageAttachment({required this.attachment});
+/// A shared question list: one chip with the list's name, and a sheet with the
+/// questions it held when it was shared. Deliberately the same gesture as the
+/// single-question chip — the reader taps a name and sees questions.
+class _QuestionListChip extends StatelessWidget {
+  const _QuestionListChip({required this.attachment, required this.onSurface});
 
   final SupportAttachment attachment;
+  final Color onSurface;
+
+  @override
+  Widget build(BuildContext context) {
+    final ids = attachment.questionIds;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: ActionChip(
+        avatar: Icon(Icons.playlist_add_check, size: 18, color: onSurface),
+        label: Text(
+          '${attachment.fileName} · ${ids.length}',
+          overflow: TextOverflow.ellipsis,
+        ),
+        labelStyle: TextStyle(color: onSurface),
+        onPressed: ids.isEmpty
+            ? null
+            : () => showSharedQuestionList(context, attachment),
+      ),
+    );
+  }
+}
+
+/// The questions of a shared list, each opening the usual preview sheet.
+Future<void> showSharedQuestionList(
+  BuildContext context,
+  SupportAttachment attachment,
+) {
+  return showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (sheetContext) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Text(
+              attachment.fileName,
+              style: Theme.of(sheetContext).textTheme.titleMedium,
+            ),
+          ),
+          Flexible(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                for (final id in attachment.questionIds)
+                  ListTile(
+                    leading: const Icon(Icons.help_outline),
+                    title: Text('support.questionChip'.tr(args: ['$id'])),
+                    onTap: () => showQuestionPreview(sheetContext, id),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ImageAttachment extends StatelessWidget {
+  const _ImageAttachment({required this.attachment, this.resolveUrl});
+
+  final SupportAttachment attachment;
+  final AttachmentUrlResolver? resolveUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +187,10 @@ class _ImageAttachment extends StatelessWidget {
       // signed links) starts the tile over instead of reusing a dead one.
       key: ValueKey(attachment.id),
       create: (_) {
-        final bloc = getIt<SupportImageBloc>(param1: attachment);
+        final bloc = getIt<SupportImageBloc>(
+          param1: attachment,
+          param2: resolveUrl,
+        );
         // No link at all is the same situation as an expired one: ask the
         // backend to sign one rather than showing a placeholder for good.
         final url = attachment.url;

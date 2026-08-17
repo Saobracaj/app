@@ -155,8 +155,10 @@ void main() {
   tearDownAll(() => HttpOverrides.global = null);
 
   setUp(() {
-    getIt.registerFactoryParam<SupportImageBloc, SupportAttachment, void>(
-      (attachment, _) => SupportImageBloc(_StubChatRepository(), attachment),
+    getIt.registerFactoryParam<SupportImageBloc, SupportAttachment,
+        AttachmentUrlResolver?>(
+      (attachment, resolve) =>
+          SupportImageBloc(_StubChatRepository(), attachment, resolve),
     );
   });
 

@@ -47,6 +47,7 @@ class GroupsRepository {
     practice { points mistakes passed durationSeconds wrongAnswers }
     achievement { achievement streak subcategory }
     rename { name previousName }
+    post { postId preview }
   ''';
 
   static const _inviteFields = 'token groupId createdAt expiresAt';

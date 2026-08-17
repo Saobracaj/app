@@ -32,6 +32,9 @@ import '../billing_admin/data/billing_admin_repository.dart' as _i512;
 import '../billing_admin/state_management/billing_admin_bloc.dart' as _i443;
 import '../feature_flags/data/feature_flags_repository.dart' as _i389;
 import '../feature_flags/domain/app_feature.dart' as _i392;
+import '../group_posts/data/group_posts_repository.dart' as _i607;
+import '../group_posts/state_management/group_posts_bloc.dart' as _i517;
+import '../group_posts/state_management/post_comments_bloc.dart' as _i494;
 import '../groups/data/groups_repository.dart' as _i685;
 import '../groups/state_management/group_bloc.dart' as _i1064;
 import '../groups/state_management/group_feed_bloc.dart' as _i481;
@@ -177,6 +180,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i512.BillingAdminRepository>(
       () => _i512.BillingAdminRepository(gh<_i483.GraphqlClient>()),
     );
+    gh.lazySingleton<_i607.GroupPostsRepository>(
+      () => _i607.GroupPostsRepository(gh<_i483.GraphqlClient>()),
+    );
     gh.lazySingleton<_i491.KonspektRepository>(
       () => _i491.KonspektRepository(gh<_i483.GraphqlClient>()),
     );
@@ -265,16 +271,16 @@ extension GetItInjectableX on _i174.GetIt {
         threadId,
       ),
     );
-    gh.factoryParam<_i681.SupportImageBloc, _i163.SupportAttachment, dynamic>(
-      (attachment, _) =>
-          _i681.SupportImageBloc(gh<_i968.SupportChatRepository>(), attachment),
-    );
     gh.lazySingleton<_i388.AuthBloc>(
       () => _i388.AuthBloc(
         gh<_i880.AuthRepository>(),
         gh<_i966.GraphqlSubscriptionClient>(),
         localData: gh<_i663.LocalDataCleaner>(),
       ),
+    );
+    gh.factoryParam<_i517.GroupPostsBloc, String, dynamic>(
+      (groupId, _) =>
+          _i517.GroupPostsBloc(gh<_i607.GroupPostsRepository>(), groupId),
     );
     gh.factory<_i957.DisplayNameBloc>(
       () => _i957.DisplayNameBloc(gh<_i311.ProfileRepository>()),
@@ -300,6 +306,10 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i388.AuthBloc>(),
       ),
     );
+    gh.factoryParam<_i494.PostCommentsBloc, String, dynamic>(
+      (postId, _) =>
+          _i494.PostCommentsBloc(gh<_i607.GroupPostsRepository>(), postId),
+    );
     gh.factoryParam<_i794.AskAiChatBloc, _i997.AskAiChatScope, String>(
       (scope, scopeId) =>
           _i794.AskAiChatBloc(gh<_i154.AskAiChatRepository>(), scope, scopeId),
@@ -313,6 +323,17 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i426.NotificationPermissions>(),
         questionId,
         threadId,
+      ),
+    );
+    gh.factoryParam<
+      _i681.SupportImageBloc,
+      _i163.SupportAttachment,
+      _i681.AttachmentUrlResolver?
+    >(
+      (attachment, resolveUrl) => _i681.SupportImageBloc(
+        gh<_i968.SupportChatRepository>(),
+        attachment,
+        resolveUrl,
       ),
     );
     gh.factory<_i618.NotificationsBloc>(
