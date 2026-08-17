@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/core/keyboard_hints.dart';
 import 'package:saobracaj/core/keyboard_pagination.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
@@ -209,6 +210,17 @@ class Quest extends StatelessWidget {
                       // завершение прогона остаётся за явным нажатием
                       // кнопки), пробел = «показать ответ».
                       final actions = QuestActions(context, question);
+                      // Низ экрана: панель действий (на узком экране),
+                      // на вебе — пагинация и под ней мелкая подсказка,
+                      // что теми же путями ходят ← / → и пробел. Если
+                      // собирать нечего (широкий экран вне веба) —
+                      // панели нет вовсе.
+                      final bottomChildren = <Widget>[
+                        ?bottomBar,
+                        if (kIsWeb) pagination,
+                        if (KeyboardHints.visible)
+                          KeyboardHints(navigation: state.questions.length > 1),
+                      ];
                       return KeyboardPagination(
                         onPrevious: first ? null : actions.previous,
                         onNext: last ? null : actions.next,
@@ -235,12 +247,12 @@ class Quest extends StatelessWidget {
                                       questBloc.add(MoveToQuestion(picked)),
                                   child: body,
                                 ),
-                          bottomNavigationBar: kIsWeb
-                              ? Column(
+                          bottomNavigationBar: bottomChildren.isEmpty
+                              ? null
+                              : Column(
                                   mainAxisSize: MainAxisSize.min,
-                                  children: [?bottomBar, pagination],
-                                )
-                              : bottomBar,
+                                  children: bottomChildren,
+                                ),
                         ),
                       );
                     },
