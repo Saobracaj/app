@@ -85,3 +85,27 @@ lib/core/              # cross-cutting: di.dart, shared widgets, base clients
 ```
 
 Blocs never live loose in a feature root or inline in a widget file, and `lib/state_management/` (the old flat bucket) is not used — every Bloc sits in its feature's `state_management/`.
+
+## Offline / network failures (follow this for every remote section)
+
+The app must stay usable without a connection (questions and the exam
+simulation are bundled assets), and going offline is *expected*, not an error
+to announce. The building blocks live in `lib/core/network/`:
+
+- `NetworkStatus` (registered in `RegisterModule`, started in `main()`): the
+  app-wide online/offline signal — platform connectivity (`connectivity_plus`)
+  plus the GraphQL client's own transport outcomes (`reportFailure` /
+  `reportSuccess`), with a periodic probe while the link is up but the server
+  was unreachable. `NetworkStatusBloc` republishes it to the widget tree
+  (`context.select<NetworkStatusBloc, bool>((b) => b.state.online)`).
+- A Bloc that loads remote data keeps a `failed` flag (plus `failedOffline` /
+  `offline` when the copy differs), renders it inline with the shared
+  `LoadFailedView` (`lib/core/presentation/load_failed_view.dart`) and
+  subscribes to `NetworkStatus.onReconnected` to reload **by itself** — no
+  snackbar for a failed *load*. Snackbars are for failed *user actions* only.
+- Never show `GraphqlException.message` for a network failure (it is an English
+  placeholder): pass errors through `describeError(e)` /
+  `isNetworkError(e)` (`lib/core/network/error_messages.dart`), which maps a
+  transport failure to `network.noConnection`.
+- The home screen shows `OfflineHomeCard` (links to questions / simulation)
+  instead of per-block retries while offline.

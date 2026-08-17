@@ -4,7 +4,7 @@ import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../auth/data/auth_repository.dart';
-import '../../auth/data/graphql_client.dart';
+import '../../core/network/error_messages.dart';
 import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../core/deep_links.dart';
 import '../../notifications/data/notification_permissions.dart';
@@ -174,6 +174,5 @@ class QuestionFeedbackBloc
 
   String _platform() => kIsWeb ? 'web' : defaultTargetPlatform.name;
 
-  String _message(Object e) =>
-      e is GraphqlException ? e.message : e.toString();
+  String _message(Object e) => describeError(e);
 }

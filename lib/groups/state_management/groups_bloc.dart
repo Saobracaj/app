@@ -5,6 +5,8 @@ import 'package:injectable/injectable.dart';
 
 import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../auth/state_management/auth/auth_state.dart';
+import '../../core/network/error_messages.dart';
+import '../../core/network/network_status.dart';
 import '../../feature_flags/data/feature_flags_repository.dart';
 import '../../feature_flags/data/feature_flags_snapshot.dart';
 import '../../feature_flags/domain/app_feature.dart';
@@ -27,10 +29,19 @@ import 'groups_state.dart';
 /// Membership changes re-read the flags: a group can carry its own grants (the
 /// group-subscription groundwork), so joining or leaving one may change what
 /// the user is entitled to.
+///
+/// A failed load is not an error to announce: the state carries [GroupsState.failed],
+/// the home section shows a retry, and the Bloc retries by itself the moment
+/// [NetworkStatus] says the connection is back.
 @injectable
 class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
-  GroupsBloc(this._groups, this._profiles, this._authBloc, this._flags)
-    : super(const GroupsState()) {
+  GroupsBloc(
+    this._groups,
+    this._profiles,
+    this._authBloc,
+    this._flags,
+    this._network,
+  ) : super(const GroupsState()) {
     on<GroupsStarted>(_onStarted);
     on<GroupsRefreshed>((event, emit) => _load(emit));
     on<GroupsSessionChanged>(_onSessionChanged);
@@ -61,10 +72,12 @@ class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
   /// Feature availability — the same instance `main()` bootstraps, resolved
   /// through `RegisterModule`.
   final FeatureFlagsRepository _flags;
+  final NetworkStatus _network;
 
   StreamSubscription<List<Group>>? _groupsSubscription;
   StreamSubscription<AuthState>? _authSubscription;
   StreamSubscription<FeatureFlagsSnapshot>? _flagsSubscription;
+  StreamSubscription<void>? _reconnectSubscription;
 
   Future<void> _onStarted(
     GroupsStarted event,
@@ -84,6 +97,12 @@ class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
         ),
       ),
     );
+    // Back online: redo the load that failed while offline, quietly.
+    _reconnectSubscription ??= _network.onReconnected.listen((_) {
+      if (state.failed || (!state.loaded && !state.loading)) {
+        add(const GroupsRefreshed());
+      }
+    });
     if (_authBloc.state.status != AuthStatus.unknown) {
       add(GroupsSessionChanged(authenticated: _authBloc.state.isAuthenticated));
     }
@@ -97,7 +116,7 @@ class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
     emit(state.copyWith(authenticated: event.authenticated));
     if (!event.authenticated) {
       _groups.onLoggedOut();
-      emit(state.copyWith(loaded: false, profile: null));
+      emit(state.copyWith(loaded: false, failed: false, profile: null));
       return;
     }
     await _load(emit);
@@ -115,7 +134,7 @@ class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
       // The feature was switched off (locally or by the backend): forget the
       // list rather than keep showing cards nothing can act on.
       _groups.onLoggedOut();
-      emit(state.copyWith(loaded: false));
+      emit(state.copyWith(loaded: false, failed: false));
     }
   }
 
@@ -123,15 +142,24 @@ class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
   /// profile decides whether the display-name dialog has to come first.
   Future<void> _load(Emitter<GroupsState> emit) async {
     if (!state.authenticated || !state.featureEnabled || state.loading) return;
-    emit(state.copyWith(loading: true, errorMessage: null));
+    emit(state.copyWith(loading: true, failed: false));
     try {
       final profile = await _profiles.myProfile();
       await _groups.refresh();
       if (emit.isDone) return;
-      emit(state.copyWith(loading: false, loaded: true, profile: profile));
-    } catch (e) {
+      emit(
+        state.copyWith(
+          loading: false,
+          loaded: true,
+          failed: false,
+          profile: profile,
+        ),
+      );
+    } catch (_) {
+      // Not a snackbar: the section renders the failure inline with a retry,
+      // and the reconnect listener above retries on its own.
       if (emit.isDone) return;
-      emit(state.copyWith(loading: false, errorMessage: e.toString()));
+      emit(state.copyWith(loading: false, failed: true));
     }
   }
 
@@ -155,7 +183,7 @@ class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
       );
     } catch (e) {
       if (emit.isDone) return;
-      emit(state.copyWith(busy: false, errorMessage: e.toString()));
+      emit(state.copyWith(busy: false, errorMessage: describeError(e)));
     }
   }
 
@@ -208,7 +236,7 @@ class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
       );
     } catch (e) {
       if (emit.isDone) return;
-      emit(state.copyWith(busy: false, errorMessage: e.toString()));
+      emit(state.copyWith(busy: false, errorMessage: describeError(e)));
     }
   }
 
@@ -217,6 +245,7 @@ class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
     _groupsSubscription?.cancel();
     _authSubscription?.cancel();
     _flagsSubscription?.cancel();
+    _reconnectSubscription?.cancel();
     return super.close();
   }
 }

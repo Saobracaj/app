@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
+import '../../core/presentation/load_failed_view.dart';
 import '../../generated/locale_keys.g.dart';
 import '../../profile/presentation/display_name_dialog.dart';
 import '../models/public_comment.dart';
@@ -64,6 +65,20 @@ class PublicCommentsWidget extends StatelessWidget {
             return const Padding(
               padding: EdgeInsets.symmetric(vertical: 32),
               child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (state.failed) {
+            // "No network" / "couldn't load" with a retry, in place of the
+            // list — a failed load must not look like "no comments yet". The
+            // Bloc also reloads on its own once the connection is back.
+            return LoadFailedView(
+              compact: true,
+              offline: state.failedOffline,
+              message: state.failedOffline
+                  ? LocaleKeys.network_noConnection.tr()
+                  : LocaleKeys.comments_loadError.tr(),
+              onRetry: () =>
+                  context.read<CommentsBloc>().add(CommentsRefreshed()),
             );
           }
           return _CommentsBody(state: state);

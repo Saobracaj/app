@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/navigation.dart';
+import '../../../../core/presentation/load_failed_view.dart';
 import '../../../../feature_flags/state_management/feature_flags_bloc.dart';
 import '../../../../generated/locale_keys.g.dart';
 import '../../../../konspekt/presentation/konspekt_inline_text.dart';
@@ -27,7 +28,21 @@ class QuestionKonspektTab extends StatelessWidget {
     final theme = Theme.of(context);
     return BlocBuilder<QuestionKonspektBloc, QuestionKonspektState>(
       builder: (context, state) {
-        if (state.failed) return const _KonspektLoadFailed();
+        if (state.failed) {
+          // Same block as every other remote section: "no network" or the
+          // konspekt's own message, plus a retry. The Bloc also reloads by
+          // itself once the connection is back.
+          return LoadFailedView(
+            compact: true,
+            offline: state.failedOffline,
+            message: state.failedOffline
+                ? LocaleKeys.network_noConnection.tr()
+                : LocaleKeys.konspekt_loadFailed.tr(),
+            onRetry: () => context.read<QuestionKonspektBloc>().add(
+              QuestionKonspektRequested(),
+            ),
+          );
+        }
         if (state.sections.isEmpty) return const SizedBox.shrink();
         final russian = context
             .watch<FeatureFlagsBloc>()
@@ -85,41 +100,6 @@ class QuestionKonspektTab extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-}
-
-/// Shown instead of the excerpts when they could not be fetched: the same
-/// message the full konspekt page uses, plus a retry that re-runs the load.
-class _KonspektLoadFailed extends StatelessWidget {
-  const _KonspektLoadFailed();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            LocaleKeys.konspekt_loadFailed.tr(),
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              icon: const Icon(Icons.refresh, size: 18),
-              label: Text(LocaleKeys.konspekt_retry.tr()),
-              onPressed: () => context.read<QuestionKonspektBloc>().add(
-                QuestionKonspektRequested(),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

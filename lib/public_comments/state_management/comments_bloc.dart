@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -7,8 +9,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../generated/locale_keys.g.dart';
 
 import '../../auth/data/auth_repository.dart';
-import '../../auth/data/graphql_client.dart';
 import '../../auth/state_management/auth/auth_bloc.dart';
+import '../../core/network/error_messages.dart';
+import '../../core/network/network_status.dart';
 import '../../notifications/data/notification_permissions.dart';
 import '../../profile/data/profile_repository.dart';
 import '../data/public_comments_repository.dart';
@@ -34,6 +37,7 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
     this._authBloc,
     this._authRepo,
     this._permissions,
+    this._network,
     @factoryParam this.questionId,
     @factoryParam this.threadId,
   ) : super(const CommentsState()) {
@@ -57,6 +61,8 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
   final AuthBloc _authBloc;
   final AuthRepository _authRepo;
   final NotificationPermissions _permissions;
+  final NetworkStatus _network;
+  StreamSubscription<void>? _reconnectSubscription;
   final int questionId;
 
   /// Deep-link target: a top-level comment to expand ("show previous" replies)
@@ -88,6 +94,11 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
         // best-effort; the composer just stays hidden until it loads.
       }
     }
+    // Back online: a page that failed to load while offline is fetched again
+    // without the user asking — no snackbar, no button.
+    _reconnectSubscription ??= _network.onReconnected.listen((_) {
+      if (state.failed) add(CommentsRefreshed());
+    });
     await _loadFirstPage(emit);
     // Deep link: reveal the linked thread's older replies.
     if (threadId != null) {
@@ -100,7 +111,12 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
   Future<void> _onRefreshed(
     CommentsRefreshed event,
     Emitter<CommentsState> emit,
-  ) => _loadFirstPage(emit);
+  ) async {
+    // A retry after a failed first load shows the spinner again; a refresh
+    // after a write keeps the list on screen.
+    if (state.failed) emit(state.copyWith(loading: true, failed: false));
+    await _loadFirstPage(emit);
+  }
 
   Future<void> _loadFirstPage(Emitter<CommentsState> emit) async {
     try {
@@ -112,6 +128,8 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
       emit(
         state.copyWith(
           loading: false,
+          failed: false,
+          failedOffline: false,
           comments: page.nodes,
           totalCount: page.totalCount,
           hasNextPage: page.hasNextPage,
@@ -119,7 +137,15 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(loading: false, errorMessage: _message(e)));
+      // Rendered inline (retry / "no network"), not as a snackbar; the
+      // profile/session state stays so the composer appears once loaded.
+      emit(
+        state.copyWith(
+          loading: false,
+          failed: true,
+          failedOffline: isNetworkError(e),
+        ),
+      );
     }
   }
 
@@ -462,7 +488,12 @@ class CommentsBloc extends Bloc<CommentsEvent, CommentsState> {
     ];
   }
 
-  String _message(Object e) => e is GraphqlException
-      ? e.message
-      : LocaleKeys.comments_loadError.tr();
+  String _message(Object e) =>
+      describeError(e, fallback: LocaleKeys.comments_loadError.tr());
+
+  @override
+  Future<void> close() {
+    _reconnectSubscription?.cancel();
+    return super.close();
+  }
 }

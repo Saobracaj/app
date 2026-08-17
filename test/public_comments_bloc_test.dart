@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
 import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/core/network/network_status.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
@@ -69,6 +70,32 @@ class _FakeProfileRepository extends ProfileRepository {
   _FakeProfileRepository(super.client);
 }
 
+/// Репозиторий, у которого первая страница падает по сети, пока не выставить
+/// [online] — имитация «открыл вопрос без сети, потом сеть появилась».
+class _FlakyCommentsRepository extends _FakeCommentsRepository {
+  _FlakyCommentsRepository(super.client, {required super.created});
+
+  bool online = false;
+  int loads = 0;
+
+  @override
+  Future<PublicCommentPage> questionComments(
+    int questionId, {
+    int offset = 0,
+    int limit = 30,
+    bool authenticated = true,
+  }) async {
+    loads++;
+    if (!online) throw GraphqlException('Network error', network: true);
+    return super.questionComments(
+      questionId,
+      offset: offset,
+      limit: limit,
+      authenticated: authenticated,
+    );
+  }
+}
+
 class _FakePermissions extends NotificationPermissions {
   @override
   Future<NotificationPermissionState> status() async =>
@@ -95,11 +122,14 @@ PublicComment _comment({
     );
 
 ({CommentsBloc bloc, _FakeCommentsRepository comments}) _buildBloc(
-  PublicComment created,
-) {
+  PublicComment created, {
+  _FakeCommentsRepository? repository,
+  NetworkStatus? network,
+}) {
   final storage = TokenStorage();
   final client = _FakeClient(storage);
-  final comments = _FakeCommentsRepository(client, created: created);
+  final comments =
+      repository ?? _FakeCommentsRepository(client, created: created);
   final authRepo = AuthRepository(client, storage, AnalyticsService());
   return (
     bloc: CommentsBloc(
@@ -108,6 +138,7 @@ PublicComment _comment({
       AuthBloc(authRepo, GraphqlSubscriptionClient(client, storage)),
       authRepo,
       _FakePermissions(),
+      network ?? NetworkStatus(),
       42,
       null,
     ),
@@ -232,5 +263,46 @@ void main() {
         expect(built.comments.subscriptionCalls, isEmpty);
       },
     );
+  });
+
+  group('Оффлайн', () {
+    test('ошибка сети при загрузке — состояние failed без снэкбара', () async {
+      final storage = TokenStorage();
+      final client = _FakeClient(storage);
+      final repo = _FlakyCommentsRepository(client, created: _comment());
+      final built = _buildBloc(_comment(), repository: repo);
+      built.bloc.add(CommentsStarted());
+      final state = await built.bloc.stream.firstWhere((s) => !s.loading);
+
+      expect(state.failed, isTrue);
+      expect(state.failedOffline, isTrue);
+      // Ошибка загрузки показывается в самой вкладке, а не снэкбаром.
+      expect(state.errorMessage, isNull);
+      expect(state.comments, isEmpty);
+    });
+
+    test('при появлении сети первая страница подгружается сама', () async {
+      final storage = TokenStorage();
+      final client = _FakeClient(storage);
+      final repo = _FlakyCommentsRepository(client, created: _comment());
+      final network = NetworkStatus();
+      final built = _buildBloc(_comment(), repository: repo, network: network);
+      built.bloc.add(CommentsStarted());
+      await built.bloc.stream.firstWhere((s) => s.failed);
+      expect(repo.loads, 1);
+
+      // Сеть пропала (отчёт клиента), потом вернулась — блок перезагружает
+      // страницу без участия пользователя.
+      network.reportFailure();
+      repo.online = true;
+      network.reportSuccess();
+      final state = await built.bloc.stream.firstWhere(
+        (s) => !s.loading && !s.failed,
+      );
+
+      expect(repo.loads, 2);
+      expect(state.comments, hasLength(1));
+      expect(state.failedOffline, isFalse);
+    });
   });
 }

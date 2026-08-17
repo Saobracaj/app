@@ -6,6 +6,7 @@ import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
 import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/core/network/network_status.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
@@ -113,6 +114,7 @@ Widget _questApp() {
                 AuthRepository(client, storage, AnalyticsService()),
                 GraphqlSubscriptionClient(client, storage),
               ),
+              NetworkStatus(),
             ),
           ),
         ],

@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/core/network/network_status.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
@@ -62,7 +63,7 @@ void main() {
   setUpAll(() async {
     getIt.registerLazySingleton<KonspektRepository>(_StubKonspektRepository.new);
     getIt.registerFactoryParam<KonspektBloc, String, String?>(
-      (categoryId, section) => KonspektBloc(getIt(), categoryId, section),
+      (categoryId, section) => KonspektBloc(getIt(), NetworkStatus(), categoryId, section),
     );
     await EasyLocalization.ensureInitialized();
   });

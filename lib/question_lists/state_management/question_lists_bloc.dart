@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../auth/state_management/auth/auth_state.dart';
+import '../../core/network/network_status.dart';
 import '../../db/dependencies.dart' as local_db;
 import '../data/question_lists_repository.dart';
 import '../domain/list_style.dart';
@@ -20,9 +21,12 @@ import 'question_lists_state.dart';
 /// Custom lists come from [QuestionListsRepository] (optimistic writes, backend
 /// storage); the automatic "recent mistakes" list is recomputed from the local
 /// answer history.
+///
+/// The custom lists are cached, so an offline start renders whatever was there;
+/// once the network is back the Bloc pulls them again by itself.
 @injectable
 class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
-  QuestionListsBloc(this._lists, this._authBloc)
+  QuestionListsBloc(this._lists, this._authBloc, this._network)
     : super(const QuestionListsState()) {
     on<QuestionListsStarted>(_onStarted);
     on<QuestionListsRefreshed>(_onRefreshed);
@@ -44,9 +48,11 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
 
   final QuestionListsRepository _lists;
   final AuthBloc _authBloc;
+  final NetworkStatus _network;
 
   StreamSubscription<List<QuestionList>>? _listsSubscription;
   StreamSubscription<AuthState>? _authSubscription;
+  StreamSubscription<void>? _reconnectSubscription;
 
   Future<void> _onStarted(
     QuestionListsStarted event,
@@ -66,6 +72,10 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
         // mistakes.
         _loadRecentMistakes();
       }
+    });
+    // Back online: the cached lists may be stale (or absent) — pull them again.
+    _reconnectSubscription ??= _network.onReconnected.listen((_) {
+      if (_authBloc.state.isAuthenticated) _lists.refresh();
     });
     await _lists.bootstrap();
     await _loadRecentMistakes();
@@ -150,6 +160,7 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
   Future<void> close() {
     _listsSubscription?.cancel();
     _authSubscription?.cancel();
+    _reconnectSubscription?.cancel();
     return super.close();
   }
 }

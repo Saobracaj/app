@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
+import '../../core/network/network_status.dart';
 import '../auth_config.dart';
 import 'jwt.dart';
 import 'token_storage.dart';
@@ -53,12 +54,22 @@ class AuthExpiredException extends GraphqlException {
 ///   [AuthExpiredException] and fires [sessionExpired] (network failures never
 ///   do, so going offline can't sign the user out).
 ///
+/// Every transport outcome is also reported to [NetworkStatus] (when one is
+/// given): a connection failure flips the app to *offline*, a completed request
+/// flips it back — that is what drives the "no network" copy and the automatic
+/// reloads once the connection returns.
+///
 /// Registered for DI via `RegisterModule` in `lib/core/di.dart` (the optional
-/// `languageProvider` / `dio` params keep injectable from introspecting the
-/// constructor directly).
+/// `languageProvider` / `dio` / `networkStatus` params keep injectable from
+/// introspecting the constructor directly).
 class GraphqlClient {
-  GraphqlClient(this._storage, {Dio? dio, this.languageProvider})
-    : _dio =
+  GraphqlClient(
+    this._storage, {
+    Dio? dio,
+    this.languageProvider,
+    NetworkStatus? networkStatus,
+  }) : _network = networkStatus,
+       _dio =
           dio ??
           Dio(
             BaseOptions(
@@ -69,6 +80,7 @@ class GraphqlClient {
 
   final Dio _dio;
   final TokenStorage _storage;
+  final NetworkStatus? _network;
 
   /// Returns the current UI language code (e.g. `ru`), used for `Accept-Language`.
   final String Function()? languageProvider;
@@ -283,9 +295,9 @@ class GraphqlClient {
         options: Options(headers: headers),
       );
     } on DioException catch (e) {
-      throw GraphqlException(_networkMessage(e), network: true);
+      throw _transportFailure(e);
     }
-
+    _network?.reportSuccess();
     return _unwrap(response.data);
   }
 
@@ -368,15 +380,39 @@ class GraphqlClient {
         onSendProgress: onProgress,
       );
     } on DioException catch (e) {
-      throw GraphqlException(_networkMessage(e), network: true);
+      throw _transportFailure(e);
     }
+    _network?.reportSuccess();
     return _unwrap(response.data);
   }
 
+  /// Wrap a Dio failure as a network [GraphqlException] and tell
+  /// [NetworkStatus] about it — but only when the request really never reached
+  /// the server. An HTTP error status is a *reachable* server misbehaving, and
+  /// a cancelled request says nothing about the connection.
+  GraphqlException _transportFailure(DioException e) {
+    if (_isConnectionFailure(e)) _network?.reportFailure();
+    return GraphqlException(_networkMessage(e), network: true);
+  }
+
+  static bool _isConnectionFailure(DioException e) => switch (e.type) {
+    DioExceptionType.connectionTimeout ||
+    DioExceptionType.sendTimeout ||
+    DioExceptionType.receiveTimeout ||
+    DioExceptionType.connectionError ||
+    DioExceptionType.unknown => true,
+    DioExceptionType.badResponse ||
+    DioExceptionType.badCertificate ||
+    DioExceptionType.transformTimeout ||
+    DioExceptionType.cancel => false,
+  };
+
+  /// The message is a placeholder for logs and for the rare screen that shows
+  /// the raw string; user-facing copy comes from `describeError`
+  /// (`lib/core/network/error_messages.dart`), which maps a network failure to
+  /// the localized "no connection" text.
   String _networkMessage(DioException e) {
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout ||
-        e.type == DioExceptionType.connectionError) {
+    if (_isConnectionFailure(e)) {
       return 'Network error. Check your connection and try again.';
     }
     return e.message ?? 'Network error';

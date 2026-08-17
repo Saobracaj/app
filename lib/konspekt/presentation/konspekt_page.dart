@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saobracaj/core/deep_links.dart';
 import 'package:saobracaj/core/di.dart';
+import 'package:saobracaj/core/presentation/load_failed_view.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
@@ -99,6 +100,16 @@ class _KonspektPageState extends State<KonspektPage> {
           },
           builder: (context, state) {
             if (state.errorMessage != null) {
+              if (state.retryable) {
+                // No network / server error: offer a retry (and the Bloc
+                // reloads by itself once the connection is back).
+                return LoadFailedView(
+                  offline: state.offline,
+                  message: state.errorMessage,
+                  onRetry: () =>
+                      context.read<KonspektBloc>().add(KonspektStarted()),
+                );
+              }
               return Center(
                 child: Text(
                   state.errorMessage!,

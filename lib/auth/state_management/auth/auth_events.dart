@@ -11,6 +11,11 @@ class SessionStatusChanged extends AuthEvent {
   final AuthStatus status;
 }
 
+/// The network came back (internal, from `NetworkStatus`): re-validate the
+/// session and refresh what an offline start could not fetch — the viewer (its
+/// permissions gate the editor UI) and the account's feature grants.
+class NetworkReconnected extends AuthEvent {}
+
 /// User asked to sign out.
 class LogoutRequested extends AuthEvent {}
 

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
+import '../../core/network/state_management/network_status_bloc.dart';
+import '../../core/presentation/load_failed_view.dart';
 import '../../core/presentation/wide_layout.dart';
 import '../../feature_flags/domain/app_feature.dart';
 import '../../feature_flags/presentation/feature_gate.dart';
@@ -64,6 +66,16 @@ class _GroupsSectionBody extends StatelessWidget {
         if (id != null) Routemaster.of(context).push('/groups/$id/feed');
       },
       builder: (context, state) {
+        // A failed first load shows an inline retry — unless the whole app is
+        // offline, in which case the home screen's offline card already says
+        // so and the list reloads by itself once the connection is back.
+        final online = context.select<NetworkStatusBloc, bool>(
+          (bloc) => bloc.state.online,
+        );
+        final showLoadFailed = state.failed && !state.loaded && online;
+        void retry() =>
+            context.read<GroupsBloc>().add(const GroupsRefreshed());
+
         if (wide) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -97,9 +109,11 @@ class _GroupsSectionBody extends StatelessWidget {
                   padding: EdgeInsets.only(bottom: 12),
                   child: LinearProgressIndicator(),
                 ),
+              if (showLoadFailed)
+                LoadFailedView(compact: true, onRetry: retry)
               // Кнопка «создать» уехала в шапку раздела, поэтому пустой сетке
               // нужна своя подсказка — иначе раздел выглядит сломанным.
-              if (state.isEmpty)
+              else if (state.isEmpty)
                 Text(
                   LocaleKeys.groups_empty.tr(),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -134,6 +148,7 @@ class _GroupsSectionBody extends StatelessWidget {
                 padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: LinearProgressIndicator(),
               ),
+            if (showLoadFailed) LoadFailedView(compact: true, onRetry: retry),
             if (state.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
