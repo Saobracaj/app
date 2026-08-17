@@ -3,8 +3,10 @@ import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/question_lists/data/question_lists_repository.dart';
 import 'package:saobracaj/question_lists/domain/list_style.dart';
+import 'package:saobracaj/question_lists/domain/personal_weak_spots.dart';
 import 'package:saobracaj/question_lists/models/question_list.dart';
 import 'package:saobracaj/question_lists/state_management/question_lists_state.dart';
+import 'package:saobracaj/test/quest/question_features/models/question_analytics.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Клиент-заглушка: запоминает отправленные запросы и по флагу [failing]
@@ -35,6 +37,20 @@ QuestionList _list({
   String name = 'Знаки',
   List<int> questions = const [],
 }) => QuestionList(id: id, name: name, color: 0xFF00897B, questionIds: questions);
+
+/// Сложность вопроса «как у всех»: важна только доля ошибок [wrongRate] против
+/// средней по банку [baseline], остальное для отбора не используется.
+QuestionDifficulty _difficulty({
+  required double wrongRate,
+  double baseline = 0.3,
+}) => QuestionDifficulty(
+  attempts: 100,
+  wrongAttempts: (wrongRate * 100).round(),
+  learners: 50,
+  wrongRate: wrongRate,
+  difficulty: wrongRate,
+  baseline: baseline,
+);
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -188,6 +204,118 @@ void main() {
       expect(state.allLists.last.id, 'a1');
       expect(state.byId('a1')?.name, 'Знаки');
       expect(state.byId('нет такого'), isNull);
+    });
+
+    test('пустой автосписок в выдачу не попадает', () {
+      const state = QuestionListsState(personalWeakSpots: []);
+
+      expect(
+        state.autoLists.map((e) => e.id),
+        [kRecentMistakesListId],
+        reason: '«последние ошибки» показываются даже пустыми, остальные — нет',
+      );
+    });
+
+    test('непустые «личные слабые места» встают после «последних ошибок»', () {
+      const state = QuestionListsState(
+        recentMistakes: [1],
+        personalWeakSpots: [7, 8],
+      );
+
+      expect(state.autoLists.map((e) => e.id), [
+        kRecentMistakesListId,
+        kPersonalWeakSpotsListId,
+      ]);
+      final weak = state.autoLists.last;
+      expect(weak.isAuto, isTrue);
+      expect(weak.questionIds, [7, 8]);
+    });
+
+    test('скрытый автосписок всё равно находится по id', () {
+      const state = QuestionListsState();
+
+      // Экран списка может быть открыт, пока данные ещё считаются: там честнее
+      // показать пустой список, чем «список не найден».
+      expect(state.byId(kPersonalWeakSpotsListId)?.questionIds, isEmpty);
+    });
+  });
+
+  group('personalWeakSpots', () {
+    test('берёт мои ошибки в вопросах, лёгких для остальных', () {
+      final ids = personalWeakSpots(
+        mine: {
+          // Ошибался, а всем легко — это и есть личное слабое место.
+          10: (attempts: 4, wrong: 2),
+          // Ошибался, но вопрос труден и остальным.
+          11: (attempts: 4, wrong: 4),
+          // Вопроса нет в снапшоте бэкенда — сравнивать не с чем.
+          12: (attempts: 2, wrong: 1),
+        },
+        crowd: {
+          10: _difficulty(wrongRate: 0.1),
+          11: _difficulty(wrongRate: 0.5),
+        },
+      );
+
+      expect(ids, [10]);
+    });
+
+    test('сортирует по разрыву с общим показателем', () {
+      final ids = personalWeakSpots(
+        mine: {
+          20: (attempts: 4, wrong: 1), // 0.25 против 0.10 → разрыв 0.15
+          21: (attempts: 2, wrong: 2), // 1.00 против 0.20 → разрыв 0.80
+          22: (attempts: 5, wrong: 3), // 0.60 против 0.05 → разрыв 0.55
+        },
+        crowd: {
+          20: _difficulty(wrongRate: 0.1),
+          21: _difficulty(wrongRate: 0.2),
+          22: _difficulty(wrongRate: 0.05),
+        },
+      );
+
+      expect(ids, [21, 22, 20]);
+    });
+
+    test('вопрос ровно на уровне средней сложности не берётся', () {
+      final ids = personalWeakSpots(
+        mine: {30: (attempts: 2, wrong: 1)},
+        crowd: {30: _difficulty(wrongRate: 0.3, baseline: 0.3)},
+      );
+
+      expect(ids, isEmpty);
+    });
+
+    test('без ошибок и без истории список пуст', () {
+      expect(
+        personalWeakSpots(
+          mine: {40: (attempts: 3, wrong: 0)},
+          crowd: {40: _difficulty(wrongRate: 0.05)},
+        ),
+        isEmpty,
+      );
+      expect(
+        personalWeakSpots(mine: const {}, crowd: {40: _difficulty(wrongRate: 0.05)}),
+        isEmpty,
+      );
+    });
+
+    test('порядок не зависит от порядка обхода при равном разрыве', () {
+      final crowd = {
+        50: _difficulty(wrongRate: 0.1),
+        51: _difficulty(wrongRate: 0.1),
+      };
+      final direct = personalWeakSpots(
+        mine: {50: (attempts: 2, wrong: 1), 51: (attempts: 2, wrong: 1)},
+        crowd: crowd,
+      );
+      final reversed = personalWeakSpots(
+        mine: {51: (attempts: 2, wrong: 1), 50: (attempts: 2, wrong: 1)},
+        crowd: crowd,
+      );
+
+      expect(direct, [50, 51]);
+      expect(reversed, direct);
     });
   });
 }

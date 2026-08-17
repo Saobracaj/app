@@ -359,6 +359,7 @@
   "questionLists": {
     "section": "Списки вопросов",
     "recentMistakes": "Последние ошибки",
+    "personalWeakSpots": "Личные слабые места",
     "questionsCount": "Вопросов: {}",
     "create": "Создать список",
     "createTitle": "Новый список",

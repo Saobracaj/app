@@ -294,12 +294,6 @@ extension GetItInjectableX on _i174.GetIt {
         groupId,
       ),
     );
-    gh.factory<_i1000.QuestionListsBloc>(
-      () => _i1000.QuestionListsBloc(
-        gh<_i206.QuestionListsRepository>(),
-        gh<_i388.AuthBloc>(),
-      ),
-    );
     gh.factoryParam<_i794.AskAiChatBloc, _i997.AskAiChatScope, String>(
       (scope, scopeId) =>
           _i794.AskAiChatBloc(gh<_i154.AskAiChatRepository>(), scope, scopeId),
@@ -313,6 +307,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i426.NotificationPermissions>(),
         questionId,
         threadId,
+      ),
+    );
+    gh.factory<_i1000.QuestionListsBloc>(
+      () => _i1000.QuestionListsBloc(
+        gh<_i206.QuestionListsRepository>(),
+        gh<_i388.AuthBloc>(),
+        gh<_i147.QuestionDifficultyRepository>(),
       ),
     );
     gh.factory<_i618.NotificationsBloc>(

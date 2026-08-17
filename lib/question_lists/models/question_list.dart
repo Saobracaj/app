@@ -40,6 +40,22 @@ sealed class QuestionList with _$QuestionList {
       _$QuestionListFromJson(json);
 }
 
-/// The id of the only automatic list so far: every question whose most recent
-/// answer was wrong (the same set the History screen shows).
+/// The id prefix that tells an automatic list from a custom one (whose id is a
+/// UUID) without having the list itself at hand — e.g. when all that is known is
+/// the id in the URL.
+const String kAutoListIdPrefix = 'auto:';
+
+/// Every question whose most recent answer was wrong (the same set the History
+/// screen shows).
 const String kRecentMistakesListId = 'auto:recent_mistakes';
+
+/// Questions the user gets wrong although the other learners find them easy —
+/// computed from the local answer history plus the backend's crowd difficulty
+/// (see `personalWeakSpots`).
+const String kPersonalWeakSpotsListId = 'auto:personal_weak_spots';
+
+/// Automatic lists that are shown even when they hold no questions. Every other
+/// automatic list is hidden while it is empty: an empty "weak spots" card on a
+/// fresh install would only be noise, whereas "recent mistakes" has been a fixed
+/// part of the home screen since it shipped.
+const Set<String> kAlwaysShownAutoListIds = {kRecentMistakesListId};

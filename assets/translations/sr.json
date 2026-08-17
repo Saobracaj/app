@@ -350,6 +350,7 @@
   "questionLists": {
     "section": "Листе питања",
     "recentMistakes": "Последње грешке",
+    "personalWeakSpots": "Моје слабе тачке",
     "questionsCount": "Питања: {}",
     "create": "Направи листу",
     "createTitle": "Нова листа",

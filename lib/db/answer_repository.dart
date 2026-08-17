@@ -60,4 +60,33 @@ class AnswerRepository {
 
     return result.map((row) => row.read<int>('question_id')).toSet();
   }
+
+  /// 4) Личная статистика по вопросам, в которых была хотя бы одна ошибка:
+  /// сколько всего ответов и сколько из них неверных.
+  ///
+  /// Нужна автосписку «личные слабые места», который сравнивает мою долю ошибок
+  /// с общей по всем ученикам, — там важно именно отношение, а не факт ошибки.
+  Future<Map<int, ({int attempts, int wrong})>> getWrongAnswerTallies() async {
+    final result = await db
+        .customSelect(
+          '''
+    SELECT question_id,
+           COUNT(*) AS attempts,
+           SUM(is_wrong) AS wrong
+    FROM answer_records
+    GROUP BY question_id
+    HAVING wrong > 0
+    ''',
+          readsFrom: {db.answerRecords},
+        )
+        .get();
+
+    return {
+      for (final row in result)
+        row.read<int>('question_id'): (
+          attempts: row.read<int>('attempts'),
+          wrong: row.read<int>('wrong'),
+        ),
+    };
+  }
 }

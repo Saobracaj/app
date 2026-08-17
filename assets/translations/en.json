@@ -341,6 +341,7 @@
   "questionLists": {
     "section": "Question lists",
     "recentMistakes": "Recent mistakes",
+    "personalWeakSpots": "Personal weak spots",
     "questionsCount": "Questions: {}",
     "create": "Create a list",
     "createTitle": "New list",
