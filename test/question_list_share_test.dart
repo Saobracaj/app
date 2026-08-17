@@ -12,6 +12,7 @@ import 'package:saobracaj/question_lists/data/shared_lists_repository.dart';
 import 'package:saobracaj/question_lists/models/question_list_share.dart';
 import 'package:saobracaj/question_lists/state_management/question_lists_bloc.dart';
 import 'package:saobracaj/question_lists/state_management/question_lists_events.dart';
+import 'package:saobracaj/test/quest/question_features/data/question_difficulty_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Сторона владельца: «Поделиться» получает (или переиспользует) ссылку и
@@ -74,6 +75,7 @@ QuestionListsBloc _bloc(_StubShares shares) => QuestionListsBloc(
   shares,
   _SignedIn(),
   AnalyticsService(),
+  QuestionDifficultyRepository(_FakeClient(TokenStorage())),
   NetworkStatus(),
 );
 

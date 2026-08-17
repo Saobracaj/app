@@ -45,6 +45,11 @@ class QuestionDifficultyRepository {
   Future<QuestionDifficulty?> forQuestion(int questionId) async =>
       (await _snapshot())[questionId];
 
+  /// Сложность всех вопросов сразу — тот же кэш, что и у [forQuestion], только
+  /// целиком: автосписку «личные слабые места» нужен весь банк, чтобы сравнить
+  /// его с моей историей ответов. Карту не изменять — она общая.
+  Future<Map<int, QuestionDifficulty>> all() => _snapshot();
+
   /// Drops the cached snapshot — used when the session changes, since a guest
   /// and a signed-in user get different answers (none vs the aggregate).
   void invalidate() {

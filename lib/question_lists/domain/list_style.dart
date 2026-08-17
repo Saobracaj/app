@@ -48,18 +48,28 @@ extension QuestionListX on QuestionList {
   /// the user's own name.
   String get title => switch (id) {
     kRecentMistakesListId => LocaleKeys.questionLists_recentMistakes.tr(),
+    kPersonalWeakSpotsListId =>
+      LocaleKeys.questionLists_personalWeakSpots.tr(),
     _ => name,
   };
 
   /// The colour of the round leading avatar: the user's pick for a custom list,
-  /// the theme's standard colour for an automatic one.
-  Color avatarColor(BuildContext context) =>
-      isAuto ? Theme.of(context).colorScheme.primary : Color(color);
+  /// a theme colour for an automatic one — each automatic list keeps its own so
+  /// they are told apart at a glance in the row.
+  Color avatarColor(BuildContext context) {
+    if (!isAuto) return Color(color);
+    final scheme = Theme.of(context).colorScheme;
+    return switch (id) {
+      kPersonalWeakSpotsListId => scheme.tertiary,
+      _ => scheme.primary,
+    };
+  }
 
   /// The icon inside the avatar. Automatic lists carry a meaningful glyph;
   /// custom ones are identified by their colour alone.
   IconData? get icon => switch (id) {
     kRecentMistakesListId => Icons.error_outline,
+    kPersonalWeakSpotsListId => Icons.trending_down,
     _ => isAuto ? Icons.list_alt : null,
   };
 }

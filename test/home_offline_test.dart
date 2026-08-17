@@ -22,6 +22,7 @@ import 'package:saobracaj/home/presentation/offline_home_card.dart';
 import 'package:saobracaj/profile/data/profile_repository.dart';
 import 'package:saobracaj/question_lists/data/question_lists_repository.dart';
 import 'package:saobracaj/question_lists/data/shared_lists_repository.dart';
+import 'package:saobracaj/test/quest/question_features/data/question_difficulty_repository.dart';
 import 'package:saobracaj/question_lists/state_management/question_lists_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -75,6 +76,7 @@ Widget _app(NetworkStatus network) {
                 SharedListsRepository(client),
                 authBloc,
                 AnalyticsService(),
+                QuestionDifficultyRepository(client),
                 network,
               ),
             ),

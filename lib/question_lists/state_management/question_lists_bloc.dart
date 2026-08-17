@@ -8,9 +8,11 @@ import '../../auth/state_management/auth/auth_state.dart';
 import '../../core/network/network_status.dart';
 import '../../core/analytics/analytics_service.dart';
 import '../../db/dependencies.dart' as local_db;
+import '../../test/quest/question_features/data/question_difficulty_repository.dart';
 import '../data/question_lists_repository.dart';
 import '../data/shared_lists_repository.dart';
 import '../domain/list_style.dart';
+import '../domain/personal_weak_spots.dart';
 import '../models/question_list.dart';
 import 'question_lists_events.dart';
 import 'question_lists_state.dart';
@@ -26,6 +28,12 @@ import 'question_lists_state.dart';
 ///
 /// The custom lists are cached, so an offline start renders whatever was there;
 /// once the network is back the Bloc pulls them again by itself.
+///
+/// "Personal weak spots" also needs the backend (the crowd-difficulty snapshot
+/// of the whole bank), so it is **not** loaded on start-up: the first
+/// [AutoListsRequested] — the home-screen block or the list's own screen coming
+/// into view — triggers it, and from then on it is recomputed together with the
+/// other automatic lists.
 @injectable
 class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
   QuestionListsBloc(
@@ -33,11 +41,13 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
     this._shares,
     this._authBloc,
     this._analytics,
+    this._difficulty,
     this._network,
   )
     : super(const QuestionListsState()) {
     on<QuestionListsStarted>(_onStarted);
     on<QuestionListsRefreshed>(_onRefreshed);
+    on<AutoListsRequested>(_onAutoListsRequested);
     on<QuestionListCreated>(_onCreated);
     on<QuestionListEdited>(_onEdited);
     on<QuestionListDeleted>(_onDeleted);
@@ -48,6 +58,10 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
     );
     on<RecentMistakesUpdated>(
       (event, emit) => emit(state.copyWith(recentMistakes: event.questionIds)),
+    );
+    on<PersonalWeakSpotsUpdated>(
+      (event, emit) =>
+          emit(state.copyWith(personalWeakSpots: event.questionIds)),
     );
     on<QuestionListsErrorShown>(
       (event, emit) =>
@@ -71,10 +85,26 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
   final AuthBloc _authBloc;
   final NetworkStatus _network;
   final AnalyticsService _analytics;
+  final QuestionDifficultyRepository _difficulty;
 
   StreamSubscription<List<QuestionList>>? _listsSubscription;
   StreamSubscription<AuthState>? _authSubscription;
   StreamSubscription<void>? _reconnectSubscription;
+
+  /// Whether anything has asked for the automatic lists yet. While this is
+  /// false the crowd-difficulty snapshot is never fetched — that is the whole
+  /// point of loading "personal weak spots" lazily.
+  bool _weakSpotsWanted = false;
+
+  /// The recomputation in flight, so a refresh arriving while the snapshot is
+  /// still being fetched does not start a second one.
+  Future<void>? _weakSpotsInFlight;
+
+  /// Who the list was computed for (`null` — a guest). Both halves of it belong
+  /// to a session, so another user starts from scratch; repeated `authenticated`
+  /// states for the *same* user, on the other hand, must not throw the
+  /// whole-bank snapshot away and fetch it again.
+  String? _weakSpotsUserId;
 
   Future<void> _onStarted(
     QuestionListsStarted event,
@@ -88,6 +118,7 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
       if (auth.isAuthenticated) {
         _lists.refresh();
         _refreshShares();
+        _onSessionChanged(auth.viewer?.id);
       } else if (auth.status == AuthStatus.unauthenticated) {
         _lists.onLoggedOut();
         add(QuestionListSharesUpdated(const []));
@@ -95,6 +126,7 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
         // otherwise the automatic list keeps offering the previous user's
         // mistakes.
         _loadRecentMistakes();
+        _onSessionChanged(null);
       }
     });
     // Back online: the cached lists may be stale (or absent) — pull them again.
@@ -111,6 +143,9 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
     Emitter<QuestionListsState> emit,
   ) async {
     await _loadRecentMistakes();
+    // Only if the lists have already been shown once: a refresh must not be the
+    // thing that pulls the whole-bank snapshot for the first time.
+    await _refreshPersonalWeakSpots();
     await _lists.refresh();
     await _refreshShares();
   }
@@ -172,6 +207,18 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
     } catch (_) {
       emit(state.copyWith(shareBusy: false, shareFailed: true));
     }
+  }
+
+  /// The lists came into view. The snapshot is fetched once — later changes
+  /// arrive through [QuestionListsRefreshed] — so the event can be dispatched
+  /// from `build` as often as the widget rebuilds.
+  Future<void> _onAutoListsRequested(
+    AutoListsRequested event,
+    Emitter<QuestionListsState> emit,
+  ) async {
+    if (_weakSpotsWanted) return;
+    _weakSpotsWanted = true;
+    await _refreshPersonalWeakSpots();
   }
 
   Future<void> _onCreated(
@@ -236,6 +283,49 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
   Future<void> _loadRecentMistakes() async {
     final ids = await local_db.repository.getQuestionsWhereLastAnswerWasWrong();
     add(RecentMistakesUpdated(ids.toList()));
+  }
+
+  /// The session changed: the cached crowd difficulty belonged to the previous
+  /// caller (a guest gets nothing at all), so it is dropped and the list is
+  /// recomputed — or cleared outright, so a signed-out user is not left looking
+  /// at the previous one's weak spots.
+  void _onSessionChanged(String? userId) {
+    if (userId == _weakSpotsUserId) return;
+    _weakSpotsUserId = userId;
+    _difficulty.invalidate();
+    if (userId == null) {
+      add(PersonalWeakSpotsUpdated(const []));
+      return;
+    }
+    _refreshPersonalWeakSpots();
+  }
+
+  /// Recomputes "personal weak spots" — but only once someone has asked for the
+  /// automatic lists, and never twice at the same time.
+  Future<void> _refreshPersonalWeakSpots() {
+    if (!_weakSpotsWanted) return Future.value();
+    return _weakSpotsInFlight ??= _computePersonalWeakSpots().whenComplete(() {
+      _weakSpotsInFlight = null;
+    });
+  }
+
+  Future<void> _computePersonalWeakSpots() async {
+    // Crowd difficulty is only served to a signed-in caller, and there is
+    // nothing sensible to show a guest instead — so the list stays away.
+    if (!_authBloc.state.isAuthenticated) {
+      add(PersonalWeakSpotsUpdated(const []));
+      return;
+    }
+    try {
+      final crowd = await _difficulty.all();
+      final mine = await local_db.repository.getWrongAnswerTallies();
+      add(PersonalWeakSpotsUpdated(personalWeakSpots(mine: mine, crowd: crowd)));
+    } catch (_) {
+      // No snapshot (offline, or the backend is down): the card simply is not
+      // there. Forget that it was asked for, so the next time the block appears
+      // it tries again.
+      _weakSpotsWanted = false;
+    }
   }
 
   @override

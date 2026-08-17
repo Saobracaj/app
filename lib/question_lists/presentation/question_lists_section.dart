@@ -39,6 +39,14 @@ class QuestionListsSection extends StatelessWidget {
     final customEnabled = flags.isEnabled(AppFeature.customQuestionLists);
     if (!autoEnabled && !customEnabled) return const SizedBox.shrink();
 
+    // Ленивый расчёт автосписков, которым нужен бэкенд («личные слабые места»):
+    // снапшот сложности запрашивается только сейчас, когда блок появился на
+    // экране, а не на старте приложения. Bloc грузит его один раз, поэтому
+    // событие безопасно слать из build.
+    if (autoEnabled) {
+      context.read<QuestionListsBloc>().add(AutoListsRequested());
+    }
+
     return BlocBuilder<QuestionListsBloc, QuestionListsState>(
       builder: (context, state) {
         final lists = [

@@ -42,6 +42,11 @@ class QuestionListPage extends StatelessWidget {
     final canEdit = context.select(
       (FeatureFlagsBloc b) => b.state.isEnabled(AppFeature.customQuestionLists),
     );
+    // Экран автосписка могли открыть по ссылке, минуя главную, — тогда именно
+    // он и запускает ленивый расчёт (см. [AutoListsRequested]).
+    if (listId.startsWith(kAutoListIdPrefix)) {
+      context.read<QuestionListsBloc>().add(AutoListsRequested());
+    }
     return BlocListener<QuestionListsBloc, QuestionListsState>(
       listenWhen: (prev, curr) =>
           prev.shareToPresent != curr.shareToPresent ||

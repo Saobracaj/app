@@ -22,6 +22,7 @@ import 'package:saobracaj/question_lists/data/shared_lists_repository.dart';
 import 'package:saobracaj/question_lists/state_management/question_lists_bloc.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/test/quest/presentation/quest_bottom_bar.dart';
+import 'package:saobracaj/test/quest/question_features/data/question_difficulty_repository.dart';
 import 'package:saobracaj/test/quest/quest.dart';
 import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 import 'package:saobracaj/theme/app_theme.dart';
@@ -117,6 +118,7 @@ Widget _questApp() {
                 GraphqlSubscriptionClient(client, storage),
               ),
               AnalyticsService(),
+              QuestionDifficultyRepository(client),
               NetworkStatus(),
             ),
           ),

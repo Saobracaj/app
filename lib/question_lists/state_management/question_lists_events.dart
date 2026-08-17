@@ -13,6 +13,13 @@ class QuestionListsStarted extends QuestionListsEvent {}
 /// appears, since answering questions changes the "recent mistakes" list.
 class QuestionListsRefreshed extends QuestionListsEvent {}
 
+/// Something is about to show the automatic lists (the home-screen block or the
+/// screen of one of them). Only then is the crowd-difficulty snapshot fetched —
+/// it is a whole-bank request and must not be part of app start-up. Dispatching
+/// it repeatedly is free: the Bloc fetches once and afterwards only recomputes
+/// on [QuestionListsRefreshed].
+class AutoListsRequested extends QuestionListsEvent {}
+
 /// Create a custom list. [questionId], when given, is put into the new list
 /// right away (the "create a list from the question screen" flow).
 class QuestionListCreated extends QuestionListsEvent {
@@ -106,6 +113,14 @@ class QuestionListsUpdated extends QuestionListsEvent {
 /// Internal: the local answer history was re-read.
 class RecentMistakesUpdated extends QuestionListsEvent {
   RecentMistakesUpdated(this.questionIds);
+
+  final List<int> questionIds;
+}
+
+/// Internal: the "personal weak spots" list was recomputed (or cleared, when the
+/// session ended).
+class PersonalWeakSpotsUpdated extends QuestionListsEvent {
+  PersonalWeakSpotsUpdated(this.questionIds);
 
   final List<int> questionIds;
 }
