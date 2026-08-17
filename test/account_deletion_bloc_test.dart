@@ -126,6 +126,56 @@ void main() {
     expect(h.bloc.state.codeSentTick, 1);
   });
 
+  test('все необязательные галочки сняты по умолчанию', () async {
+    final h = _build(
+      preview: const AccountDeletionPreview(
+        publicCommentCount: 5,
+        supportAttachmentCount: 2,
+        supportMessageCount: 3,
+        groupActivityCount: 7,
+      ),
+    );
+    h.bloc.add(AccountDeletionStarted());
+    await _settle();
+    final s = h.bloc.state;
+    expect(s.deletePublicComments, isFalse);
+    expect(s.deleteSupportAttachments, isFalse);
+    expect(s.deleteSupportChat, isFalse);
+    expect(s.deleteGroupHistory, isFalse);
+    expect(s.clearLocalData, isFalse);
+    // Согласия — тоже не проставлены заранее.
+    expect(s.acceptIrreversible, isFalse);
+    expect(s.acceptSubscriptionLoss, isFalse);
+
+    // Ничего лишнего не уходит на сервер, если пользователь только согласился.
+    h.bloc.add(AcceptIrreversibleToggled(true));
+    h.bloc.add(RequestCodePressed());
+    await _settle();
+    h.bloc.add(CodeChanged('123456'));
+    h.bloc.add(ConfirmDeletePressed());
+    await _settle();
+    expect(h.repo.lastDelete, {
+      'code': '123456',
+      'deletePublicComments': false,
+      'deleteSupportAttachments': false,
+      'deleteSupportChat': false,
+      'deleteGroupHistory': false,
+      'acceptIrreversible': true,
+      'acceptSubscriptionLoss': false,
+    });
+  });
+
+  test('удаление переписки подразумевает её вложения', () async {
+    final h = _build();
+    h.bloc.add(AccountDeletionStarted());
+    await _settle();
+    h.bloc.add(DeleteSupportChatToggled(true));
+    await _settle();
+    // Строка «фотографии и файлы» в чек-листе показывается отмеченной.
+    expect(h.bloc.state.deleteSupportAttachments, isFalse);
+    expect(h.bloc.state.deletesSupportAttachments, isTrue);
+  });
+
   test('при активной подписке нужно отдельное согласие', () async {
     final h = _build(
       preview: AccountDeletionPreview(
@@ -148,8 +198,9 @@ void main() {
     h.bloc.add(AccountDeletionStarted());
     await _settle();
     h.bloc.add(AcceptIrreversibleToggled(true));
+    h.bloc.add(DeletePublicCommentsToggled(true));
     h.bloc.add(DeleteSupportChatToggled(true));
-    h.bloc.add(DeleteGroupHistoryToggled(false));
+    h.bloc.add(DeleteGroupHistoryToggled(true));
     h.bloc.add(ClearLocalDataToggled(true));
     h.bloc.add(RequestCodePressed());
     await _settle();
@@ -164,9 +215,10 @@ void main() {
     expect(h.repo.lastDelete, {
       'code': '123456',
       'deletePublicComments': true,
+      // Отдельно не отмечались — но удаление переписки уносит и вложения.
       'deleteSupportAttachments': true,
       'deleteSupportChat': true,
-      'deleteGroupHistory': false,
+      'deleteGroupHistory': true,
       'acceptIrreversible': true,
       'acceptSubscriptionLoss': false,
     });

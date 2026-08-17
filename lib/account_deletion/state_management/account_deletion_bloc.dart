@@ -121,7 +121,7 @@ class AccountDeletionBloc
       final deleted = await _repository.deleteAccount(
         code: state.code.trim(),
         deletePublicComments: state.deletePublicComments,
-        deleteSupportAttachments: state.deleteSupportAttachments,
+        deleteSupportAttachments: state.deletesSupportAttachments,
         deleteSupportChat: state.deleteSupportChat,
         deleteGroupHistory: state.deleteGroupHistory,
         acceptIrreversible: state.acceptIrreversible,

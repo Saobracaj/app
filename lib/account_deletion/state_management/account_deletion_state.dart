@@ -17,10 +17,12 @@ abstract class AccountDeletionState with _$AccountDeletionState {
     @Default(AccountDeletionPreview()) AccountDeletionPreview preview,
     @Default(AccountDeletionStep.options) AccountDeletionStep step,
     // Content choices (the account, e-mail and display name are not choices).
-    @Default(true) bool deletePublicComments,
-    @Default(true) bool deleteSupportAttachments,
+    // Everything optional starts unticked: nothing beyond the mandatory items
+    // is deleted unless the user asks for it explicitly.
+    @Default(false) bool deletePublicComments,
+    @Default(false) bool deleteSupportAttachments,
     @Default(false) bool deleteSupportChat,
-    @Default(true) bool deleteGroupHistory,
+    @Default(false) bool deleteGroupHistory,
     @Default(false) bool clearLocalData,
     // Consents.
     @Default(false) bool acceptIrreversible,
@@ -38,6 +40,11 @@ abstract class AccountDeletionState with _$AccountDeletionState {
   }) = _AccountDeletionState;
 
   const AccountDeletionState._();
+
+  /// Deleting the whole conversation implies its attachments — the checklist
+  /// shows the row as ticked and locked, and this is what the server is told.
+  bool get deletesSupportAttachments =>
+      deleteSupportAttachments || deleteSupportChat;
 
   /// Everything the server requires before it sends a code is ticked.
   bool get canRequestCode =>
