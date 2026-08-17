@@ -364,6 +364,7 @@
   "questionLists": {
     "section": "Списки вопросов",
     "recentMistakes": "Последние ошибки",
+    "lastExamMistakes": "Ошибки последнего экзамена",
     "personalWeakSpots": "Личные слабые места",
     "questionsCount": "Вопросов: {}",
     "create": "Создать список",

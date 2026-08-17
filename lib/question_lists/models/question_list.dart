@@ -49,6 +49,10 @@ const String kAutoListIdPrefix = 'auto:';
 /// screen shows).
 const String kRecentMistakesListId = 'auto:recent_mistakes';
 
+/// The questions failed in the most recent exam attempt, in the order they were
+/// asked (`wrongAnswers` of the newest `practice_records` row).
+const String kLastExamMistakesListId = 'auto:last_exam_mistakes';
+
 /// Questions the user gets wrong although the other learners find them easy —
 /// computed from the local answer history plus the backend's crowd difficulty
 /// (see `personalWeakSpots`).

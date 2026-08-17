@@ -19,6 +19,12 @@ sealed class QuestionListsState with _$QuestionListsState {
     /// history — the content of the "recent mistakes" automatic list.
     @Default(<int>[]) List<int> recentMistakes,
 
+    /// The questions failed in the most recent exam attempt, in exam order — the
+    /// content of the "last exam mistakes" automatic list. Empty while no exam
+    /// has been taken and after one passed without a single mistake; in both
+    /// cases the list is not shown.
+    @Default(<int>[]) List<int> lastExamMistakes,
+
     /// Questions the user gets wrong although the crowd finds them easy, hardest
     /// gap first — the content of the "personal weak spots" automatic list.
     /// Empty until something asks for the automatic lists (the snapshot of crowd
@@ -59,6 +65,11 @@ sealed class QuestionListsState with _$QuestionListsState {
     QuestionList(
       id: kRecentMistakesListId,
       questionIds: recentMistakes,
+      isAuto: true,
+    ),
+    QuestionList(
+      id: kLastExamMistakesListId,
+      questionIds: lastExamMistakes,
       isAuto: true,
     ),
     QuestionList(

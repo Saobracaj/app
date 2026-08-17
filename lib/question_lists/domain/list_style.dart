@@ -48,6 +48,8 @@ extension QuestionListX on QuestionList {
   /// the user's own name.
   String get title => switch (id) {
     kRecentMistakesListId => LocaleKeys.questionLists_recentMistakes.tr(),
+    kLastExamMistakesListId =>
+      LocaleKeys.questionLists_lastExamMistakes.tr(),
     kPersonalWeakSpotsListId =>
       LocaleKeys.questionLists_personalWeakSpots.tr(),
     _ => name,
@@ -60,6 +62,7 @@ extension QuestionListX on QuestionList {
     if (!isAuto) return Color(color);
     final scheme = Theme.of(context).colorScheme;
     return switch (id) {
+      kLastExamMistakesListId => scheme.secondary,
       kPersonalWeakSpotsListId => scheme.tertiary,
       _ => scheme.primary,
     };
@@ -69,6 +72,7 @@ extension QuestionListX on QuestionList {
   /// custom ones are identified by their colour alone.
   IconData? get icon => switch (id) {
     kRecentMistakesListId => Icons.error_outline,
+    kLastExamMistakesListId => Icons.assignment_late_outlined,
     kPersonalWeakSpotsListId => Icons.trending_down,
     _ => isAuto ? Icons.list_alt : null,
   };

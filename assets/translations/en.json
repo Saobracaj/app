@@ -346,6 +346,7 @@
   "questionLists": {
     "section": "Question lists",
     "recentMistakes": "Recent mistakes",
+    "lastExamMistakes": "Last exam mistakes",
     "personalWeakSpots": "Personal weak spots",
     "questionsCount": "Questions: {}",
     "create": "Create a list",
