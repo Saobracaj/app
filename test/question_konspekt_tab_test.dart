@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/core/network/network_status.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
@@ -81,7 +82,7 @@ void main() {
       (initial, _) => QuestionFeaturesBloc(getIt(), initial),
     );
     getIt.registerFactoryParam<QuestionKonspektBloc, int, String>(
-      (questionId, categoryId) => QuestionKonspektBloc(getIt(), questionId, categoryId),
+      (questionId, categoryId) => QuestionKonspektBloc(getIt(), NetworkStatus(), questionId, categoryId),
     );
   });
 
@@ -113,13 +114,14 @@ void main() {
     await tester.pumpAndSettle();
 
     // Without EasyLocalization in the tree tr() falls back to the raw key.
-    expect(find.text('konspekt.loadFailed'), findsOneWidget);
+    // A *network* failure reads "no network", not the generic konspekt error.
+    expect(find.text('network.noConnection'), findsOneWidget);
     expect(find.text('Правило.'), findsNothing);
 
-    await tester.tap(find.text('konspekt.retry'));
+    await tester.tap(find.text('network.retry'));
     await tester.pumpAndSettle();
 
     expect(find.text('Правило.'), findsOneWidget);
-    expect(find.text('konspekt.loadFailed'), findsNothing);
+    expect(find.text('network.noConnection'), findsNothing);
   });
 }

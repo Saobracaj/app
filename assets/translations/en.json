@@ -1000,5 +1000,14 @@
   },
   "pushMessage": {
     "open": "Open"
+  },
+  "network": {
+    "noConnection": "No network",
+    "loadFailed": "Could not load the data",
+    "retry": "Retry",
+    "offlineTitle": "The app is offline",
+    "offlineBody": "You can go to the questions or take an exam simulation. Everything else loads once the network is back.",
+    "goToQuestions": "Go to questions",
+    "goToExam": "Exam simulation"
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/konspekt/data/konspekt_repository.dart';
+import 'package:saobracaj/core/network/network_status.dart';
 import 'package:saobracaj/konspekt/models/konspekt.dart';
 import 'package:saobracaj/test/quest/question_features/state_management/question_konspekt_bloc.dart';
 import 'package:saobracaj/test/quest/question_features/state_management/question_konspekt_events.dart';
@@ -53,7 +54,7 @@ void main() {
       ),
     ]));
 
-    final bloc = await _settled(QuestionKonspektBloc(repository, 7001, '25'));
+    final bloc = await _settled(QuestionKonspektBloc(repository, NetworkStatus(), 7001, '25'));
     expect(bloc.state.sections, hasLength(1));
     expect(bloc.state.sections.single.content.text, 'Правило про 7001.');
   });
@@ -73,7 +74,7 @@ void main() {
       ),
     ]));
 
-    final bloc = await _settled(QuestionKonspektBloc(repository, 7001, '25'));
+    final bloc = await _settled(QuestionKonspektBloc(repository, NetworkStatus(), 7001, '25'));
     expect(bloc.state.sections.single.content.text, 'Первое.\n\nВторое.');
   });
 
@@ -93,7 +94,7 @@ void main() {
       ),
     ]));
 
-    final bloc = await _settled(QuestionKonspektBloc(repository, 7001, '25'));
+    final bloc = await _settled(QuestionKonspektBloc(repository, NetworkStatus(), 7001, '25'));
     expect(bloc.state.sections.map((s) => s.id), ['a']);
     expect(bloc.state.sections.single.content.text, 'Целиком.');
   });
@@ -112,12 +113,12 @@ void main() {
       ),
     ]));
 
-    final bloc = await _settled(QuestionKonspektBloc(repository, 7001, '25'));
+    final bloc = await _settled(QuestionKonspektBloc(repository, NetworkStatus(), 7001, '25'));
     expect(bloc.state.sections.single.content.text, 'Всё.\n\nСодержимое.');
   });
 
   test('a category without a konspekt is empty, not failed', () async {
-    final bloc = await _settled(QuestionKonspektBloc(_FakeRepository(null), 7001, '25'));
+    final bloc = await _settled(QuestionKonspektBloc(_FakeRepository(null), NetworkStatus(), 7001, '25'));
     expect(bloc.state.sections, isEmpty);
     expect(bloc.state.failed, isFalse, reason: 'the tab is simply hidden for such a question');
   });
@@ -135,7 +136,7 @@ void main() {
       failures: 1,
     );
 
-    final bloc = await _settled(QuestionKonspektBloc(repository, 7001, '25'));
+    final bloc = await _settled(QuestionKonspektBloc(repository, NetworkStatus(), 7001, '25'));
     expect(bloc.state.failed, isTrue);
     expect(bloc.state.sections, isEmpty);
 

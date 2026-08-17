@@ -8,6 +8,7 @@ import '../db/dependencies.dart' show featureFlags;
 import '../feature_flags/data/feature_flags_repository.dart';
 import 'app_language.dart';
 import 'di.config.dart';
+import 'network/network_status.dart';
 
 /// Global service locator. Obtain any registered dependency with `getIt<T>()`.
 /// Never hand-construct a Bloc or repository in widget code — resolve it here.
@@ -28,9 +29,21 @@ void configureDependencies() => getIt.init();
 /// plain annotated constructor.
 @module
 abstract class RegisterModule {
+  /// The app-wide online/offline signal. `main()` calls `start()` on it before
+  /// `runApp`; the GraphQL client reports transport outcomes into it. The probe
+  /// resolves the client lazily — the client itself depends on this instance.
   @lazySingleton
-  GraphqlClient graphqlClient(TokenStorage storage) =>
-      GraphqlClient(storage, languageProvider: () => appLanguageCode);
+  NetworkStatus networkStatus() => NetworkStatus(
+    probe: () => getIt<GraphqlClient>().run('query Ping { __typename }'),
+  );
+
+  @lazySingleton
+  GraphqlClient graphqlClient(TokenStorage storage, NetworkStatus network) =>
+      GraphqlClient(
+        storage,
+        languageProvider: () => appLanguageCode,
+        networkStatus: network,
+      );
 
   /// GraphQL subscriptions over the websocket endpoint. Shares the HTTP
   /// client's token handling — a subscription is authenticated with the same

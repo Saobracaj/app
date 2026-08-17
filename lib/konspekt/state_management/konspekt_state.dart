@@ -12,6 +12,14 @@ sealed class KonspektState with _$KonspektState {
     @Default(true) bool inProgress,
     String? errorMessage,
 
+    /// [errorMessage] is a "no network" or server failure: the page shows a
+    /// retry and the Bloc reloads by itself once the connection is back (a
+    /// refused entitlement or a missing document does not).
+    @Default(false) bool retryable,
+
+    /// [errorMessage] is specifically "no network" (a subset of [retryable]).
+    @Default(false) bool offline,
+
     /// One-shot scroll target: index in the scrollable item list (intro first
     /// when present, then the sections). Emitted and immediately reset.
     int? scrollTo,

@@ -23,6 +23,12 @@ abstract class GroupsState with _$GroupsState {
     /// empty list can be told apart from "not loaded yet".
     @Default(false) bool loaded,
 
+    /// The last `myGroups` load failed (offline, server down). Rendered inline
+    /// by the home section as "couldn't load — retry" — never as a snackbar —
+    /// and cleared by the next attempt, which the Bloc makes on its own when
+    /// the network comes back.
+    @Default(false) bool failed,
+
     /// Whether there is a signed-in session. Groups are an authenticated
     /// feature — a guest is offered a sign-in prompt instead of the cards.
     @Default(false) bool authenticated,
@@ -39,7 +45,8 @@ abstract class GroupsState with _$GroupsState {
     /// it is.
     @Default(false) bool busy,
 
-    /// The last failure, surfaced once and then cleared.
+    /// The last failure of a *user action* (create / join / leave / invite
+    /// preview), surfaced once and then cleared. Load failures go to [failed].
     String? errorMessage,
 
     /// A group the user just created or joined: the UI opens it and then clears

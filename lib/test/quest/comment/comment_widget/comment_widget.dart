@@ -5,6 +5,7 @@ import 'package:saobracaj/test/quest/presentation/quest_markdown.dart';
 
 import '../../../../auth/state_management/auth/auth_bloc.dart';
 import '../../../../core/di.dart';
+import '../../../../core/presentation/load_failed_view.dart';
 import '../state_management/comment_bloc.dart';
 import 'comment_editor_panel.dart';
 
@@ -29,7 +30,15 @@ class CommentWidget extends StatelessWidget {
             return const Center(child: CircularProgressIndicator());
           }
           if (state.errorMessage != null) {
-            return Text('Error: ${state.errorMessage}');
+            // Inline "no network" / error with a retry; the Bloc also reloads
+            // by itself once the connection is back.
+            return LoadFailedView(
+              compact: true,
+              offline: state.offline,
+              message: state.errorMessage,
+              onRetry: () =>
+                  context.read<CommentBloc>().add(CommentReloadRequested()),
+            );
           }
 
           // Editors (backend `edit_comments` permission) see the unpublished

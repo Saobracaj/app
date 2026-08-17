@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../account_deletion/data/local_data_cleaner.dart';
+import '../../../core/network/network_status.dart';
 import '../../../db/dependencies.dart';
 import '../../data/auth_repository.dart';
 import '../../data/graphql_subscription_client.dart';
@@ -18,16 +19,26 @@ import 'auth_state.dart';
 /// their own feature (`lib/notifications/`).
 @lazySingleton
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  AuthBloc(this.repository, this.subscriptions, {LocalDataCleaner? localData})
-    : localData = localData ?? LocalDataCleaner(),
-      super(const AuthState()) {
+  AuthBloc(
+    this.repository,
+    this.subscriptions, {
+    LocalDataCleaner? localData,
+    NetworkStatus? network,
+  }) : localData = localData ?? LocalDataCleaner(),
+       super(const AuthState()) {
     on<AuthBootstrapRequested>(_onBootstrap);
     on<SessionStatusChanged>(_onSessionStatusChanged);
+    on<NetworkReconnected>(_onNetworkReconnected);
     on<LogoutRequested>(_onLogout);
     on<AccountDeleted>(_onAccountDeleted);
 
     _sub = repository.sessionStatus.distinct().listen(
       (status) => add(SessionStatusChanged(status)),
+    );
+    // Optional so tests can build the Bloc without the platform plugin; the DI
+    // registration always passes the app-wide instance.
+    _reconnectSub = network?.onReconnected.listen(
+      (_) => add(NetworkReconnected()),
     );
   }
 
@@ -41,6 +52,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   final LocalDataCleaner localData;
 
   late final StreamSubscription<AuthStatus> _sub;
+  StreamSubscription<void>? _reconnectSub;
 
   /// Set by [AccountDeleted] when the user chose to keep the local history:
   /// the very next sign-out then leaves the local statistics alone (see
@@ -50,7 +62,30 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   @override
   Future<void> close() {
     _sub.cancel();
+    _reconnectSub?.cancel();
     return super.close();
+  }
+
+  /// Back online with a session: catch up on what the offline start skipped.
+  /// The viewer is only fetched when it is missing (an offline start keeps the
+  /// session but has no profile), the grants are always refreshed — cheap, and
+  /// premium may have been bought on another device meanwhile.
+  Future<void> _onNetworkReconnected(
+    NetworkReconnected event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state.status != AuthStatus.authenticated) return;
+    featureFlags.refreshFromBackend();
+    statisticsSync.sync();
+    if (state.viewer != null) return;
+    try {
+      final viewer = await repository.me();
+      if (viewer != null && state.status == AuthStatus.authenticated) {
+        emit(state.copyWith(viewer: viewer));
+      }
+    } catch (_) {
+      // Still offline or transient — the next reconnect tries again.
+    }
   }
 
   /// Let the repository publish the stored session on its stream.

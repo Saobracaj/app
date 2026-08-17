@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
+import 'package:saobracaj/core/network/error_messages.dart';
+import 'package:saobracaj/core/network/network_status.dart';
 import 'package:saobracaj/konspekt/data/konspekt_repository.dart';
 import 'package:saobracaj/konspekt/models/konspekt.dart';
 import 'package:saobracaj/test/quest/question_features/state_management/question_konspekt_events.dart';
@@ -19,14 +23,21 @@ import 'package:saobracaj/test/quest/question_features/state_management/question
 class QuestionKonspektBloc extends Bloc<QuestionKonspektEvent, QuestionKonspektState> {
   QuestionKonspektBloc(
     this._repository,
+    this._network,
     @factoryParam this.questionId,
     @factoryParam this.categoryId,
   ) : super(const QuestionKonspektState()) {
     on<QuestionKonspektRequested>(_onRequested);
+    // Back online: redo the load that failed while offline, without a tap.
+    _reconnectSubscription = _network.onReconnected.listen((_) {
+      if (state.failed && !state.inProgress) add(QuestionKonspektRequested());
+    });
     add(QuestionKonspektRequested());
   }
 
   final KonspektRepository _repository;
+  final NetworkStatus _network;
+  StreamSubscription<void>? _reconnectSubscription;
 
   final int questionId;
 
@@ -34,7 +45,7 @@ class QuestionKonspektBloc extends Bloc<QuestionKonspektEvent, QuestionKonspektS
   final String categoryId;
 
   Future<void> _onRequested(QuestionKonspektRequested event, Emitter<QuestionKonspektState> emit) async {
-    emit(state.copyWith(inProgress: true, failed: false));
+    emit(state.copyWith(inProgress: true, failed: false, failedOffline: false));
     try {
       // Consult the catalog first: most categories have no konspekt, and this
       // avoids a doomed document query for them.
@@ -52,13 +63,26 @@ class QuestionKonspektBloc extends Bloc<QuestionKonspektEvent, QuestionKonspektS
           const <KonspektSection>[];
       if (emit.isDone) return;
       emit(state.copyWith(inProgress: false, sections: sections));
-    } catch (_) {
+    } catch (e) {
       // Offline with nothing cached, no premium entitlement, or a server
       // error. The user gets a "couldn't load, retry" tab instead of a
       // question that silently looks like it has no notes.
       if (emit.isDone) return;
-      emit(state.copyWith(inProgress: false, failed: true, sections: const []));
+      emit(
+        state.copyWith(
+          inProgress: false,
+          failed: true,
+          failedOffline: isNetworkError(e),
+          sections: const [],
+        ),
+      );
     }
+  }
+
+  @override
+  Future<void> close() {
+    _reconnectSubscription?.cancel();
+    return super.close();
   }
 
   /// Narrows a section to the blocks mapped to this question. Documents

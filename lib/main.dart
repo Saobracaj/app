@@ -25,6 +25,9 @@ import 'core/app_language.dart';
 import 'core/deep_links/deep_link_path.dart';
 import 'core/deep_links/deep_link_service.dart';
 import 'core/di.dart';
+import 'core/network/network_status.dart';
+import 'core/network/state_management/network_status_bloc.dart';
+import 'core/network/state_management/network_status_events.dart';
 import 'db/dependencies.dart';
 import 'feature_flags/presentation/russian_content_prompt.dart';
 import 'feature_flags/state_management/feature_flags_bloc.dart';
@@ -73,6 +76,10 @@ void main() async {
   // easy_localization does not do this on its own.
   await initializeDateFormatting();
   configureDependencies();
+  // Subscribe to the platform's connectivity first: the very first requests
+  // below (flags, session, push token) already report into this signal, and
+  // the home screen reads it on its first frame.
+  await getIt<NetworkStatus>().start();
   await initFirebase();
   // Instantiate the session holder before anything issues an authenticated
   // request: it subscribes to the GraphQL client's `sessionExpired` signal, so
@@ -337,6 +344,13 @@ class _MyAppState extends State<MyApp> {
         ),
         BlocProvider(create: (context) => PurchaseBloc()),
         BlocProvider(create: (context) => ThemeBloc()),
+        // Online/offline for the widget tree (offline card on the home screen,
+        // "no network" copy). Blocs that reload on reconnect listen to the
+        // `NetworkStatus` service directly.
+        BlocProvider(
+          create: (context) =>
+              getIt<NetworkStatusBloc>()..add(const NetworkStatusStarted()),
+        ),
         BlocProvider(
           create: (context) => getIt<AuthBloc>()..add(AuthBootstrapRequested()),
         ),

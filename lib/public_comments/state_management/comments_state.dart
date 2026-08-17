@@ -15,6 +15,13 @@ part 'comments_state.freezed.dart';
 abstract class CommentsState with _$CommentsState {
   const factory CommentsState({
     @Default(true) bool loading,
+    // The first page could not be loaded (offline, server down). Kept apart
+    // from an empty list: "no comments yet" invites the first one, "couldn't
+    // load" shows a retry (and reloads on its own once the network is back).
+    @Default(false) bool failed,
+    // [failed] because the request never reached the server — the UI says
+    // "no network" rather than a generic error.
+    @Default(false) bool failedOffline,
     @Default(<PublicComment>[]) List<PublicComment> comments,
     @Default(0) int totalCount,
     @Default(false) bool hasNextPage,

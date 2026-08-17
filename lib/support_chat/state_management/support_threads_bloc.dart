@@ -1,7 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
-import '../../auth/data/graphql_client.dart';
+import '../../core/network/error_messages.dart';
 import '../data/support_chat_repository.dart';
 import 'support_threads_events.dart';
 import 'support_threads_state.dart';
@@ -41,7 +41,7 @@ class SupportThreadsBloc extends Bloc<SupportThreadsEvent, SupportThreadsState> 
       emit(
         state.copyWith(
           loading: false,
-          errorMessage: e is GraphqlException ? e.message : e.toString(),
+          errorMessage: describeError(e),
         ),
       );
     }

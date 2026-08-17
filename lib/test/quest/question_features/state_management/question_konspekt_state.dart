@@ -16,5 +16,9 @@ sealed class QuestionKonspektState with _$QuestionKonspektState {
     /// notes" hides the tab, "we failed to fetch them" shows a retry instead of
     /// pretending the question has nothing to read.
     @Default(false) bool failed,
+
+    /// [failed] because there was no network — the tab says so instead of a
+    /// generic "couldn't load".
+    @Default(false) bool failedOffline,
   }) = _QuestionKonspektState;
 }

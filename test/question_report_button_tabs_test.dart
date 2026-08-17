@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
 import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/core/network/network_status.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
@@ -90,6 +91,7 @@ void main() {
     getIt.registerFactoryParam<CommentBloc, int, void>(
       (questionId, _) => CommentBloc(
         _StubCommentRepository(client, _StubFeatureFlagsRepository(client, storage)),
+        NetworkStatus(),
         questionId,
       ),
     );
