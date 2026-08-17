@@ -26,6 +26,7 @@ import 'package:saobracaj/home/home_content_page.dart';
 import 'package:saobracaj/home_page.dart';
 import 'package:saobracaj/konspekt/presentation/konspekt_page.dart';
 import 'package:saobracaj/question_lists/presentation/question_list_page.dart';
+import 'package:saobracaj/question_lists/presentation/shared_list_page.dart';
 import 'package:saobracaj/questions/questions_page.dart';
 import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 import 'package:saobracaj/statistics/statistics_page.dart';
@@ -51,6 +52,7 @@ const _questionHosts = [
   '/quest/q',
   '/statistics/q',
   '/lists/:id/q',
+  '/shared/:code/q',
   '/groups/:id/feed/q',
   '/questPractice/q',
   '/question/:id',
@@ -141,6 +143,16 @@ final routes = RouteMap(
     '/groups/:id/feed/q/zakon': zakonPage,
     '/lists/:id/q': questPage,
     '/lists/:id/q/zakon': zakonPage,
+    // Where a shared-list link lands: https://saobracaj.gleb.at/shared/ABCDEFGH
+    // — the preview of somebody else's list with "save to my lists". Open to
+    // guests. Questions opened from the preview sit under it.
+    '/shared/:code': (data) => MaterialPage(
+      child: SharedListPage(
+        code: Uri.decodeComponent(data.pathParameters['code'] ?? ''),
+      ),
+    ),
+    '/shared/:code/q': questPage,
+    '/shared/:code/q/zakon': zakonPage,
     '/questPractice/q': questPage,
     '/questPractice/q/zakon': zakonPage,
     '/questPractice': (data) => MaterialPage(

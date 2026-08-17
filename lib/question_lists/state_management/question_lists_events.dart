@@ -1,4 +1,5 @@
 import '../models/question_list.dart';
+import '../models/question_list_share.dart';
 
 /// Everything that can change the question-lists state.
 sealed class QuestionListsEvent {}
@@ -15,7 +16,11 @@ class QuestionListsRefreshed extends QuestionListsEvent {}
 /// Create a custom list. [questionId], when given, is put into the new list
 /// right away (the "create a list from the question screen" flow).
 class QuestionListCreated extends QuestionListsEvent {
-  QuestionListCreated({required this.name, required this.color, this.questionId});
+  QuestionListCreated({
+    required this.name,
+    required this.color,
+    this.questionId,
+  });
 
   final String name;
   final int color;
@@ -53,7 +58,10 @@ class QuestionInListToggled extends QuestionListsEvent {
 
 /// Replace a custom list's contents — drag-and-drop reordering and removal.
 class QuestionListQuestionsChanged extends QuestionListsEvent {
-  QuestionListQuestionsChanged({required this.listId, required this.questionIds});
+  QuestionListQuestionsChanged({
+    required this.listId,
+    required this.questionIds,
+  });
 
   final String listId;
   final List<int> questionIds;
@@ -61,6 +69,32 @@ class QuestionListQuestionsChanged extends QuestionListsEvent {
 
 /// Dismiss the last error after it has been shown.
 class QuestionListsErrorShown extends QuestionListsEvent {}
+
+/// Share a custom list: obtain (or re-use) its link and hand it to the system
+/// share sheet.
+class QuestionListShareRequested extends QuestionListsEvent {
+  QuestionListShareRequested(this.listId);
+
+  final String listId;
+}
+
+/// Withdraw a custom list's share link.
+class QuestionListShareRevoked extends QuestionListsEvent {
+  QuestionListShareRevoked(this.listId);
+
+  final String listId;
+}
+
+/// The share sheet (or the revoke confirmation) has been shown — clear the
+/// one-shot flags.
+class QuestionListSharePresented extends QuestionListsEvent {}
+
+/// Internal: the active shares were (re)loaded from the backend.
+class QuestionListSharesUpdated extends QuestionListsEvent {
+  QuestionListSharesUpdated(this.shares);
+
+  final List<QuestionListShare> shares;
+}
 
 /// Internal: the repository published a new set of custom lists.
 class QuestionListsUpdated extends QuestionListsEvent {

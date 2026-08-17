@@ -29,6 +29,8 @@ void main() {
         '/groups/:id/feed/invite',
       );
       expect(analyticsScreenName('/invite/ABC-DEF-GHI'), '/invite/:token');
+      expect(analyticsScreenName('/shared/ABCDEFGH'), '/shared/:code');
+      expect(analyticsScreenName('/shared/ABCDEFGH/q'), '/shared/:code/q');
       expect(
         analyticsScreenName('/support/threads/42'),
         '/support/threads/:id',

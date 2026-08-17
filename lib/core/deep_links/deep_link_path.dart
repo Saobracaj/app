@@ -1,9 +1,10 @@
 /// Turning an incoming link into a route this app knows.
 ///
 /// Two shapes arrive at the app from outside:
-///   * `https://saobracaj.gleb.at/invite/ABC-DEF-GHI` — the invite link, an
-///     Android App Link / iOS Universal Link, verified against the files the
-///     web server publishes under `/.well-known/`;
+///   * `https://saobracaj.gleb.at/invite/ABC-DEF-GHI` — the invite link (and
+///     `/shared/ABCDEFGH`, a shared question list), an Android App Link / iOS
+///     Universal Link, verified against the files the web server publishes
+///     under `/.well-known/`;
 ///   * `saobracaj://saobracaj.gleb.at/invite/ABC-DEF-GHI` — the same address
 ///     under the app's own scheme, which works even where verification does
 ///     not (a sideloaded build, an in-app browser that swallows App Links).
@@ -23,6 +24,8 @@ const _customScheme = 'saobracaj';
 /// ignored, and the app opens where it was.
 const _linkableRoots = {
   'invite',
+  // A shared question list: https://saobracaj.gleb.at/shared/ABCDEFGH
+  'shared',
   'question',
   'groups',
   'konspekt',
@@ -53,8 +56,7 @@ String? deepLinkPathFor(Uri uri) {
   // A trailing slash ('/question/10913/') is common in links pasted or built
   // by other apps; the empty segment it produces would miss every route and
   // land on "page not found", so it is dropped here.
-  final segments =
-      _routeSegments(uri)?.where((s) => s.isNotEmpty).toList();
+  final segments = _routeSegments(uri)?.where((s) => s.isNotEmpty).toList();
   if (segments == null) return null;
   if (segments.isEmpty) return '/';
   if (!_linkableRoots.contains(segments.first)) return null;

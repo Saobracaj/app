@@ -18,6 +18,7 @@ import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/home_page.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/question_lists/data/question_lists_repository.dart';
+import 'package:saobracaj/question_lists/data/shared_lists_repository.dart';
 import 'package:saobracaj/question_lists/state_management/question_lists_bloc.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/test/quest/presentation/quest_bottom_bar.dart';
@@ -50,7 +51,8 @@ class _FakeAllQuestionsBloc extends AllQuestionsBloc {
   final QuestionsData _data;
 
   @override
-  AllQuestionsBlocState get state => AllQuestionsBlocState(questionsData: _data);
+  AllQuestionsBlocState get state =>
+      AllQuestionsBlocState(questionsData: _data);
 }
 
 Question _question(int id) => Question(
@@ -103,24 +105,28 @@ Widget _questApp() {
             create: (_) => _FakeAllQuestionsBloc(data),
           ),
           BlocProvider(
-            create: (_) => FeatureFlagsBloc(
-              FeatureFlagsRepository(client, storage),
-            ),
+            create: (_) =>
+                FeatureFlagsBloc(FeatureFlagsRepository(client, storage)),
           ),
           BlocProvider(
             create: (_) => QuestionListsBloc(
               QuestionListsRepository(client),
+              SharedListsRepository(client),
               AuthBloc(
                 AuthRepository(client, storage, AnalyticsService()),
                 GraphqlSubscriptionClient(client, storage),
               ),
+              AnalyticsService(),
               NetworkStatus(),
             ),
           ),
         ],
         child: Quest(
           questions: const [1, 2],
-          options: const StartTestState(random: false, randomOptionsOrder: false),
+          options: const StartTestState(
+            random: false,
+            randomOptionsOrder: false,
+          ),
         ),
       ),
     ),
@@ -287,7 +293,9 @@ void main() {
       expect(bar.inline, isTrue);
 
       // До ответа в правой панели — подсказка-заглушка.
-      final placeholder = find.textContaining('појавиће се овде након одговора');
+      final placeholder = find.textContaining(
+        'појавиће се овде након одговора',
+      );
       expect(placeholder, findsOneWidget);
 
       // Кнопка «Прикажи одговор» раскрывает ответы, заглушка исчезает.

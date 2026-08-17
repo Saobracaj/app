@@ -368,7 +368,32 @@
     "noCustomLists": "You have no lists of your own yet",
     "signInRequired": "Sign in to create your own lists",
     "saveError": "Could not save the list",
-    "listsCount": "Lists: {}"
+    "listsCount": "Lists: {}",
+    "share": {
+      "share": "Share",
+      "shareLink": "Share link",
+      "linkActive": "Link is active",
+      "revoke": "Revoke link",
+      "revoked": "Link revoked — it no longer works",
+      "linkCopied": "Link copied",
+      "failed": "Could not get the link. Check your connection and try again"
+    },
+    "shared": {
+      "title": "Question list",
+      "by": "By {}",
+      "freeCount": "{} of {} available for free",
+      "save": "Save to my lists",
+      "signInToSave": "Sign in to save the list — it will be saved automatically after you sign in",
+      "yourOwn": "This is your list",
+      "openList": "Open list",
+      "andMore": "and {} more",
+      "linkInvalid": "This link no longer works",
+      "listDeleted": "The author has deleted this list",
+      "loadFailed": "Could not load the list. Check your connection and try again",
+      "retry": "Retry",
+      "openApp": "Open the app",
+      "importFailed": "Could not save the list"
+    }
   },
   "konspekt": {
     "title": "Summary",

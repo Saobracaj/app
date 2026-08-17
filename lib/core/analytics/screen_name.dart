@@ -6,20 +6,20 @@
 /// into thousands of one-off values. Parameter segments are therefore replaced
 /// with their route-template placeholders: any purely numeric segment (a
 /// question id) and any segment that follows `question`, `lists`, `groups`,
-/// `invite` or `threads` (see the route map in `lib/routes.dart`). Query
+/// `invite`, `shared` or `threads` (see the route map in `lib/routes.dart`). Query
 /// parameters are dropped entirely — question ids, invite codes and law
 /// references all travel there.
 String analyticsScreenName(String path) {
-  final segments = Uri.parse(path)
-      .pathSegments
-      .where((s) => s.isNotEmpty)
-      .toList();
+  final segments = Uri.parse(
+    path,
+  ).pathSegments.where((s) => s.isNotEmpty).toList();
   if (segments.isEmpty) return '/';
   const placeholderAfter = {
     'question': ':id',
     'lists': ':id',
     'groups': ':id',
     'invite': ':token',
+    'shared': ':code',
     'threads': ':id',
   };
   final out = <String>[];

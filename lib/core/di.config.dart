@@ -58,7 +58,9 @@ import '../question_feedback/domain/question_feedback_source.dart' as _i7;
 import '../question_feedback/state_management/question_feedback_bloc.dart'
     as _i751;
 import '../question_lists/data/question_lists_repository.dart' as _i206;
+import '../question_lists/data/shared_lists_repository.dart' as _i742;
 import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
+import '../question_lists/state_management/shared_list_bloc.dart' as _i718;
 import '../subscription/data/subscription_repository.dart' as _i731;
 import '../subscription/state_management/subscription_bloc.dart' as _i335;
 import '../support_chat/data/support_chat_repository.dart' as _i968;
@@ -203,6 +205,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i206.QuestionListsRepository>(
       () => _i206.QuestionListsRepository(gh<_i483.GraphqlClient>()),
     );
+    gh.lazySingleton<_i742.SharedListsRepository>(
+      () => _i742.SharedListsRepository(gh<_i483.GraphqlClient>()),
+    );
     gh.lazySingleton<_i147.QuestionDifficultyRepository>(
       () => _i147.QuestionDifficultyRepository(gh<_i483.GraphqlClient>()),
     );
@@ -308,7 +313,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i1000.QuestionListsBloc>(
       () => _i1000.QuestionListsBloc(
         gh<_i206.QuestionListsRepository>(),
+        gh<_i742.SharedListsRepository>(),
         gh<_i388.AuthBloc>(),
+        gh<_i811.AnalyticsService>(),
       ),
     );
     gh.factoryParam<_i494.PostCommentsBloc, String, dynamic>(
@@ -346,6 +353,15 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i880.AuthRepository>(),
         gh<_i388.AuthBloc>(),
         gh<_i426.NotificationPermissions>(),
+      ),
+    );
+    gh.factoryParam<_i718.SharedListBloc, String, dynamic>(
+      (code, _) => _i718.SharedListBloc(
+        code,
+        gh<_i742.SharedListsRepository>(),
+        gh<_i206.QuestionListsRepository>(),
+        gh<_i388.AuthBloc>(),
+        gh<_i811.AnalyticsService>(),
       ),
     );
     gh.factoryParam<_i480.QuestionAnalyticsBloc, int, dynamic>(

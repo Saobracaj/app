@@ -7,6 +7,17 @@ import 'package:saobracaj/main.dart' show AppRouteInformationParser;
 
 void main() {
   group('deepLinkPathFor', () {
+    test('a shared-list link becomes the shared route', () {
+      expect(
+        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/shared/ABCDEFGH')),
+        '/shared/ABCDEFGH',
+      );
+      expect(
+        deepLinkPathFor(Uri.parse('saobracaj://saobracaj.gleb.at/shared/ABCDEFGH')),
+        '/shared/ABCDEFGH',
+      );
+    });
+
     test('an invite link becomes the invite route', () {
       expect(
         deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/invite/ABC-DEF-GHI')),
