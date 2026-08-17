@@ -1,5 +1,21 @@
+import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 import 'package:saobracaj/theme/quiz_colors.dart';
+
+const _duration = Duration(milliseconds: 280);
+const _curve = Curves.easeOutCubic;
+
+/// Зазор между сегментами по горизонтали и между строками чипов.
+const _gap = 4.0;
+const _runSpacing = 6.0;
+
+const _chipWidth = 44.0;
+const _chipHeight = 32.0;
+
+/// Высота свёрнутой полоски.
+const _barHeight = 6.0;
 
 /// How one question of the current run has turned out so far.
 enum QuestionStatus { unanswered, correct, wrong }
@@ -176,72 +192,72 @@ class QuestionProgressStrip extends StatelessWidget {
   /// Called with the id of the chip the user tapped.
   final ValueChanged<int> onQuestionSelected;
 
-  static const _duration = Duration(milliseconds: 280);
-  static const _curve = Curves.easeOutCubic;
-  static const _gap = 4.0;
-  static const _chipWidth = 44.0;
-  static const _chipHeight = 32.0;
-
   @override
   Widget build(BuildContext context) {
     // A single question needs no progress bar and no navigation.
     if (entries.length < 2) return const SizedBox.shrink();
 
-    final quiz = Theme.of(context).quiz;
-    final scheme = Theme.of(context).colorScheme;
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 15),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final n = entries.length;
-          // Collapsed segments split the row exactly; floor keeps rounding from
-          // pushing the last segment onto a second line.
-          final raw = ((constraints.maxWidth - _gap * (n - 1)) / n)
-              .floorToDouble();
-          final collapsedWidth = raw < 2.0 ? 2.0 : raw;
-          // A long run (145 questions in an exam category) folds into more chip
-          // rows than the screen holds. Capping the navigator's height keeps
-          // the question visible below it — so the usual ways to close it
-          // (scrolling the body, tapping a gap) stay reachable — and the rows
-          // that don't fit scroll inside the cap.
-          return ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.4,
-            ),
-            child: SingleChildScrollView(
-              primary: false,
-              physics: expanded
-                  ? const ClampingScrollPhysics()
-                  : const NeverScrollableScrollPhysics(),
-              child: GestureDetector(
-                // Catches taps on the gaps between segments/chips too.
-                behavior: HitTestBehavior.translucent,
-                onTap: () => onExpandedChanged(!expanded),
-                child: Wrap(
-                  spacing: _gap,
-                  runSpacing: 6,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    for (final entry in entries)
-                      _segment(context, entry, quiz, scheme, collapsedWidth),
-                  ],
-                ),
-              ),
-            ),
+          final geometry = _StripGeometry(
+            count: entries.length,
+            width: constraints.maxWidth,
+          );
+          return TweenAnimationBuilder<double>(
+            tween: Tween<double>(end: expanded ? 1 : 0),
+            duration: _duration,
+            curve: _curve,
+            builder: (context, t, _) => _layer(context, geometry, t),
           );
         },
       ),
     );
   }
 
-  Widget _segment(
-    BuildContext context,
-    QuestionNavigatorEntry entry,
-    QuizColors quiz,
-    ColorScheme scheme,
-    double collapsedWidth,
-  ) {
+  /// Полоса на промежуточной фазе [t] (0 — свёрнута, 1 — раскрыта).
+  Widget _layer(BuildContext context, _StripGeometry geometry, double t) {
+    // A long run (145 questions in an exam category) folds into more chip
+    // rows than the screen holds. Capping the navigator's height keeps the
+    // question visible below it — so the usual ways to close it (scrolling
+    // the body, tapping a gap) stay reachable — and the rows that don't fit
+    // scroll inside the cap.
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.4,
+      ),
+      child: SingleChildScrollView(
+        primary: false,
+        physics: expanded
+            ? const ClampingScrollPhysics()
+            : const NeverScrollableScrollPhysics(),
+        child: GestureDetector(
+          // Catches taps on the gaps between segments/chips too.
+          behavior: HitTestBehavior.translucent,
+          onTap: () => onExpandedChanged(!expanded),
+          child: SizedBox(
+            width: geometry.width,
+            height: geometry.heightAt(t),
+            child: Stack(
+              children: [
+                for (var i = 0; i < entries.length; i++)
+                  Positioned.fromRect(
+                    rect: geometry.rectAt(i, t),
+                    child: _segment(context, entries[i], t),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _segment(BuildContext context, QuestionNavigatorEntry entry, double t) {
+    final theme = Theme.of(context);
+    final quiz = theme.quiz;
+    final scheme = theme.colorScheme;
     final isCurrent = entry.questionId == currentQuestionId;
     final (background, foreground) = isCurrent
         ? (scheme.primary, scheme.onPrimary)
@@ -262,29 +278,21 @@ class QuestionProgressStrip extends StatelessWidget {
         onExpandedChanged(false);
         if (!isCurrent) onQuestionSelected(entry.questionId);
       },
-      child: AnimatedContainer(
-        duration: _duration,
-        curve: _curve,
-        width: expanded ? _chipWidth : collapsedWidth,
-        height: expanded ? _chipHeight : 6,
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(expanded ? _chipHeight / 2 : 2),
-        ),
+      child: QuestionProgressSegment(
+        color: background,
+        radius: lerpDouble(2, _chipHeight / 2, t)!,
         // scaleDown keeps the number from overflowing mid-animation: it grows
         // out of the strip together with the chip.
-        child: Center(
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: AnimatedOpacity(
-              duration: _duration,
-              curve: _curve,
-              opacity: expanded ? 1 : 0,
+        child: Opacity(
+          opacity: t,
+          child: Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6),
                 child: Text(
                   '${entry.number}',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  style: theme.textTheme.labelMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: foreground,
                   ),
@@ -294,6 +302,147 @@ class QuestionProgressStrip extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Нарисованный сегмент полосы — свёрнутая полоска или раскрытый чип с номером.
+///
+/// Размер ему задаёт раскладка снаружи ([_StripGeometry]), поэтому виджет
+/// только красит фон. Отдельный публичный класс нужен ещё и затем, чтобы тесты
+/// могли измерить сегмент, не полагаясь на служебные обёртки.
+class QuestionProgressSegment extends StatelessWidget {
+  const QuestionProgressSegment({
+    super.key,
+    required this.color,
+    required this.radius,
+    required this.child,
+  });
+
+  final Color color;
+  final double radius;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      child: child,
+    );
+  }
+}
+
+/// Раскладка сегментов полосы: где стоит каждый из них в свёрнутом и в
+/// раскрытом виде.
+///
+/// Обе раскладки считаются заранее, а анимация просто интерполирует
+/// прямоугольники. Раньше вместо этого `Wrap` анимировал ширину детей и
+/// перекладывал строки на каждом кадре: по мере роста чипов они по одному
+/// перескакивали на следующую строку, строк становилось то больше, то меньше,
+/// и раскрытие в несколько строк заметно дрожало (задача 1217520881378737).
+/// Теперь каждый сегмент с первого же кадра едет в свою итоговую строку.
+class _StripGeometry {
+  factory _StripGeometry({required int count, required double width}) {
+    // Collapsed segments split the row exactly; floor keeps rounding from
+    // pushing the last segment onto a second line.
+    var segment = ((width - _gap * (count - 1)) / count).floorToDouble();
+    var gap = _gap;
+    if (segment < _minSegmentWidth) {
+      // Длинный прогон (145 вопросов экзаменационной категории) на телефоне не
+      // помещается в строку с обычным зазором. Сегменты и так на пределе, так
+      // что ужимается зазор: полоса остаётся одной строкой, а не обрезается по
+      // краям и не разъезжается на несколько полос.
+      segment = math.min(_minSegmentWidth, width / count);
+      gap = count > 1
+          ? math.max(0, (width - segment * count) / (count - 1))
+          : 0;
+    }
+    return _StripGeometry._(
+      count: count,
+      width: width,
+      collapsedWidth: segment,
+      collapsedGap: gap,
+      perRow: math.max(1, ((width + _gap) / (_chipWidth + _gap)).floor()),
+    );
+  }
+
+  _StripGeometry._({
+    required this.count,
+    required this.width,
+    required this.collapsedWidth,
+    required this.collapsedGap,
+    required this.perRow,
+  }) : rows = (count / perRow).ceil();
+
+  /// Минимальная ширина полоски свёрнутого сегмента.
+  static const _minSegmentWidth = 2.0;
+
+  final int count;
+  final double width;
+
+  /// Ширина сегмента и зазор между сегментами в свёрнутой полосе.
+  final double collapsedWidth;
+  final double collapsedGap;
+
+  /// Сколько чипов встаёт в строку раскрытой полосы.
+  final int perRow;
+
+  final int rows;
+
+  double get _expandedHeight =>
+      rows * _chipHeight + (rows - 1) * _runSpacing;
+
+  double heightAt(double t) => lerpDouble(_barHeight, _expandedHeight, t)!;
+
+  /// Прямоугольник сегмента [index] на промежуточной фазе [t].
+  ///
+  /// По горизонтали сегмент приходит на место раньше, чем строки разъедутся по
+  /// вертикали: при одинаковой скорости вся сетка едет наискось, и раскрытие
+  /// читается как косой сдвиг вбок. На схлопывании та же расстановка фаз
+  /// работает в обратную сторону — строки сперва сходятся, и только потом
+  /// чипы сжимаются в полоску.
+  Rect rectAt(int index, double t) {
+    final tx = math.min(1.0, t / _horizontalPhase);
+    final collapsed = _collapsed(index);
+    final expanded = _expanded(index);
+    return Rect.fromLTWH(
+      lerpDouble(collapsed.left, expanded.left, tx)!,
+      lerpDouble(collapsed.top, expanded.top, t)!,
+      lerpDouble(collapsed.width, expanded.width, tx)!,
+      lerpDouble(collapsed.height, expanded.height, t)!,
+    );
+  }
+
+  /// Доля перехода, за которую сегмент проезжает свой путь по горизонтали.
+  static const _horizontalPhase = 0.6;
+
+  Rect _collapsed(int index) {
+    // Остаток от округления ширины делится поровну по краям — так же, как это
+    // делал WrapAlignment.center.
+    final left =
+        (width - (collapsedWidth * count + collapsedGap * (count - 1))) / 2;
+    return Rect.fromLTWH(
+      left + index * (collapsedWidth + collapsedGap),
+      0,
+      collapsedWidth,
+      _barHeight,
+    );
+  }
+
+  Rect _expanded(int index) {
+    final row = index ~/ perRow;
+    final column = index % perRow;
+    // Последняя строка бывает неполной — её тоже центрируем.
+    final inRow = math.min(perRow, count - row * perRow);
+    final left = (width - (_chipWidth * inRow + _gap * (inRow - 1))) / 2;
+    return Rect.fromLTWH(
+      left + column * (_chipWidth + _gap),
+      row * (_chipHeight + _runSpacing),
+      _chipWidth,
+      _chipHeight,
     );
   }
 }
