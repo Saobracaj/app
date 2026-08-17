@@ -19,6 +19,7 @@ import 'auth/data/auth_repository.dart';
 import 'auth/data/firebase_init.dart';
 import 'auth/state_management/auth/auth_bloc.dart';
 import 'auth/state_management/auth/auth_events.dart';
+import 'auth/state_management/auth/auth_state.dart';
 import 'core/analytics/analytics_service.dart';
 import 'core/app_language.dart';
 import 'core/deep_links/deep_link_path.dart';
@@ -32,6 +33,7 @@ import 'groups/presentation/groups_error_listener.dart';
 import 'groups/state_management/groups_bloc.dart';
 import 'groups/state_management/groups_events.dart';
 import 'notifications/data/push_token_service.dart';
+import 'question_lists/data/shared_lists_repository.dart';
 import 'question_lists/presentation/question_lists_error_listener.dart';
 import 'question_lists/state_management/question_lists_bloc.dart';
 import 'test/data/quiz_preferences_repository.dart';
@@ -47,7 +49,8 @@ import 'theme/state_management/theme_bloc.dart';
 /// querying it from inside the widget tree (`DynamicColorBuilder`) makes the
 /// first frames render with the fallback seeded scheme and then visibly snap
 /// to the dynamic palette ~a second later — worse on every hot restart.
-Future<({ColorScheme light, ColorScheme dark})?> _resolveDynamicSchemes() async {
+Future<({ColorScheme light, ColorScheme dark})?>
+_resolveDynamicSchemes() async {
   try {
     final palette = await DynamicColorPlugin.getCorePalette();
     if (palette == null) return null;
@@ -133,7 +136,9 @@ class AppRouteInformationParser extends RoutemasterParser {
   /// from another session is navigated by its URL instead — which is what the
   /// address bar shows anyway, and what a typed-in link does. As the user walks
   /// over such an entry it gets rewritten with this session's stamp.
-  final String _session = DateTime.now().microsecondsSinceEpoch.toRadixString(36);
+  final String _session = DateTime.now().microsecondsSinceEpoch.toRadixString(
+    36,
+  );
 
   @override
   Future<RouteData> parseRouteInformation(RouteInformation routeInformation) {
@@ -223,17 +228,27 @@ class _MyAppState extends State<MyApp> {
       AppRouteInformationParser();
 
   StreamSubscription<String>? _deepLinks;
+  StreamSubscription<AuthState>? _signIns;
+  bool _wasAuthenticated = false;
 
   @override
   void initState() {
     super.initState();
     final service = getIt<DeepLinkService>();
     _deepLinks = service.paths.listen(_openDeepLink);
+    // A guest who asked to save a shared list is sent to sign in; once they
+    // are in, the preview is reopened and finishes the import (the code was
+    // remembered by SharedListsRepository, so nothing is lost on the way).
+    final auth = getIt<AuthBloc>();
+    _wasAuthenticated = auth.state.isAuthenticated;
+    _signIns = auth.stream.listen(_onAuthChanged);
     // The link the app was launched with, if any. Pushed after the first frame
     // so the router is attached to a navigator by the time it arrives.
     final pending = service.takePending();
     if (pending != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _openDeepLink(pending));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _openDeepLink(pending),
+      );
     }
     // Screen tracking: the delegate notifies on every navigation, and the
     // service collapses repeats of the same (templated) screen. The
@@ -250,9 +265,42 @@ class _MyAppState extends State<MyApp> {
 
   void _openDeepLink(String path) => _routerDelegate.push(path);
 
+  void _onAuthChanged(AuthState auth) {
+    final signedIn = auth.isAuthenticated;
+    if (signedIn && !_wasAuthenticated) unawaited(_resumeSharedListImport());
+    _wasAuthenticated = signedIn;
+  }
+
+  /// Reopen `/shared/<code>` after a sign-in that a pending import was
+  /// waiting for. Waits for the sign-in screens to leave first: they pop (or
+  /// replace) themselves on success, and pushing under a page that is about to
+  /// pop would take the preview down with it.
+  Future<void> _resumeSharedListImport() async {
+    final code = await getIt<SharedListsRepository>().peekPendingImport();
+    if (code == null) return;
+    for (var i = 0; i < 30; i++) {
+      final path = _routerDelegate.currentConfiguration?.path ?? '';
+      if (!_isSignInPath(path)) break;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+    if (!mounted) return;
+    final path = _routerDelegate.currentConfiguration?.path ?? '';
+    // Already there (signed in from on top of the preview): the screen's own
+    // Bloc picks the pending import up.
+    if (path.startsWith('/shared/')) return;
+    _routerDelegate.push('/shared/${Uri.encodeComponent(code)}');
+  }
+
+  static bool _isSignInPath(String path) =>
+      path.startsWith('/login') ||
+      path.startsWith('/register') ||
+      path.startsWith('/confirmCode') ||
+      path.startsWith('/resetPassword');
+
   @override
   void dispose() {
     _deepLinks?.cancel();
+    _signIns?.cancel();
     _routerDelegate.removeListener(_logScreenView);
     _routerDelegate.dispose();
     super.dispose();
@@ -293,7 +341,8 @@ class _MyAppState extends State<MyApp> {
           // available (Android 12+); every explicit swatch — and any
           // platform without dynamic colors — falls back to a seeded scheme.
           final dynamicSchemes = widget.dynamicSchemes;
-          final useDynamic = themeState.isDefaultAccent && dynamicSchemes != null;
+          final useDynamic =
+              themeState.isDefaultAccent && dynamicSchemes != null;
           final lightScheme = useDynamic
               ? dynamicSchemes.light
               : ColorScheme.fromSeed(seedColor: themeState.seedColor);

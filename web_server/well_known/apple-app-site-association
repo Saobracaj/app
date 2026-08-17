@@ -5,6 +5,7 @@
         "appIDs": ["BHH5379JU2.at.gleb.saobracaj.saobracaj"],
         "components": [
           { "/": "/invite/*", "comment": "Group invitations" },
+          { "/": "/shared/*", "comment": "Shared question lists" },
           { "/": "/question/*", "comment": "A single question and its discussion" },
           { "/": "/groups/*", "comment": "A group and its activity feed" },
           { "/": "/konspekt*", "comment": "Category study notes" },

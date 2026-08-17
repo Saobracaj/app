@@ -90,6 +90,47 @@ class AnalyticsService {
   void logSignUp(String method) =>
       _send(() => _firebase?.logSignUp(signUpMethod: method));
 
+  /// The user shared one of their question lists for the first time (a
+  /// re-share of an already shared list is not counted again).
+  void logQuestionListShared({required int questionCount}) {
+    _send(
+      () => _firebase?.logEvent(
+        name: 'question_list_shared',
+        parameters: {'question_count': questionCount},
+      ),
+    );
+  }
+
+  /// Somebody opened a share link. [outcome] is `ok`, `link_invalid`,
+  /// `list_deleted` or `failed`; [questionCount] and [viewerIsOwner] only for
+  /// `ok`.
+  void logSharedListOpened({
+    required String outcome,
+    int? questionCount,
+    bool? viewerIsOwner,
+  }) {
+    _send(
+      () => _firebase?.logEvent(
+        name: 'shared_list_opened',
+        parameters: {
+          'outcome': outcome,
+          'question_count': ?questionCount,
+          if (viewerIsOwner != null) 'viewer_is_owner': viewerIsOwner ? 1 : 0,
+        },
+      ),
+    );
+  }
+
+  /// The recipient saved a shared list as their own.
+  void logSharedListImported({required int questionCount}) {
+    _send(
+      () => _firebase?.logEvent(
+        name: 'shared_list_imported',
+        parameters: {'question_count': questionCount},
+      ),
+    );
+  }
+
   /// Runs one analytics call, swallowing both sync and async failures — a
   /// missing Firebase app, an ad blocker on the web, a broken transport.
   void _send(Future<void>? Function() call) {

@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../models/question_list.dart';
+import '../models/question_list_share.dart';
 
 part 'question_lists_state.freezed.dart';
 
@@ -21,7 +22,30 @@ sealed class QuestionListsState with _$QuestionListsState {
     /// A failed backend write (the optimistic change has already been rolled
     /// back); surfaced once as a snackbar and then cleared.
     String? errorMessage,
+
+    /// The active share links of the user's lists, by list id — what the list
+    /// menu shows as "link is active". Loaded with the lists, best-effort.
+    @Default(<String, QuestionListShare>{})
+    Map<String, QuestionListShare> shares,
+
+    /// Whether a share / revoke call is in flight (the menu actions wait).
+    @Default(false) bool shareBusy,
+
+    /// One-shot: a share the user asked for is ready and the system share
+    /// sheet should open with its link. Cleared by `QuestionListSharePresented`.
+    QuestionListShare? shareToPresent,
+
+    /// One-shot: a share was just revoked, for the confirmation snackbar.
+    /// Cleared together with [shareToPresent].
+    @Default(false) bool shareRevoked,
+
+    /// A failed share / revoke, surfaced once as a snackbar and cleared with
+    /// `QuestionListsErrorShown` like [errorMessage].
+    @Default(false) bool shareFailed,
   }) = _QuestionListsState;
+
+  /// The active share of [listId], or `null` when the list is not shared.
+  QuestionListShare? shareOf(String listId) => shares[listId];
 
   /// The automatic lists, derived on the device. Currently just one.
   List<QuestionList> get autoLists => [
