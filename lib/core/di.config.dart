@@ -98,6 +98,8 @@ import '../test/state_management/start_test_bloc.dart' as _i31;
 import 'analytics/analytics_service.dart' as _i811;
 import 'deep_links/deep_link_service.dart' as _i547;
 import 'di.dart' as _i913;
+import 'network/network_status.dart' as _i958;
+import 'network/state_management/network_status_bloc.dart' as _i819;
 
 extension GetItInjectableX on _i174.GetIt {
   // initializes the registration of main-scope dependencies inside of GetIt
@@ -111,6 +113,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i25.TokenStorage>(() => _i25.TokenStorage());
     gh.lazySingleton<_i811.AnalyticsService>(() => _i811.AnalyticsService());
     gh.lazySingleton<_i547.DeepLinkService>(() => _i547.DeepLinkService());
+    gh.lazySingleton<_i958.NetworkStatus>(() => registerModule.networkStatus());
     gh.lazySingleton<_i389.FeatureFlagsRepository>(
       () => registerModule.featureFlagsRepository(),
     );
@@ -133,47 +136,26 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i31.StartTestBloc>(
       () => _i31.StartTestBloc(gh<_i442.QuizPreferencesRepository>()),
     );
-    gh.lazySingleton<_i483.GraphqlClient>(
-      () => registerModule.graphqlClient(gh<_i25.TokenStorage>()),
-    );
-    gh.lazySingleton<_i880.AuthRepository>(
-      () => _i880.AuthRepository(
-        gh<_i483.GraphqlClient>(),
-        gh<_i25.TokenStorage>(),
-        gh<_i811.AnalyticsService>(),
-      ),
-      dispose: (i) => i.dispose(),
-    );
     gh.factoryParam<_i986.QuestionCuesBloc, int, dynamic>(
       (questionId, _) => _i986.QuestionCuesBloc(
         gh<_i1002.QuestionAnalyticsRepository>(),
         questionId,
       ),
     );
-    gh.factoryParam<_i892.ConfirmCodeBloc, String, dynamic>(
-      (email, _) => _i892.ConfirmCodeBloc(gh<_i880.AuthRepository>(), email),
+    gh.factory<_i819.NetworkStatusBloc>(
+      () => _i819.NetworkStatusBloc(gh<_i958.NetworkStatus>()),
+    );
+    gh.lazySingleton<_i483.GraphqlClient>(
+      () => registerModule.graphqlClient(
+        gh<_i25.TokenStorage>(),
+        gh<_i958.NetworkStatus>(),
+      ),
     );
     gh.factoryParam<_i269.QuestionFeaturesBloc, _i392.AppFeature?, dynamic>(
       (initial, _) => _i269.QuestionFeaturesBloc(
         gh<_i442.QuizPreferencesRepository>(),
         initial,
       ),
-    );
-    gh.factory<_i531.FirebaseLoginBloc>(
-      () => _i531.FirebaseLoginBloc(gh<_i880.AuthRepository>()),
-    );
-    gh.factory<_i10.LoginBloc>(
-      () => _i10.LoginBloc(gh<_i880.AuthRepository>()),
-    );
-    gh.factory<_i830.RegisterBloc>(
-      () => _i830.RegisterBloc(gh<_i880.AuthRepository>()),
-    );
-    gh.factory<_i940.ResetPasswordBloc>(
-      () => _i940.ResetPasswordBloc(gh<_i880.AuthRepository>()),
-    );
-    gh.lazySingleton<_i875.PushTokenService>(
-      () => _i875.PushTokenService(gh<_i880.AuthRepository>()),
-      dispose: (i) => i.dispose(),
     );
     gh.lazySingleton<_i966.GraphqlSubscriptionClient>(
       () => registerModule.graphqlSubscriptionClient(
@@ -211,15 +193,16 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i147.QuestionDifficultyRepository>(
       () => _i147.QuestionDifficultyRepository(gh<_i483.GraphqlClient>()),
     );
+    gh.factoryParam<_i192.QuestionKonspektBloc, int, String>(
+      (questionId, categoryId) => _i192.QuestionKonspektBloc(
+        gh<_i491.KonspektRepository>(),
+        gh<_i958.NetworkStatus>(),
+        questionId,
+        categoryId,
+      ),
+    );
     gh.factory<_i187.KonspektCatalogBloc>(
       () => _i187.KonspektCatalogBloc(gh<_i491.KonspektRepository>()),
-    );
-    gh.factoryParam<_i198.KonspektBloc, String, String?>(
-      (categoryId, initialSection) => _i198.KonspektBloc(
-        gh<_i491.KonspektRepository>(),
-        categoryId,
-        initialSection,
-      ),
     );
     gh.lazySingleton<_i731.SubscriptionRepository>(
       () => _i731.SubscriptionRepository(
@@ -242,15 +225,23 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i443.BillingAdminBloc>(
       () => _i443.BillingAdminBloc(gh<_i512.BillingAdminRepository>()),
     );
-    gh.factoryParam<_i192.QuestionKonspektBloc, int, String>(
-      (questionId, categoryId) => _i192.QuestionKonspektBloc(
-        gh<_i491.KonspektRepository>(),
-        questionId,
-        categoryId,
-      ),
-    );
     gh.factory<_i515.ModerationBloc>(
       () => _i515.ModerationBloc(gh<_i989.PublicCommentsRepository>()),
+    );
+    gh.lazySingleton<_i880.AuthRepository>(
+      () => _i880.AuthRepository(
+        gh<_i483.GraphqlClient>(),
+        gh<_i25.TokenStorage>(),
+        gh<_i811.AnalyticsService>(),
+      ),
+      dispose: (i) => i.dispose(),
+    );
+    gh.factoryParam<_i213.CommentBloc, int, dynamic>(
+      (questionId, _) => _i213.CommentBloc(
+        gh<_i359.CommentRepository>(),
+        gh<_i958.NetworkStatus>(),
+        questionId,
+      ),
     );
     gh.lazySingleton<_i685.GroupsRepository>(
       () => _i685.GroupsRepository(
@@ -270,6 +261,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i966.GraphqlSubscriptionClient>(),
       ),
     );
+    gh.factoryParam<_i892.ConfirmCodeBloc, String, dynamic>(
+      (email, _) => _i892.ConfirmCodeBloc(gh<_i880.AuthRepository>(), email),
+    );
     gh.factory<_i252.SupportThreadsBloc>(
       () => _i252.SupportThreadsBloc(gh<_i968.SupportChatRepository>()),
     );
@@ -286,6 +280,25 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i880.AuthRepository>(),
         gh<_i966.GraphqlSubscriptionClient>(),
         localData: gh<_i663.LocalDataCleaner>(),
+        network: gh<_i958.NetworkStatus>(),
+      ),
+    );
+    gh.factory<_i251.AccountDeletionBloc>(
+      () => _i251.AccountDeletionBloc(
+        gh<_i854.AccountDeletionRepository>(),
+        gh<_i388.AuthBloc>(),
+      ),
+    );
+    gh.factoryParam<_i405.CommentsBloc, int, String?>(
+      (questionId, threadId) => _i405.CommentsBloc(
+        gh<_i989.PublicCommentsRepository>(),
+        gh<_i311.ProfileRepository>(),
+        gh<_i388.AuthBloc>(),
+        gh<_i880.AuthRepository>(),
+        gh<_i426.NotificationPermissions>(),
+        gh<_i958.NetworkStatus>(),
+        questionId,
+        threadId,
       ),
     );
     gh.factoryParam<_i517.GroupPostsBloc, String, dynamic>(
@@ -299,10 +312,6 @@ extension GetItInjectableX on _i174.GetIt {
       (questionId, _) =>
           _i658.CommentEditorBloc(gh<_i359.CommentRepository>(), questionId),
     );
-    gh.factoryParam<_i213.CommentBloc, int, dynamic>(
-      (questionId, _) =>
-          _i213.CommentBloc(gh<_i359.CommentRepository>(), questionId),
-    );
     gh.factoryParam<_i1064.GroupBloc, String, dynamic>(
       (groupId, _) => _i1064.GroupBloc(
         gh<_i685.GroupsRepository>(),
@@ -310,32 +319,37 @@ extension GetItInjectableX on _i174.GetIt {
         groupId,
       ),
     );
-    gh.factory<_i1000.QuestionListsBloc>(
-      () => _i1000.QuestionListsBloc(
-        gh<_i206.QuestionListsRepository>(),
-        gh<_i742.SharedListsRepository>(),
-        gh<_i388.AuthBloc>(),
-        gh<_i811.AnalyticsService>(),
-      ),
+    gh.factory<_i531.FirebaseLoginBloc>(
+      () => _i531.FirebaseLoginBloc(gh<_i880.AuthRepository>()),
+    );
+    gh.factory<_i10.LoginBloc>(
+      () => _i10.LoginBloc(gh<_i880.AuthRepository>()),
+    );
+    gh.factory<_i830.RegisterBloc>(
+      () => _i830.RegisterBloc(gh<_i880.AuthRepository>()),
+    );
+    gh.factory<_i940.ResetPasswordBloc>(
+      () => _i940.ResetPasswordBloc(gh<_i880.AuthRepository>()),
+    );
+    gh.lazySingleton<_i875.PushTokenService>(
+      () => _i875.PushTokenService(gh<_i880.AuthRepository>()),
+      dispose: (i) => i.dispose(),
     );
     gh.factoryParam<_i494.PostCommentsBloc, String, dynamic>(
       (postId, _) =>
           _i494.PostCommentsBloc(gh<_i607.GroupPostsRepository>(), postId),
     );
+    gh.factoryParam<_i198.KonspektBloc, String, String?>(
+      (categoryId, initialSection) => _i198.KonspektBloc(
+        gh<_i491.KonspektRepository>(),
+        gh<_i958.NetworkStatus>(),
+        categoryId,
+        initialSection,
+      ),
+    );
     gh.factoryParam<_i794.AskAiChatBloc, _i997.AskAiChatScope, String>(
       (scope, scopeId) =>
           _i794.AskAiChatBloc(gh<_i154.AskAiChatRepository>(), scope, scopeId),
-    );
-    gh.factoryParam<_i405.CommentsBloc, int, String?>(
-      (questionId, threadId) => _i405.CommentsBloc(
-        gh<_i989.PublicCommentsRepository>(),
-        gh<_i311.ProfileRepository>(),
-        gh<_i388.AuthBloc>(),
-        gh<_i880.AuthRepository>(),
-        gh<_i426.NotificationPermissions>(),
-        questionId,
-        threadId,
-      ),
     );
     gh.factoryParam<
       _i681.SupportImageBloc,
@@ -372,14 +386,6 @@ extension GetItInjectableX on _i174.GetIt {
         questionId,
       ),
     );
-    gh.factory<_i1032.GroupsBloc>(
-      () => _i1032.GroupsBloc(
-        gh<_i685.GroupsRepository>(),
-        gh<_i311.ProfileRepository>(),
-        gh<_i388.AuthBloc>(),
-        gh<_i389.FeatureFlagsRepository>(),
-      ),
-    );
     gh.factory<_i335.SubscriptionBloc>(
       () => _i335.SubscriptionBloc(
         gh<_i731.SubscriptionRepository>(),
@@ -390,6 +396,25 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i246.TestPushBloc(
         gh<_i548.PushTestRepository>(),
         gh<_i388.AuthBloc>(),
+      ),
+    );
+    gh.factory<_i1000.QuestionListsBloc>(
+      () => _i1000.QuestionListsBloc(
+        gh<_i206.QuestionListsRepository>(),
+        gh<_i742.SharedListsRepository>(),
+        gh<_i388.AuthBloc>(),
+        gh<_i811.AnalyticsService>(),
+        gh<_i147.QuestionDifficultyRepository>(),
+        gh<_i958.NetworkStatus>(),
+      ),
+    );
+    gh.factory<_i1032.GroupsBloc>(
+      () => _i1032.GroupsBloc(
+        gh<_i685.GroupsRepository>(),
+        gh<_i311.ProfileRepository>(),
+        gh<_i388.AuthBloc>(),
+        gh<_i389.FeatureFlagsRepository>(),
+        gh<_i958.NetworkStatus>(),
       ),
     );
     gh.factoryParam<_i481.GroupFeedBloc, String, dynamic>(
@@ -415,12 +440,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i989.PublicCommentsRepository>(),
         gh<_i388.AuthBloc>(),
         questionId,
-      ),
-    );
-    gh.factory<_i251.AccountDeletionBloc>(
-      () => _i251.AccountDeletionBloc(
-        gh<_i854.AccountDeletionRepository>(),
-        gh<_i388.AuthBloc>(),
       ),
     );
     return this;
