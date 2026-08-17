@@ -16,6 +16,7 @@ import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/subscription/data/subscription_repository.dart';
 import 'package:saobracaj/subscription/models/subscription_models.dart';
+import 'package:saobracaj/subscription/presentation/plan_features.dart';
 import 'package:saobracaj/subscription/presentation/tariffs_page.dart';
 import 'package:saobracaj/subscription/state_management/subscription_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -299,5 +300,38 @@ void main() {
     // Бесплатный уровень — те же функции на трёх категориях.
     expect(find.text('3 категории'), findsWidgets);
     expect(find.text('все категории'), findsWidgets);
+  });
+
+  testWidgets('кружки столбца стоят на одной вертикали с его заголовком', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap(russianContent: false));
+    await tester.pumpAndSettle();
+
+    final marks = find.descendant(
+      of: find.byType(Table),
+      matching: find.byType(AccessMark),
+    );
+    final count = marks.evaluate().length;
+    expect(count, planFeatureRows().length * 2);
+
+    // Ровно две вертикали — по одной на столбец значений. Центрирование давало
+    // столько же разных отступов, сколько разной длины подписей.
+    final lefts = <double>{
+      for (var i = 0; i < count; i++) tester.getTopLeft(marks.at(i)).dx,
+    };
+    expect(lefts.length, 2);
+
+    // Заголовок столбца стоит над кружками, а не над серединой подписей.
+    final sorted = lefts.toList()..sort();
+    expect(tester.getTopLeft(find.text('БЕСПЛАТНО')).dx, closeTo(sorted[0], 1));
+    expect(
+      tester.getTopLeft(find.text('ПО ПОДПИСКЕ')).dx,
+      closeTo(sorted[1], 1),
+    );
   });
 }

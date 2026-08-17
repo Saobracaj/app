@@ -159,14 +159,17 @@ class _FeatureTable extends StatelessWidget {
             TableRow(
               decoration: BoxDecoration(border: Border(bottom: divider)),
               children: [
-                _HeadCell(LocaleKeys.subscription_featuresTitle.tr()),
+                _HeadCell(
+                  LocaleKeys.subscription_featuresTitle.tr(),
+                  inset: _labelColumnInset,
+                ),
                 _HeadCell(
                   LocaleKeys.subscription_columnFree.tr(),
-                  center: true,
+                  inset: _valueColumnInset,
                 ),
                 _HeadCell(
                   LocaleKeys.subscription_columnPaid.tr(),
-                  center: true,
+                  inset: _valueColumnInset,
                   highlighted: true,
                 ),
               ],
@@ -177,6 +180,8 @@ class _FeatureTable extends StatelessWidget {
                   border: i == rows.length - 1 ? null : Border(bottom: divider),
                 ),
                 children: [
+                  // Высоту строки задаёт эта ячейка — она самая высокая
+                  // (название плюс подпись), остальные тянутся под неё.
                   _LabelCell(row: rows[i]),
                   _ValueCell(access: rows[i].free),
                   _ValueCell(access: rows[i].paid, highlighted: true),
@@ -189,6 +194,12 @@ class _FeatureTable extends StatelessWidget {
   }
 }
 
+/// Отступы столбцов таблицы. Заголовок и значения одного столбца отступают
+/// одинаково: кружки всех строк и подпись столбца должны стоять на одной
+/// вертикали — иначе взгляд не собирает столбец в столбец.
+const double _labelColumnInset = 16;
+const double _valueColumnInset = 12;
+
 /// Подсветка платной колонки — тот же контейнер, что у выбранного тарифа.
 Color _paidTint(BuildContext context) => Color.alphaBlend(
   Theme.of(context).colorScheme.primaryContainer.withValues(alpha: .32),
@@ -196,10 +207,10 @@ Color _paidTint(BuildContext context) => Color.alphaBlend(
 );
 
 class _HeadCell extends StatelessWidget {
-  const _HeadCell(this.text, {this.center = false, this.highlighted = false});
+  const _HeadCell(this.text, {required this.inset, this.highlighted = false});
 
   final String text;
-  final bool center;
+  final double inset;
   final bool highlighted;
 
   @override
@@ -207,11 +218,11 @@ class _HeadCell extends StatelessWidget {
     final theme = Theme.of(context);
     return Container(
       color: highlighted ? _paidTint(context) : null,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      alignment: center ? Alignment.center : Alignment.centerLeft,
+      padding: EdgeInsets.symmetric(horizontal: inset, vertical: 14),
+      alignment: Alignment.centerLeft,
       child: Text(
         text.toUpperCase(),
-        textAlign: center ? TextAlign.center : TextAlign.start,
+        textAlign: TextAlign.start,
         style: theme.textTheme.labelSmall?.copyWith(
           letterSpacing: .8,
           fontWeight: FontWeight.w600,
@@ -233,7 +244,10 @@ class _LabelCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: _labelColumnInset,
+        vertical: 12,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -260,26 +274,33 @@ class _ValueCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final muted = access == PlanAccess.none;
-    return Container(
-      color: highlighted ? _paidTint(context) : null,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AccessMark(access: access),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              planAccessLabel(access),
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: muted
-                    ? theme.colorScheme.onSurfaceVariant.withValues(alpha: .6)
-                    : theme.colorScheme.onSurface,
+    // `fill` вместо `middle`: подсветка платного столбца должна доходить до
+    // разделителей, иначе столбец распадается на отдельные плашки.
+    return TableCell(
+      verticalAlignment: TableCellVerticalAlignment.fill,
+      child: Container(
+        color: highlighted ? _paidTint(context) : null,
+        padding: const EdgeInsets.symmetric(
+          horizontal: _valueColumnInset,
+          vertical: 12,
+        ),
+        child: Row(
+          children: [
+            AccessMark(access: access),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                planAccessLabel(access),
+                textAlign: TextAlign.start,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: muted
+                      ? theme.colorScheme.onSurfaceVariant.withValues(alpha: .6)
+                      : theme.colorScheme.onSurface,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
