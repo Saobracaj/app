@@ -40,6 +40,7 @@ import '../konspekt/data/konspekt_repository.dart' as _i491;
 import '../konspekt/state_management/konspekt_bloc.dart' as _i198;
 import '../konspekt/state_management/konspekt_catalog_bloc.dart' as _i187;
 import '../notifications/data/notification_permissions.dart' as _i426;
+import '../notifications/data/push_message_service.dart' as _i468;
 import '../notifications/data/push_token_service.dart' as _i875;
 import '../notifications/state_management/notifications_bloc.dart' as _i618;
 import '../profile/data/profile_repository.dart' as _i311;
@@ -110,6 +111,10 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i426.NotificationPermissions>(
       () => const _i426.NotificationPermissions(),
+    );
+    gh.lazySingleton<_i468.PushMessageService>(
+      () => _i468.PushMessageService(),
+      dispose: (i) => i.dispose(),
     );
     gh.lazySingleton<_i442.QuizPreferencesRepository>(
       () => _i442.QuizPreferencesRepository(),

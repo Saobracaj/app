@@ -37,6 +37,15 @@ const _linkableRoots = {
   // `saobracaj://support/threads/<id>` for the moderator's view of one — both
   // are what the backend puts in a support notification.
   'support',
+  // Top-level screens a notification may point at: the settings hub (the
+  // test-push screen suggests `/settings`), the subscription and its tariffs,
+  // and the moderator's screens.
+  'settings',
+  'notifications',
+  'subscription',
+  'tariffs',
+  'moderation',
+  'billing',
 };
 
 /// The in-app path for [uri], or `null` when the link is not ours to handle.

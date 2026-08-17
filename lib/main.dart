@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -14,6 +14,7 @@ import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:saobracaj/purchase/state_management/purchase_bloc.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'auth/data/auth_repository.dart';
 import 'auth/data/firebase_init.dart';
@@ -31,7 +32,10 @@ import 'feature_flags/state_management/feature_flags_events.dart';
 import 'groups/presentation/groups_error_listener.dart';
 import 'groups/state_management/groups_bloc.dart';
 import 'groups/state_management/groups_events.dart';
+import 'notifications/data/push_message.dart';
+import 'notifications/data/push_message_service.dart';
 import 'notifications/data/push_token_service.dart';
+import 'notifications/presentation/push_message_snackbar.dart';
 import 'question_lists/presentation/question_lists_error_listener.dart';
 import 'question_lists/state_management/question_lists_bloc.dart';
 import 'test/data/quiz_preferences_repository.dart';
@@ -82,6 +86,11 @@ void main() async {
   await getIt<QuizPreferencesRepository>().bootstrap();
   // Start syncing the device's FCM push token once a session is available.
   getIt<PushTokenService>().start();
+  // And listen for the notifications themselves: the ones tapped in the tray
+  // (opened as links) and the ones arriving while the app is on screen (shown
+  // as a snackbar). Before the first frame, so a cold start from a
+  // notification does not miss the message that started it.
+  getIt<PushMessageService>().start();
   // Listen for invite links before the first frame: a cold start from a link
   // must not miss the link that started it (DeepLinkService holds it until the
   // router exists).
@@ -222,7 +231,14 @@ class _MyAppState extends State<MyApp> {
   final AppRouteInformationParser _routeInformationParser =
       AppRouteInformationParser();
 
+  /// Shows the foreground-notification snackbar above whatever screen is open;
+  /// the app root has no `Scaffold` of its own to ask.
+  final GlobalKey<ScaffoldMessengerState> _messengerKey =
+      GlobalKey<ScaffoldMessengerState>();
+
   StreamSubscription<String>? _deepLinks;
+  StreamSubscription<PushMessage>? _pushOpened;
+  StreamSubscription<PushMessage>? _pushForeground;
 
   @override
   void initState() {
@@ -235,6 +251,17 @@ class _MyAppState extends State<MyApp> {
     if (pending != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _openDeepLink(pending));
     }
+    // Push notifications, the same way: a tapped one is a link to open, a
+    // foreground one is shown as a snackbar. Both need the router and the
+    // messenger to be attached, hence after the first frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final pushes = getIt<PushMessageService>();
+      _pushOpened = pushes.opened.listen(_openPushMessage);
+      _pushForeground = pushes.foreground.listen(_showPushMessage);
+      final pendingPush = pushes.takePendingOpen();
+      if (pendingPush != null) _openPushMessage(pendingPush);
+    });
     // Screen tracking: the delegate notifies on every navigation, and the
     // service collapses repeats of the same (templated) screen. The
     // post-frame call reports the screen the app started on, which precedes
@@ -250,9 +277,43 @@ class _MyAppState extends State<MyApp> {
 
   void _openDeepLink(String path) => _routerDelegate.push(path);
 
+  /// The link of a tapped notification (or of the snackbar's «go» button):
+  /// one of ours opens in-app, through the same route mapping as an external
+  /// deep link; anything else is handed to the browser.
+  void _openPushMessage(PushMessage push) {
+    final uri = push.link;
+    if (uri == null) return;
+    final path = deepLinkPathFor(uri);
+    if (path != null) {
+      _routerDelegate.push(path);
+      return;
+    }
+    unawaited(
+      launchUrl(uri, mode: LaunchMode.externalApplication).catchError((Object e) {
+        debugPrint('Push link could not be opened: $uri ($e)');
+        return false;
+      }),
+    );
+  }
+
+  void _showPushMessage(PushMessage push) {
+    final messenger = _messengerKey.currentState;
+    if (messenger == null) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      buildPushMessageSnackBar(
+        push,
+        // The action dismisses the snackbar on its own.
+        onOpen: push.link == null ? null : () => _openPushMessage(push),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _deepLinks?.cancel();
+    _pushOpened?.cancel();
+    _pushForeground?.cancel();
     _routerDelegate.removeListener(_logScreenView);
     _routerDelegate.dispose();
     super.dispose();
@@ -309,6 +370,7 @@ class _MyAppState extends State<MyApp> {
           // суммы с запятой вместо пробела.
           Intl.defaultLocale = context.locale.toLanguageTag();
           return MaterialApp.router(
+            scaffoldMessengerKey: _messengerKey,
             locale: context.locale,
             supportedLocales: context.supportedLocales,
             localizationsDelegates: context.localizationDelegates,
