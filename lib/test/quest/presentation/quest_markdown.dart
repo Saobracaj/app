@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:saobracaj/core/markdown/phrase_highlight.dart';
+import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
 import 'package:saobracaj/theme/quiz_colors.dart';
 import 'package:saobracaj/zakon/presentation/zakon_panel.dart';
@@ -117,6 +119,14 @@ Future showMarkdown(BuildContext context, String link) async {
   final o = getDictByTitle(link);
   if (o == null) return;
   final String text = o['sr'];
+  // Русский перевод определения показываем только тем, кто выбрал
+  // русскоязычный контент (в стартовом вопросе или потом в настройках) —
+  // остальным карточка дублировала одно и то же на двух языках. Словарь
+  // терминов лежит в бандле и бесплатен для всех, поэтому смотрим на сам выбор
+  // пользователя, а не на премиум-грант.
+  final ruText = context.read<FeatureFlagsBloc>().state.russianContentChosen
+      ? o['ru'] as String?
+      : null;
 
   final paragraph = o['paragraph'];
   final chlan = o['chlan'];
@@ -189,10 +199,10 @@ Future showMarkdown(BuildContext context, String link) async {
                 text: text.fixMd,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
               ),
-              if (o['ru'] != null) ...[
+              if (ruText != null) ...[
                 SizedBox(height: 16),
                 QuestMarkdown(
-                  text: (o['ru'] as String).fixMd,
+                  text: ruText.fixMd,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
               ],
