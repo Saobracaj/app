@@ -34,6 +34,15 @@ class FeatureFlagsState {
   /// Russian rather than Serbian.
   bool get russianContent => snapshot.russianContent;
 
+  /// Whether the user *asked* for the Russian materials — the answer to the
+  /// start-up question or the settings toggle — regardless of the premium
+  /// grant. Content that ships inside the app and is free for everybody (the
+  /// term definitions of the zakon dictionary) is shown in Russian on this
+  /// alone; paid content keeps going through [russianContent] /
+  /// [russianContentForCategory].
+  bool get russianContentChosen =>
+      snapshot.localEnabled(AppFeature.russianContent);
+
   FeatureFlagsState copyWith({FeatureFlagsSnapshot? snapshot}) =>
       FeatureFlagsState(snapshot: snapshot ?? this.snapshot);
 }
