@@ -48,14 +48,20 @@ extension ResponsiveContext on BuildContext {
 /// знают полной ширины списка, так что разделители и подсветка нажатия
 /// заканчиваются по краю содержимого, а не окна. Для экранов из карточек это
 /// незаметно, для длинных списков со `Divider` — нет.
+///
+/// [availableWidth] задаёт ширину области, внутри которой центрируется колонка,
+/// когда это не всё окно, — например, если рядом стоит закреплённая колонка с
+/// оглавлением.
 EdgeInsets readableInsets(
   BuildContext context, {
   double maxWidth = kReadableContentWidth,
   double horizontal = 16,
   double top = 0,
   double bottom = 0,
+  double? availableWidth,
 }) {
-  final free = (MediaQuery.sizeOf(context).width - maxWidth) / 2;
+  final free =
+      ((availableWidth ?? MediaQuery.sizeOf(context).width) - maxWidth) / 2;
   final gutter = free > horizontal ? free : horizontal;
   return EdgeInsets.fromLTRB(gutter, top, gutter, bottom);
 }

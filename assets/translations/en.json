@@ -970,5 +970,8 @@
     "close": "Close",
     "signInRequired": "Sign in to delete the account.",
     "retry": "Retry"
+  },
+  "zakon": {
+    "contents": "Contents"
   }
 }
