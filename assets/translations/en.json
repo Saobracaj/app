@@ -1032,6 +1032,7 @@
   },
   "network": {
     "noConnection": "No network",
+    "actionFailedOffline": "No connection to the server — try again later",
     "loadFailed": "Could not load the data",
     "retry": "Retry",
     "offlineTitle": "The app is offline",

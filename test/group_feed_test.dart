@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
+import 'package:saobracaj/core/network/network_status.dart';
 import 'package:saobracaj/groups/data/groups_repository.dart';
 import 'package:saobracaj/groups/models/group_event.dart';
 import 'package:saobracaj/groups/state_management/group_feed_bloc.dart';
@@ -126,9 +127,13 @@ Map<String, dynamic> _page(
   'nextBeforeId': nextBeforeId,
 };
 
-({GroupFeedBloc bloc, _FakeAdapter http, _Connector sockets}) _bloc(
-  List<Map<String, dynamic>> pages,
-) {
+({
+  GroupFeedBloc bloc,
+  _FakeAdapter http,
+  _Connector sockets,
+  NetworkStatus network,
+})
+_bloc(List<Map<String, dynamic>> pages) {
   final storage = TokenStorage();
   final adapter = _FakeAdapter(pages);
   final client = GraphqlClient(
@@ -146,10 +151,14 @@ Map<String, dynamic> _page(
       retryDelay: (_) => Duration.zero,
     ),
   );
+  // Настоящий NetworkStatus без платформенной подписки: «пропажу» и
+  // «возвращение» сети изображают reportFailure/reportSuccess.
+  final network = NetworkStatus();
   return (
-    bloc: GroupFeedBloc(repository, 'g1'),
+    bloc: GroupFeedBloc(repository, network, 'g1'),
     http: adapter,
     sockets: connector,
+    network: network,
   );
 }
 
@@ -191,7 +200,7 @@ void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   test('loads the newest page and keeps the cursor to the rest', () async {
-    final (:bloc, :http, :sockets) = _bloc([
+    final (:bloc, :http, :sockets, :network) = _bloc([
       _page(
         [
           _event('e2', occurredAt: minutesAgo(1)),
@@ -215,7 +224,7 @@ void main() {
   test(
     'the next page is appended, and an event already on screen is not repeated',
     () async {
-      final (:bloc, :http, :sockets) = _bloc([
+      final (:bloc, :http, :sockets, :network) = _bloc([
         _page(
           [_event('e3', occurredAt: minutesAgo(1))],
           hasMore: true,
@@ -242,7 +251,7 @@ void main() {
   test(
     'a live event lands at the top and the connection is reported',
     () async {
-      final (:bloc, :http, :sockets) = _bloc([
+      final (:bloc, :http, :sockets, :network) = _bloc([
         _page([_event('e1', occurredAt: minutesAgo(30))]),
       ]);
       bloc.add(const GroupFeedOpened());
@@ -268,7 +277,7 @@ void main() {
   );
 
   test('a live event is placed by its time, not by its arrival', () async {
-    final (:bloc, :http, :sockets) = _bloc([
+    final (:bloc, :http, :sockets, :network) = _bloc([
       _page([
         _event('e3', occurredAt: minutesAgo(1)),
         _event('e1', occurredAt: minutesAgo(30)),
@@ -287,7 +296,7 @@ void main() {
   });
 
   test('an event older than the loaded page is left to the pager', () async {
-    final (:bloc, :http, :sockets) = _bloc([
+    final (:bloc, :http, :sockets, :network) = _bloc([
       _page(
         [_event('e5', occurredAt: minutesAgo(1))],
         hasMore: true,
@@ -311,7 +320,7 @@ void main() {
   test(
     'after a reconnect the head is re-read, because nothing is replayed',
     () async {
-      final (:bloc, :http, :sockets) = _bloc([
+      final (:bloc, :http, :sockets, :network) = _bloc([
         _page([_event('e1', occurredAt: minutesAgo(30))]),
         _page([
           // Happened while the socket was down: only a re-read can find it.
@@ -337,35 +346,75 @@ void main() {
     },
   );
 
-  test('a failed refresh reports it and keeps what is on screen', () async {
-    final (:bloc, :http, :sockets) = _bloc([
-      _page([_event('e1', occurredAt: minutesAgo(30))]),
-    ]);
-    bloc.add(const GroupFeedOpened());
-    await _settle();
-    expect(bloc.state.events, hasLength(1));
+  test(
+    'сорвавшееся обновление молчит и оставляет прочитанное на экране',
+    () async {
+      final (:bloc, :http, :sockets, :network) = _bloc([
+        _page([_event('e1', occurredAt: minutesAgo(30))]),
+      ]);
+      bloc.add(const GroupFeedOpened());
+      await _settle();
+      expect(bloc.state.events, hasLength(1));
+
+      http.failNext = true;
+      bloc.add(const GroupFeedRefreshed());
+      await _settle();
+
+      expect(
+        bloc.state.events,
+        hasLength(1),
+        reason: 'the list is not thrown away',
+      );
+      expect(bloc.state.failed, isTrue, reason: 'сбой виден в состоянии');
+      expect(
+        bloc.state.loaded,
+        isTrue,
+        reason: 'прочитанное остаётся читаемым',
+      );
+      await bloc.close();
+    },
+  );
+
+  /// Открытие группы в оффлайне раньше сыпало снек-барами «Network error» —
+  /// по одному на каждое чтение. Теперь о сбое говорит только состояние.
+  test('первое чтение в оффлайне не поднимает снек-бар', () async {
+    final (:bloc, :http, :sockets, :network) = _bloc([_page(const [])]);
 
     http.failNext = true;
-    bloc.add(const GroupFeedRefreshed());
+    bloc.add(const GroupFeedOpened());
     await _settle();
 
-    expect(bloc.state.errorMessage, isNotNull);
-    expect(
-      bloc.state.events,
-      hasLength(1),
-      reason: 'the list is not thrown away',
-    );
+    expect(bloc.state.failed, isTrue);
+    expect(bloc.state.failedOffline, isTrue);
+    expect(bloc.state.loaded, isFalse, reason: 'это не «событий пока нет»');
+    expect(bloc.state.isEmpty, isFalse);
+    await bloc.close();
+  });
 
-    bloc.add(const GroupFeedErrorShown());
+  test('вернувшаяся сеть перечитывает ленту сама', () async {
+    final (:bloc, :http, :sockets, :network) = _bloc([
+      _page([_event('e1', occurredAt: minutesAgo(30))]),
+    ]);
+
+    http.failNext = true;
+    bloc.add(const GroupFeedOpened());
     await _settle();
-    expect(bloc.state.errorMessage, isNull);
+    expect(bloc.state.failed, isTrue);
+
+    network.reportFailure();
+    network.reportSuccess();
+    await _settle();
+
+    expect(bloc.state.loaded, isTrue);
+    expect(bloc.state.failed, isFalse);
+    expect(bloc.state.events, hasLength(1));
     await bloc.close();
   });
 
   test(
     'a page that is filtered away to nothing is paged through, not stopped on',
     () async {
-      final (:bloc, :http, :sockets) = _bloc([
+      final (:bloc, :http, :sockets, :network) = _bloc([
         _page(
           [_event('e9', occurredAt: minutesAgo(1))],
           hasMore: true,
@@ -402,7 +451,7 @@ void main() {
   test(
     'a first page with nothing to show digs for the events behind it',
     () async {
-      final (:bloc, :http, :sockets) = _bloc([
+      final (:bloc, :http, :sockets, :network) = _bloc([
         _page(
           [_abandoned('a1', occurredAt: minutesAgo(1))],
           hasMore: true,
@@ -428,7 +477,7 @@ void main() {
     'a cursor that does not move ends the feed instead of looping on it',
     () async {
       // Один и тот же ответ на любой запрос: hasMore: true и тот же курсор.
-      final (:bloc, :http, :sockets) = _bloc([
+      final (:bloc, :http, :sockets, :network) = _bloc([
         _page(
           [_event('e1', occurredAt: minutesAgo(1))],
           hasMore: true,
@@ -455,7 +504,7 @@ void main() {
   );
 
   test('unknown event kinds are dropped rather than rendered blank', () async {
-    final (:bloc, :http, :sockets) = _bloc([
+    final (:bloc, :http, :sockets, :network) = _bloc([
       _page([
         _event('e2', kind: 'SOMETHING_NEW', occurredAt: minutesAgo(1)),
         _event('e1', occurredAt: minutesAgo(30)),

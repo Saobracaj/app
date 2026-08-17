@@ -1051,6 +1051,7 @@
   },
   "network": {
     "noConnection": "Нема мреже",
+    "actionFailedOffline": "Нема везе са сервером — покушајте касније",
     "loadFailed": "Подаци нису учитани",
     "retry": "Покушај поново",
     "offlineTitle": "Апликација ради у offline режиму",

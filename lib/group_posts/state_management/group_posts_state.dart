@@ -23,6 +23,14 @@ abstract class GroupPostsState with _$GroupPostsState {
     /// The first page has arrived at least once — until then an empty list is
     /// "not loaded", not "nothing has been posted".
     @Default(false) bool loaded,
+
+    /// The last read failed. Rendered inline (a retry line instead of the wall),
+    /// never as a snackbar — see [GroupPostsState.errorMessage].
+    @Default(false) bool failed,
+
+    /// That failure was a transport one (no connection), so the copy says "no
+    /// network" rather than "could not load".
+    @Default(false) bool failedOffline,
     @Default(false) bool hasMore,
     DateTime? nextBefore,
     String? nextBeforeId,
@@ -44,7 +52,10 @@ abstract class GroupPostsState with _$GroupPostsState {
     /// The post is being published.
     @Default(false) bool submitting,
 
-    /// The last failure, surfaced once and then cleared.
+    /// The last failed *user action* (an upload, a post, a delete), surfaced
+    /// once as a snackbar and then cleared. A failed *load* never sets it:
+    /// going offline is not an error to announce, it is shown inline by
+    /// [failed] and redone by itself once the connection is back.
     String? errorMessage,
   }) = _GroupPostsState;
 

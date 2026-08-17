@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
+import 'package:saobracaj/core/network/network_status.dart';
 import 'package:saobracaj/group_posts/data/group_posts_repository.dart';
 import 'package:saobracaj/group_posts/state_management/group_posts_bloc.dart';
 import 'package:saobracaj/group_posts/state_management/group_posts_events.dart';
@@ -83,14 +84,21 @@ Map<String, dynamic> _page(
   },
 };
 
-({GroupPostsBloc bloc, _FakeAdapter http}) _bloc(
+({GroupPostsBloc bloc, _FakeAdapter http, NetworkStatus network}) _bloc(
   List<Map<String, dynamic>> answers,
 ) {
   final adapter = _FakeAdapter(answers);
   final repository = GroupPostsRepository(
     GraphqlClient(TokenStorage(), dio: Dio()..httpClientAdapter = adapter),
   );
-  return (bloc: GroupPostsBloc(repository, 'g1'), http: adapter);
+  // Настоящий NetworkStatus, но без платформенной подписки: сеть «пропадает» и
+  // «возвращается» вызовами reportFailure/reportSuccess.
+  final network = NetworkStatus();
+  return (
+    bloc: GroupPostsBloc(repository, network, 'g1'),
+    http: adapter,
+    network: network,
+  );
 }
 
 void main() {
@@ -99,7 +107,7 @@ void main() {
 
   test('the first page is loaded with its cursor', () async {
     final cursor = DateTime.utc(2026, 8, 16);
-    final (:bloc, :http) = _bloc([
+    final (:bloc, :http, :network) = _bloc([
       _page(
         [_post('p1')],
         hasMore: true,
@@ -121,7 +129,7 @@ void main() {
     'the next page continues from the cursor and never repeats a post',
     () async {
       final cursor = DateTime.utc(2026, 8, 16);
-      final (:bloc, :http) = _bloc([
+      final (:bloc, :http, :network) = _bloc([
         _page(
           [_post('p1')],
           hasMore: true,
@@ -144,7 +152,7 @@ void main() {
   );
 
   test('publishing sends the attachments and clears the composer', () async {
-    final (:bloc, :http) = _bloc([
+    final (:bloc, :http, :network) = _bloc([
       _page(const []),
       {'createGroupPost': _post('p9', body: 'смотрите')},
     ]);
@@ -172,7 +180,7 @@ void main() {
   /// The "recent mistakes" list is derived on the device and the backend has
   /// never heard of it, so it must not travel as a list id.
   test('an automatic list is never shared', () async {
-    final (:bloc, :http) = _bloc([
+    final (:bloc, :http, :network) = _bloc([
       _page(const []),
       {'createGroupPost': _post('p9')},
     ]);
@@ -196,7 +204,7 @@ void main() {
   });
 
   test('a failed delete puts the post back', () async {
-    final (:bloc, :http) = _bloc([
+    final (:bloc, :http, :network) = _bloc([
       _page([_post('p1')]),
     ]);
 
@@ -208,6 +216,66 @@ void main() {
     await bloc.stream.firstWhere((s) => s.errorMessage != null);
 
     expect(bloc.state.posts.single.id, 'p1');
+    await bloc.close();
+  });
+
+  /// Баг: «Нет связи с сервером — обновить» в оффлайне отвечало «в группе ещё
+  /// нет постов». Сорвавшееся обновление не должно объявлять стену загруженной.
+  test(
+    'сорвавшееся обновление не выдаёт непрочитанную стену за пустую',
+    () async {
+      final (:bloc, :http, :network) = _bloc([_page(const [])]);
+
+      // Первое чтение тоже не доходит до сервера.
+      http.failNext = true;
+      bloc.add(const GroupPostsOpened());
+      await bloc.stream.firstWhere((s) => s.failed);
+      expect(bloc.state.loaded, isFalse);
+      expect(bloc.state.isEmpty, isFalse, reason: 'это не «постов нет»');
+
+      // Нажали «обновить», связи по-прежнему нет.
+      http.failNext = true;
+      bloc.add(const GroupPostsRefreshed());
+      await bloc.stream.firstWhere((s) => !s.loading && s.failed);
+
+      expect(bloc.state.loaded, isFalse);
+      expect(bloc.state.isEmpty, isFalse);
+      expect(bloc.state.failedOffline, isTrue);
+      await bloc.close();
+    },
+  );
+
+  test('сбой чтения не поднимает снек-бар', () async {
+    final (:bloc, :http, :network) = _bloc([_page(const [])]);
+
+    http.failNext = true;
+    bloc.add(const GroupPostsOpened());
+    await bloc.stream.firstWhere((s) => s.failed);
+
+    expect(
+      bloc.state.errorMessage,
+      isNull,
+      reason: 'офлайн — не событие, о котором нужно кричать поверх экрана',
+    );
+    await bloc.close();
+  });
+
+  test('вернувшаяся сеть перечитывает стену сама', () async {
+    final (:bloc, :http, :network) = _bloc([
+      _page([_post('p1')]),
+    ]);
+
+    http.failNext = true;
+    bloc.add(const GroupPostsOpened());
+    await bloc.stream.firstWhere((s) => s.failed);
+
+    // Сеть пропала и вернулась — блок перечитывает без участия пользователя.
+    network.reportFailure();
+    network.reportSuccess();
+    await bloc.stream.firstWhere((s) => s.loaded);
+
+    expect(bloc.state.posts.single.id, 'p1');
+    expect(bloc.state.failed, isFalse);
     await bloc.close();
   });
 

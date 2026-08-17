@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../core/network/error_messages.dart';
 import '../data/group_posts_repository.dart';
 import 'post_comments_events.dart';
 import 'post_comments_state.dart';
@@ -10,6 +11,10 @@ import 'post_comments_state.dart';
 /// Deliberately small: comments under a post are flat and few, so there is no
 /// paging and no subscription — the sheet reads them when it opens, and the
 /// wall's own refresh is what brings somebody else's comment into view.
+///
+/// A failed read is shown in the sheet itself ([PostCommentsState.failed]) with
+/// a retry — not as a snackbar over it; only what the reader actually pressed
+/// reports its failure that way.
 @injectable
 class PostCommentsBloc extends Bloc<PostCommentsBlocEvent, PostCommentsState> {
   PostCommentsBloc(this._posts, @factoryParam String postId)
@@ -28,12 +33,26 @@ class PostCommentsBloc extends Bloc<PostCommentsBlocEvent, PostCommentsState> {
     PostCommentsLoaded event,
     Emitter<PostCommentsState> emit,
   ) async {
-    emit(state.copyWith(loading: true));
+    emit(state.copyWith(loading: true, failed: false));
     try {
       final comments = await _posts.comments(state.postId);
-      emit(state.copyWith(comments: comments, loading: false, loaded: true));
+      emit(
+        state.copyWith(
+          comments: comments,
+          loading: false,
+          loaded: true,
+          failed: false,
+          failedOffline: false,
+        ),
+      );
     } catch (e) {
-      emit(state.copyWith(loading: false, errorMessage: '$e'));
+      emit(
+        state.copyWith(
+          loading: false,
+          failed: true,
+          failedOffline: isNetworkError(e),
+        ),
+      );
     }
   }
 
@@ -54,7 +73,9 @@ class PostCommentsBloc extends Bloc<PostCommentsBlocEvent, PostCommentsState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(submitting: false, errorMessage: '$e'));
+      emit(
+        state.copyWith(submitting: false, errorMessage: describeActionError(e)),
+      );
     }
   }
 
@@ -71,7 +92,12 @@ class PostCommentsBloc extends Bloc<PostCommentsBlocEvent, PostCommentsState> {
     try {
       await _posts.deleteComment(event.commentId);
     } catch (e) {
-      emit(state.copyWith(comments: previous, errorMessage: '$e'));
+      emit(
+        state.copyWith(
+          comments: previous,
+          errorMessage: describeActionError(e),
+        ),
+      );
     }
   }
 }

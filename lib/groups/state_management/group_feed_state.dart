@@ -30,6 +30,14 @@ abstract class GroupFeedState with _$GroupFeedState {
     /// "not loaded", not "nothing happened".
     @Default(false) bool loaded,
 
+    /// The last read failed. Shown inline (a retry line instead of the list)
+    /// and redone on reconnect — a feed nobody can read is not a snackbar, and
+    /// this state has no `errorMessage` at all: the feed has no user actions.
+    @Default(false) bool failed,
+
+    /// That failure was a transport one, so the copy says "no connection".
+    @Default(false) bool failedOffline,
+
     /// There is more history behind the cursor below.
     @Default(false) bool hasMore,
 
@@ -39,9 +47,6 @@ abstract class GroupFeedState with _$GroupFeedState {
 
     /// The subscription is connected, so new events arrive on their own.
     @Default(false) bool live,
-
-    /// The last failure, surfaced once and then cleared.
-    String? errorMessage,
   }) = _GroupFeedState;
 
   /// Nothing has ever happened in this group (as opposed to "still loading").

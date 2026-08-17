@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
+import '../../core/presentation/load_failed_view.dart';
 import '../../generated/locale_keys.g.dart';
 import '../models/group.dart';
 import '../state_management/group_bloc.dart';
@@ -73,6 +74,16 @@ class _MembersView extends StatelessWidget {
             (true, _, null) => const Center(child: CircularProgressIndicator()),
             (_, true, _) => Center(
               child: Text(LocaleKeys.groups_notFound.tr()),
+            ),
+            // Прочитать группу не удалось: пустой экран не объяснял ничего, а
+            // объяснение уезжало вместе со снек-баром. Теперь оно здесь — с
+            // кнопкой «повторить» (и блок перечитает сам, когда вернётся сеть).
+            (_, _, null) when state.failed => LoadFailedView(
+              offline: state.failedOffline,
+              message: state.failedOffline
+                  ? LocaleKeys.network_noConnection.tr()
+                  : null,
+              onRetry: () => context.read<GroupBloc>().add(const GroupOpened()),
             ),
             (_, _, null) => const SizedBox.shrink(),
             (_, _, final Group group) => _MembersBody(

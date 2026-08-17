@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
+import '../../core/presentation/load_failed_view.dart';
 import '../../generated/locale_keys.g.dart';
 import '../../public_comments/presentation/relative_time.dart';
 import '../models/group_post.dart';
@@ -71,12 +72,23 @@ class _CommentsSheet extends StatelessWidget {
                 ),
               ),
               Flexible(
-                child: switch ((state.loaded, state.isEmpty)) {
-                  (false, _) => const Padding(
+                child: switch ((state.loaded, state.failed, state.isEmpty)) {
+                  // Прочитать не удалось: раньше здесь навсегда оставался
+                  // индикатор, а объяснение уезжало со снек-баром.
+                  (false, true, _) => LoadFailedView(
+                    offline: state.failedOffline,
+                    message: state.failedOffline
+                        ? LocaleKeys.network_noConnection.tr()
+                        : null,
+                    onRetry: () => context.read<PostCommentsBloc>().add(
+                      const PostCommentsLoaded(),
+                    ),
+                  ),
+                  (false, _, _) => const Padding(
                     padding: EdgeInsets.all(32),
                     child: Center(child: CircularProgressIndicator()),
                   ),
-                  (_, true) => Padding(
+                  (_, _, true) => Padding(
                     padding: const EdgeInsets.all(32),
                     child: Center(
                       child: Text(LocaleKeys.groups_posts_noComments.tr()),

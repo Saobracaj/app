@@ -104,15 +104,9 @@ class _FeedView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<GroupFeedBloc, GroupFeedState>(
-      listenWhen: (prev, curr) =>
-          curr.errorMessage != null && prev.errorMessage != curr.errorMessage,
-      listener: (context, state) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(state.errorMessage!)));
-        context.read<GroupFeedBloc>().add(const GroupFeedErrorShown());
-      },
+    // Ошибки чтения ленты не всплывают снек-баром: их место — прямо в списке
+    // (кнопка «повторить») и значок «нет связи» в шапке.
+    return BlocBuilder<GroupFeedBloc, GroupFeedState>(
       builder: (context, state) {
         // Считается в build (itemBuilder меню вызывается вне фазы билда, там
         // watch запрещён); watch — чтобы пункт «Приглашение» появился, как
@@ -183,19 +177,21 @@ class _FeedView extends StatelessWidget {
                 onRefresh: () async => context.read<GroupFeedBloc>().add(
                   const GroupFeedRefreshed(),
                 ),
-                child: switch ((state.loaded, state.isEmpty)) {
-                  // Первая страница ещё не пришла: либо она грузится, либо
-                  // загрузка сорвалась — и тогда индикатор врал бы бесконечно.
-                  (false, _) when state.loading => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                  (false, _) => LoadFailedList(
-                    message: LocaleKeys.groups_feed_offline.tr(),
+                child: switch ((state.loaded, state.failed, state.isEmpty)) {
+                  // Первая страница не пришла и не придёт сама: индикатор врал
+                  // бы бесконечно, а «событий пока нет» — просто врал.
+                  (false, true, _) => LoadFailedList(
+                    message: state.failedOffline
+                        ? LocaleKeys.groups_feed_offline.tr()
+                        : LocaleKeys.network_loadFailed.tr(),
                     onRetry: () => context.read<GroupFeedBloc>().add(
                       const GroupFeedRefreshed(),
                     ),
                   ),
-                  (_, true) => _EmptyFeed(),
+                  (false, _, _) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                  (_, _, true) => _EmptyFeed(),
                   _ => _FeedList(state: state),
                 },
               ),

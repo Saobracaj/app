@@ -88,7 +88,12 @@ class CommentBloc extends Bloc<CommentEvent, CommentState> {
       final details = await _repository.publish(questionId);
       emit(state.copyWith(isPublishing: false, details: details));
     } catch (e) {
-      emit(state.copyWith(isPublishing: false, publishError: describeError(e)));
+      emit(
+        state.copyWith(
+          isPublishing: false,
+          publishError: describeActionError(e),
+        ),
+      );
     }
   }
 

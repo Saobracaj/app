@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../core/network/error_messages.dart';
+import '../../core/network/network_status.dart';
 import '../data/groups_repository.dart';
 import '../models/group_event.dart';
 import '../models/group_feed_update.dart';
@@ -20,9 +22,15 @@ import 'group_feed_state.dart';
 /// than the oldest one on screen is dropped while there is still unread history
 /// below — it belongs to a page that has not been loaded yet, and would show up
 /// twice once it is.
+///
+/// A read that fails is never announced with a snackbar: the state carries
+/// [GroupFeedState.failed], the screen shows a retry line, and the feed re-reads
+/// itself the moment [NetworkStatus] says the connection is back. Opening a
+/// group offline used to throw two or three "Network error" toasts at once for
+/// exactly this reason.
 @injectable
 class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
-  GroupFeedBloc(this._groups, @factoryParam String groupId)
+  GroupFeedBloc(this._groups, this._network, @factoryParam String groupId)
     : super(
         GroupFeedState(
           groupId: groupId,
@@ -36,14 +44,13 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
     on<GroupFeedMoreRequested>(_onMore);
     on<GroupFeedEventArrived>(_onEventArrived);
     on<GroupFeedLiveChanged>(_onLiveChanged);
-    on<GroupFeedErrorShown>(
-      (event, emit) => emit(state.copyWith(errorMessage: null)),
-    );
   }
 
   final GroupsRepository _groups;
+  final NetworkStatus _network;
 
   StreamSubscription<GroupFeedUpdate>? _live;
+  StreamSubscription<void>? _reconnectSubscription;
 
   /// How many events one page holds. The server caps a page at 50.
   static const pageSize = 20;
@@ -61,6 +68,7 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
   @override
   Future<void> close() {
     _live?.cancel();
+    _reconnectSubscription?.cancel();
     return super.close();
   }
 
@@ -69,6 +77,10 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
     Emitter<GroupFeedState> emit,
   ) async {
     _listen();
+    // Back online: redo the read that failed while offline, quietly.
+    _reconnectSubscription ??= _network.onReconnected.listen((_) {
+      if (state.failed) add(const GroupFeedRefreshed());
+    });
     await _loadHead(emit, first: true);
   }
 
@@ -108,7 +120,7 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
     bool first = false,
   }) async {
     if (state.loading) return;
-    emit(state.copyWith(loading: true, errorMessage: null));
+    emit(state.copyWith(loading: true));
     try {
       final page = await _groups.feed(state.groupId, limit: pageSize);
       if (emit.isDone) return;
@@ -119,6 +131,8 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
             ? state.copyWith(
                 loading: false,
                 loaded: true,
+                failed: false,
+                failedOffline: false,
                 events: page.events.where((e) => e.isVisibleInFeed).toList(),
                 hasMore: page.hasMore,
                 nextBefore: page.nextBefore,
@@ -127,6 +141,8 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
             : state.copyWith(
                 loading: false,
                 loaded: true,
+                failed: false,
+                failedOffline: false,
                 events: _mergeHead(page.events),
               ),
       );
@@ -138,7 +154,16 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
       }
     } catch (e) {
       if (emit.isDone) return;
-      emit(state.copyWith(loading: false, errorMessage: e.toString()));
+      // Не снек-бар: что случилось, написано прямо в списке (или, если он уже
+      // прочитан, видно по значку «нет связи» в шапке), а перечитается лента
+      // сама — по кнопке или по возвращению сети.
+      emit(
+        state.copyWith(
+          loading: false,
+          failed: true,
+          failedOffline: isNetworkError(e),
+        ),
+      );
     }
   }
 
@@ -156,7 +181,7 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
     Emitter<GroupFeedState> emit,
   ) async {
     if (!state.hasMore || state.loadingMore || state.loading) return;
-    emit(state.copyWith(loadingMore: true, errorMessage: null));
+    emit(state.copyWith(loadingMore: true));
     final events = [...state.events];
     final known = events.map((e) => e.id).toSet();
     var before = state.nextBefore;
@@ -199,11 +224,12 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
           nextBeforeId: beforeId,
         ),
       );
-    } catch (e) {
+    } catch (_) {
       if (emit.isDone) return;
       // Прочитанное до сбоя остаётся на экране вместе со сдвинутым курсором:
       // иначе следующая попытка пошла бы с самого начала и снова уткнулась бы в
-      // ту же страницу.
+      // ту же страницу. Сообщать не о чем: внизу списка вместо индикатора снова
+      // кнопка «загрузить ещё».
       emit(
         state.copyWith(
           loadingMore: false,
@@ -211,7 +237,6 @@ class GroupFeedBloc extends Bloc<GroupFeedBlocEvent, GroupFeedState> {
           hasMore: hasMore,
           nextBefore: before,
           nextBeforeId: beforeId,
-          errorMessage: e.toString(),
         ),
       );
     }

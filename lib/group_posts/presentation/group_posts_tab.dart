@@ -49,19 +49,22 @@ class GroupPostsTab extends StatelessWidget {
                 onRefresh: () async => context.read<GroupPostsBloc>().add(
                   const GroupPostsRefreshed(),
                 ),
-                child: switch ((state.loaded, state.isEmpty)) {
-                  // Стена ещё не пришла: либо грузится, либо загрузка сорвалась
-                  // — и тогда индикатор крутился бы вечно, см. [LoadFailedList].
-                  (false, _) when state.loading => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                  (false, _) => LoadFailedList(
-                    message: LocaleKeys.groups_feed_offline.tr(),
+                child: switch ((state.loaded, state.failed, state.isEmpty)) {
+                  // Стена ещё не пришла и прочитать её не удалось: пустая стена
+                  // здесь солгала бы («постов ещё нет» вместо «нет связи»), а
+                  // индикатор крутился бы вечно — см. [LoadFailedList].
+                  (false, true, _) => LoadFailedList(
+                    message: state.failedOffline
+                        ? LocaleKeys.groups_feed_offline.tr()
+                        : LocaleKeys.network_loadFailed.tr(),
                     onRetry: () => context.read<GroupPostsBloc>().add(
                       const GroupPostsRefreshed(),
                     ),
                   ),
-                  (_, true) => const _EmptyWall(),
+                  (false, _, _) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                  (_, _, true) => const _EmptyWall(),
                   _ => _PostList(state: state),
                 },
               ),
