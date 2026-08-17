@@ -103,6 +103,11 @@ void main() {
     expect(tiles[0].onChanged, isNull);
     expect(tiles[1].value, isTrue);
     expect(tiles[1].onChanged, isNull);
+    // Все остальные — сняты по умолчанию и переключаемы.
+    for (final tile in tiles.skip(2)) {
+      expect(tile.value, isFalse);
+      expect(tile.onChanged, isNotNull);
+    }
     // Комментарии — со счётчиком.
     expect(find.text('Публичные комментарии (3)'), findsOneWidget);
     // Согласия про подписку нет — подписки нет.
