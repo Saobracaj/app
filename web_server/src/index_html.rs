@@ -7,27 +7,42 @@
 //! is served byte for byte.
 
 use crate::meta::PageMeta;
+use crate::seo::Prerender;
 
 /// Labels the injected block in the served HTML, so "where did this tag come
 /// from" is answerable from `view-source:` alone.
 const MARKER: &str = "<!-- saobracaj_web: link preview -->";
 
-/// Returns `index.html` with the page's own `<head>` metadata.
-pub fn render(template: &str, meta: &PageMeta) -> String {
+/// Returns `index.html` with the page's own `<head>` metadata and, when the
+/// page has public content, the prerendered copy of it before `</body>`.
+pub fn render(template: &str, meta: &PageMeta, prerender: Option<&Prerender>) -> String {
     let mut html = replace_title(template, &meta.title);
     html = strip_description(&html);
     html = set_html_lang(&html, meta.lang.code());
 
-    let tags = tags_for(meta);
+    let mut tags = tags_for(meta);
+    for payload in prerender.iter().flat_map(|p| p.json_ld.iter()) {
+        tags.push_str(&format!(
+            "  <script type=\"application/ld+json\">{}</script>\n",
+            // The payload is JSON, but it is being put inside a script element:
+            // a `</script>` in a question's text would end that element early.
+            payload.replace("</", "<\\/"),
+        ));
+    }
     match html.find("</head>") {
-        Some(at) => {
-            html.insert_str(at, &tags);
-            html
-        }
+        Some(at) => html.insert_str(at, &tags),
         // A template without a </head> is not something we can improve on;
         // serve it untouched rather than guess.
-        None => html,
+        None => return html,
     }
+
+    if let Some(prerender) = prerender {
+        match html.rfind("</body>") {
+            Some(at) => html.insert_str(at, &prerender.body),
+            None => html.push_str(&prerender.body),
+        }
+    }
+    html
 }
 
 fn tags_for(meta: &PageMeta) -> String {
@@ -64,6 +79,12 @@ fn tags_for(meta: &PageMeta) -> String {
         title = escape(&meta.title),
         description = escape(&meta.description),
     ));
+    // A personal screen (the account, a group, an invitation) or a paywalled
+    // one says so in the page as well as in robots.txt: a link someone shared
+    // is fetched whatever the file says.
+    if !meta.indexable {
+        tags.push_str("  <meta name=\"robots\" content=\"noindex, follow\">\n");
+    }
     tags
 }
 
@@ -148,12 +169,13 @@ mod tests {
             image: image.map(str::to_string),
             url: "https://saobracaj.gleb.at/question/11".to_string(),
             lang: Lang::Sr,
+            indexable: true,
         }
     }
 
     #[test]
     fn writes_the_pages_own_title_and_description() {
-        let html = render(TEMPLATE, &meta("Питање бр. 11", "Пешак је приказан:", None));
+        let html = render(TEMPLATE, &meta("Питање бр. 11", "Пешак је приказан:", None), None);
 
         assert!(html.contains("<title>Питање бр. 11</title>"));
         assert!(html.contains(r#"<meta property="og:title" content="Питање бр. 11">"#));
@@ -173,18 +195,19 @@ mod tests {
         let with_image = render(
             TEMPLATE,
             &meta("Питање", "Опис", Some("https://saobracaj.gleb.at/a.jpeg")),
+            None,
         );
         assert!(with_image.contains(r#"<meta property="og:image" content="https://saobracaj.gleb.at/a.jpeg">"#));
         assert!(with_image.contains(r#"content="summary_large_image""#));
 
-        let without = render(TEMPLATE, &meta("Питање", "Опис", None));
+        let without = render(TEMPLATE, &meta("Питање", "Опис", None), None);
         assert!(!without.contains("og:image"));
         assert!(without.contains(r#"content="summary""#));
     }
 
     #[test]
     fn quotes_in_a_question_cannot_break_out_of_the_attribute() {
-        let html = render(TEMPLATE, &meta(r#"A "quoted" <title>"#, "1 & 2", None));
+        let html = render(TEMPLATE, &meta(r#"A "quoted" <title>"#, "1 & 2", None), None);
 
         assert!(html.contains(r#"content="A &quot;quoted&quot; &lt;title&gt;""#));
         assert!(html.contains(r#"content="1 &amp; 2""#));
@@ -192,7 +215,37 @@ mod tests {
 
     #[test]
     fn a_template_without_a_head_is_served_as_is() {
-        let html = render("<h1>hi</h1>", &meta("t", "d", None));
+        let html = render("<h1>hi</h1>", &meta("t", "d", None), None);
         assert_eq!(html, "<h1>hi</h1>");
+    }
+
+    #[test]
+    fn the_prerendered_copy_goes_into_the_page_and_its_data_into_the_head() {
+        let block = Prerender {
+            body: "<div id=\"seo-prerender\">Пешак</div>\n".to_string(),
+            json_ld: vec![r#"{"@type":"Quiz","name":"</script> у тексту"}"#.to_string()],
+        };
+
+        let html = render(TEMPLATE, &meta("Питање", "Опис", None), Some(&block));
+
+        // The content sits inside <body>, above the bootstrap's closing tag.
+        let body_at = html.find("<div id=\"seo-prerender\">").unwrap();
+        assert!(body_at > html.find("<body>").unwrap());
+        assert!(body_at < html.find("</body>").unwrap());
+        // The structured data is in <head> and cannot close its own element.
+        assert!(html.contains(r#"<script type="application/ld+json">"#));
+        assert!(html.contains(r#"<\/script> у тексту"#));
+        assert_eq!(html.matches("</script>").count(), 2);
+    }
+
+    #[test]
+    fn a_page_that_may_not_be_indexed_says_so() {
+        let mut hidden = meta("Приглашение", "Опис", None);
+        hidden.indexable = false;
+
+        let html = render(TEMPLATE, &hidden, None);
+
+        assert!(html.contains(r#"<meta name="robots" content="noindex, follow">"#));
+        assert!(!render(TEMPLATE, &meta("t", "d", None), None).contains("noindex"));
     }
 }
