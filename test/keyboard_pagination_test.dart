@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -302,9 +303,226 @@ void main() {
       await _press(tester, LogicalKeyboardKey.space);
       expect(log, ['next']);
     });
+
+    // Задача 1217517553850748: «в какой-то момент клавиши перестают
+    // работать». Причина — `unfocus()` у потомка (TextField при клике мимо,
+    // SelectionArea на вебе при любом клике вне неё, comment_composer):
+    // фокус уходит на ближайший объемлющий scope, а если это scope маршрута
+    // — то мимо обработчика, и назад ничего не возвращалось.
+    testWidgets('после снятия фокуса с текстового поля кликом мимо клавиши '
+        'работают', (tester) async {
+      final log = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: KeyboardPagination(
+              onNext: () => log.add('next'),
+              child: Column(
+                children: [
+                  const TextField(),
+                  Expanded(
+                    child: Container(
+                      key: const Key('outside'),
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byType(TextField), kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      expect(KeyboardPagination.isEditingText(), isTrue);
+
+      // Клик мышью мимо поля: EditableText сам снимает с себя фокус
+      // (onTapOutside), как это делает и SelectionArea на вебе.
+      await tester.tap(
+        find.byKey(const Key('outside')),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump();
+      expect(KeyboardPagination.isEditingText(), isFalse);
+
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+      expect(log, ['next']);
+    });
+
+    testWidgets(
+      'unfocus() самого обработчика (FocusScope.of(context).unfocus()) '
+      'не глушит клавиши навсегда',
+      (tester) async {
+        final log = <String>[];
+        late BuildContext inner;
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: KeyboardPagination(
+                onNext: () => log.add('next'),
+                child: Builder(
+                  builder: (context) {
+                    inner = context;
+                    return const SizedBox.expand();
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        // Типовой «спрятать клавиатуру» из глубины экрана: снимает фокус
+        // с ближайшего scope — то есть с нашего узла — на scope маршрута.
+        FocusScope.of(inner).unfocus();
+        await tester.pump();
+        await _press(tester, LogicalKeyboardKey.arrowRight);
+        expect(log, ['next']);
+      },
+    );
+
+    testWidgets('диалог поверх: клавиши в нём не листают, после закрытия '
+        'работают снова', (tester) async {
+      final log = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: KeyboardPagination(
+              onNext: () => log.add('next'),
+              child: Builder(
+                builder: (context) => Center(
+                  child: TextButton(
+                    onPressed: () => showDialog<void>(
+                      context: context,
+                      builder: (_) => const AlertDialog(
+                        title: Text('title'),
+                        content: TextField(),
+                      ),
+                    ),
+                    child: const Text('open'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+      expect(log, ['next']);
+
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      // Фокус в диалоге (в поле и вне его) — вопросы под ним не листаются.
+      await tester.tap(find.byType(TextField), kind: PointerDeviceKind.mouse);
+      await tester.pump();
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+      // Клик мышью по заголовку диалога: поле отпускает фокус, он паркуется
+      // на scope диалога — не нашем и не нашего маршрута, не трогаем.
+      await tester.tap(find.text('title'), kind: PointerDeviceKind.mouse);
+      await tester.pumpAndSettle();
+      expect(KeyboardPagination.isEditingText(), isFalse);
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+      expect(log, ['next']);
+      expect(find.byType(AlertDialog), findsOneWidget);
+
+      // Диалог закрыт (тап по барьеру) — фокус вернулся к нам.
+      await tester.tapAt(const Offset(1, 1));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsNothing);
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+      expect(log, ['next', 'next']);
+    });
+
+    testWidgets('фокус, припаркованный на корне (окно потеряло фокус), не '
+        'перетягиваем; после возврата окна работаем', (tester) async {
+      final log = <String>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: KeyboardPagination(
+            onNext: () => log.add('next'),
+            child: const SizedBox.expand(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Так View паркует фокус, когда flutter-view теряет фокус в браузере
+      // (клик по адресной строке). Забирать его назад нельзя.
+      final root = FocusManager.instance.rootScope;
+      root.requestScopeFocus();
+      await tester.pump();
+      expect(FocusManager.instance.primaryFocus, same(root));
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+      expect(log, isEmpty);
+
+      // Окно снова в фокусе: View просит фокус для своего scope, и история
+      // фокуса ведёт обратно к нам.
+      final viewScope = root.descendants.whereType<FocusScopeNode>().first;
+      viewScope.requestFocus();
+      await tester.pump();
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+      expect(log, ['next']);
+    });
+
+    testWidgets('Tab заходит внутрь экрана, клавиши на сфокусированной кнопке '
+        'работают', (tester) async {
+      final log = <String>[];
+      var pressed = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: KeyboardPagination(
+              onNext: () => log.add('next'),
+              child: Center(
+                child: TextButton(
+                  onPressed: () => pressed++,
+                  child: const Text('btn'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await _press(tester, LogicalKeyboardKey.tab);
+      final button = tester.element(find.byType(TextButton));
+      expect(Focus.of(button).hasFocus, isTrue);
+      // Стрелка с кнопки — по-прежнему наша, а не обход фокуса.
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+      expect(log, ['next']);
+      // Enter активирует кнопку — не наше дело.
+      await _press(tester, LogicalKeyboardKey.enter);
+      expect(pressed, 1);
+    });
   });
 
   group('Тренажёр (Quest)', () {
+    testWidgets('клик мышью по ответу и снятие фокуса (SelectionArea на вебе) '
+        'не ломают → ', (tester) async {
+      await tester.pumpWidget(_quest());
+      await tester.pumpAndSettle();
+
+      // Клик мышью внутри SelectionArea (текст вопроса и варианты) отдаёт
+      // фокус её узлу; на вебе следующий клик мимо неё (кнопка «Следеће»,
+      // вкладки, пагинация) снимает этот фокус — воспроизводим это явно,
+      // на VM SelectionArea так не делает.
+      await tester.tap(
+        find.text('Тачан одговор 1'),
+        kind: PointerDeviceKind.mouse,
+      );
+      await tester.pump();
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+
+      await _press(tester, LogicalKeyboardKey.arrowRight);
+      await tester.pumpAndSettle();
+      expect(find.text('Питање 2 / 3'), findsOneWidget);
+    });
+
     testWidgets('→ и ← листают вопросы, на краях — ничего', (tester) async {
       await tester.pumpWidget(_quest());
       await tester.pumpAndSettle();
