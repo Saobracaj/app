@@ -107,6 +107,13 @@ Map<String, dynamic> _event(
   'actor': {'id': 'u1', 'displayName': actor},
 };
 
+/// Результат блока, который лента не показывает: правильных ответов меньше
+/// пяти — брошенный на первых вопросах прогон.
+Map<String, dynamic> _abandoned(String id, {required DateTime occurredAt}) => {
+  ..._event(id, kind: 'SUBCATEGORY_COMPLETED', occurredAt: occurredAt),
+  'subcategory': {'subcategory': '25', 'rightAnswers': 1, 'allAnswers': 20},
+};
+
 Map<String, dynamic> _page(
   List<Map<String, dynamic>> events, {
   bool hasMore = false,
@@ -124,7 +131,10 @@ Map<String, dynamic> _page(
 ) {
   final storage = TokenStorage();
   final adapter = _FakeAdapter(pages);
-  final client = GraphqlClient(storage, dio: Dio()..httpClientAdapter = adapter);
+  final client = GraphqlClient(
+    storage,
+    dio: Dio()..httpClientAdapter = adapter,
+  );
   final connector = _Connector();
   final repository = GroupsRepository(
     client,
@@ -202,51 +212,60 @@ void main() {
     await bloc.close();
   });
 
-  test('the next page is appended, and an event already on screen is not repeated', () async {
-    final (:bloc, :http, :sockets) = _bloc([
-      _page(
-        [_event('e3', occurredAt: minutesAgo(1))],
-        hasMore: true,
-        nextBefore: minutesAgo(1),
-        nextBeforeId: 'e3',
-      ),
-      _page([
-        // The server hands back the cursor row again — it must not double up.
-        _event('e3', occurredAt: minutesAgo(1)),
-        _event('e2', occurredAt: minutesAgo(30)),
-      ]),
-    ]);
-    bloc.add(const GroupFeedOpened());
-    await _settle();
-    bloc.add(const GroupFeedMoreRequested());
-    await _settle();
+  test(
+    'the next page is appended, and an event already on screen is not repeated',
+    () async {
+      final (:bloc, :http, :sockets) = _bloc([
+        _page(
+          [_event('e3', occurredAt: minutesAgo(1))],
+          hasMore: true,
+          nextBefore: minutesAgo(1),
+          nextBeforeId: 'e3',
+        ),
+        _page([
+          // The server hands back the cursor row again — it must not double up.
+          _event('e3', occurredAt: minutesAgo(1)),
+          _event('e2', occurredAt: minutesAgo(30)),
+        ]),
+      ]);
+      bloc.add(const GroupFeedOpened());
+      await _settle();
+      bloc.add(const GroupFeedMoreRequested());
+      await _settle();
 
-    expect(bloc.state.events.map((e) => e.id), ['e3', 'e2']);
-    expect(bloc.state.hasMore, isFalse);
-    await bloc.close();
-  });
+      expect(bloc.state.events.map((e) => e.id), ['e3', 'e2']);
+      expect(bloc.state.hasMore, isFalse);
+      await bloc.close();
+    },
+  );
 
-  test('a live event lands at the top and the connection is reported', () async {
-    final (:bloc, :http, :sockets) = _bloc([
-      _page([_event('e1', occurredAt: minutesAgo(30))]),
-    ]);
-    bloc.add(const GroupFeedOpened());
-    await _goLive(sockets);
+  test(
+    'a live event lands at the top and the connection is reported',
+    () async {
+      final (:bloc, :http, :sockets) = _bloc([
+        _page([_event('e1', occurredAt: minutesAgo(30))]),
+      ]);
+      bloc.add(const GroupFeedOpened());
+      await _goLive(sockets);
 
-    expect(bloc.state.live, isTrue);
-    _push(sockets.last, _event('e2', occurredAt: minutesAgo(1), actor: 'Јован'));
-    await _settle();
+      expect(bloc.state.live, isTrue);
+      _push(
+        sockets.last,
+        _event('e2', occurredAt: minutesAgo(1), actor: 'Јован'),
+      );
+      await _settle();
 
-    expect(bloc.state.events.map((e) => e.id), ['e2', 'e1']);
-    expect(bloc.state.events.first.actor.displayName, 'Јован');
+      expect(bloc.state.events.map((e) => e.id), ['e2', 'e1']);
+      expect(bloc.state.events.first.actor.displayName, 'Јован');
 
-    // The same event again (a resend, or it was already on the page) changes
-    // nothing.
-    _push(sockets.last, _event('e2', occurredAt: minutesAgo(1)));
-    await _settle();
-    expect(bloc.state.events, hasLength(2));
-    await bloc.close();
-  });
+      // The same event again (a resend, or it was already on the page) changes
+      // nothing.
+      _push(sockets.last, _event('e2', occurredAt: minutesAgo(1)));
+      await _settle();
+      expect(bloc.state.events, hasLength(2));
+      await bloc.close();
+    },
+  );
 
   test('a live event is placed by its time, not by its arrival', () async {
     final (:bloc, :http, :sockets) = _bloc([
@@ -289,31 +308,34 @@ void main() {
     await bloc.close();
   });
 
-  test('after a reconnect the head is re-read, because nothing is replayed', () async {
-    final (:bloc, :http, :sockets) = _bloc([
-      _page([_event('e1', occurredAt: minutesAgo(30))]),
-      _page([
-        // Happened while the socket was down: only a re-read can find it.
-        _event('e2', occurredAt: minutesAgo(5)),
-        _event('e1', occurredAt: minutesAgo(30)),
-      ]),
-    ]);
-    bloc.add(const GroupFeedOpened());
-    await _goLive(sockets);
-    expect(http.requests, 1);
+  test(
+    'after a reconnect the head is re-read, because nothing is replayed',
+    () async {
+      final (:bloc, :http, :sockets) = _bloc([
+        _page([_event('e1', occurredAt: minutesAgo(30))]),
+        _page([
+          // Happened while the socket was down: only a re-read can find it.
+          _event('e2', occurredAt: minutesAgo(5)),
+          _event('e1', occurredAt: minutesAgo(30)),
+        ]),
+      ]);
+      bloc.add(const GroupFeedOpened());
+      await _goLive(sockets);
+      expect(http.requests, 1);
 
-    await sockets.last.drop();
-    await _settle();
-    expect(sockets.sockets, hasLength(2), reason: 'should have reconnected');
-    expect(bloc.state.live, isFalse);
+      await sockets.last.drop();
+      await _settle();
+      expect(sockets.sockets, hasLength(2), reason: 'should have reconnected');
+      expect(bloc.state.live, isFalse);
 
-    await _goLive(sockets);
+      await _goLive(sockets);
 
-    expect(bloc.state.live, isTrue);
-    expect(http.requests, 2, reason: 'the head is re-read after a reconnect');
-    expect(bloc.state.events.map((e) => e.id), ['e2', 'e1']);
-    await bloc.close();
-  });
+      expect(bloc.state.live, isTrue);
+      expect(http.requests, 2, reason: 'the head is re-read after a reconnect');
+      expect(bloc.state.events.map((e) => e.id), ['e2', 'e1']);
+      await bloc.close();
+    },
+  );
 
   test('a failed refresh reports it and keeps what is on screen', () async {
     final (:bloc, :http, :sockets) = _bloc([
@@ -328,13 +350,109 @@ void main() {
     await _settle();
 
     expect(bloc.state.errorMessage, isNotNull);
-    expect(bloc.state.events, hasLength(1), reason: 'the list is not thrown away');
+    expect(
+      bloc.state.events,
+      hasLength(1),
+      reason: 'the list is not thrown away',
+    );
 
     bloc.add(const GroupFeedErrorShown());
     await _settle();
     expect(bloc.state.errorMessage, isNull);
     await bloc.close();
   });
+
+  test(
+    'a page that is filtered away to nothing is paged through, not stopped on',
+    () async {
+      final (:bloc, :http, :sockets) = _bloc([
+        _page(
+          [_event('e9', occurredAt: minutesAgo(1))],
+          hasMore: true,
+          nextBefore: minutesAgo(1),
+          nextBeforeId: 'e9',
+        ),
+        // Целая страница брошенных прогонов: на экран из неё не попадает ничего,
+        // и остановиться на ней — значит оставить внизу вечный индикатор.
+        _page(
+          [
+            _abandoned('a2', occurredAt: minutesAgo(20)),
+            _abandoned('a1', occurredAt: minutesAgo(30)),
+          ],
+          hasMore: true,
+          nextBefore: minutesAgo(30),
+          nextBeforeId: 'a1',
+        ),
+        _page([_event('e1', occurredAt: minutesAgo(40))]),
+      ]);
+      bloc.add(const GroupFeedOpened());
+      await _settle();
+      expect(bloc.state.events.map((e) => e.id), ['e9']);
+
+      bloc.add(const GroupFeedMoreRequested());
+      await _settle();
+
+      expect(bloc.state.events.map((e) => e.id), ['e9', 'e1']);
+      expect(bloc.state.hasMore, isFalse);
+      expect(bloc.state.loadingMore, isFalse);
+      await bloc.close();
+    },
+  );
+
+  test(
+    'a first page with nothing to show digs for the events behind it',
+    () async {
+      final (:bloc, :http, :sockets) = _bloc([
+        _page(
+          [_abandoned('a1', occurredAt: minutesAgo(1))],
+          hasMore: true,
+          nextBefore: minutesAgo(1),
+          nextBeforeId: 'a1',
+        ),
+        _page([_event('e1', occurredAt: minutesAgo(40))]),
+      ]);
+      bloc.add(const GroupFeedOpened());
+      await _settle();
+
+      expect(bloc.state.events.map((e) => e.id), ['e1']);
+      expect(
+        bloc.state.isEmpty,
+        isFalse,
+        reason: 'the group has events, they were just not on the first page',
+      );
+      await bloc.close();
+    },
+  );
+
+  test(
+    'a cursor that does not move ends the feed instead of looping on it',
+    () async {
+      // Один и тот же ответ на любой запрос: hasMore: true и тот же курсор.
+      final (:bloc, :http, :sockets) = _bloc([
+        _page(
+          [_event('e1', occurredAt: minutesAgo(1))],
+          hasMore: true,
+          nextBefore: minutesAgo(1),
+          nextBeforeId: 'e1',
+        ),
+      ]);
+      bloc.add(const GroupFeedOpened());
+      await _settle();
+      final afterOpen = http.requests;
+
+      bloc.add(const GroupFeedMoreRequested());
+      await _settle();
+
+      expect(bloc.state.events.map((e) => e.id), ['e1']);
+      expect(bloc.state.hasMore, isFalse, reason: 'nothing new can arrive');
+      expect(
+        http.requests - afterOpen,
+        1,
+        reason: 'the stalled cursor is noticed on the first read',
+      );
+      await bloc.close();
+    },
+  );
 
   test('unknown event kinds are dropped rather than rendered blank', () async {
     final (:bloc, :http, :sockets) = _bloc([
@@ -351,4 +469,3 @@ void main() {
     await bloc.close();
   });
 }
-

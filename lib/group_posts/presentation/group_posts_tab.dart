@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
+import '../../core/presentation/load_failed.dart';
+import '../../core/presentation/pagination.dart';
 import '../../generated/locale_keys.g.dart';
 import '../../public_comments/presentation/relative_time.dart';
 import '../../question_lists/models/question_list.dart';
@@ -48,8 +50,16 @@ class GroupPostsTab extends StatelessWidget {
                   const GroupPostsRefreshed(),
                 ),
                 child: switch ((state.loaded, state.isEmpty)) {
-                  (false, _) => const Center(
+                  // Стена ещё не пришла: либо грузится, либо загрузка сорвалась
+                  // — и тогда индикатор крутился бы вечно, см. [LoadFailedList].
+                  (false, _) when state.loading => const Center(
                     child: CircularProgressIndicator(),
+                  ),
+                  (false, _) => LoadFailedList(
+                    message: LocaleKeys.groups_feed_offline.tr(),
+                    onRetry: () => context.read<GroupPostsBloc>().add(
+                      const GroupPostsRefreshed(),
+                    ),
                   ),
                   (_, true) => const _EmptyWall(),
                   _ => _PostList(state: state),
@@ -91,27 +101,19 @@ class _PostList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return NotificationListener<ScrollNotification>(
-      // Ask for the next page a screenful before the end, so scrolling does not
-      // stop to wait for it.
-      onNotification: (notification) {
-        final metrics = notification.metrics;
-        if (state.hasMore &&
-            !state.loadingMore &&
-            metrics.axis == Axis.vertical &&
-            metrics.pixels > metrics.maxScrollExtent - 400) {
-          context.read<GroupPostsBloc>().add(const GroupPostsMoreRequested());
-        }
-        return false;
-      },
+    void loadMore() =>
+        context.read<GroupPostsBloc>().add(const GroupPostsMoreRequested());
+    return PaginationTrigger(
+      enabled: state.hasMore && !state.loadingMore && !state.loading,
+      onLoadMore: loadMore,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: state.posts.length + (state.hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= state.posts.length) {
-            return const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
+            return LoadMoreFooter(
+              loading: state.loadingMore,
+              onLoadMore: loadMore,
             );
           }
           return GroupPostCard(post: state.posts[index]);

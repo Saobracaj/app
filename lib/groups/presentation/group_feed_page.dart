@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
+import '../../core/presentation/load_failed.dart';
+import '../../core/presentation/pagination.dart';
 import '../../generated/locale_keys.g.dart';
 import '../../models/models.dart';
 import '../../public_comments/presentation/relative_time.dart';
@@ -182,8 +184,16 @@ class _FeedView extends StatelessWidget {
                   const GroupFeedRefreshed(),
                 ),
                 child: switch ((state.loaded, state.isEmpty)) {
-                  (false, _) => const Center(
+                  // Первая страница ещё не пришла: либо она грузится, либо
+                  // загрузка сорвалась — и тогда индикатор врал бы бесконечно.
+                  (false, _) when state.loading => const Center(
                     child: CircularProgressIndicator(),
+                  ),
+                  (false, _) => LoadFailedList(
+                    message: LocaleKeys.groups_feed_offline.tr(),
+                    onRetry: () => context.read<GroupFeedBloc>().add(
+                      const GroupFeedRefreshed(),
+                    ),
                   ),
                   (_, true) => _EmptyFeed(),
                   _ => _FeedList(state: state),
@@ -223,28 +233,22 @@ class _FeedList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final events = state.events.where(groupEventIsWorthShowing).toList();
-    return NotificationListener<ScrollNotification>(
-      // Ask for the next page a screenful before the end, so scrolling does not
-      // stop to wait for it.
-      onNotification: (notification) {
-        final metrics = notification.metrics;
-        if (state.hasMore &&
-            !state.loadingMore &&
-            metrics.axis == Axis.vertical &&
-            metrics.pixels > metrics.maxScrollExtent - 400) {
-          context.read<GroupFeedBloc>().add(const GroupFeedMoreRequested());
-        }
-        return false;
-      },
+    // Что показывать, решено ещё в блоке: список на экране и список, по
+    // которому считается пагинация, должны быть одним и тем же списком.
+    final events = state.events;
+    void loadMore() =>
+        context.read<GroupFeedBloc>().add(const GroupFeedMoreRequested());
+    return PaginationTrigger(
+      enabled: state.hasMore && !state.loadingMore && !state.loading,
+      onLoadMore: loadMore,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: events.length + (state.hasMore ? 1 : 0),
         itemBuilder: (context, index) {
           if (index >= events.length) {
-            return const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
+            return LoadMoreFooter(
+              loading: state.loadingMore,
+              onLoadMore: loadMore,
             );
           }
           return GroupFeedTile(event: events[index]);
@@ -252,23 +256,6 @@ class _FeedList extends StatelessWidget {
       ),
     );
   }
-}
-
-/// В симуляции экзамена всегда 41 вопрос — размера выборки в событии нет,
-/// поэтому число правильных ответов восстанавливается из числа ошибок.
-const _practiceQuestionCount = 41;
-
-/// Результаты, где правильных ответов меньше пяти, в ленту не попадают: это
-/// почти всегда брошенный на первых вопросах прогон, а не результат, которым
-/// имеет смысл делиться с группой.
-bool groupEventIsWorthShowing(GroupEvent event) {
-  return switch (event.kind) {
-    GroupEventKind.subcategoryCompleted when event.subcategory != null =>
-      event.subcategory!.rightAnswers >= 5,
-    GroupEventKind.practiceFinished when event.practice != null =>
-      _practiceQuestionCount - event.practice!.mistakes >= 5,
-    _ => true,
-  };
 }
 
 /// One event. What it shows depends on the kind: a block result carries its
