@@ -50,6 +50,7 @@ extension QuestionListX on QuestionList {
     kRecentMistakesListId => LocaleKeys.questionLists_recentMistakes.tr(),
     kLastExamMistakesListId =>
       LocaleKeys.questionLists_lastExamMistakes.tr(),
+    kChronicMistakesListId => LocaleKeys.questionLists_chronicMistakes.tr(),
     kPersonalWeakSpotsListId =>
       LocaleKeys.questionLists_personalWeakSpots.tr(),
     _ => name,
@@ -63,6 +64,7 @@ extension QuestionListX on QuestionList {
     final scheme = Theme.of(context).colorScheme;
     return switch (id) {
       kLastExamMistakesListId => scheme.secondary,
+      kChronicMistakesListId => scheme.error,
       kPersonalWeakSpotsListId => scheme.tertiary,
       _ => scheme.primary,
     };
@@ -73,6 +75,7 @@ extension QuestionListX on QuestionList {
   IconData? get icon => switch (id) {
     kRecentMistakesListId => Icons.error_outline,
     kLastExamMistakesListId => Icons.assignment_late_outlined,
+    kChronicMistakesListId => Icons.repeat,
     kPersonalWeakSpotsListId => Icons.trending_down,
     _ => isAuto ? Icons.list_alt : null,
   };

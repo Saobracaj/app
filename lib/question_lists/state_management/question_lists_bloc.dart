@@ -23,8 +23,8 @@ import 'question_lists_state.dart';
 /// update together the instant something changes.
 ///
 /// Custom lists come from [QuestionListsRepository] (optimistic writes, backend
-/// storage); the automatic "recent mistakes" and "last exam mistakes" lists are
-/// recomputed from the local database.
+/// storage); the automatic "recent mistakes", "last exam mistakes" and "chronic
+/// mistakes" lists are recomputed from the local database.
 ///
 /// The custom lists are cached, so an offline start renders whatever was there;
 /// once the network is back the Bloc pulls them again by itself.
@@ -61,6 +61,9 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
     );
     on<LastExamMistakesUpdated>(
       (event, emit) => emit(state.copyWith(lastExamMistakes: event.questionIds)),
+    );
+    on<ChronicMistakesUpdated>(
+      (event, emit) => emit(state.copyWith(chronicMistakes: event.questionIds)),
     );
     on<PersonalWeakSpotsUpdated>(
       (event, emit) =>
@@ -284,11 +287,16 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
   }
 
   /// Re-reads the automatic lists that need nothing but the local database:
-  /// "recent mistakes" (the answer history) and "last exam mistakes" (the newest
-  /// `practice_records` row). Both are cheap, so they are loaded on start-up and
-  /// on every refresh, unlike "personal weak spots".
+  /// "recent mistakes" and "chronic mistakes" (the answer history) and "last
+  /// exam mistakes" (the newest `practice_records` row). All three are cheap, so
+  /// they are loaded on start-up and on every refresh, unlike "personal weak
+  /// spots".
   Future<void> _loadLocalAutoLists() async {
-    await Future.wait([_loadRecentMistakes(), _loadLastExamMistakes()]);
+    await Future.wait([
+      _loadRecentMistakes(),
+      _loadLastExamMistakes(),
+      _loadChronicMistakes(),
+    ]);
   }
 
   Future<void> _loadRecentMistakes() async {
@@ -299,6 +307,11 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
   Future<void> _loadLastExamMistakes() async {
     final ids = await local_db.repository.getLastExamMistakes();
     add(LastExamMistakesUpdated(ids));
+  }
+
+  Future<void> _loadChronicMistakes() async {
+    final ids = await local_db.repository.getChronicMistakes();
+    add(ChronicMistakesUpdated(ids));
   }
 
   /// The session changed: the cached crowd difficulty belonged to the previous
