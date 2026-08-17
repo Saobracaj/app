@@ -265,7 +265,15 @@ class _MyAppState extends State<MyApp> {
     appLanguageCode = context.locale.languageCode;
     return MultiBlocProvider(
       providers: [
-        BlocProvider(create: (context) => AllQuestionsBloc()..add(Load())),
+        // Not lazy: the question bank is read by the simulation, the quiz and
+        // the statistics, none of which is on the home screen. Loading it on
+        // the first `context.read` meant the first "start simulation" from a
+        // cold start ran into `questionsData == null` and a grey screen —
+        // whether it worked depended on which tab the user had opened before.
+        BlocProvider(
+          lazy: false,
+          create: (context) => AllQuestionsBloc()..add(Load()),
+        ),
         BlocProvider(create: (context) => PurchaseBloc()),
         BlocProvider(create: (context) => ThemeBloc()),
         BlocProvider(

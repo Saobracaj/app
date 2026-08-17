@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saobracaj/core/keyboard_pagination.dart';
 import 'package:saobracaj/core/responsive.dart';
@@ -32,9 +34,14 @@ class Practice extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AllQuestionsBloc, AllQuestionsBlocState>(
       builder: (context, state) {
+        // The bank may still be loading when the run screen is built — a cold
+        // start straight on '/questPractice', or the first start before the
+        // asset parse has finished. Dereferencing `questionsData` here killed
+        // the whole screen into a grey error box; wait for it instead.
+        final data = state.questionsData;
+        if (data == null) return _LoadingRun(errorMessage: state.errorMessage);
         return BlocProvider(
-          create: (context) =>
-              PracticeBloc(state.questionsData!, params)..add(Init()),
+          create: (context) => PracticeBloc(data, params)..add(Init()),
           child: BlocConsumer<PracticeBloc, PracticeState>(
             // The scroll view is recreated together with the question's
             // content (it sits under the per-question key), so the controller
@@ -188,6 +195,43 @@ class Practice extends StatelessWidget {
                 ),
               ),
             ),
+    );
+  }
+}
+
+/// Shown while the question bank is still loading (or failed to load): the
+/// simulation cannot start without it, so there is nothing to draw yet.
+class _LoadingRun extends StatelessWidget {
+  const _LoadingRun({this.errorMessage});
+
+  final String? errorMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = errorMessage;
+    return Scaffold(
+      appBar: AppBar(),
+      body: Center(
+        child: message == null
+            ? const CircularProgressIndicator()
+            : Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(message, textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    // Без банка симуляция не стартует вообще, поэтому у сбоя
+                    // загрузки должен быть выход, кроме перезапуска приложения.
+                    FilledButton(
+                      onPressed: () =>
+                          context.read<AllQuestionsBloc>().add(Load()),
+                      child: Text(LocaleKeys.simulation_retry.tr()),
+                    ),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 }
