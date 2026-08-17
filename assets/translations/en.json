@@ -302,7 +302,8 @@
       "errorTooShort": "Name must be at least {} characters",
       "errorTooLong": "Name must be at most {} characters",
       "errorTooManyWords": "Name must contain at most {} words",
-      "errorControlChars": "Name must not contain control characters"
+      "errorControlChars": "Name must not contain control characters",
+      "errorReserved": "This name is reserved, please choose another"
     },
     "report": "Report",
     "reportTitle": "Report this comment?",

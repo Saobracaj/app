@@ -23,7 +23,7 @@ class PublicCommentsRepository {
 
   /// Scalar fields of a comment (no nested replies).
   static const _fields = r'''
-    id questionId parentId authorId authorDisplayName body createdAt
+    id questionId parentId authorId authorDisplayName body deleted createdAt
     likesCount likedByMe repliesCount subscribedByMe deletableByMe
   ''';
 
