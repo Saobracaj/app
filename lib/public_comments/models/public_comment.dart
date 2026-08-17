@@ -22,6 +22,7 @@ abstract class PublicComment with _$PublicComment {
     @Default('') String authorId,
     @Default('') String authorDisplayName,
     @Default('') String body,
+    @Default(false) bool deleted,
     required DateTime createdAt,
     @Default(0) int likesCount,
     @Default(false) bool likedByMe,
@@ -42,6 +43,7 @@ abstract class PublicComment with _$PublicComment {
       authorId: json['authorId']?.toString() ?? '',
       authorDisplayName: json['authorDisplayName']?.toString() ?? '',
       body: json['body']?.toString() ?? '',
+      deleted: json['deleted'] == true,
       createdAt:
           DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ??
           DateTime.now(),
@@ -62,13 +64,13 @@ abstract class PublicComment with _$PublicComment {
   /// Whether this is a reply (second level) rather than a top-level comment.
   bool get isReply => parentId != null;
 
-  /// The literal the backend stores as the body when the author deleted their
-  /// account and chose to take their comments with them. Rendered as a
-  /// localised placeholder — see [displayBody].
-  static const deletedBodyMarker = 'deleted';
-
-  /// The author erased this comment along with their account.
-  bool get isDeleted => body == deletedBodyMarker;
+  /// The author erased this comment along with their account: the backend
+  /// blanks the body and flags the row (`PublicComment.deleted`), and we render
+  /// a localised placeholder — see [displayBody].
+  ///
+  /// The flag is the only source of truth. Never infer deletion from the body
+  /// text: a user is free to write a comment that literally says «deleted».
+  bool get isDeleted => deleted;
 
   /// The text to show: the body, or the «message deleted» placeholder.
   String get displayBody =>

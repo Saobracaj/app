@@ -1,6 +1,7 @@
 /// Client-side mirror of the backend display-name rules
 /// (`saobracaj_backend/src/profile/model.rs::validate_display_name`): 2–40
-/// characters, at most 5 whitespace-separated words, no control characters.
+/// characters, at most 5 whitespace-separated words, no control characters, and
+/// not the name reserved for deleted accounts.
 ///
 /// Keeping the same limits here lets the settings screen validate and show an
 /// inline error before hitting the network; the backend remains authoritative
@@ -15,8 +16,12 @@ const int displayNameMinLen = 2;
 const int displayNameMaxLen = 40;
 const int displayNameMaxWords = 5;
 
+/// The name an anonymised (deleted) account carries. Taking it would let a live
+/// user pose as a deleted one, so it is refused here and on the backend.
+const String reservedDeletedDisplayName = 'Deleted user';
+
 /// The outcome of validating a display name.
-enum DisplayNameError { tooShort, tooLong, tooManyWords, controlChars }
+enum DisplayNameError { tooShort, tooLong, tooManyWords, controlChars, reserved }
 
 /// Validate a trimmed display name against the backend rules. Returns `null`
 /// when the (trimmed) value is acceptable, otherwise the first violated rule.
@@ -30,8 +35,17 @@ DisplayNameError? validateDisplayName(String raw) {
     return DisplayNameError.tooManyWords;
   }
   if (name.runes.any((r) => _isControl(r))) return DisplayNameError.controlChars;
+  if (_isReserved(name)) return DisplayNameError.reserved;
   return null;
 }
+
+/// Whether [name] is the reserved deleted-account name, ignoring case and the
+/// amount of whitespace between the words.
+bool _isReserved(String name) =>
+    name.toLowerCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).join(
+      ' ',
+    ) ==
+    reservedDeletedDisplayName.toLowerCase();
 
 /// A localized, human message for a validation error, resolved from the current
 /// locale's translations.
@@ -48,6 +62,8 @@ String displayNameErrorMessage(DisplayNameError error) => switch (error) {
     ),
   DisplayNameError.controlChars =>
     LocaleKeys.comments_displayName_errorControlChars.tr(),
+  DisplayNameError.reserved =>
+    LocaleKeys.comments_displayName_errorReserved.tr(),
 };
 
 bool _isControl(int rune) =>

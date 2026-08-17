@@ -59,6 +59,16 @@ void main() {
     test('корректное имя проходит валидацию', () {
       expect(validateDisplayName('  Иван Петров  '), isNull);
     });
+
+    test('имя удалённого аккаунта зарезервировано', () {
+      expect(validateDisplayName('Deleted user'), DisplayNameError.reserved);
+      expect(validateDisplayName('  deleted   USER '), DisplayNameError.reserved);
+    });
+
+    test('«Deleted» само по себе — обычное имя', () {
+      expect(validateDisplayName('Deleted'), isNull);
+      expect(validateDisplayName('Deleted user 2'), isNull);
+    });
   });
 
   group('Относительное время (локализованное)', () {
@@ -144,6 +154,56 @@ void main() {
       expect(comment.replies, hasLength(1));
       expect(comment.replies.first.isReply, isTrue);
       expect(comment.replies.first.parentId, '1');
+    });
+
+    test('признак удаления берётся из флага, а не из текста', () {
+      final wroteDeleted = PublicComment.fromJson({
+        'id': '1',
+        'questionId': 42,
+        'body': 'deleted',
+        'createdAt': '2026-08-03T10:00:00Z',
+      });
+      final erased = PublicComment.fromJson({
+        'id': '2',
+        'questionId': 42,
+        'body': '',
+        'deleted': true,
+        'createdAt': '2026-08-03T10:00:00Z',
+      });
+
+      expect(wroteDeleted.isDeleted, isFalse);
+      expect(erased.isDeleted, isTrue);
+    });
+  });
+
+  group('Текст комментария на экране', () {
+    testWidgets('комментарий со словом «deleted» показывается как есть', (
+      tester,
+    ) async {
+      await _pumpLocalized(tester, const Locale('ru'));
+      final comment = PublicComment.fromJson({
+        'id': '1',
+        'questionId': 42,
+        'body': 'deleted',
+        'createdAt': '2026-08-03T10:00:00Z',
+      });
+
+      expect(comment.displayBody, 'deleted');
+    });
+
+    testWidgets('стёртый вместе с аккаунтом — локализованная заглушка', (
+      tester,
+    ) async {
+      await _pumpLocalized(tester, const Locale('ru'));
+      final comment = PublicComment.fromJson({
+        'id': '2',
+        'questionId': 42,
+        'body': '',
+        'deleted': true,
+        'createdAt': '2026-08-03T10:00:00Z',
+      });
+
+      expect(comment.displayBody, 'Сообщение удалено');
     });
   });
 }
