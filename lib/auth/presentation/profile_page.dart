@@ -51,6 +51,12 @@ class _SettingsEntry {
 /// раздела, на широком экране — то же меню слева и раздел в правой панели.
 /// Поэтому нажатие на профиль в боковой колонке (`/settings/profile`) выглядит
 /// ровно так же, как выбор пункта «Профиль» в самом меню.
+///
+/// На широком экране у самого `/settings` нет собственного вида: справа и так
+/// стоит раздел профиля (карточка аккаунта). Поэтому там адрес сразу
+/// подменяется на `/settings/profile` — иначе первое нажатие на «Профиль»
+/// открывало бы поверх точно такой же экран с анимацией перехода, а «назад»
+/// вело бы на его копию (задача 1217517553850759).
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key, this.section});
 
@@ -72,6 +78,7 @@ class ProfilePage extends StatelessWidget {
         // Широкий экран: слева — колонка разделов настроек, справа — панель
         // выбранного раздела (макет веб-версии).
         if (context.isExpandedScreen) {
+          if (this.section == null) _openProfileSection(context);
           return _WideSettings(auth: auth, entries: entries, section: section);
         }
 
@@ -106,6 +113,23 @@ class ProfilePage extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Широкий экран по адресу `/settings`: после кадра подменяет адрес на
+  /// `/settings/profile` — раздел, который правая панель показывает и так.
+  ///
+  /// Только пока этот экран сверху: страница `/settings` остаётся в стеке под
+  /// разделами и перестраивается вместе с ними (смена состояния входа), а
+  /// уводить пользователя с открытого раздела она не должна. Маршрутная
+  /// таблица сделать этот редирект не может — она не знает ширины экрана, а
+  /// на телефоне `/settings` — полноценный список.
+  void _openProfileSection(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      final router = Routemaster.of(context);
+      if (router.currentRoute.path != RouteData.maybeOf(context)?.path) return;
+      router.replace(SettingsSection.profile.path);
+    });
   }
 
   /// Полноэкранная версия раздела — те же экраны, что открываются по своим
@@ -301,9 +325,14 @@ class _WideSettings extends StatelessWidget {
   Widget build(BuildContext context) {
     final withSidebar = context.isLargeScreen;
     return Scaffold(
+      // Без стрелки «назад»: под разделом в стеке лежит `/settings`, но на
+      // широком экране это тот же самый экран — возвращаться там некуда.
       appBar: withSidebar
           ? null
-          : AppBar(title: Text(LocaleKeys.settings_title.tr())),
+          : AppBar(
+              title: Text(LocaleKeys.settings_title.tr()),
+              automaticallyImplyLeading: false,
+            ),
       backgroundColor: widePageBackground(context),
       body: WideContent(
         maxWidth: 1140,

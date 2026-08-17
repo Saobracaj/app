@@ -37,6 +37,7 @@ import 'package:saobracaj/test/practice/practice_page.dart';
 import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
 import 'package:saobracaj/test/quest/comment/editor/presentation/comment_editor_page.dart';
 import 'package:saobracaj/core/presentation/not_found_page.dart';
+import 'package:saobracaj/core/presentation/panel_page.dart';
 import 'package:saobracaj/test/quest/quest.dart';
 import 'package:saobracaj/test/start_test.dart';
 import 'package:saobracaj/zakon/zakon.dart';
@@ -182,9 +183,12 @@ final routes = RouteMap(
     ),
     '/settings': (_) => const MaterialPage(child: ProfilePage()),
     // Каждый раздел настроек — свой адрес: на широком экране он выбирает
-    // раздел в правой панели (меню слева остаётся), на телефоне открывает его
-    // отдельным экраном. Незнакомый сегмент — обратно к настройкам; отдельного
-    // '/profile' больше нет, профиль это '/settings/profile'.
+    // раздел в правой панели (меню слева остаётся) и открывается без анимации
+    // перехода — это смена панели, а не экрана ([PanelPage]); на телефоне
+    // открывает его отдельным экраном. Сам '/settings' на широком экране сразу
+    // уходит на '/settings/profile' (см. [ProfilePage]). Незнакомый сегмент —
+    // обратно к настройкам; отдельного '/profile' больше нет, профиль это
+    // '/settings/profile'.
     '/settings/:section': (data) {
       final section = SettingsSection.bySlug(data.pathParameters['section']);
       if (section == null) return const Redirect('/settings');
@@ -193,7 +197,7 @@ final routes = RouteMap(
       if (section == SettingsSection.subscription && !kIsWeb) {
         return const Redirect('/settings');
       }
-      return MaterialPage(child: ProfilePage(section: section));
+      return PanelPage(child: ProfilePage(section: section));
     },
     // Продажа подписки живёт только в вебе: в мобильных сборках маршрутов нет
     // вовсе, поэтому ни витрины, ни раздела аккаунта там не существует даже по
