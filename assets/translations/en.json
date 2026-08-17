@@ -997,5 +997,8 @@
   },
   "common": {
     "loadMore": "Show more"
+  },
+  "pushMessage": {
+    "open": "Open"
   }
 }

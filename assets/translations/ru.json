@@ -1027,5 +1027,8 @@
   },
   "common": {
     "loadMore": "Показать ещё"
+  },
+  "pushMessage": {
+    "open": "Перейти"
   }
 }
