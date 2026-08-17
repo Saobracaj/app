@@ -7,15 +7,22 @@
 //!     question, the question itself with its illustration;
 //!   * `/.well-known/assetlinks.json` and `/.well-known/apple-app-site-association`
 //!     are served with the content type Google and Apple insist on, which is
-//!     what makes the same link open the installed app.
+//!     what makes the same link open the installed app;
+//!   * a search engine gets the page's content as HTML — the app draws itself
+//!     on a canvas, so without it there is nothing to index (see [`seo`]) —
+//!     plus `robots.txt` and a `sitemap.xml` of every public address.
 
 mod config;
 mod fingerprint;
 mod index_html;
 mod meta;
 mod questions;
+mod route;
+mod seo;
 mod server;
+mod sitemap;
 mod well_known;
+mod zakon;
 
 use std::sync::Arc;
 
@@ -42,9 +49,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let state = Arc::new(AppState::load(config)?);
     if state.questions.is_empty() {
-        // Not fatal, but it means link previews for questions are generic —
-        // usually a sign the bundle was copied in without its assets.
+        // Not fatal, but it means link previews for questions are generic and
+        // the question pages have nothing to show a crawler — usually a sign
+        // the bundle was copied in without its assets.
         tracing::warn!("no question texts in the bundle; question links get the generic card");
+    }
+    if state.law.is_empty() {
+        tracing::warn!("no law text in the bundle; the law pages are not indexable");
     }
 
     let listener = tokio::net::TcpListener::bind(addr).await?;

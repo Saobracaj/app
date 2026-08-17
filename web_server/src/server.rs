@@ -18,15 +18,24 @@ use crate::fingerprint::Fingerprints;
 use crate::index_html;
 use crate::meta::{self, Lang};
 use crate::questions::Questions;
+use crate::route::Route;
+use crate::seo;
+use crate::sitemap;
 use crate::well_known;
+use crate::zakon::Law;
 
 pub struct AppState {
     pub config: Config,
     /// `index.html` from the bundle, read once at startup.
     pub index_template: String,
     pub questions: Questions,
+    /// The law's text, for the article pages and the sitemap.
+    pub law: Law,
     /// Entity tags for the bundled files, taken once at startup.
     pub fingerprints: Fingerprints,
+    /// `robots.txt` and `sitemap.xml`, built once out of the bundle.
+    pub robots: String,
+    pub sitemap: String,
 }
 
 impl AppState {
@@ -43,13 +52,24 @@ impl AppState {
             )
         })?;
         let questions = Questions::load(&config.web_root);
+        let law = Law::load(&config.web_root);
         let fingerprints = Fingerprints::scan(&config.web_root);
         tracing::info!(files = fingerprints.len(), "fingerprinted the bundle");
+        let robots = sitemap::robots(&config.public_origin);
+        let sitemap = sitemap::sitemap(&config.public_origin, &questions, &law);
+        tracing::info!(
+            questions = questions.ids().len(),
+            articles = law.articles().len(),
+            "built the sitemap",
+        );
         Ok(Self {
             config,
             index_template,
             questions,
+            law,
             fingerprints,
+            robots,
+            sitemap,
         })
     }
 }
@@ -64,6 +84,8 @@ pub fn app(state: Arc<AppState>) -> Router {
 
     Router::new()
         .route("/healthz", get(healthz))
+        .route("/robots.txt", get(robots))
+        .route("/sitemap.xml", get(sitemap_xml))
         .route("/.well-known/assetlinks.json", get(well_known::assetlinks))
         .route(
             "/.well-known/apple-app-site-association",
@@ -87,6 +109,22 @@ async fn healthz() -> &'static str {
     "ok"
 }
 
+async fn robots(State(state): State<Arc<AppState>>) -> Response {
+    (
+        [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+        state.robots.clone(),
+    )
+        .into_response()
+}
+
+async fn sitemap_xml(State(state): State<Arc<AppState>>) -> Response {
+    (
+        [(header::CONTENT_TYPE, "application/xml; charset=utf-8")],
+        state.sitemap.clone(),
+    )
+        .into_response()
+}
+
 /// Serves `index.html` with the metadata of the requested route.
 async fn single_page(
     State(state): State<Arc<AppState>>,
@@ -106,11 +144,19 @@ async fn single_page(
             .get(header::ACCEPT_LANGUAGE)
             .and_then(|value| value.to_str().ok()),
     );
-    let page = meta::resolve(path, &state.config.public_origin, lang, &state.questions);
-    let html = index_html::render(&state.index_template, &page);
+    let origin = &state.config.public_origin;
+    let route = Route::parse(path, uri.query().unwrap_or_default());
+    let page = meta::resolve(&route, origin, lang, &state.questions, &state.law);
+    let prerendered = seo::prerender(&route, &page, lang, origin, &state.questions, &state.law);
+    let html = index_html::render(&state.index_template, &page, prerendered.as_ref());
 
     (
-        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        [
+            (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+            // The page is built per language, so a shared cache must not hand
+            // one visitor's copy to the next.
+            (header::VARY, "Accept-Language"),
+        ],
         html,
     )
         .into_response()
@@ -270,7 +316,20 @@ mod tests {
         write(
             dir.path(),
             "assets/assets/allQuestions.json",
-            r#"[{"qcId": 11, "qId": 42, "Text": "Пешак је приказан:", "HasImage": true}]"#,
+            r#"[{"qcId": 11, "qId": 42, "Text": "Пешак је приказан:", "HasImage": true,
+                 "categoryId": "25", "subcategoryId": 91,
+                 "Choices": [{"Text": "на слици А", "isCorrect": true}]}]"#,
+        );
+        write(
+            dir.path(),
+            "assets/assets/categories.json",
+            r#"[{"id": "25", "name": "Основе безбедности", "subcategories": [{"Id": 91, "Description": "Основне одредбе"}]}]"#,
+        );
+        write(
+            dir.path(),
+            "assets/assets/parsed_zakon.json",
+            r#"[{"chapter": "I", "chlan": "2", "paragraph": "0", "sr": "Члан 2.", "ru": "Статья 2."},
+                {"chapter": "I", "chlan": "2", "paragraph": "1", "sr": "Контролу саобраћаја врши Министарство.", "ru": "…"}]"#,
         );
         dir
     }
@@ -448,6 +507,62 @@ mod tests {
         let (_, headers, _) = get_path(&isolated, "/").await;
         assert_eq!(headers["cross-origin-opener-policy"], "same-origin");
         assert_eq!(headers["cross-origin-embedder-policy"], "credentialless");
+    }
+
+    #[tokio::test]
+    async fn a_question_page_carries_the_question_for_a_crawler_to_read() {
+        let dir = bundle();
+        let (status, headers, body) = get_path(&router(&dir), "/question/11").await;
+
+        assert_eq!(status, StatusCode::OK);
+        // The app draws itself on a canvas, so the words have to be in the HTML.
+        assert!(body.contains("<h1>Питање бр. 11</h1>"));
+        assert!(body.contains("на слици А"));
+        assert!(body.contains(r#"<script type="application/ld+json">"#));
+        // Built per language — a shared cache must know that.
+        assert_eq!(headers[header::VARY], "Accept-Language");
+        // And the app is still what actually runs.
+        assert!(body.contains("flutter_bootstrap.js"));
+    }
+
+    #[tokio::test]
+    async fn a_law_article_is_a_page_of_its_own() {
+        let dir = bundle();
+        let (_, _, body) = get_path(&router(&dir), "/zakon?chapter=I&chlan=2").await;
+
+        assert!(body.contains("<h1>Члан 2.</h1>"));
+        assert!(body.contains("Контролу саобраћаја врши Министарство."));
+        assert!(body.contains(r#"<link rel="canonical" href="https://saobracaj.gleb.at/zakon?chapter=I&amp;chlan=2">"#));
+    }
+
+    #[tokio::test]
+    async fn a_personal_screen_is_neither_prerendered_nor_indexed() {
+        let dir = bundle();
+        let router = router(&dir);
+
+        for path in ["/invite/ABC-DEF-GHI", "/settings/profile", "/groups/7/feed"] {
+            let (status, _, body) = get_path(&router, path).await;
+            assert_eq!(status, StatusCode::OK, "{path}");
+            assert!(body.contains(r#"<meta name="robots" content="noindex, follow">"#), "{path}");
+            assert!(!body.contains("seo-prerender"), "{path}");
+        }
+    }
+
+    #[tokio::test]
+    async fn robots_and_the_sitemap_are_served() {
+        let dir = bundle();
+        let router = router(&dir);
+
+        let (status, headers, body) = get_path(&router, "/robots.txt").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/plain; charset=utf-8");
+        assert!(body.contains("Sitemap: https://saobracaj.gleb.at/sitemap.xml"));
+
+        let (status, headers, body) = get_path(&router, "/sitemap.xml").await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "application/xml; charset=utf-8");
+        assert!(body.contains("<loc>https://saobracaj.gleb.at/question/11</loc>"));
+        assert!(body.contains("<loc>https://saobracaj.gleb.at/zakon?chapter=I&amp;chlan=2</loc>"));
     }
 
     #[tokio::test]
