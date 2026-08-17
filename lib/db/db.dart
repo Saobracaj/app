@@ -26,6 +26,14 @@ class AppDatabase extends _$AppDatabase {
     return (select(practiceRecords)..orderBy([(t) => OrderingTerm(expression: t.time, mode: OrderingMode.desc)])).get();
   }
 
+  /// The most recent exam attempt, or `null` when none has been taken yet.
+  Future<PracticeRecord?> getLastPracticeRecord() {
+    return (select(practiceRecords)
+          ..orderBy([(t) => OrderingTerm(expression: t.time, mode: OrderingMode.desc)])
+          ..limit(1))
+        .getSingleOrNull();
+  }
+
   Future<List<AnswerRecord>> getAllAnswers() => select(answerRecords).get();
 
   Future<List<SubCategoryRecord>> getAllSubcategoryRecords() => select(subCategoryRecords).get();

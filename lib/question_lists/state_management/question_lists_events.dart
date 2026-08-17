@@ -9,7 +9,8 @@ class QuestionListsStarted extends QuestionListsEvent {}
 
 /// Re-read the automatic lists' source data (the local answer history) and pull
 /// the custom lists from the backend. Dispatched when a screen showing lists
-/// appears, since answering questions changes the "recent mistakes" list.
+/// appears, and when a run ends — answering questions changes the "recent
+/// mistakes" list, and a finished exam changes "last exam mistakes".
 class QuestionListsRefreshed extends QuestionListsEvent {}
 
 /// Something is about to show the automatic lists (the home-screen block or the
@@ -79,6 +80,13 @@ class QuestionListsUpdated extends QuestionListsEvent {
 /// Internal: the local answer history was re-read.
 class RecentMistakesUpdated extends QuestionListsEvent {
   RecentMistakesUpdated(this.questionIds);
+
+  final List<int> questionIds;
+}
+
+/// Internal: the newest exam attempt was re-read from `practice_records`.
+class LastExamMistakesUpdated extends QuestionListsEvent {
+  LastExamMistakesUpdated(this.questionIds);
 
   final List<int> questionIds;
 }

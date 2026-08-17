@@ -20,8 +20,8 @@ import 'question_lists_state.dart';
 /// update together the instant something changes.
 ///
 /// Custom lists come from [QuestionListsRepository] (optimistic writes, backend
-/// storage); the automatic "recent mistakes" list is recomputed from the local
-/// answer history.
+/// storage); the automatic "recent mistakes" and "last exam mistakes" lists are
+/// recomputed from the local database.
 ///
 /// "Personal weak spots" also needs the backend (the crowd-difficulty snapshot
 /// of the whole bank), so it is **not** loaded on start-up: the first
@@ -45,6 +45,9 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
     );
     on<RecentMistakesUpdated>(
       (event, emit) => emit(state.copyWith(recentMistakes: event.questionIds)),
+    );
+    on<LastExamMistakesUpdated>(
+      (event, emit) => emit(state.copyWith(lastExamMistakes: event.questionIds)),
     );
     on<PersonalWeakSpotsUpdated>(
       (event, emit) =>
@@ -92,21 +95,21 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
       } else if (auth.status == AuthStatus.unauthenticated) {
         _lists.onLoggedOut();
         // The answer history is wiped on sign-out (`AuthBloc`), so recompute:
-        // otherwise the automatic list keeps offering the previous user's
+        // otherwise the automatic lists keep offering the previous user's
         // mistakes.
-        _loadRecentMistakes();
+        _loadLocalAutoLists();
         _onSessionChanged(null);
       }
     });
     await _lists.bootstrap();
-    await _loadRecentMistakes();
+    await _loadLocalAutoLists();
   }
 
   Future<void> _onRefreshed(
     QuestionListsRefreshed event,
     Emitter<QuestionListsState> emit,
   ) async {
-    await _loadRecentMistakes();
+    await _loadLocalAutoLists();
     // Only if the lists have already been shown once: a refresh must not be the
     // thing that pulls the whole-bank snapshot for the first time.
     await _refreshPersonalWeakSpots();
@@ -187,9 +190,22 @@ class QuestionListsBloc extends Bloc<QuestionListsEvent, QuestionListsState> {
     }
   }
 
+  /// Re-reads the automatic lists that need nothing but the local database:
+  /// "recent mistakes" (the answer history) and "last exam mistakes" (the newest
+  /// `practice_records` row). Both are cheap, so they are loaded on start-up and
+  /// on every refresh, unlike "personal weak spots".
+  Future<void> _loadLocalAutoLists() async {
+    await Future.wait([_loadRecentMistakes(), _loadLastExamMistakes()]);
+  }
+
   Future<void> _loadRecentMistakes() async {
     final ids = await local_db.repository.getQuestionsWhereLastAnswerWasWrong();
     add(RecentMistakesUpdated(ids.toList()));
+  }
+
+  Future<void> _loadLastExamMistakes() async {
+    final ids = await local_db.repository.getLastExamMistakes();
+    add(LastExamMistakesUpdated(ids));
   }
 
   /// The session changed: the cached crowd difficulty belonged to the previous

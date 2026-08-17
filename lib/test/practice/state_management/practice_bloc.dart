@@ -113,7 +113,13 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     emit(state.copyWith(currentQuestionIndex: ind));
   }
 
-  void _onFinalizeTest(FinalizeTest event, Emitter<PracticeState> emit) async {
+  // Future<void>, а не `void ... async`: обработчик доигрывает после await'а
+  // записи в базу (см. emit `attemptSaved` ниже), и Bloc должен его дождаться —
+  // иначе Emitter закрывается раньше, чем дело дойдёт до последнего emit.
+  Future<void> _onFinalizeTest(
+    FinalizeTest event,
+    Emitter<PracticeState> emit,
+  ) async {
     _timeSub?.cancel();
     _timeSub == null;
 
@@ -157,6 +163,12 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
         uuid: Value(attemptUuid),
       ),
     );
+    // Только теперь запись экзамена лежит в practice_records — до этого момента
+    // читать её бессмысленно. Флаг взводится отдельным emit'ом, потому что
+    // экран результата открывается раньше, чем заканчивается запись в базу, а
+    // автосписок «ошибки последнего экзамена» строится именно по ней.
+    emit(state.copyWith(attemptSaved: true));
+
     // Push the new result to the back-end (no-op when signed out).
     statisticsSync.sync();
   }
@@ -239,6 +251,9 @@ sealed class PracticeState with _$PracticeState {
     @Default(0) int score,
     @Default(0) int possibleScore,
     @Default(false) bool finalizeTest,
+    // Запись попытки уже сохранена в practice_records: всё, что читает историю
+    // экзаменов (автосписок «ошибки последнего экзамена»), ждёт этого момента.
+    @Default(false) bool attemptSaved,
     // The authoritative final grading, set once at FinalizeTest: unanswered
     // questions count as wrong here, unlike the running score above.
     @Default(0) int finalPoints,

@@ -6,6 +6,8 @@ import 'package:saobracaj/core/keyboard_pagination.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
 import 'package:saobracaj/models/models.dart';
+import 'package:saobracaj/question_lists/state_management/question_lists_bloc.dart';
+import 'package:saobracaj/question_lists/state_management/question_lists_events.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/test/practice/state_management/practice_bloc.dart';
 import 'package:flutter/foundation.dart';
@@ -48,6 +50,15 @@ class Practice extends StatelessWidget {
               final questBloc = context.read<PracticeBloc>();
               if (state.finalizeTest) {
                 context.read<AllQuestionsBloc>().add(LoadStatistics());
+                // Экзамен записан в practice_records — пересчитываем автосписки,
+                // чтобы «ошибки последнего экзамена» появились на главной сразу,
+                // без перезапуска приложения. Ждём именно [attemptSaved]: экран
+                // результата строится раньше, чем запись доходит до базы.
+                if (state.attemptSaved) {
+                  context.read<QuestionListsBloc>().add(
+                    QuestionListsRefreshed(),
+                  );
+                }
                 // The results screen is ordinary app UI (it links back into the
                 // trainer), so it keeps the user's own theme even after an
                 // exam-styled run.

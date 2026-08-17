@@ -15,6 +15,18 @@ class AnswerRepository {
     return await db.insertPractice(entity);
   }
 
+  /// Вопросы, в которых пользователь ошибся в последней попытке экзамена, —
+  /// содержимое автосписка «ошибки последнего экзамена».
+  ///
+  /// Порядок сохраняется тот же, что был в экзамене: `wrongAnswers` пишется
+  /// обходом вопросов варианта (см. `PracticeBloc._onFinalizeTest`). Пустой
+  /// результат означает и «экзаменов ещё не было», и «последний сдан без единой
+  /// ошибки» — в обоих случаях списку нечего показывать.
+  Future<List<int>> getLastExamMistakes() async {
+    final last = await db.getLastPracticeRecord();
+    return last?.wrongAnswers ?? const [];
+  }
+
   /// 1) Получить все записи по questionId в хронологическом порядке
   Future<List<AnswerRecord>> getAnswersByQuestionId(int questionId) {
     return (db.select(db.answerRecords)

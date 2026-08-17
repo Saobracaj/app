@@ -231,6 +231,34 @@ void main() {
       expect(weak.questionIds, [7, 8]);
     });
 
+    test('«ошибки последнего экзамена» идут сразу после «последних ошибок»', () {
+      const state = QuestionListsState(
+        recentMistakes: [1],
+        lastExamMistakes: [30, 12, 7],
+        personalWeakSpots: [8],
+      );
+
+      expect(state.autoLists.map((e) => e.id), [
+        kRecentMistakesListId,
+        kLastExamMistakesListId,
+        kPersonalWeakSpotsListId,
+      ]);
+      final lastExam = state.autoLists[1];
+      expect(lastExam.isAuto, isTrue);
+      // Порядок — как в экзамене, а не по возрастанию id.
+      expect(lastExam.questionIds, [30, 12, 7]);
+    });
+
+    test('экзамен без ошибок не оставляет карточку на главной', () {
+      const state = QuestionListsState(recentMistakes: [1], lastExamMistakes: []);
+
+      expect(
+        state.autoLists.map((e) => e.id),
+        [kRecentMistakesListId],
+        reason: 'сдан без ошибок — показывать нечего',
+      );
+    });
+
     test('скрытый автосписок всё равно находится по id', () {
       const state = QuestionListsState();
 
