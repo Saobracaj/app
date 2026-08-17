@@ -217,22 +217,33 @@ class _CategorySection extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 12),
           child: Row(
             children: [
-              Flexible(
-                child: Text(
-                  category.name,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+              // Название со счётчиком — один растягивающийся блок, а кнопка
+              // конспекта прижата к правому краю. Раньше `Flexible` заголовка
+              // и `Spacer` были двумя flex-детьми с одинаковым весом: Row делил
+              // свободное место между ними поровну, заголовок (loose) забирал
+              // из своей половины только нужное, а `Spacer` отдавал ровно
+              // половину — и иконка вставала тем левее, чем короче название.
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        category.name,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Text(
+                      LocaleKeys.quest_questions.tr(args: ['$total']),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(width: 16),
-              Text(
-                LocaleKeys.quest_questions.tr(args: ['$total']),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const Spacer(),
               KonspektButton(categoryId: category.id),
             ],
           ),
