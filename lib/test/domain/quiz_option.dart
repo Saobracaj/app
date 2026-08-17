@@ -11,7 +11,12 @@ enum QuizOption {
   shuffleAnswerOptions('quiz.shuffle_answer_options', true),
   practiceShowRightAnswers('practice.show_right_answers', false),
   practiceShowStats('practice.show_stats', false),
-  practiceButtonsLikeInExam('practice.buttons_like_in_exam', false);
+  practiceButtonsLikeInExam('practice.buttons_like_in_exam', false),
+
+  /// «Режим презентации»: ответы раскрыты сразу, кнопки «показать ответ» нет,
+  /// вместо «завершить» — «закрыть», в статистику ничего не пишется. Нужен,
+  /// чтобы показывать вопросы аудитории (проектор, разбор в группе).
+  presentationMode('quiz.presentation_mode', false);
 
   const QuizOption(this.storageKey, this.defaultValue);
 

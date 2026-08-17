@@ -12,7 +12,17 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
   final QuestionsData data;
   final String? subcategory;
 
-  QuestBloc(this.data, List<int> questions, this.subcategory) : super(QuestState(questions: questions)) {
+  /// «Режим презентации»: вопросы только показываются (аудитории, на
+  /// проекторе) — ни один ответ и ни один результат прогона не записывается
+  /// ни в локальную статистику, ни на бэкенд, ни в аналитику.
+  final bool presentation;
+
+  QuestBloc(
+    this.data,
+    List<int> questions,
+    this.subcategory, {
+    this.presentation = false,
+  }) : super(QuestState(questions: questions)) {
     on<NextQuestion>(_onNextQuestion);
     on<PrevQuestion>(_onPrevQuestion);
     on<AddAnswer>(_onAddAnswer);
@@ -21,10 +31,12 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
     on<FinalizeTest>(_onFinalizeTest);
     // The bloc is created exactly once per run (single questions opened by
     // deep link included — question_count tells them apart).
-    analytics.logTestStarted(
-      questionCount: questions.length,
-      subcategory: subcategory,
-    );
+    if (!presentation) {
+      analytics.logTestStarted(
+        questionCount: questions.length,
+        subcategory: subcategory,
+      );
+    }
   }
 
   void _onNextQuestion(NextQuestion event, Emitter<QuestState> emit) {
@@ -44,26 +56,43 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
     answers[event.qid] = event.answer;
     _recalculateState(answers, emit);
 
-    final question = data.questions.firstWhere((element) => element.id == event.qid);
-    final correctAnswers = question.choices.where((element) => element.isCorrect).toSet();
+    // Презентация ничего не запоминает: экран может показать выбор, но в
+    // историю ответов он не попадает.
+    if (presentation) return;
+
+    final question = data.questions.firstWhere(
+      (element) => element.id == event.qid,
+    );
+    final correctAnswers = question.choices
+        .where((element) => element.isCorrect)
+        .toSet();
 
     repository.addAnswer(event.qid, !setEquals(correctAnswers, event.answer));
   }
 
-  void _recalculateState(Map<int, Set<Choice>> answers, Emitter<QuestState> emit) {
+  void _recalculateState(
+    Map<int, Set<Choice>> answers,
+    Emitter<QuestState> emit,
+  ) {
     var score = 0;
     var wrong = 0;
     var right = 0;
     var possibleScore = 0;
 
     for (var qid in state.questions) {
-      final question = data.questions.firstWhere((element) => element.id == qid);
+      final question = data.questions.firstWhere(
+        (element) => element.id == qid,
+      );
       possibleScore += question.points;
     }
 
     for (var answer in answers.entries) {
-      final question = data.questions.firstWhere((element) => element.id == answer.key);
-      final correctAnswers = question.choices.where((element) => element.isCorrect).toSet();
+      final question = data.questions.firstWhere(
+        (element) => element.id == answer.key,
+      );
+      final correctAnswers = question.choices
+          .where((element) => element.isCorrect)
+          .toSet();
 
       if (setEquals(correctAnswers, answer.value)) {
         // answer is correct
@@ -74,7 +103,15 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
       }
     }
 
-    emit(state.copyWith(score: score, wrongAnswers: wrong, rightAnswers: right, possibleScore: possibleScore, answers: answers));
+    emit(
+      state.copyWith(
+        score: score,
+        wrongAnswers: wrong,
+        rightAnswers: right,
+        possibleScore: possibleScore,
+        answers: answers,
+      ),
+    );
   }
 
   void _onInit(Init event, Emitter<QuestState> emit) {
@@ -87,6 +124,12 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
   }
 
   void _onFinalizeTest(FinalizeTest event, Emitter<QuestState> emit) async {
+    // В презентации прогон не завершается, а закрывается (кнопка «Закрыть»
+    // просто уходит с экрана); если событие всё же пришло — итог не пишем.
+    if (presentation) {
+      emit(state.copyWith(finalizeTest: true));
+      return;
+    }
     analytics.logTestFinished(
       questionCount: state.questions.length,
       rightAnswers: state.rightAnswers,
@@ -100,7 +143,11 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
     // block that shows up in the statistics and the group feed as "null".
     final block = subcategory;
     if (block != null && !isPhantomSubcategory(block)) {
-      await repository.addRecord(block, state.rightAnswers, state.questions.length);
+      await repository.addRecord(
+        block,
+        state.rightAnswers,
+        state.questions.length,
+      );
       // Push the new result to the back-end (no-op when signed out).
       statisticsSync.sync();
     }
