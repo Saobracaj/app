@@ -91,6 +91,14 @@ class LastExamMistakesUpdated extends QuestionListsEvent {
   final List<int> questionIds;
 }
 
+/// Internal: the questions missed at least twice were re-counted over the whole
+/// local answer history.
+class ChronicMistakesUpdated extends QuestionListsEvent {
+  ChronicMistakesUpdated(this.questionIds);
+
+  final List<int> questionIds;
+}
+
 /// Internal: the "personal weak spots" list was recomputed (or cleared, when the
 /// session ended).
 class PersonalWeakSpotsUpdated extends QuestionListsEvent {

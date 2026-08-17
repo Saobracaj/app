@@ -73,7 +73,34 @@ class AnswerRepository {
     return result.map((row) => row.read<int>('question_id')).toSet();
   }
 
-  /// 4) Личная статистика по вопросам, в которых была хотя бы одна ошибка:
+  /// 4) Вопросы, в которых пользователь ошибался не меньше двух раз за всё
+  /// время, — содержимое автосписка «хронические ошибки».
+  ///
+  /// В отличие от «последних ошибок», последний ответ роли не играет: один
+  /// угаданный ответ выкидывает вопрос из «последних ошибок», хотя он ещё не
+  /// выучен. Порядок — сначала те, где ошибок больше; при равенстве выше те, где
+  /// ошибались свежее.
+  Future<List<int>> getChronicMistakes() async {
+    final result = await db
+        .customSelect(
+          '''
+    SELECT question_id,
+           COUNT(*) AS wrong,
+           MAX(date) AS last_wrong
+    FROM answer_records
+    WHERE is_wrong = 1
+    GROUP BY question_id
+    HAVING wrong >= 2
+    ORDER BY wrong DESC, last_wrong DESC
+    ''',
+          readsFrom: {db.answerRecords},
+        )
+        .get();
+
+    return result.map((row) => row.read<int>('question_id')).toList();
+  }
+
+  /// 5) Личная статистика по вопросам, в которых была хотя бы одна ошибка:
   /// сколько всего ответов и сколько из них неверных.
   ///
   /// Нужна автосписку «личные слабые места», который сравнивает мою долю ошибок

@@ -259,6 +259,33 @@ void main() {
       );
     });
 
+    test('«хронические ошибки» встают между экзаменом и слабыми местами', () {
+      const state = QuestionListsState(
+        recentMistakes: [1],
+        lastExamMistakes: [30],
+        chronicMistakes: [5, 9],
+        personalWeakSpots: [8],
+      );
+
+      expect(state.autoLists.map((e) => e.id), [
+        kRecentMistakesListId,
+        kLastExamMistakesListId,
+        kChronicMistakesListId,
+        kPersonalWeakSpotsListId,
+      ]);
+      final chronic = state.autoLists[2];
+      expect(chronic.isAuto, isTrue);
+      // Порядок задаёт запрос (больше ошибок — выше), сортировать заново незачем.
+      expect(chronic.questionIds, [5, 9]);
+    });
+
+    test('пока дважды не ошибся — карточки «хронических» нет', () {
+      const state = QuestionListsState(recentMistakes: [1], chronicMistakes: []);
+
+      expect(state.autoLists.map((e) => e.id), [kRecentMistakesListId]);
+      expect(state.byId(kChronicMistakesListId)?.questionIds, isEmpty);
+    });
+
     test('скрытый автосписок всё равно находится по id', () {
       const state = QuestionListsState();
 

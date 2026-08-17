@@ -53,6 +53,11 @@ const String kRecentMistakesListId = 'auto:recent_mistakes';
 /// asked (`wrongAnswers` of the newest `practice_records` row).
 const String kLastExamMistakesListId = 'auto:last_exam_mistakes';
 
+/// Questions answered wrongly at least twice ever, regardless of how the most
+/// recent attempt went — the ones that keep being missed rather than the ones
+/// missed last (see `getChronicMistakes`).
+const String kChronicMistakesListId = 'auto:chronic_mistakes';
+
 /// Questions the user gets wrong although the other learners find them easy —
 /// computed from the local answer history plus the backend's crowd difficulty
 /// (see `personalWeakSpots`).

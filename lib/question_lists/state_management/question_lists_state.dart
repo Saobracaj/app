@@ -24,6 +24,11 @@ sealed class QuestionListsState with _$QuestionListsState {
     /// cases the list is not shown.
     @Default(<int>[]) List<int> lastExamMistakes,
 
+    /// Questions missed at least twice over the whole answer history, most
+    /// mistakes first — the content of the "chronic mistakes" automatic list.
+    /// Empty until something has been missed twice, and then the list is hidden.
+    @Default(<int>[]) List<int> chronicMistakes,
+
     /// Questions the user gets wrong although the crowd finds them easy, hardest
     /// gap first — the content of the "personal weak spots" automatic list.
     /// Empty until something asks for the automatic lists (the snapshot of crowd
@@ -46,6 +51,11 @@ sealed class QuestionListsState with _$QuestionListsState {
     QuestionList(
       id: kLastExamMistakesListId,
       questionIds: lastExamMistakes,
+      isAuto: true,
+    ),
+    QuestionList(
+      id: kChronicMistakesListId,
+      questionIds: chronicMistakes,
       isAuto: true,
     ),
     QuestionList(
