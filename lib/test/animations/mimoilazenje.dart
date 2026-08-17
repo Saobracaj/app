@@ -76,7 +76,7 @@ class _MimoilazenjeState extends State<Mimoilazenje>
                 ),
               ),
             ),
-            Positioned(top: 8, left: 8, child: Text('Мимолажење', style: TextStyle(color: Colors.white))),
+            Positioned(top: 8, left: 8, child: Text('Мимоилажење', style: TextStyle(color: Colors.white))),
           ],
         ),
       ),
