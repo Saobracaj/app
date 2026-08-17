@@ -8,7 +8,7 @@ import 'package:saobracaj/core/keyboard_pagination.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
 import 'package:saobracaj/core/di.dart';
-import 'package:saobracaj/dictionary/dictionary.dart';
+import 'package:saobracaj/dictionary/dict_links.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
@@ -471,7 +471,7 @@ class QuestionContent extends StatelessWidget {
                     children: [
                       _WithCues(
                         builder: (context, cues) => QuestMarkdown(
-                          text: question.text.trim().dict,
+                          text: dictLinks(context, question.text.trim()),
                           highlights: cues.questionHighlights,
                           pStyle: theme.textTheme.titleMedium,
                         ),
