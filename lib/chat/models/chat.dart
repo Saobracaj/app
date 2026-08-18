@@ -331,6 +331,10 @@ abstract class Chat with _$Chat {
     @Default(ChatEntityType.support) ChatEntityType entityType,
     @Default('') String entityId,
 
+    /// Имя самой сущности, если оно у неё есть: название группы у чата группы.
+    /// Заголовок экрана берётся отсюда, чтобы не спрашивать его вторым запросом.
+    @Default('') String entityName,
+
     /// Сообщение, ответы на которое собирает этот чат, — только у треда.
     String? parentMessageId,
     @Default(false) bool isGroup,
@@ -358,6 +362,7 @@ abstract class Chat with _$Chat {
     id: json['id'].toString(),
     entityType: ChatEntityType.parse(json['entityType']?.toString()),
     entityId: json['entityId']?.toString() ?? '',
+    entityName: json['entityName']?.toString() ?? '',
     parentMessageId: (json['parentMessageId']?.toString() ?? '').isEmpty
         ? null
         : json['parentMessageId'].toString(),
@@ -377,8 +382,17 @@ abstract class Chat with _$Chat {
     messagesCount: (json['messagesCount'] as num?)?.toInt() ?? 0,
   );
 
-  /// What to show as the conversation's name in the moderator list.
-  String get title => userDisplayName.isNotEmpty ? userDisplayName : userEmail;
+  /// Как назвать разговор: у чата группы это её название, у обращения в списке
+  /// модератора — имя (или почта) собеседника.
+  String get title => switch ((entityName, userDisplayName)) {
+    (final name, _) when name.isNotEmpty => name,
+    (_, final display) when display.isNotEmpty => display,
+    _ => userEmail,
+  };
+
+  /// Чат группы — от этого зависит заголовок и то, что «сторон» здесь больше
+  /// двух: прочитанное считается по каждому участнику отдельно.
+  bool get isGroupChat => entityType == ChatEntityType.group;
 
   /// Тред ли это — от этого зависят и заголовок, и то, что внутри треда нельзя
   /// создать ещё один тред.

@@ -233,6 +233,18 @@ class GroupCard extends StatelessWidget {
                       style: theme.textTheme.titleMedium,
                     ),
                   ),
+                  // Непрочитанное в чате группы: значок рядом с числом
+                  // участников, чтобы новое сообщение было видно с главной.
+                  if (group.chatUnreadCount > 0) ...[
+                    Badge.count(
+                      count: group.chatUnreadCount,
+                      child: const Padding(
+                        padding: EdgeInsets.only(right: 4),
+                        child: Icon(Icons.forum_outlined, size: 18),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
                   Text(
                     LocaleKeys.groups_membersCount.tr(
                       args: ['${group.memberCount}'],

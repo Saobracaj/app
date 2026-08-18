@@ -138,6 +138,16 @@ final routes = RouteMap(
         groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
       ),
     ),
+    // Разговор группы — тот же самый экран чата, что и переписка с
+    // разработчиком; чат создаётся на бэкенде при первом открытии. Ребёнок
+    // ленты, поэтому «назад» возвращает в неё.
+    '/groups/:id/feed/chat': (data) => MaterialPage(
+      child: ChatPage(
+        target: GroupChatTarget(
+          Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+        ),
+      ),
+    ),
     // Questions opened from a feed event sit under the feed, so finishing the
     // run (or pressing back) returns to the feed rather than to the home tab.
     '/groups/:id/feed/q': questPage,
