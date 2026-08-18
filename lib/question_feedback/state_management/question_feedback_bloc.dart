@@ -8,7 +8,7 @@ import '../../core/network/error_messages.dart';
 import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../core/deep_links.dart';
 import '../../notifications/data/notification_permissions.dart';
-import '../../support_chat/data/support_chat_repository.dart';
+import '../../chat/data/chat_repository.dart';
 import '../domain/question_feedback_source.dart';
 import 'question_feedback_events.dart';
 import 'question_feedback_state.dart';
@@ -50,7 +50,7 @@ class QuestionFeedbackBloc
     );
   }
 
-  final SupportChatRepository _chat;
+  final ChatRepository _chat;
   final NotificationPermissions _permissions;
   final AuthRepository _authRepo;
   final AuthBloc _authBloc;
@@ -59,7 +59,7 @@ class QuestionFeedbackBloc
   final QuestionFeedbackSource source;
 
   /// Одно на всё приложение — те же ключи, что у `NotificationsBloc`,
-  /// `CommentsBloc` и `SupportChatBloc`.
+  /// `CommentsBloc` и `ChatBloc`.
   static const _pushNotifKey = 'notif_push_enabled';
 
   /// Чат с разработчиком делает такое же предложение при первом открытии;
@@ -150,7 +150,14 @@ class QuestionFeedbackBloc
     if (!state.canSend) return;
     emit(state.copyWith(sending: true, errorMessage: null));
     try {
-      await _chat.send(body: composeBody(state.text), questionIds: [questionId]);
+      // Жалоба уезжает в собственный чат пользователя с разработчиком: его
+      // идентификатор бэкенд отдаёт по токену, и он же нужен мутации отправки.
+      final chat = await _chat.supportChat();
+      await _chat.send(
+        chatId: chat.id,
+        body: composeBody(state.text),
+        questionIds: [questionId],
+      );
       if (emit.isDone) return;
       emit(state.copyWith(sending: false, sent: true, text: ''));
     } catch (e) {

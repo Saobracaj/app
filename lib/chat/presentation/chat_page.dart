@@ -4,79 +4,76 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
+import '../../core/navigation.dart';
 import '../../public_comments/presentation/relative_time.dart';
 import '../../question_lists/domain/list_style.dart';
-import '../models/support_chat.dart';
-import '../state_management/support_chat_bloc.dart';
-import '../state_management/support_chat_events.dart';
-import '../state_management/support_chat_state.dart';
+import '../models/chat.dart';
+import '../models/chat_target.dart';
+import '../state_management/chat_bloc.dart';
+import '../state_management/chat_events.dart';
+import '../state_management/chat_state.dart';
 import 'chat_attach_menu.dart';
 import 'linked_text.dart';
 import 'shared_list_chip.dart';
-import 'support_attachment_views.dart';
+import 'chat_attachment_views.dart';
 
-/// One support conversation.
+/// Один разговор.
 ///
-/// The user reaches it from settings with no [threadId]; a moderator opens a
-/// specific one from the list of обращения. Everything else — who is on which
-/// side of the bubble, which mutation sends — is the Bloc's business.
-class SupportChatPage extends StatelessWidget {
-  const SupportChatPage({super.key, this.threadId});
+/// Экран ничего не знает про поддержку: ему дают [target] — свой чат с
+/// разработчиком (по умолчанию), конкретное обращение, тред на сообщение. Всё
+/// остальное — кто на какой стороне пузыря, какой мутацией уходит сообщение —
+/// дело Bloc'а, поэтому тот же экран показывает и тред, и будущие чаты групп.
+class ChatPage extends StatelessWidget {
+  const ChatPage({super.key, this.target});
 
-  /// The conversation to show, or `null` for the caller's own.
-  final String? threadId;
+  /// Разговор, который нужно открыть; `null` — свой чат с разработчиком.
+  final ChatTarget? target;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) =>
-          getIt<SupportChatBloc>(param1: threadId)..add(SupportChatOpened()),
-      child: const _SupportChatView(),
+      create: (_) => getIt<ChatBloc>(param1: target)..add(ChatOpened()),
+      child: const _ChatView(),
     );
   }
 }
 
-/// Собственный разговор пользователя с собственным [SupportChatBloc], но без
+/// Собственный разговор пользователя с собственным [ChatBloc], но без
 /// Scaffold — встраивается в правую панель настроек на широком экране. Роль
 /// AppBar (индикатор загрузки и потерянного live-соединения) берут на себя
 /// полосы внутри тела чата.
-class SupportChatContent extends StatelessWidget {
-  const SupportChatContent({super.key});
+class ChatContent extends StatelessWidget {
+  const ChatContent({super.key});
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) =>
-          getIt<SupportChatBloc>(param1: null)..add(SupportChatOpened()),
-      child: const _SupportChatBody(embedded: true),
+      create: (_) => getIt<ChatBloc>(param1: null)..add(ChatOpened()),
+      child: const _ChatBody(embedded: true),
     );
   }
 }
 
-class _SupportChatView extends StatelessWidget {
-  const _SupportChatView();
+class _ChatView extends StatelessWidget {
+  const _ChatView();
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<SupportChatBloc, SupportChatState>(
+    return BlocBuilder<ChatBloc, ChatState>(
       builder: (context, state) {
-        final bloc = context.read<SupportChatBloc>();
-        final isModerator = bloc.threadId != null;
+        final bloc = context.read<ChatBloc>();
         return Scaffold(
           appBar: AppBar(
-            title: Text(
-              isModerator
-                  ? (state.thread?.title ?? 'support.threadTitle'.tr())
-                  : 'support.title'.tr(),
-            ),
+            title: Text(_titleOf(state, bloc.target)),
             actions: [
+              const _NotificationsBell(),
               // Honest about the live connection: while it is down the chat is
               // still readable, it just stops updating by itself.
               if (state.loaded && !state.live)
                 IconButton(
                   tooltip: 'support.offline'.tr(),
                   icon: const Icon(Icons.cloud_off_outlined),
-                  onPressed: () => bloc.add(SupportChatRefreshed()),
+                  onPressed: () => bloc.add(ChatRefreshed()),
                 ),
             ],
             bottom: state.loading
@@ -86,7 +83,51 @@ class _SupportChatView extends StatelessWidget {
                   )
                 : null,
           ),
-          body: const SafeArea(child: _SupportChatBody(embedded: false)),
+          body: const SafeArea(child: _ChatBody(embedded: false)),
+        );
+      },
+    );
+  }
+
+  /// Заголовок разговора: тред — «Тред», чужое обращение — имя собеседника,
+  /// свой чат — «Чат с разработчиком».
+  String _titleOf(ChatState state, ChatTarget target) {
+    if (state.isThread) return 'support.threadHeader'.tr();
+    final chat = state.thread;
+    if (chat != null &&
+        chat.entityType == ChatEntityType.support &&
+        chat.userId != state.myUserId &&
+        chat.title.isNotEmpty) {
+      return chat.title;
+    }
+    if (target is SupportChatTarget) return 'support.title'.tr();
+    return (chat?.title ?? '').isNotEmpty
+        ? chat!.title
+        : 'support.threadTitle'.tr();
+  }
+}
+
+/// Колокольчик в шапке: включает и выключает оповещения об этом разговоре.
+/// По умолчанию они выключены — и у чатов, и у тредов, поэтому иконка почти
+/// всегда начинается с перечёркнутой.
+class _NotificationsBell extends StatelessWidget {
+  const _NotificationsBell();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ChatBloc, ChatState>(
+      buildWhen: (a, b) =>
+          a.thread?.notificationsEnabled != b.thread?.notificationsEnabled ||
+          a.loaded != b.loaded,
+      builder: (context, state) {
+        final chat = state.thread;
+        if (chat == null) return const SizedBox.shrink();
+        final on = chat.notificationsEnabled;
+        return IconButton(
+          tooltip: on ? 'support.notifyOff'.tr() : 'support.notifyOn'.tr(),
+          icon: Icon(on ? Icons.notifications : Icons.notifications_off),
+          onPressed: () =>
+              context.read<ChatBloc>().add(ChatNotificationsToggled()),
         );
       },
     );
@@ -96,21 +137,29 @@ class _SupportChatView extends StatelessWidget {
 /// Тело чата: баннеры, лента сообщений, поле ввода. В [embedded]-режиме (без
 /// AppBar) сверху добавляются индикатор загрузки и строка про потерянное
 /// live-соединение — та же честность, что и у иконки в AppBar.
-class _SupportChatBody extends StatelessWidget {
-  const _SupportChatBody({required this.embedded});
+class _ChatBody extends StatelessWidget {
+  const _ChatBody({required this.embedded});
 
   final bool embedded;
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<SupportChatBloc, SupportChatState>(
-      listenWhen: (a, b) => a.notificationsPrompt != b.notificationsPrompt,
+    return BlocConsumer<ChatBloc, ChatState>(
+      listenWhen: (a, b) =>
+          a.notificationsPrompt != b.notificationsPrompt ||
+          a.notice != b.notice,
       listener: (context, state) {
         if (state.notificationsPrompt) _askAboutNotifications(context);
+        if (state.notice != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.notice!.tr())),
+          );
+          context.read<ChatBloc>().add(ChatNoticeShown());
+        }
       },
       builder: (context, state) {
-        final bloc = context.read<SupportChatBloc>();
-        final isModerator = bloc.threadId != null;
+        final bloc = context.read<ChatBloc>();
+        final isModerator = state.thread?.userId != state.myUserId;
         return Column(
           children: [
             if (embedded && state.loading)
@@ -130,7 +179,7 @@ class _SupportChatBody extends StatelessWidget {
                       ),
                     ),
                     TextButton(
-                      onPressed: () => bloc.add(SupportChatRefreshed()),
+                      onPressed: () => bloc.add(ChatRefreshed()),
                       child: Text('support.refresh'.tr()),
                     ),
                   ],
@@ -144,9 +193,9 @@ class _SupportChatBody extends StatelessWidget {
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => FocusScope.of(context).unfocus(),
-                child: state.isEmpty
+                child: state.isEmpty && !state.isThread
                     ? _EmptyState(isModerator: isModerator)
-                    : _MessageList(messages: state.messages),
+                    : _MessageList(state: state),
               ),
             ),
             _Composer(state: state),
@@ -159,7 +208,7 @@ class _SupportChatBody extends StatelessWidget {
   /// The same offer the question discussion makes: an answer that lands hours
   /// later is worthless if nothing tells the user about it.
   Future<void> _askAboutNotifications(BuildContext context) async {
-    final bloc = context.read<SupportChatBloc>();
+    final bloc = context.read<ChatBloc>();
     final accepted = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -179,8 +228,8 @@ class _SupportChatBody extends StatelessWidget {
     );
     bloc.add(
       accepted == true
-          ? SupportChatNotificationsAccepted()
-          : SupportChatNotificationsDeclined(),
+          ? ChatNotificationsAccepted()
+          : ChatNotificationsDeclined(),
     );
   }
 }
@@ -210,8 +259,8 @@ class _ErrorBanner extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.close),
               color: scheme.onErrorContainer,
-              onPressed: () => context.read<SupportChatBloc>().add(
-                SupportChatErrorDismissed(),
+              onPressed: () => context.read<ChatBloc>().add(
+                ChatErrorDismissed(),
               ),
             ),
           ],
@@ -254,26 +303,85 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _MessageList extends StatelessWidget {
-  const _MessageList({required this.messages});
-  final List<SupportMessage> messages;
+  const _MessageList({required this.state});
+  final ChatState state;
 
   @override
   Widget build(BuildContext context) {
-    final isModerator = context.read<SupportChatBloc>().threadId != null;
+    final messages = state.messages;
+    // В треде над лентой стоит само сообщение, на которое отвечают, и заголовок
+    // «Ответы» — дальше идёт обычный чат.
+    final header = state.isThread ? 2 : 0;
     return ListView.builder(
       // Newest at the bottom, and the view starts there — a chat's natural
       // reading position without measuring anything.
       reverse: true,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      itemCount: messages.length,
+      itemCount: messages.length + header + (state.isThread && messages.isEmpty ? 1 : 0),
       itemBuilder: (context, index) {
-        final message = messages[messages.length - 1 - index];
+        final total = messages.length + header +
+            (state.isThread && messages.isEmpty ? 1 : 0);
+        final position = total - 1 - index;
+        if (state.isThread) {
+          if (position == 0) {
+            final parent = state.parentMessage;
+            return parent == null
+                ? const SizedBox.shrink()
+                : _MessageBubble(
+                    message: parent,
+                    mine: state.isMine(parent),
+                    // Родитель показан как есть: свайп и «ответить» на нём
+                    // открыли бы тред внутри треда.
+                    inThread: true,
+                  );
+          }
+          if (position == 1) return const _RepliesHeader();
+          if (messages.isEmpty) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'support.noReplies'.tr(),
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
+            );
+          }
+        }
+        final message = messages[position - header];
         return _MessageBubble(
           message: message,
-          // "Mine" is whichever side this screen is being read from.
-          mine: message.fromStaff == isModerator,
+          mine: state.isMine(message),
+          inThread: state.isThread,
         );
       },
+    );
+  }
+}
+
+/// Разделитель «Ответы» между главным сообщением треда и лентой ответов.
+class _RepliesHeader extends StatelessWidget {
+  const _RepliesHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        spacing: 12,
+        children: [
+          Expanded(child: Divider(color: scheme.outlineVariant)),
+          Text(
+            'support.replies'.tr(),
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: scheme.outline,
+            ),
+          ),
+          Expanded(child: Divider(color: scheme.outlineVariant)),
+        ],
+      ),
     );
   }
 }
@@ -283,7 +391,7 @@ class _MessageList extends StatelessWidget {
 /// The display name whenever the account has one; failing that the side it came
 /// from — a nameless user is «Без имени» rather than a blank line, so the
 /// authorship of every message is always stated.
-String authorName(SupportMessage message) {
+String authorName(ChatMessage message) {
   if (message.authorDisplayName.trim().isNotEmpty) {
     return message.authorDisplayName.trim();
   }
@@ -293,13 +401,89 @@ String authorName(SupportMessage message) {
 }
 
 class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message, required this.mine});
+  const _MessageBubble({
+    required this.message,
+    required this.mine,
+    this.inThread = false,
+  });
 
-  final SupportMessage message;
+  final ChatMessage message;
   final bool mine;
+
+  /// Внутри треда «ответить» не бывает: ни свайпа, ни пункта меню — тредов
+  /// внутри тредов не существует.
+  final bool inThread;
 
   @override
   Widget build(BuildContext context) {
+    final bubble = _bubble(context);
+    if (inThread) {
+      return GestureDetector(
+        onLongPress: () => _showMenu(context),
+        child: bubble,
+      );
+    }
+    // Свайп влево открывает тред и возвращает сообщение на место: жест как в
+    // Telegram, поэтому `confirmDismiss` всегда отвечает «не удалять».
+    return Dismissible(
+      key: ValueKey('swipe-${message.id}'),
+      direction: DismissDirection.endToStart,
+      dismissThresholds: const {DismissDirection.endToStart: 0.25},
+      background: Align(
+        alignment: Alignment.centerRight,
+        child: Padding(
+          padding: const EdgeInsets.only(right: 16),
+          child: Icon(
+            Icons.reply,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+      ),
+      confirmDismiss: (_) async {
+        openMessageThread(context, message);
+        return false;
+      },
+      child: GestureDetector(
+        onLongPress: () => _showMenu(context),
+        child: bubble,
+      ),
+    );
+  }
+
+  /// Меню по долгому тапу: ответить (тред) и — для своих сообщений — изменить.
+  Future<void> _showMenu(BuildContext context) async {
+    final bloc = context.read<ChatBloc>();
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!inThread)
+              ListTile(
+                leading: const Icon(Icons.reply),
+                title: Text('support.reply'.tr()),
+                onTap: () => Navigator.of(ctx).pop('reply'),
+              ),
+            if (mine)
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: Text('support.edit'.tr()),
+                onTap: () => Navigator.of(ctx).pop('edit'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !context.mounted) return;
+    if (action == 'reply') {
+      openMessageThread(context, message);
+    } else if (action == 'edit') {
+      bloc.add(ChatEditStarted(message));
+    }
+  }
+
+  Widget _bubble(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final background = mine
         ? scheme.primaryContainer
@@ -346,7 +530,7 @@ class _MessageBubble extends StatelessWidget {
                 for (final code in sharedListCodesIn(message.body))
                   SharedListChip(code: code, onSurface: foreground),
                 for (final attachment in message.attachments)
-                  SupportAttachmentView(
+                  ChatAttachmentView(
                     attachment: attachment,
                     onSurface: foreground,
                     gallery: [
@@ -354,9 +538,14 @@ class _MessageBubble extends StatelessWidget {
                         if (a.isImage && !a.deleted) a,
                     ],
                   ),
+                // Ссылка на тред живёт между текстом сообщения и временем его
+                // отправки — ровно там, где её просили.
+                if (message.hasThread && !inThread)
+                  _ThreadLink(message: message, onSurface: foreground),
                 const SizedBox(height: 2),
                 Row(
                   mainAxisSize: MainAxisSize.min,
+                  spacing: 4,
                   children: [
                     Text(
                       relativeTime(message.createdAt),
@@ -364,9 +553,15 @@ class _MessageBubble extends StatelessWidget {
                         color: foreground.withValues(alpha: 0.6),
                       ),
                     ),
+                    if (message.isEdited)
+                      Text(
+                        'support.edited'.tr(),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: foreground.withValues(alpha: 0.6),
+                        ),
+                      ),
                     // Read receipts are only meaningful on one's own messages.
                     if (mine) ...[
-                      const SizedBox(width: 4),
                       Icon(
                         message.isRead ? Icons.done_all : Icons.done,
                         size: 14,
@@ -384,15 +579,59 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-class _Composer extends StatelessWidget {
-  const _Composer({required this.state});
-  final SupportChatState state;
+/// Маленькая ссылка на тред под текстом сообщения.
+class _ThreadLink extends StatelessWidget {
+  const _ThreadLink({required this.message, required this.onSurface});
+
+  final ChatMessage message;
+  final Color onSurface;
 
   @override
   Widget build(BuildContext context) {
-    final bloc = context.read<SupportChatBloc>();
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          foregroundColor: onSurface,
+        ),
+        icon: const Icon(Icons.forum_outlined, size: 16),
+        label: Text(
+          'support.threadReplies'.plural(message.replyCount),
+          style: Theme.of(context).textTheme.labelMedium,
+        ),
+        onPressed: () => openMessageThread(context, message),
+      ),
+    );
+  }
+}
+
+/// Открыть тред на сообщение поверх текущего экрана.
+///
+/// Через [pushScreen], поэтому «назад» возвращает в переписку, откуда пришли, —
+/// и так же работает, из какого бы экрана чат ни переиспользовали.
+void openMessageThread(BuildContext context, ChatMessage message) {
+  final chatId = message.threadChatId;
+  pushScreen(
+    context,
+    // Адрес есть только у уже созданного треда; новый создаётся бэкендом при
+    // открытии, и экран приходится толкать императивно.
+    path: chatId == null ? 'thread/${message.id}' : 'chat/$chatId',
+    screen: () => ChatPage(target: MessageThreadTarget(message.id)),
+  );
+}
+
+class _Composer extends StatelessWidget {
+  const _Composer({required this.state});
+  final ChatState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final bloc = context.read<ChatBloc>();
     void send() {
-      if (state.canSend) bloc.add(SupportChatSendPressed());
+      if (state.canSend) bloc.add(ChatSendPressed());
     }
 
     return Material(
@@ -403,6 +642,26 @@ class _Composer extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           spacing: 10,
           children: [
+            // Полоска «правится сообщение» — единственное, чем режим правки
+            // отличается от обычной отправки: поля и кнопки те же.
+            if (state.isEditing)
+              Row(
+                spacing: 8,
+                children: [
+                  const Icon(Icons.edit_outlined, size: 18),
+                  Expanded(
+                    child: Text(
+                      'support.editing'.tr(),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'support.editCancel'.tr(),
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: () => bloc.add(ChatEditCancelled()),
+                  ),
+                ],
+              ),
             if (state.uploading)
               LinearProgressIndicator(
                 value: state.uploadProgress > 0 ? state.uploadProgress : null,
@@ -424,7 +683,7 @@ class _Composer extends StatelessWidget {
                         ),
                         label: Text(attachment.fileName),
                         onDeleted: () =>
-                            bloc.add(SupportChatAttachmentRemoved(attachment)),
+                            bloc.add(ChatAttachmentRemoved(attachment)),
                       ),
                     // Список вопросов ничего не загружает — он и в строке ввода
                     // выглядит так же, как приедет получателю: цвет и название.
@@ -436,7 +695,7 @@ class _Composer extends StatelessWidget {
                         ),
                         label: Text(list.title),
                         onDeleted: () =>
-                            bloc.add(SupportChatListRemoved(list.id)),
+                            bloc.add(ChatListRemoved(list.id)),
                       ),
                   ],
                 ),
@@ -456,7 +715,7 @@ class _Composer extends StatelessWidget {
                   child: _ComposerField(
                     text: state.body,
                     onChanged: (value) =>
-                        bloc.add(SupportChatBodyChanged(value)),
+                        bloc.add(ChatBodyChanged(value)),
                     onSend: send,
                   ),
                 ),
@@ -468,7 +727,7 @@ class _Composer extends StatelessWidget {
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.send),
+                      : Icon(state.isEditing ? Icons.check : Icons.send),
                   onPressed: state.canSend ? send : null,
                 ),
               ],

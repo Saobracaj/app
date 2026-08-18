@@ -227,11 +227,11 @@ class _OptionsStep extends StatelessWidget {
             args: ['${preview.supportAttachmentCount}'],
           ),
           hint: LocaleKeys.accountDeletion_itemAttachmentsHint.tr(),
-          value: state.deletesSupportAttachments,
+          value: state.deletesChatAttachments,
           // Deleting the whole conversation implies the attachments.
           onChanged: state.deleteSupportChat
               ? null
-              : (v) => bloc.add(DeleteSupportAttachmentsToggled(v)),
+              : (v) => bloc.add(DeleteChatAttachmentsToggled(v)),
         ),
         _Item(
           title: LocaleKeys.accountDeletion_itemSupportChat.tr(

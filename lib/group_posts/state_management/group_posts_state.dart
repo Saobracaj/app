@@ -1,7 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import '../../question_lists/models/question_list.dart';
-import '../../support_chat/models/support_chat.dart';
+import '../../chat/models/chat.dart';
 import '../models/group_post.dart';
 
 part 'group_posts_state.freezed.dart';
@@ -32,7 +32,7 @@ abstract class GroupPostsState with _$GroupPostsState {
 
     /// Files and images already uploaded and waiting for the post that carries
     /// them.
-    @Default(<SupportAttachment>[]) List<SupportAttachment> pending,
+    @Default(<ChatAttachment>[]) List<ChatAttachment> pending,
 
     /// Question lists the author picked; shared as a snapshot when the post is
     /// sent, so nothing is uploaded for them.

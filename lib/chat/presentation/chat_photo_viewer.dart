@@ -21,11 +21,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/di.dart';
 import '../data/chat_image_cache.dart';
-import '../models/support_chat.dart';
-import '../state_management/support_image_bloc.dart'
-    show AttachmentUrlResolver, SupportImageBloc;
-import '../state_management/support_image_events.dart';
-import '../state_management/support_image_state.dart';
+import '../models/chat.dart';
+import '../state_management/chat_image_bloc.dart'
+    show AttachmentUrlResolver, ChatImageBloc;
+import '../state_management/chat_image_events.dart';
+import '../state_management/chat_image_state.dart';
 
 
 /// Насколько далеко нужно утащить фотографию, чтобы отпускание её закрыло.
@@ -38,10 +38,10 @@ const double _dismissVelocity = 700;
 /// Открыть [photos] на элементе [initialIndex].
 ///
 /// [resolveUrl] — как получить свежую подписанную ссылку, если та, что уже
-/// есть, протухла; повторяет договорённость `SupportImageBloc`.
+/// есть, протухла; повторяет договорённость `ChatImageBloc`.
 Future<void> showChatPhotos(
   BuildContext context, {
-  required List<SupportAttachment> photos,
+  required List<ChatAttachment> photos,
   required int initialIndex,
   AttachmentUrlResolver? resolveUrl,
 }) {
@@ -75,7 +75,7 @@ class ChatPhotoViewer extends StatefulWidget {
     this.resolveUrl,
   });
 
-  final List<SupportAttachment> photos;
+  final List<ChatAttachment> photos;
   final int initialIndex;
   final AttachmentUrlResolver? resolveUrl;
 
@@ -105,7 +105,7 @@ class _ChatPhotoViewerState extends State<ChatPhotoViewer> {
     super.dispose();
   }
 
-  SupportAttachment get _current => widget.photos[_index];
+  ChatAttachment get _current => widget.photos[_index];
 
   /// Доля пути до закрытия, 0..1 — по ней гаснет фон и уменьшается картинка.
   double get _progress =>
@@ -237,7 +237,7 @@ class _ChatPhotoViewerState extends State<ChatPhotoViewer> {
 }
 
 /// Одна фотография: зум и панорамирование. Пересогласование протухшей
-/// подписанной ссылки — дело [SupportImageBloc], того же, что и у плитки в
+/// подписанной ссылки — дело [ChatImageBloc], того же, что и у плитки в
 /// пузыре: правило «одна ссылка, одна повторная подпись» не должно быть
 /// записано в приложении дважды.
 class _PhotoPage extends StatelessWidget {
@@ -247,7 +247,7 @@ class _PhotoPage extends StatelessWidget {
     this.resolveUrl,
   });
 
-  final SupportAttachment attachment;
+  final ChatAttachment attachment;
   final ValueChanged<bool> onScaleChanged;
   final AttachmentUrlResolver? resolveUrl;
 
@@ -255,7 +255,7 @@ class _PhotoPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) {
-        final bloc = getIt<SupportImageBloc>(
+        final bloc = getIt<ChatImageBloc>(
           param1: attachment,
           param2: resolveUrl,
         );
@@ -275,7 +275,7 @@ class _PhotoPage extends StatelessWidget {
 class _PhotoSurface extends StatefulWidget {
   const _PhotoSurface({required this.attachment, required this.onScaleChanged});
 
-  final SupportAttachment attachment;
+  final ChatAttachment attachment;
   final ValueChanged<bool> onScaleChanged;
 
   @override
@@ -303,7 +303,7 @@ class _PhotoSurfaceState extends State<_PhotoSurface> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<SupportImageBloc, SupportImageState>(
+    return BlocBuilder<ChatImageBloc, ChatImageState>(
       builder: (context, state) {
         if (!state.hasUrl) {
           return Center(
@@ -330,7 +330,7 @@ class _PhotoSurfaceState extends State<_PhotoSurface> {
                 // единственной повторной подписи всё игнорирует.
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (context.mounted) {
-                    context.read<SupportImageBloc>().add(
+                    context.read<ChatImageBloc>().add(
                       SupportImageLoadFailed(),
                     );
                   }
@@ -354,7 +354,7 @@ class _PhotoSurfaceState extends State<_PhotoSurface> {
 }
 
 /// Тег hero одной фотографии — общий у плитки в пузыре и у страницы просмотра.
-String supportImageHeroTag(SupportAttachment attachment) =>
+String supportImageHeroTag(ChatAttachment attachment) =>
     'support-image-${attachment.id}';
 
 /// Открыть подписанную ссылку системным обработчиком: браузер скачает файл
@@ -362,7 +362,7 @@ String supportImageHeroTag(SupportAttachment attachment) =>
 /// на телефоне ОС сама решит, чем его открыть.
 Future<void> downloadAttachment(
   BuildContext context,
-  SupportAttachment attachment,
+  ChatAttachment attachment,
 ) async {
   final url = attachment.url;
   final messenger = ScaffoldMessenger.maybeOf(context);

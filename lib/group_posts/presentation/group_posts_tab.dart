@@ -9,7 +9,7 @@ import '../../generated/locale_keys.g.dart';
 import '../../public_comments/presentation/relative_time.dart';
 import '../../question_lists/models/question_list.dart';
 import '../../question_lists/state_management/question_lists_bloc.dart';
-import '../../support_chat/presentation/support_attachment_views.dart';
+import '../../chat/presentation/chat_attachment_views.dart';
 import '../data/group_posts_repository.dart';
 import '../models/group_post.dart';
 import '../state_management/group_posts_bloc.dart';
@@ -22,7 +22,7 @@ import 'post_comments_sheet.dart';
 ///
 /// A post carries the same attachments a support message does — a file, an
 /// image, a question, a shared question list — and they are rendered by the same
-/// widget ([SupportAttachmentView]); only the query that re-signs an expired
+/// widget ([ChatAttachmentView]); only the query that re-signs an expired
 /// link differs, which is what [GroupPostsRepository.attachmentUrl] is passed in
 /// for.
 class GroupPostsTab extends StatelessWidget {
@@ -170,7 +170,7 @@ class GroupPostCard extends StatelessWidget {
                 child: SelectableText(post.body),
               ),
             for (final attachment in post.attachments)
-              SupportAttachmentView(
+              ChatAttachmentView(
                 attachment: attachment,
                 onSurface: theme.colorScheme.onSurface,
                 resolveUrl: getIt<GroupPostsRepository>().attachmentUrl,

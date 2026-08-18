@@ -8,7 +8,7 @@ import 'package:saobracaj/group_posts/data/group_posts_repository.dart';
 import 'package:saobracaj/group_posts/state_management/group_posts_bloc.dart';
 import 'package:saobracaj/group_posts/state_management/group_posts_events.dart';
 import 'package:saobracaj/question_lists/models/question_list.dart';
-import 'package:saobracaj/support_chat/models/support_chat.dart';
+import 'package:saobracaj/chat/models/chat.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Replays canned GraphQL answers in order and records what was asked for, so a
@@ -212,7 +212,7 @@ void main() {
   });
 
   test('a shared question list is parsed as one attachment', () {
-    final attachment = SupportAttachment.parse({
+    final attachment = ChatAttachment.parse({
       'id': 'a1',
       'kind': 'QUESTION_LIST',
       'fileName': 'Сложные',
@@ -220,7 +220,7 @@ void main() {
       'createdAt': DateTime.utc(2026, 8, 17).toIso8601String(),
     });
 
-    expect(attachment.kind, SupportAttachmentKind.questionList);
+    expect(attachment.kind, ChatAttachmentKind.questionList);
     expect(attachment.questionIds, [7, 8]);
     expect(attachment.isReference, isTrue);
     expect(attachment.isImage, isFalse);

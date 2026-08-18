@@ -1,7 +1,7 @@
 import 'package:injectable/injectable.dart';
 
 import '../../auth/data/graphql_client.dart';
-import '../../support_chat/models/support_chat.dart';
+import '../../chat/models/chat.dart';
 import '../models/group_post.dart';
 
 /// Data access for a group's wall (`saobracaj_backend`, `src/group_posts/`).
@@ -161,7 +161,7 @@ class GroupPostsRepository {
 
   /// Upload a file or an image into the group, before the post that carries it
   /// exists. An attachment that is never posted is swept by the server.
-  Future<SupportAttachment> uploadAttachment({
+  Future<ChatAttachment> uploadAttachment({
     required String groupId,
     required List<int> bytes,
     required String fileName,
@@ -182,7 +182,7 @@ class GroupPostsRepository {
       contentType: contentType,
       onProgress: onProgress,
     );
-    return SupportAttachment.parse(
+    return ChatAttachment.parse(
       (data['uploadGroupPostAttachment'] as Map).cast<String, dynamic>(),
     );
   }

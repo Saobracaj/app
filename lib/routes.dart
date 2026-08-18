@@ -30,8 +30,9 @@ import 'package:saobracaj/question_lists/presentation/shared_list_page.dart';
 import 'package:saobracaj/questions/questions_page.dart';
 import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 import 'package:saobracaj/statistics/statistics_page.dart';
-import 'package:saobracaj/support_chat/presentation/support_chat_page.dart';
-import 'package:saobracaj/support_chat/presentation/support_threads_page.dart';
+import 'package:saobracaj/chat/models/chat_target.dart';
+import 'package:saobracaj/chat/presentation/chat_page.dart';
+import 'package:saobracaj/chat/presentation/support_chats_page.dart';
 import 'package:saobracaj/test/about/about_page.dart';
 import 'package:saobracaj/test/practice/practice.dart';
 import 'package:saobracaj/test/practice/practice_page.dart';
@@ -234,11 +235,31 @@ final routes = RouteMap(
     // needs no id — the backend resolves it from the token; the moderator's
     // list and the conversations opened from it sit under it, so "back" from a
     // conversation returns to the list.
-    '/support': (_) => const MaterialPage(child: SupportChatPage()),
-    '/support/threads': (_) => const MaterialPage(child: SupportThreadsPage()),
+    '/support': (_) => const MaterialPage(child: ChatPage()),
+    '/support/threads': (_) => const MaterialPage(child: SupportChatsPage()),
     '/support/threads/:id': (data) => MaterialPage(
-      child: SupportChatPage(
-        threadId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+      child: ChatPage(
+        target: ChatIdTarget(
+          Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+        ),
+      ),
+    ),
+    // Любой разговор по идентификатору — сюда ведут пуши про тред, и отсюда же
+    // откроется чат группы, когда такие появятся.
+    '/chat/:id': (data) => MaterialPage(
+      child: ChatPage(
+        target: ChatIdTarget(
+          Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+        ),
+      ),
+    ),
+    // Тред на сообщение: чата может ещё не быть, бэкенд создаёт его при первом
+    // открытии, поэтому в адресе стоит сообщение.
+    '/thread/:messageId': (data) => MaterialPage(
+      child: ChatPage(
+        target: MessageThreadTarget(
+          Uri.decodeComponent(data.pathParameters['messageId'] ?? ''),
+        ),
       ),
     ),
   },

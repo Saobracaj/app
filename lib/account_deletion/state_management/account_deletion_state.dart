@@ -20,7 +20,7 @@ abstract class AccountDeletionState with _$AccountDeletionState {
     // Everything optional starts unticked: nothing beyond the mandatory items
     // is deleted unless the user asks for it explicitly.
     @Default(false) bool deletePublicComments,
-    @Default(false) bool deleteSupportAttachments,
+    @Default(false) bool deleteChatAttachments,
     @Default(false) bool deleteSupportChat,
     @Default(false) bool deleteGroupHistory,
     @Default(false) bool clearLocalData,
@@ -43,8 +43,8 @@ abstract class AccountDeletionState with _$AccountDeletionState {
 
   /// Deleting the whole conversation implies its attachments — the checklist
   /// shows the row as ticked and locked, and this is what the server is told.
-  bool get deletesSupportAttachments =>
-      deleteSupportAttachments || deleteSupportChat;
+  bool get deletesChatAttachments =>
+      deleteChatAttachments || deleteSupportChat;
 
   /// Everything the server requires before it sends a code is ticked.
   bool get canRequestCode =>

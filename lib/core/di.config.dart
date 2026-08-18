@@ -30,6 +30,12 @@ import '../auth/state_management/reset_password/reset_password_bloc.dart'
     as _i940;
 import '../billing_admin/data/billing_admin_repository.dart' as _i512;
 import '../billing_admin/state_management/billing_admin_bloc.dart' as _i443;
+import '../chat/data/chat_repository.dart' as _i299;
+import '../chat/models/chat.dart' as _i310;
+import '../chat/models/chat_target.dart' as _i329;
+import '../chat/state_management/chat_bloc.dart' as _i373;
+import '../chat/state_management/chat_image_bloc.dart' as _i968;
+import '../chat/state_management/support_chats_bloc.dart' as _i667;
 import '../feature_flags/data/feature_flags_repository.dart' as _i389;
 import '../feature_flags/domain/app_feature.dart' as _i392;
 import '../group_posts/data/group_posts_repository.dart' as _i607;
@@ -63,11 +69,6 @@ import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
 import '../question_lists/state_management/shared_list_bloc.dart' as _i718;
 import '../subscription/data/subscription_repository.dart' as _i731;
 import '../subscription/state_management/subscription_bloc.dart' as _i335;
-import '../support_chat/data/support_chat_repository.dart' as _i968;
-import '../support_chat/models/support_chat.dart' as _i163;
-import '../support_chat/state_management/support_chat_bloc.dart' as _i639;
-import '../support_chat/state_management/support_image_bloc.dart' as _i681;
-import '../support_chat/state_management/support_threads_bloc.dart' as _i252;
 import '../test/data/quiz_preferences_repository.dart' as _i442;
 import '../test/practice/state_management/practice_page_bloc.dart' as _i790;
 import '../test/quest/comment/data/comment_repository.dart' as _i359;
@@ -243,14 +244,14 @@ extension GetItInjectableX on _i174.GetIt {
         questionId,
       ),
     );
-    gh.lazySingleton<_i685.GroupsRepository>(
-      () => _i685.GroupsRepository(
+    gh.lazySingleton<_i299.ChatRepository>(
+      () => _i299.ChatRepository(
         gh<_i483.GraphqlClient>(),
         gh<_i966.GraphqlSubscriptionClient>(),
       ),
     );
-    gh.lazySingleton<_i968.SupportChatRepository>(
-      () => _i968.SupportChatRepository(
+    gh.lazySingleton<_i685.GroupsRepository>(
+      () => _i685.GroupsRepository(
         gh<_i483.GraphqlClient>(),
         gh<_i966.GraphqlSubscriptionClient>(),
       ),
@@ -263,17 +264,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factoryParam<_i892.ConfirmCodeBloc, String, dynamic>(
       (email, _) => _i892.ConfirmCodeBloc(gh<_i880.AuthRepository>(), email),
-    );
-    gh.factory<_i252.SupportThreadsBloc>(
-      () => _i252.SupportThreadsBloc(gh<_i968.SupportChatRepository>()),
-    );
-    gh.factoryParam<_i639.SupportChatBloc, String?, dynamic>(
-      (threadId, _) => _i639.SupportChatBloc(
-        gh<_i968.SupportChatRepository>(),
-        gh<_i426.NotificationPermissions>(),
-        gh<_i880.AuthRepository>(),
-        threadId,
-      ),
     );
     gh.lazySingleton<_i388.AuthBloc>(
       () => _i388.AuthBloc(
@@ -312,12 +302,23 @@ extension GetItInjectableX on _i174.GetIt {
       (questionId, _) =>
           _i658.CommentEditorBloc(gh<_i359.CommentRepository>(), questionId),
     );
+    gh.factoryParam<_i373.ChatBloc, _i329.ChatTarget?, dynamic>(
+      (target, _) => _i373.ChatBloc(
+        gh<_i299.ChatRepository>(),
+        gh<_i426.NotificationPermissions>(),
+        gh<_i880.AuthRepository>(),
+        target,
+      ),
+    );
     gh.factoryParam<_i1064.GroupBloc, String, dynamic>(
       (groupId, _) => _i1064.GroupBloc(
         gh<_i685.GroupsRepository>(),
         gh<_i389.FeatureFlagsRepository>(),
         groupId,
       ),
+    );
+    gh.factory<_i667.SupportChatsBloc>(
+      () => _i667.SupportChatsBloc(gh<_i299.ChatRepository>()),
     );
     gh.factory<_i531.FirebaseLoginBloc>(
       () => _i531.FirebaseLoginBloc(gh<_i880.AuthRepository>()),
@@ -351,22 +352,25 @@ extension GetItInjectableX on _i174.GetIt {
       (scope, scopeId) =>
           _i794.AskAiChatBloc(gh<_i154.AskAiChatRepository>(), scope, scopeId),
     );
-    gh.factoryParam<
-      _i681.SupportImageBloc,
-      _i163.SupportAttachment,
-      _i681.AttachmentUrlResolver?
-    >(
-      (attachment, resolveUrl) => _i681.SupportImageBloc(
-        gh<_i968.SupportChatRepository>(),
-        attachment,
-        resolveUrl,
-      ),
-    );
     gh.factory<_i618.NotificationsBloc>(
       () => _i618.NotificationsBloc(
         gh<_i880.AuthRepository>(),
         gh<_i388.AuthBloc>(),
         gh<_i426.NotificationPermissions>(),
+      ),
+    );
+    gh.factoryParam<
+      _i751.QuestionFeedbackBloc,
+      int,
+      _i7.QuestionFeedbackSource
+    >(
+      (questionId, source) => _i751.QuestionFeedbackBloc(
+        gh<_i299.ChatRepository>(),
+        gh<_i426.NotificationPermissions>(),
+        gh<_i880.AuthRepository>(),
+        gh<_i388.AuthBloc>(),
+        questionId,
+        source,
       ),
     );
     gh.factoryParam<_i718.SharedListBloc, String, dynamic>(
@@ -398,6 +402,17 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i388.AuthBloc>(),
       ),
     );
+    gh.factoryParam<
+      _i968.ChatImageBloc,
+      _i310.ChatAttachment,
+      _i968.AttachmentUrlResolver?
+    >(
+      (attachment, resolveUrl) => _i968.ChatImageBloc(
+        gh<_i299.ChatRepository>(),
+        attachment,
+        resolveUrl,
+      ),
+    );
     gh.factory<_i1000.QuestionListsBloc>(
       () => _i1000.QuestionListsBloc(
         gh<_i206.QuestionListsRepository>(),
@@ -420,20 +435,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factoryParam<_i481.GroupFeedBloc, String, dynamic>(
       (groupId, _) =>
           _i481.GroupFeedBloc(gh<_i685.GroupsRepository>(), groupId),
-    );
-    gh.factoryParam<
-      _i751.QuestionFeedbackBloc,
-      int,
-      _i7.QuestionFeedbackSource
-    >(
-      (questionId, source) => _i751.QuestionFeedbackBloc(
-        gh<_i968.SupportChatRepository>(),
-        gh<_i426.NotificationPermissions>(),
-        gh<_i880.AuthRepository>(),
-        gh<_i388.AuthBloc>(),
-        questionId,
-        source,
-      ),
     );
     gh.factoryParam<_i955.CommentCountBloc, int, dynamic>(
       (questionId, _) => _i955.CommentCountBloc(

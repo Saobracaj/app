@@ -6,8 +6,8 @@ import '../../question_lists/domain/list_style.dart';
 import '../../question_lists/models/question_list.dart';
 import '../../question_lists/state_management/question_lists_bloc.dart';
 import '../../question_lists/state_management/question_lists_state.dart';
-import '../state_management/support_chat_bloc.dart';
-import '../state_management/support_chat_events.dart';
+import '../state_management/chat_bloc.dart';
+import '../state_management/chat_events.dart';
 
 /// Меню кнопки «Вложить»: фотография, файл, список вопросов.
 ///
@@ -16,7 +16,7 @@ import '../state_management/support_chat_events.dart';
 /// список вопросов вообще ничего не загружает — он прикладывается
 /// идентификатором, и снимок с него снимает бэкенд в момент отправки.
 Future<void> showChatAttachMenu(BuildContext context) async {
-  final bloc = context.read<SupportChatBloc>();
+  final bloc = context.read<ChatBloc>();
   final lists = context.read<QuestionListsBloc>();
   await showModalBottomSheet<void>(
     context: context,
@@ -30,7 +30,7 @@ Future<void> showChatAttachMenu(BuildContext context) async {
             title: Text('support.attachPhoto'.tr()),
             onTap: () {
               Navigator.of(sheetContext).pop();
-              bloc.add(SupportChatPhotosPicked());
+              bloc.add(ChatPhotosPicked());
             },
           ),
           ListTile(
@@ -38,7 +38,7 @@ Future<void> showChatAttachMenu(BuildContext context) async {
             title: Text('support.attachFile'.tr()),
             onTap: () {
               Navigator.of(sheetContext).pop();
-              bloc.add(SupportChatFilePicked());
+              bloc.add(ChatFilePicked());
             },
           ),
           ListTile(
@@ -47,7 +47,7 @@ Future<void> showChatAttachMenu(BuildContext context) async {
             onTap: () async {
               Navigator.of(sheetContext).pop();
               final list = await showQuestionListPicker(context, lists);
-              if (list != null) bloc.add(SupportChatListAttached(list));
+              if (list != null) bloc.add(ChatListAttached(list));
             },
           ),
         ],

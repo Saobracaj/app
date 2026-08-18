@@ -1,70 +1,86 @@
 import '../../question_lists/models/question_list.dart';
-import '../models/support_chat.dart';
+import '../models/chat.dart';
 
 /// User actions of the support-chat screen.
-sealed class SupportChatEvent {}
+sealed class ChatEvent {}
 
 /// The screen appeared: load the thread and its messages, mark the counterpart's
 /// messages read, and — for the thread's owner — offer notifications once.
-class SupportChatOpened extends SupportChatEvent {}
+class ChatOpened extends ChatEvent {}
 
 /// Pull-to-refresh / retry after an error.
-class SupportChatRefreshed extends SupportChatEvent {}
+class ChatRefreshed extends ChatEvent {}
 
 /// The composer's text changed.
-class SupportChatBodyChanged extends SupportChatEvent {
-  SupportChatBodyChanged(this.body);
+class ChatBodyChanged extends ChatEvent {
+  ChatBodyChanged(this.body);
   final String body;
 }
 
 /// Пункт «Файл» меню вложений: системный выбор файла, загрузка байт в байт.
-class SupportChatFilePicked extends SupportChatEvent {}
+class ChatFilePicked extends ChatEvent {}
 
 /// Пункт «Фотография» меню вложений: системный выбор из галереи, пережатие в
 /// JPEG на устройстве и загрузка. Можно выбрать несколько снимков сразу.
-class SupportChatPhotosPicked extends SupportChatEvent {}
+class ChatPhotosPicked extends ChatEvent {}
 
 /// Пункт «Список вопросов»: пользователь выбрал один из своих списков. Ничего
 /// не загружается — список уезжает вместе с сообщением, и бэкенд снимает с него
 /// снимок (название и вопросы) в момент отправки.
-class SupportChatListAttached extends SupportChatEvent {
-  SupportChatListAttached(this.list);
+class ChatListAttached extends ChatEvent {
+  ChatListAttached(this.list);
   final QuestionList list;
 }
 
 /// Убрать ещё не отправленный список из строки ввода.
-class SupportChatListRemoved extends SupportChatEvent {
-  SupportChatListRemoved(this.listId);
+class ChatListRemoved extends ChatEvent {
+  ChatListRemoved(this.listId);
   final String listId;
 }
 
 /// Drop a not-yet-sent attachment from the composer.
-class SupportChatAttachmentRemoved extends SupportChatEvent {
-  SupportChatAttachmentRemoved(this.attachment);
-  final SupportAttachment attachment;
+class ChatAttachmentRemoved extends ChatEvent {
+  ChatAttachmentRemoved(this.attachment);
+  final ChatAttachment attachment;
 }
 
-/// Send the composed message with whatever is attached.
-class SupportChatSendPressed extends SupportChatEvent {}
+/// Send the composed message with whatever is attached — или сохранить правку,
+/// если сейчас правится уже отправленное сообщение.
+class ChatSendPressed extends ChatEvent {}
+
+/// «Изменить» в меню сообщения: текст и вложения переезжают в строку ввода.
+class ChatEditStarted extends ChatEvent {
+  ChatEditStarted(this.message);
+  final ChatMessage message;
+}
+
+/// Отказ от правки: строка ввода снова пустая.
+class ChatEditCancelled extends ChatEvent {}
+
+/// Колокольчик в шапке: включить или выключить оповещения об этом разговоре.
+class ChatNotificationsToggled extends ChatEvent {}
+
+/// Snackbar про оповещения показан.
+class ChatNoticeShown extends ChatEvent {}
 
 /// The notification offer was declined (or dismissed).
-class SupportChatNotificationsDeclined extends SupportChatEvent {}
+class ChatNotificationsDeclined extends ChatEvent {}
 
 /// The notification offer was accepted: ask the OS and turn push on.
-class SupportChatNotificationsAccepted extends SupportChatEvent {}
+class ChatNotificationsAccepted extends ChatEvent {}
 
 /// Clear the inline error banner.
-class SupportChatErrorDismissed extends SupportChatEvent {}
+class ChatErrorDismissed extends ChatEvent {}
 
 /// The backend says the conversation changed (a message was added, or somebody
 /// read one). Not dispatched by the UI — it comes off the subscription.
-class SupportChatChangedRemotely extends SupportChatEvent {}
+class ChatChangedRemotely extends ChatEvent {}
 
 /// The realtime connection came up or went down. [missed] is set when it is a
 /// reconnect: the server keeps no backlog, so whatever happened while the socket
 /// was down has to be re-read.
-class SupportChatLiveChanged extends SupportChatEvent {
-  SupportChatLiveChanged({required this.live, this.missed = false});
+class ChatLiveChanged extends ChatEvent {
+  ChatLiveChanged({required this.live, this.missed = false});
 
   final bool live;
   final bool missed;
@@ -72,8 +88,8 @@ class SupportChatLiveChanged extends SupportChatEvent {
 
 /// Upload progress, fed back in from Dio's callback rather than dispatched by
 /// the UI. It lives here only because the event hierarchy is sealed.
-class SupportChatUploadProgress extends SupportChatEvent {
-  SupportChatUploadProgress(this.value);
+class ChatUploadProgress extends ChatEvent {
+  ChatUploadProgress(this.value);
 
   /// Fraction of the file already sent, 0..1.
   final double value;

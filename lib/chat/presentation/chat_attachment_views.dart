@@ -5,12 +5,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/di.dart';
 import '../../test/quest/preview/question_preview_sheet.dart';
 import '../data/chat_image_cache.dart';
-import '../models/support_chat.dart';
+import '../models/chat.dart';
 import 'chat_photo_viewer.dart';
-import '../state_management/support_image_bloc.dart'
-    show AttachmentUrlResolver, SupportImageBloc;
-import '../state_management/support_image_events.dart';
-import '../state_management/support_image_state.dart';
+import '../state_management/chat_image_bloc.dart'
+    show AttachmentUrlResolver, ChatImageBloc;
+import '../state_management/chat_image_events.dart';
+import '../state_management/chat_image_state.dart';
 
 /// The box every inline picture occupies, whatever it turns out to contain.
 ///
@@ -33,21 +33,21 @@ const double kSupportImageRadius = 12;
 ///   sheet — the same one the konspekt's question links use;
 /// * a **question list** is one chip too: the list's name, and a sheet with the
 ///   questions behind it.
-class SupportAttachmentView extends StatelessWidget {
-  const SupportAttachmentView({
+class ChatAttachmentView extends StatelessWidget {
+  const ChatAttachmentView({
     super.key,
     required this.attachment,
     required this.onSurface,
     this.resolveUrl,
-    this.gallery = const <SupportAttachment>[],
+    this.gallery = const <ChatAttachment>[],
   });
 
-  final SupportAttachment attachment;
+  final ChatAttachment attachment;
 
   /// Все фотографии сообщения, в порядке показа: полноэкранный просмотр листает
   /// их свайпами, а не показывает одну-единственную. Пустой список — «только
   /// эта», для мест, где соседних фотографий нет.
-  final List<SupportAttachment> gallery;
+  final List<ChatAttachment> gallery;
 
   /// Colour to draw on, so the widget reads on both bubble backgrounds.
   final Color onSurface;
@@ -58,13 +58,13 @@ class SupportAttachmentView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (attachment.kind == SupportAttachmentKind.question) {
+    if (attachment.kind == ChatAttachmentKind.question) {
       return _QuestionChip(
         questionId: attachment.questionId,
         onSurface: onSurface,
       );
     }
-    if (attachment.kind == SupportAttachmentKind.questionList) {
+    if (attachment.kind == ChatAttachmentKind.questionList) {
       return _QuestionListChip(attachment: attachment, onSurface: onSurface);
     }
     if (attachment.deleted) {
@@ -114,7 +114,7 @@ class _QuestionChip extends StatelessWidget {
 class _QuestionListChip extends StatelessWidget {
   const _QuestionListChip({required this.attachment, required this.onSurface});
 
-  final SupportAttachment attachment;
+  final ChatAttachment attachment;
   final Color onSurface;
 
   @override
@@ -140,7 +140,7 @@ class _QuestionListChip extends StatelessWidget {
 /// The questions of a shared list, each opening the usual preview sheet.
 Future<void> showSharedQuestionList(
   BuildContext context,
-  SupportAttachment attachment,
+  ChatAttachment attachment,
 ) {
   return showModalBottomSheet<void>(
     context: context,
@@ -184,8 +184,8 @@ class _ImageAttachment extends StatelessWidget {
     this.resolveUrl,
   });
 
-  final SupportAttachment attachment;
-  final List<SupportAttachment> gallery;
+  final ChatAttachment attachment;
+  final List<ChatAttachment> gallery;
   final AttachmentUrlResolver? resolveUrl;
 
   @override
@@ -195,7 +195,7 @@ class _ImageAttachment extends StatelessWidget {
       // signed links) starts the tile over instead of reusing a dead one.
       key: ValueKey(attachment.id),
       create: (_) {
-        final bloc = getIt<SupportImageBloc>(
+        final bloc = getIt<ChatImageBloc>(
           param1: attachment,
           param2: resolveUrl,
         );
@@ -213,12 +213,12 @@ class _ImageAttachment extends StatelessWidget {
 class _ImageTile extends StatelessWidget {
   const _ImageTile({required this.gallery, this.resolveUrl});
 
-  final List<SupportAttachment> gallery;
+  final List<ChatAttachment> gallery;
   final AttachmentUrlResolver? resolveUrl;
 
   @override
   Widget build(BuildContext context) {
-    final attachment = context.read<SupportImageBloc>().attachment;
+    final attachment = context.read<ChatImageBloc>().attachment;
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: ClipRRect(
@@ -226,7 +226,7 @@ class _ImageTile extends StatelessWidget {
         child: SizedBox(
           width: kSupportImageWidth,
           height: kSupportImageHeight,
-          child: BlocBuilder<SupportImageBloc, SupportImageState>(
+          child: BlocBuilder<ChatImageBloc, ChatImageState>(
             builder: (context, state) {
               if (!state.hasUrl) {
                 return _ImagePlaceholder(
@@ -262,7 +262,7 @@ class _ImageTile extends StatelessWidget {
                       // harmless.
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         if (context.mounted) {
-                          context.read<SupportImageBloc>().add(
+                          context.read<ChatImageBloc>().add(
                             SupportImageLoadFailed(),
                           );
                         }
@@ -377,7 +377,7 @@ class _ImagePlaceholder extends StatelessWidget {
 class _FileAttachment extends StatelessWidget {
   const _FileAttachment({required this.attachment, required this.onSurface});
 
-  final SupportAttachment attachment;
+  final ChatAttachment attachment;
   final Color onSurface;
 
   @override

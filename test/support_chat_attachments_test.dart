@@ -6,9 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:image/image.dart' as img;
-import 'package:saobracaj/support_chat/data/chat_image_cache.dart';
-import 'package:saobracaj/support_chat/data/photo_compressor.dart';
-import 'package:saobracaj/support_chat/presentation/shared_list_chip.dart';
+import 'package:saobracaj/chat/data/chat_image_cache.dart';
+import 'package:saobracaj/chat/data/photo_compressor.dart';
+import 'package:saobracaj/chat/presentation/shared_list_chip.dart';
 
 /// Вложения чата: кэш картинок по вложению (а не по ссылке), пережатие
 /// фотографий в JPEG и разбор ссылок на расшаренные списки.

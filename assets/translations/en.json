@@ -620,7 +620,27 @@
       "other": "{} questions"
     },
     "sharedListLoading": "List…",
-    "expand": "Expand"
+    "expand": "Expand",
+    "threadHeader": "Thread",
+    "replies": "Replies",
+    "noReplies": "No replies yet",
+    "reply": "Reply",
+    "edit": "Edit",
+    "edited": "Edited",
+    "editing": "Editing a message",
+    "editCancel": "Cancel editing",
+    "notifyOn": "Turn notifications on",
+    "notifyOff": "Turn notifications off",
+    "notifyOnChat": "Notifications are on for this chat",
+    "notifyOffChat": "Notifications are off for this chat",
+    "notifyOnThread": "Notifications are on for this thread",
+    "notifyOffThread": "Notifications are off for this thread",
+    "threadReplies": {
+      "one": "{} reply",
+      "few": "{} replies",
+      "many": "{} replies",
+      "other": "{} replies"
+    }
   },
   "questionFeedback": {
     "report": "Report a problem",

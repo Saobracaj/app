@@ -1,30 +1,32 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/core/deep_links/deep_link_path.dart';
 import 'package:saobracaj/routes.dart';
-import 'package:saobracaj/support_chat/models/support_chat.dart';
-import 'package:saobracaj/support_chat/presentation/linked_text.dart';
-import 'package:saobracaj/support_chat/presentation/support_chat_page.dart';
+import 'package:saobracaj/chat/models/chat.dart';
+import 'package:saobracaj/chat/models/chat_update.dart';
+import 'package:saobracaj/chat/presentation/linked_text.dart';
+import 'package:saobracaj/chat/presentation/chat_page.dart';
 
-/// Тесты «чата с разработчиком» (lib/support_chat/): разбор ответа бэкенда,
+/// Тесты «чата с разработчиком» (lib/chat/): разбор ответа бэкенда,
 /// распознавание картинок и ссылок, маршруты и диплинки из пуша.
 void main() {
-  group('SupportAttachment', () {
+  _chatModelTests();
+  group('ChatAttachment', () {
     test('тип вложения приходит с сервера в верхнем регистре', () {
-      expect(SupportAttachmentKind.parse('IMAGE'), SupportAttachmentKind.image);
+      expect(ChatAttachmentKind.parse('IMAGE'), ChatAttachmentKind.image);
       expect(
-        SupportAttachmentKind.parse('QUESTION'),
-        SupportAttachmentKind.question,
+        ChatAttachmentKind.parse('QUESTION'),
+        ChatAttachmentKind.question,
       );
-      expect(SupportAttachmentKind.parse('FILE'), SupportAttachmentKind.file);
+      expect(ChatAttachmentKind.parse('FILE'), ChatAttachmentKind.file);
       // Незнакомый тип — файл: скачать можно всегда, а показать инлайн нет.
-      expect(SupportAttachmentKind.parse(null), SupportAttachmentKind.file);
-      expect(SupportAttachmentKind.parse('WAT'), SupportAttachmentKind.file);
+      expect(ChatAttachmentKind.parse(null), ChatAttachmentKind.file);
+      expect(ChatAttachmentKind.parse('WAT'), ChatAttachmentKind.file);
     });
 
     test('размер показывается в человеческих единицах', () {
-      SupportAttachment sized(int bytes) => SupportAttachment(
+      ChatAttachment sized(int bytes) => ChatAttachment(
         id: '1',
-        kind: SupportAttachmentKind.file,
+        kind: ChatAttachmentKind.file,
         sizeBytes: bytes,
         createdAt: DateTime(2026),
       );
@@ -35,22 +37,22 @@ void main() {
     });
 
     test('ссылка на вопрос ничего не хранит', () {
-      final attachment = SupportAttachment.parse({
+      final attachment = ChatAttachment.parse({
         'id': 'a1',
         'kind': 'QUESTION',
         'questionId': 1234,
         'createdAt': '2026-08-07T10:00:00Z',
       });
-      expect(attachment.kind, SupportAttachmentKind.question);
+      expect(attachment.kind, ChatAttachmentKind.question);
       expect(attachment.questionId, 1234);
       expect(attachment.url, isNull);
       expect(attachment.readableSize, '');
     });
   });
 
-  group('SupportMessage', () {
+  group('ChatMessage', () {
     test('разбирает сообщение с вложениями и статусом прочтения', () {
-      final message = SupportMessage.parse({
+      final message = ChatMessage.parse({
         'id': 'm1',
         'threadId': 't1',
         'authorId': 'u1',
@@ -74,12 +76,12 @@ void main() {
 
       expect(message.fromStaff, isTrue);
       expect(message.isRead, isTrue);
-      expect(message.attachments.single.kind, SupportAttachmentKind.image);
+      expect(message.attachments.single.kind, ChatAttachmentKind.image);
       expect(message.attachments.single.url, 'https://example.com/signed');
     });
 
     test('непрочитанное сообщение приходит без readAt', () {
-      final message = SupportMessage.parse({
+      final message = ChatMessage.parse({
         'id': 'm2',
         'createdAt': '2026-08-07T10:00:00Z',
         'readAt': null,
@@ -90,15 +92,15 @@ void main() {
     });
   });
 
-  group('SupportThread', () {
+  group('Chat', () {
     test('в списке модератора тред подписан именем, иначе почтой', () {
-      final named = SupportThread.parse({
+      final named = Chat.parse({
         'id': 't1',
         'userDisplayName': 'Ана',
         'userEmail': 'ana@example.com',
         'createdAt': '2026-08-07T10:00:00Z',
       });
-      final anonymous = SupportThread.parse({
+      final anonymous = Chat.parse({
         'id': 't2',
         'userEmail': 'zoran@example.com',
         'createdAt': '2026-08-07T10:00:00Z',
@@ -108,7 +110,7 @@ void main() {
     });
 
     test('страницы разбираются вместе со счётчиками', () {
-      final threads = SupportThreadPage.parse({
+      final threads = ChatConnection.parse({
         'totalCount': 3,
         'hasNextPage': true,
         'nodes': [
@@ -120,18 +122,18 @@ void main() {
       expect(threads.nodes.single.unreadCount, 2);
 
       // Пустой/битый ответ не роняет экран.
-      final messages = SupportMessagePage.parse({'nodes': null});
+      final messages = ChatMessagePage.parse({'nodes': null});
       expect(messages.nodes, isEmpty);
       expect(messages.hasNextPage, isFalse);
     });
   });
 
   group('картинки в сообщениях', () {
-    SupportAttachment attachment({
-      SupportAttachmentKind kind = SupportAttachmentKind.file,
+    ChatAttachment attachment({
+      ChatAttachmentKind kind = ChatAttachmentKind.file,
       String fileName = '',
       String contentType = '',
-    }) => SupportAttachment(
+    }) => ChatAttachment(
       id: 'a1',
       kind: kind,
       fileName: fileName,
@@ -140,7 +142,7 @@ void main() {
     );
 
     test('картинка узнаётся по типу с сервера', () {
-      expect(attachment(kind: SupportAttachmentKind.image).isImage, isTrue);
+      expect(attachment(kind: ChatAttachmentKind.image).isImage, isTrue);
     });
 
     test('старое вложение без MIME-типа узнаётся по расширению', () {
@@ -161,7 +163,7 @@ void main() {
       expect(attachment(fileName: 'без расширения').isImage, isFalse);
       expect(
         attachment(
-          kind: SupportAttachmentKind.question,
+          kind: ChatAttachmentKind.question,
           fileName: 'x.png',
         ).isImage,
         isFalse,
@@ -225,7 +227,7 @@ void main() {
 
   group('имя автора сообщения', () {
     test('display name показывается как есть', () {
-      final message = SupportMessage(
+      final message = ChatMessage(
         id: 'm1',
         authorDisplayName: '  Ана  ',
         createdAt: DateTime(2026),
@@ -248,6 +250,81 @@ void main() {
       expect(
         deepLinkPathFor(Uri.parse('saobracaj://support/threads/abc-123')),
         '/support/threads/abc-123',
+      );
+    });
+  });
+}
+
+void _chatModelTests() {
+  group('универсальный чат: разбор новых полей', () {
+    test('чат несёт сущность, тред-родителя и состояние колокольчика', () {
+      final chat = Chat.parse(const {
+        'id': 'c1',
+        'entityType': 'MESSAGE_THREAD',
+        'entityId': 'm1',
+        'parentMessageId': 'm1',
+        'isGroup': false,
+        'notificationsEnabled': true,
+        'createdAt': '2026-08-18T10:00:00Z',
+      });
+
+      expect(chat.entityType, ChatEntityType.messageThread);
+      expect(chat.isThread, isTrue);
+      expect(chat.parentMessageId, 'm1');
+      expect(chat.notificationsEnabled, isTrue);
+    });
+
+    test('незнакомая сущность читается как чат с разработчиком', () {
+      final chat = Chat.parse(const {
+        'id': 'c1',
+        'entityType': 'WAT',
+        'createdAt': '2026-08-18T10:00:00Z',
+      });
+      expect(chat.entityType, ChatEntityType.support);
+      expect(chat.isThread, isFalse);
+      // Пустая строка идентификатора родителя — это «родителя нет».
+      expect(chat.parentMessageId, isNull);
+    });
+
+    test('сообщение знает про правку и про свой тред', () {
+      final edited = ChatMessage.parse(const {
+        'id': 'm1',
+        'body': 'текст',
+        'createdAt': '2026-08-18T10:00:00Z',
+        'editedAt': '2026-08-18T10:05:00Z',
+        'threadChatId': 'c2',
+        'replyCount': 3,
+      });
+      expect(edited.isEdited, isTrue);
+      expect(edited.hasThread, isTrue);
+
+      final plain = ChatMessage.parse(const {
+        'id': 'm2',
+        'body': 'текст',
+        'createdAt': '2026-08-18T10:00:00Z',
+      });
+      expect(plain.isEdited, isFalse);
+      // Тред без ответов ссылкой не показывается — показывать нечего.
+      expect(plain.hasThread, isFalse);
+      expect(
+        ChatMessage.parse(const {
+          'id': 'm3',
+          'createdAt': '2026-08-18T10:00:00Z',
+          'threadChatId': 'c3',
+          'replyCount': 0,
+        }).hasThread,
+        isFalse,
+      );
+    });
+
+    test('виды событий подписки покрывают правку и открытие треда', () {
+      expect(
+        ChatChangeKind.parse('MESSAGE_EDITED'),
+        ChatChangeKind.messageEdited,
+      );
+      expect(
+        ChatChangeKind.parse('THREAD_OPENED'),
+        ChatChangeKind.threadOpened,
       );
     });
   });

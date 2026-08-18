@@ -50,7 +50,7 @@ class AccountDeletionRepository {
   Future<bool> deleteAccount({
     required String code,
     required bool deletePublicComments,
-    required bool deleteSupportAttachments,
+    required bool deleteChatAttachments,
     required bool deleteSupportChat,
     required bool deleteGroupHistory,
     required bool acceptIrreversible,
@@ -62,7 +62,7 @@ class AccountDeletionRepository {
         'input': {
           'code': code,
           'deletePublicComments': deletePublicComments,
-          'deleteSupportAttachments': deleteSupportAttachments,
+          'deleteChatAttachments': deleteChatAttachments,
           'deleteSupportChat': deleteSupportChat,
           'deleteGroupHistory': deleteGroupHistory,
           'acceptIrreversible': acceptIrreversible,
