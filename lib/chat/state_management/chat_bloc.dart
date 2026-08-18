@@ -67,6 +67,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatNotificationsAccepted>(_onNotificationsAccepted);
     on<ChatMessageDeleted>(_onMessageDeleted);
     on<ChatMessageReported>(_onMessageReported);
+    on<ChatReactionToggled>(_onReactionToggled);
     on<ChatErrorDismissed>(
       (_, emit) => emit(state.copyWith(errorMessage: null)),
     );
@@ -171,8 +172,17 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         .listen(
           (update) {
             switch (update) {
-              case ChatChanged():
-                add(ChatChangedRemotely());
+              case ChatChanged(:final kind, :final messageId):
+                // Удалённое сообщение уносится по идентификатору из события:
+                // перечитанная страница о нём молчит, и без этого чужое
+                // удаление оставалось бы на экране до перезахода.
+                add(
+                  ChatChangedRemotely(
+                    deletedMessageId: kind == ChatChangeKind.messageDeleted
+                        ? messageId
+                        : null,
+                  ),
+                );
               case ChatLive(:final firstConnect):
                 add(ChatLiveChanged(live: true, missed: !firstConnect));
               case ChatOffline():
@@ -567,6 +577,52 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     } catch (e) {
       if (!emit.isDone) emit(state.copyWith(errorMessage: _message(e)));
     }
+  }
+
+  /// Реакция ставится и снимается одним нажатием, и на экране это видно
+  /// сразу — до ответа сервера.
+  ///
+  /// Иначе значок «залипает» на время запроса, а нажимают его быстро и по
+  /// нескольку раз. Если запрос не прошёл, лента возвращается к тому, что было:
+  /// показывать реакцию, которой на сервере нет, хуже, чем не показать её
+  /// вовсе.
+  Future<void> _onReactionToggled(
+    ChatReactionToggled event,
+    Emitter<ChatState> emit,
+  ) async {
+    emit(_withReaction(event.message.id, event.emoji));
+    try {
+      await _chat.toggleReaction(
+        messageId: event.message.id,
+        emoji: event.emoji,
+      );
+    } catch (e) {
+      if (emit.isDone) return;
+      // Откатываем тем же переключателем, а не подменой всей ленты на снимок
+      // до нажатия: пока летел запрос, в разговор могло приехать сообщение, и
+      // снимок унёс бы его с экрана.
+      emit(
+        _withReaction(
+          event.message.id,
+          event.emoji,
+        ).copyWith(errorMessage: _message(e)),
+      );
+    }
+  }
+
+  /// Состояние с переключённой реакцией — и в ленте, и в шапке треда: одно и то
+  /// же сообщение может быть показано в обоих местах.
+  ChatState _withReaction(String messageId, String emoji) {
+    final parent = state.parentMessage;
+    return state.copyWith(
+      messages: [
+        for (final m in state.messages)
+          if (m.id == messageId) m.withToggledReaction(emoji) else m,
+      ],
+      parentMessage: parent?.id == messageId
+          ? parent!.withToggledReaction(emoji)
+          : parent,
+    );
   }
 
   void _onAttachmentRemoved(
