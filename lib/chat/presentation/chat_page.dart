@@ -54,9 +54,36 @@ class ChatContent extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => getIt<ChatBloc>(param1: null)..add(ChatOpened()),
-      child: const _ChatBody(embedded: true),
+      child: const ChatBodyView(),
     );
   }
+}
+
+/// Тело чата без Scaffold поверх [ChatBloc], созданного выше по дереву, —
+/// так чат живёт вкладкой на чужом экране (вкладка «Чат» у группы): шапка там
+/// общая с соседней вкладкой, а сам разговор всё равно занимает весь экран.
+///
+/// Индикатор загрузки и строка про потерянное live-соединение рисуются внутри
+/// тела — в чужой AppBar их не поместить.
+class ChatBodyView extends StatelessWidget {
+  const ChatBodyView({super.key, this.focusComposer = false});
+
+  /// Ставить ли курсор в поле ввода при открытии — см. [ChatPage.focusComposer].
+  final bool focusComposer;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ChatBody(embedded: true, focusComposer: focusComposer);
+  }
+}
+
+/// Переключатель оповещений этого разговора для чужой шапки: [ChatBloc] берётся
+/// из дерева, поэтому кнопку можно положить в AppBar экрана-хозяина.
+class ChatNotificationsButton extends StatelessWidget {
+  const ChatNotificationsButton({super.key});
+
+  @override
+  Widget build(BuildContext context) => const _NotificationsBell();
 }
 
 class _ChatView extends StatelessWidget {

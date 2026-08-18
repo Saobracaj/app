@@ -19,6 +19,7 @@ import 'package:saobracaj/public_comments/presentation/moderation_page.dart';
 import 'package:saobracaj/billing_admin/presentation/billing_admin_page.dart';
 import 'package:saobracaj/push_test/presentation/test_push_page.dart';
 import 'package:saobracaj/groups/presentation/group_feed_page.dart';
+import 'package:saobracaj/groups/presentation/group_page.dart';
 import 'package:saobracaj/groups/presentation/group_invite_page.dart';
 import 'package:saobracaj/groups/presentation/group_members_page.dart';
 import 'package:saobracaj/groups/presentation/invite_page.dart';
@@ -108,10 +109,10 @@ final routes = RouteMap(
         listId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
       ),
     ),
-    // A group's main screen is its feed. The bare address redirects there —
-    // and because a Redirect parent is dropped from the stack, "back" from the
-    // feed returns to wherever the user came from (the home screen), not to an
-    // intermediate group page.
+    // A group's main screen is '/feed' (its two tabs). The bare address
+    // redirects there — and because a Redirect parent is dropped from the
+    // stack, "back" from the group returns to wherever the user came from (the
+    // home screen), not to an intermediate group page.
     '/groups/:id': (data) =>
         Redirect('/groups/${data.pathParameters['id']}/feed'),
     // Where an invite link lands: https://saobracaj.gleb.at/invite/ABC-DEF-GHI
@@ -120,8 +121,21 @@ final routes = RouteMap(
         token: Uri.decodeComponent(data.pathParameters['token'] ?? ''),
       ),
     ),
-    // The activity feed: paged history, live while the screen is open.
-    '/groups/:id/feed': (data) => MaterialPage(
+    // Экран группы: две вкладки, «События» и «Чат». Вкладки — настоящие
+    // маршруты, поэтому ссылка из пуша ('/groups/:id/feed/chat') открывает
+    // разговор прямо на своей вкладке, а адрес в вебе всегда говорит, что
+    // именно открыто. Переключение оставляет запись в истории — иначе «назад»
+    // в вебе выбрасывает с сайта (та же причина, что и в нижней навигации).
+    '/groups/:id/feed': (data) => TabPage(
+      child: GroupPage(
+        groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+      ),
+      paths: const ['events', 'chat'],
+      backBehavior: TabBackBehavior.history,
+    ),
+    // Вкладка «События»: страницы истории, живая, пока экран открыт. Шапка
+    // общая, у самой вкладки её нет.
+    '/groups/:id/feed/events': (data) => MaterialPage(
       child: GroupFeedPage(
         groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
       ),
@@ -138,16 +152,12 @@ final routes = RouteMap(
         groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
       ),
     ),
-    // Разговор группы — тот же самый экран чата, что и переписка с
-    // разработчиком; чат создаётся на бэкенде при первом открытии. Ребёнок
-    // ленты, поэтому «назад» возвращает в неё.
-    '/groups/:id/feed/chat': (data) => MaterialPage(
-      child: ChatPage(
-        target: GroupChatTarget(
-          Uri.decodeComponent(data.pathParameters['id'] ?? ''),
-        ),
-      ),
-    ),
+    // Вкладка «Чат» — тот же самый разговор, что и переписка с разработчиком,
+    // только целью ему дана группа; чат создаётся на бэкенде при первом
+    // открытии вкладки. ChatBloc для него держит GroupPage над вкладками,
+    // отсюда только тело разговора.
+    '/groups/:id/feed/chat': (_) =>
+        const MaterialPage(child: SafeArea(top: false, child: ChatBodyView())),
     // Questions opened from a feed event sit under the feed, so finishing the
     // run (or pressing back) returns to the feed rather than to the home tab.
     '/groups/:id/feed/q': questPage,

@@ -123,6 +123,25 @@ void main() {
     ]);
   });
 
+  test('экран группы — две вкладки: события и чат', () {
+    // Вкладки — настоящие адреса (TabPage), поэтому ссылка на разговор
+    // открывает его вкладкой внутри группы, а не отдельным экраном поверх неё.
+    final page = _build('/groups/g1/feed');
+    expect(page, isA<TabPage>());
+    expect((page! as TabPage).paths, ['events', 'chat']);
+    expect(_build('/groups/g1/feed/events'), isA<MaterialPage>());
+    expect(_build('/groups/g1/feed/chat'), isA<MaterialPage>());
+    // Вопросы события и управление группой остаются НАД экраном группы: внутри
+    // вкладки они рисовались бы под её же шапкой.
+    for (final path in const ['q', 'members', 'invite']) {
+      final stack = routes
+          .getAll('/groups/g1/feed/$path')!
+          .map((r) => r.pathTemplate);
+      expect(stack.last, '/groups/:id/feed/$path');
+      expect(stack, contains('/groups/:id/feed'));
+    }
+  });
+
   test('участники и приглашение группы — отдельные маршруты под лентой', () {
     expect(routes.get('/groups/g1/feed/members'), isNotNull);
     expect(routes.get('/groups/g1/feed/invite'), isNotNull);
