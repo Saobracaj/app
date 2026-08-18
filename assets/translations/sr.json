@@ -653,7 +653,23 @@
       "many": "{} odgovora",
       "other": "{} odgovora"
     },
-    "notifyBlocked": "Obaveštenja su isključena u podešavanjima sistema"
+    "notifyBlocked": "Obaveštenja su isključena u podešavanjima sistema",
+    "copy": "Kopiraj tekst",
+    "copied": "Tekst je kopiran",
+    "delete": "Obriši",
+    "deleteTitle": "Obrisati poruku?",
+    "deleteBody": "Poruka i njeni prilozi nestaju za sve učesnike razgovora. Ovo se ne može poništiti.",
+    "deleteCancel": "Otkaži",
+    "deleteConfirm": "Obriši",
+    "report": "Prijavi",
+    "reportTitle": "Šta nije u redu?",
+    "reportReason": {
+      "spam": "Spam ili reklama",
+      "abuse": "Vređanje ili uznemiravanje",
+      "other": "Nešto drugo"
+    },
+    "reportSent": "Prijava je poslata — pogledaćemo je",
+    "tooManyAttachments": "Uz jednu poruku ide najviše 15 fajlova"
   },
   "questionFeedback": {
     "report": "Пријави грешку",

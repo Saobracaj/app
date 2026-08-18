@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/presentation/draggable_sheet.dart';
 import '../../question_lists/domain/list_style.dart';
 import '../../question_lists/models/question_list.dart';
 import '../../question_lists/state_management/question_lists_bloc.dart';
@@ -13,8 +14,11 @@ import '../state_management/chat_events.dart';
 ///
 /// Разделены не ради красоты: у трёх пунктов три разных пути. Фотография идёт
 /// через системную галерею и пережимается в JPEG, файл уезжает байт в байт, а
-/// список вопросов вообще ничего не загружает — он прикладывается
-/// идентификатором, и снимок с него снимает бэкенд в момент отправки.
+/// список вопросов уходит ссылкой шаринга — той же самой, которой списком
+/// делятся откуда угодно ещё. Способ приложить список ровно один: получатель
+/// видит его текущее содержимое и может сохранить себе, а второй способ (снимок
+/// списка отдельным вложением) убран, чтобы одно и то же не выглядело в
+/// переписке по-разному.
 Future<void> showChatAttachMenu(BuildContext context) async {
   final bloc = context.read<ChatBloc>();
   final lists = context.read<QuestionListsBloc>();
@@ -47,7 +51,7 @@ Future<void> showChatAttachMenu(BuildContext context) async {
             onTap: () async {
               Navigator.of(sheetContext).pop();
               final list = await showQuestionListPicker(context, lists);
-              if (list != null) bloc.add(ChatListAttached(list));
+              if (list != null) bloc.add(ChatListShared(list));
             },
           ),
         ],
@@ -66,70 +70,73 @@ Future<QuestionList?> showQuestionListPicker(
   BuildContext context,
   QuestionListsBloc lists,
 ) {
-  return showModalBottomSheet<QuestionList>(
+  return showDraggableSheet<QuestionList>(
     context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder: (sheetContext) => BlocProvider.value(
+    initialSize: 0.5,
+    builder: (sheetContext, controller) => BlocProvider.value(
       value: lists,
-      child: const _QuestionListPicker(),
+      child: _QuestionListPicker(scrollController: controller),
     ),
   );
 }
 
 class _QuestionListPicker extends StatelessWidget {
-  const _QuestionListPicker();
+  const _QuestionListPicker({required this.scrollController});
+
+  final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<QuestionListsBloc, QuestionListsState>(
       builder: (context, state) {
         final lists = state.customLists;
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 4, 24, 12),
-                child: Text(
-                  'support.attachList'.tr(),
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              if (lists.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
-                  child: Text(
-                    'support.noOwnLists'.tr(),
-                    style: Theme.of(context).textTheme.bodyMedium,
+        return Column(
+          children: [
+            Expanded(
+              // Прокрутка — контроллером самого листа: внутреннего скроллинга
+              // у листа нет, тянется он целиком.
+              child: ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.only(bottom: 8),
+                children: [
+                  const SheetHandle(),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                    child: Text(
+                      'support.attachList'.tr(),
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                   ),
-                )
-              else
-                Flexible(
-                  child: ListView(
-                    shrinkWrap: true,
-                    children: [
-                      for (final list in lists)
-                        ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: list.avatarColor(context),
-                            radius: 12,
-                          ),
-                          title: Text(list.title),
-                          subtitle: Text(
-                            'support.listQuestions'.plural(
-                              list.questionIds.length,
-                            ),
-                          ),
-                          onTap: () =>
-                              Navigator.of(context).pop<QuestionList>(list),
+                  if (lists.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                      child: Text(
+                        'support.noOwnLists'.tr(),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    )
+                  else
+                    for (final list in lists)
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: list.avatarColor(context),
+                          radius: 12,
                         ),
-                    ],
-                  ),
-                ),
-            ],
-          ),
+                        title: Text(list.title),
+                        subtitle: Text(
+                          'support.listQuestions'.plural(
+                            list.questionIds.length,
+                          ),
+                        ),
+                        onTap: () =>
+                            Navigator.of(context).pop<QuestionList>(list),
+                      ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            const SheetActions(),
+          ],
         );
       },
     );

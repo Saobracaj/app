@@ -94,13 +94,16 @@ void main() {
   testWidgets('ссылка из чата открывается в приложении без диалога', (
     tester,
   ) async {
+    // Ссылка на конспект, а не на вопрос: ссылка на вопрос теперь открывает
+    // превью поверх переписки — то же самое, что и чип под ней (проверяется
+    // в `support_chat_actions_test.dart`), а не экран через роутер.
     await _tapLink(
       tester,
-      'https://saobracaj.gleb.at/question/8084',
+      'https://saobracaj.gleb.at/konspekt?category=25',
       onTap: openMessageLink,
     );
 
-    expect(find.text('вопрос 8084'), findsOneWidget);
+    expect(find.text('конспект 25'), findsOneWidget);
     // Диалога «уходите на внешний сайт» для своей ссылки быть не должно.
     expect(find.byType(AlertDialog), findsNothing);
   });

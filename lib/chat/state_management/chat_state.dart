@@ -1,6 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../../question_lists/models/question_list.dart';
 import '../models/chat.dart';
 
 part 'chat_state.freezed.dart';
@@ -39,10 +38,9 @@ abstract class ChatState with _$ChatState {
     /// Uploaded but not yet sent attachments of the composed message.
     @Default(<ChatAttachment>[]) List<ChatAttachment> pending,
 
-    /// Списки вопросов, приложенные к ещё не отправленному сообщению. Хранятся
-    /// целиком, а не идентификаторами: строка ввода показывает название и цвет
-    /// до того, как бэкенд снимет с них снимок.
-    @Default(<QuestionList>[]) List<QuestionList> pendingLists,
+    /// Готовится ссылка шаринга на выбранный список — пока она не приехала,
+    /// меню вложений не должно запускать второй такой же запрос.
+    @Default(false) bool sharingList,
 
     /// An upload is in flight; [uploadProgress] is 0..1 when known.
     @Default(false) bool uploading,
@@ -67,7 +65,8 @@ abstract class ChatState with _$ChatState {
   bool get canSend =>
       !sending &&
       !uploading &&
-      (body.trim().isNotEmpty || pending.isNotEmpty || pendingLists.isNotEmpty);
+      !sharingList &&
+      (body.trim().isNotEmpty || pending.isNotEmpty);
 
   /// Whether the screen is showing an empty conversation (no messages at all).
   bool get isEmpty => !loading && messages.isEmpty;

@@ -34,6 +34,7 @@ class ChatRepository {
       '''
     id threadId authorId authorDisplayName fromStaff body createdAt readAt
     editedAt threadChatId replyCount
+    reactions { emoji count mine }
     attachments { $_attachmentFields }
   ''';
 
@@ -108,6 +109,24 @@ class ChatRepository {
       editChatMessage(messageId: \$messageId, body: \$body, attachmentIds: \$attachmentIds, questionIds: \$questionIds, questionListIds: \$questionListIds) {
         $_messageFields
       }
+    }
+  ''';
+
+  static const _deleteMutation = r'''
+    mutation DeleteChatMessage($messageId: ID!) {
+      deleteChatMessage(messageId: $messageId)
+    }
+  ''';
+
+  static const _reportMutation = r'''
+    mutation ReportChatMessage($messageId: ID!, $reason: String!) {
+      reportChatMessage(messageId: $messageId, reason: $reason)
+    }
+  ''';
+
+  static const _reactionMutation = r'''
+    mutation ToggleChatMessageReaction($messageId: ID!, $emoji: String!) {
+      toggleChatMessageReaction(messageId: $messageId, emoji: $emoji)
     }
   ''';
 
@@ -287,6 +306,47 @@ class ChatRepository {
     return ChatMessage.parse(
       (data['editChatMessage'] as Map).cast<String, dynamic>(),
     );
+  }
+
+  /// Удалить своё сообщение — вместе с вложениями и их байтами. Возвращает
+  /// `false`, если сообщения уже нет.
+  Future<bool> deleteMessage(String messageId) async {
+    final data = await _client.run(
+      _deleteMutation,
+      variables: {'messageId': messageId},
+      authenticated: true,
+    );
+    return data['deleteChatMessage'] == true;
+  }
+
+  /// Пожаловаться на чужое сообщение. Жалоба видна только модераторам; автору
+  /// сообщения о ней ничего не приходит.
+  Future<bool> reportMessage({
+    required String messageId,
+    required String reason,
+  }) async {
+    final data = await _client.run(
+      _reportMutation,
+      variables: {'messageId': messageId, 'reason': reason},
+      authenticated: true,
+    );
+    return data['reportChatMessage'] == true;
+  }
+
+  /// Поставить или снять реакцию — одно и то же нажатие. Возвращает `true`,
+  /// если реакция теперь стоит.
+  ///
+  /// [emoji] — одно из [chatReactionEmojis]: чужое бэкенд не принимает.
+  Future<bool> toggleReaction({
+    required String messageId,
+    required String emoji,
+  }) async {
+    final data = await _client.run(
+      _reactionMutation,
+      variables: {'messageId': messageId, 'emoji': emoji},
+      authenticated: true,
+    );
+    return data['toggleChatMessageReaction'] == true;
   }
 
   /// Mark the counterpart's messages in one conversation read.

@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../auth/data/auth_repository.dart';
 import '../../core/network/error_messages.dart';
 import '../../notifications/data/notification_permissions.dart';
-import '../../question_lists/models/question_list.dart';
+import '../../question_lists/data/shared_lists_repository.dart';
 import '../data/chat_repository.dart';
 import '../data/photo_compressor.dart';
 import '../models/chat.dart';
@@ -45,6 +45,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     this._chat,
     this._permissions,
     this._authRepo,
+    this._sharedLists,
     @factoryParam ChatTarget? target,
   ) : target = target ?? const SupportChatTarget(),
       super(const ChatState()) {
@@ -56,8 +57,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatFilePicked>(_onFilePicked);
     on<ChatPhotosPicked>(_onPhotosPicked);
     on<ChatAttachmentRemoved>(_onAttachmentRemoved);
-    on<ChatListAttached>(_onListAttached);
-    on<ChatListRemoved>(_onListRemoved);
+    on<ChatListShared>(_onListShared);
     on<ChatSendPressed>(_onSendPressed);
     on<ChatEditStarted>(_onEditStarted);
     on<ChatEditCancelled>(_onEditCancelled);
@@ -65,6 +65,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatNoticeShown>((_, emit) => emit(state.copyWith(notice: null)));
     on<ChatNotificationsDeclined>(_onNotificationsDeclined);
     on<ChatNotificationsAccepted>(_onNotificationsAccepted);
+    on<ChatMessageDeleted>(_onMessageDeleted);
+    on<ChatMessageReported>(_onMessageReported);
+    on<ChatReactionToggled>(_onReactionToggled);
     on<ChatErrorDismissed>(
       (_, emit) => emit(state.copyWith(errorMessage: null)),
     );
@@ -81,6 +84,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   final ImagePicker _picker = ImagePicker();
 
   final AuthRepository _authRepo;
+
+  /// Ссылки шаринга на списки вопросов — единственный способ приложить список
+  /// к сообщению.
+  final SharedListsRepository _sharedLists;
 
   /// Какой разговор показывает экран.
   final ChatTarget target;
@@ -111,6 +118,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   /// The live subscription, alive for as long as the screen is.
   StreamSubscription<ChatUpdate>? _live;
 
+  /// Сообщения, удалённые с этого экрана. Страница с сервера их уже не
+  /// содержит, а [_merge] сохраняет всё, чего в странице нет, — без этого
+  /// списка удалённое сообщение возвращалось бы на экран при первом же
+  /// перечитывании переписки.
+  final Set<String> _deleted = {};
+
   /// A re-read is in flight; another event that lands meanwhile is remembered
   /// rather than run in parallel, so a burst of events costs one extra read.
   bool _syncing = false;
@@ -125,10 +138,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     return super.close();
   }
 
-  Future<void> _onOpened(
-    ChatOpened event,
-    Emitter<ChatState> emit,
-  ) async {
+  Future<void> _onOpened(ChatOpened event, Emitter<ChatState> emit) async {
     // Кто я — нужно раньше сообщений: по автору решается, чьё сообщение «моё».
     if (state.myUserId.isEmpty) {
       try {
@@ -157,20 +167,31 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   void _listen() {
     final chatId = _chatId;
     if (chatId == null) return;
-    _live ??= _chat.changes(chatId: chatId).listen(
-      (update) {
-        switch (update) {
-          case ChatChanged():
-            add(ChatChangedRemotely());
-          case ChatLive(:final firstConnect):
-            add(ChatLiveChanged(live: true, missed: !firstConnect));
-          case ChatOffline():
-            add(ChatLiveChanged(live: false));
-        }
-      },
-      onError: (_) => add(ChatLiveChanged(live: false)),
-      onDone: () => add(ChatLiveChanged(live: false)),
-    );
+    _live ??= _chat
+        .changes(chatId: chatId)
+        .listen(
+          (update) {
+            switch (update) {
+              case ChatChanged(:final kind, :final messageId):
+                // Удалённое сообщение уносится по идентификатору из события:
+                // перечитанная страница о нём молчит, и без этого чужое
+                // удаление оставалось бы на экране до перезахода.
+                add(
+                  ChatChangedRemotely(
+                    deletedMessageId: kind == ChatChangeKind.messageDeleted
+                        ? messageId
+                        : null,
+                  ),
+                );
+              case ChatLive(:final firstConnect):
+                add(ChatLiveChanged(live: true, missed: !firstConnect));
+              case ChatOffline():
+                add(ChatLiveChanged(live: false));
+            }
+          },
+          onError: (_) => add(ChatLiveChanged(live: false)),
+          onDone: () => add(ChatLiveChanged(live: false)),
+        );
   }
 
   /// Something changed in the conversation. What exactly is not interesting —
@@ -179,6 +200,19 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     ChatChangedRemotely event,
     Emitter<ChatState> emit,
   ) async {
+    final deleted = event.deletedMessageId;
+    if (deleted != null) {
+      // Удалённое сообщение уносим сразу: страница с сервера о нём молчит, а
+      // `_merge` сохраняет всё, чего в странице нет.
+      _deleted.add(deleted);
+      if (!emit.isDone) {
+        emit(
+          state.copyWith(
+            messages: state.messages.where((m) => m.id != deleted).toList(),
+          ),
+        );
+      }
+    }
     // Before the first read there is nothing to keep in sync; the read itself
     // brings whatever the event was about.
     if (!state.loaded) return;
@@ -214,20 +248,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (event.missed && state.loaded) add(ChatChangedRemotely());
   }
 
-  Future<void> _onRefreshed(
-    ChatRefreshed event,
-    Emitter<ChatState> emit,
-  ) => _load(emit);
+  Future<void> _onRefreshed(ChatRefreshed event, Emitter<ChatState> emit) =>
+      _load(emit);
 
   /// Read the thread and the newest page of its messages.
   ///
   /// [silent] is for the live path: it neither shows the progress bar nor
   /// reports a failure, because a re-read triggered by an event the reader never
   /// asked for should not take over the screen — the next event tries again.
-  Future<void> _load(
-    Emitter<ChatState> emit, {
-    bool silent = false,
-  }) async {
+  Future<void> _load(Emitter<ChatState> emit, {bool silent = false}) async {
     if (!silent) emit(state.copyWith(loading: true, errorMessage: null));
     try {
       final chat = await _openChat();
@@ -299,6 +328,9 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     for (final message in incoming) {
       byId[message.id] = message;
     }
+    for (final id in _deleted) {
+      byId.remove(id);
+    }
     final merged = byId.values.toList()
       ..sort((a, b) {
         final byTime = a.createdAt.compareTo(b.createdAt);
@@ -320,7 +352,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           thread: state.thread?.copyWith(unreadCount: 0),
           messages: [
             for (final m in state.messages)
-              if (_fromCounterpart(m)) m.copyWith(readAt: DateTime.now()) else m,
+              if (_fromCounterpart(m))
+                m.copyWith(readAt: DateTime.now())
+              else
+                m,
           ],
         ),
       );
@@ -333,10 +368,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   bool _fromCounterpart(ChatMessage message) =>
       !state.isMine(message) && !message.isRead;
 
-  void _onBodyChanged(
-    ChatBodyChanged event,
-    Emitter<ChatState> emit,
-  ) {
+  void _onBodyChanged(ChatBodyChanged event, Emitter<ChatState> emit) {
     emit(state.copyWith(body: event.body));
   }
 
@@ -421,6 +453,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     required String fileName,
     String? contentType,
   }) async {
+    if (state.pending.length >= maxAttachments) {
+      emit(
+        state.copyWith(
+          uploading: false,
+          errorMessage: 'support.tooManyAttachments',
+        ),
+      );
+      return false;
+    }
     if (bytes.length > _maxAttachmentBytes) {
       emit(
         state.copyWith(
@@ -466,24 +507,121 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     }
   }
 
-  void _onListAttached(
-    ChatListAttached event,
+  /// «Список вопросов» в меню вложений: список уходит ссылкой шаринга.
+  ///
+  /// Способ приложить список ровно один — тот же, которым список отдают кому
+  /// угодно ещё: получатель видит текущее содержимое списка, может его
+  /// сохранить себе, а ссылка живёт и после того, как переписку закрыли.
+  /// Ссылка дописывается в строку ввода, откуда её видно до отправки.
+  Future<void> _onListShared(
+    ChatListShared event,
     Emitter<ChatState> emit,
-  ) {
-    if (state.pendingLists.any((l) => l.id == event.list.id)) return;
-    emit(state.copyWith(pendingLists: [...state.pendingLists, event.list]));
+  ) async {
+    if (state.sharingList) return;
+    emit(state.copyWith(sharingList: true, errorMessage: null));
+    try {
+      final share = await _sharedLists.share(event.list.id);
+      if (emit.isDone) return;
+      final body = state.body.trimRight();
+      emit(
+        state.copyWith(
+          sharingList: false,
+          body: body.isEmpty ? share.url : '$body\n${share.url}',
+        ),
+      );
+    } catch (e) {
+      if (!emit.isDone) {
+        emit(state.copyWith(sharingList: false, errorMessage: _message(e)));
+      }
+    }
   }
 
-  void _onListRemoved(
-    ChatListRemoved event,
+  /// «Удалить» — только своё сообщение, и целиком: бэкенд убирает и вложения.
+  Future<void> _onMessageDeleted(
+    ChatMessageDeleted event,
     Emitter<ChatState> emit,
-  ) {
+  ) async {
+    if (!state.isMine(event.message)) return;
+    try {
+      await _chat.deleteMessage(event.message.id);
+    } catch (e) {
+      if (!emit.isDone) emit(state.copyWith(errorMessage: _message(e)));
+      return;
+    }
+    _deleted.add(event.message.id);
+    if (emit.isDone) return;
+    // Убираем сразу, не дожидаясь события подписки: удаливший должен увидеть
+    // результат своего действия и без живого соединения.
     emit(
       state.copyWith(
-        pendingLists: state.pendingLists
-            .where((l) => l.id != event.listId)
+        messages: state.messages
+            .where((m) => m.id != event.message.id)
             .toList(),
+        editing: state.editing?.id == event.message.id ? null : state.editing,
       ),
+    );
+  }
+
+  /// «Пожаловаться»: жалоба уходит модератору, автору сообщения об этом ничего
+  /// не сообщается.
+  Future<void> _onMessageReported(
+    ChatMessageReported event,
+    Emitter<ChatState> emit,
+  ) async {
+    try {
+      await _chat.reportMessage(
+        messageId: event.message.id,
+        reason: event.reason,
+      );
+      if (!emit.isDone) emit(state.copyWith(notice: 'support.reportSent'));
+    } catch (e) {
+      if (!emit.isDone) emit(state.copyWith(errorMessage: _message(e)));
+    }
+  }
+
+  /// Реакция ставится и снимается одним нажатием, и на экране это видно
+  /// сразу — до ответа сервера.
+  ///
+  /// Иначе значок «залипает» на время запроса, а нажимают его быстро и по
+  /// нескольку раз. Если запрос не прошёл, лента возвращается к тому, что было:
+  /// показывать реакцию, которой на сервере нет, хуже, чем не показать её
+  /// вовсе.
+  Future<void> _onReactionToggled(
+    ChatReactionToggled event,
+    Emitter<ChatState> emit,
+  ) async {
+    emit(_withReaction(event.message.id, event.emoji));
+    try {
+      await _chat.toggleReaction(
+        messageId: event.message.id,
+        emoji: event.emoji,
+      );
+    } catch (e) {
+      if (emit.isDone) return;
+      // Откатываем тем же переключателем, а не подменой всей ленты на снимок
+      // до нажатия: пока летел запрос, в разговор могло приехать сообщение, и
+      // снимок унёс бы его с экрана.
+      emit(
+        _withReaction(
+          event.message.id,
+          event.emoji,
+        ).copyWith(errorMessage: _message(e)),
+      );
+    }
+  }
+
+  /// Состояние с переключённой реакцией — и в ленте, и в шапке треда: одно и то
+  /// же сообщение может быть показано в обоих местах.
+  ChatState _withReaction(String messageId, String emoji) {
+    final parent = state.parentMessage;
+    return state.copyWith(
+      messages: [
+        for (final m in state.messages)
+          if (m.id == messageId) m.withToggledReaction(emoji) else m,
+      ],
+      parentMessage: parent?.id == messageId
+          ? parent!.withToggledReaction(emoji)
+          : parent,
     );
   }
 
@@ -511,7 +649,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (chatId == null) return;
     final body = state.body.trim();
     final attachmentIds = state.pending.map((a) => a.id).toList();
-    final listIds = state.pendingLists.map((l) => l.id).toList();
     final editing = state.editing;
 
     emit(state.copyWith(sending: true, errorMessage: null));
@@ -521,7 +658,6 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
               chatId: chatId,
               body: body,
               attachmentIds: attachmentIds,
-              questionListIds: listIds,
             )
           // Правка отправляет весь желаемый набор вложений: то, что осталось от
           // прошлой версии, лежит в той же строке ввода, что и новое.
@@ -529,14 +665,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
               messageId: editing.id,
               body: body,
               attachmentIds: attachmentIds,
-              questionListIds: listIds,
             );
       emit(
         state.copyWith(
           sending: false,
           body: '',
           pending: const [],
-          pendingLists: const <QuestionList>[],
           editing: null,
           // Through the same merge as a live update: the subscription is about
           // to deliver this very message back, and it must not double up.
@@ -561,21 +695,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           for (final a in event.message.attachments)
             if (!a.isReference && !a.deleted) a,
         ],
-        pendingLists: const <QuestionList>[],
         errorMessage: null,
       ),
     );
   }
 
   void _onEditCancelled(ChatEditCancelled event, Emitter<ChatState> emit) {
-    emit(
-      state.copyWith(
-        editing: null,
-        body: '',
-        pending: const [],
-        pendingLists: const <QuestionList>[],
-      ),
-    );
+    emit(state.copyWith(editing: null, body: '', pending: const []));
   }
 
   /// Колокольчик: переключить оповещения об этом разговоре и сказать об этом
@@ -721,4 +847,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   /// Mirrors the backend's cap, so an oversized file is refused before it is
   /// pushed over the wire.
   static const _maxAttachmentBytes = 20 * 1024 * 1024;
+
+  /// Сколько файлов и картинок помещается в одно сообщение — столько же, сколько
+  /// принимает бэкенд. Больше просто не влезает на экран получателя.
+  static const maxAttachments = 15;
 }

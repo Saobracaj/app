@@ -251,15 +251,18 @@ final routes = RouteMap(
         target: ChatIdTarget(
           Uri.decodeComponent(data.pathParameters['id'] ?? ''),
         ),
+        focusComposer: data.queryParameters['focus'] == '1',
       ),
     ),
     // Тред на сообщение: чата может ещё не быть, бэкенд создаёт его при первом
-    // открытии, поэтому в адресе стоит сообщение.
+    // открытии, поэтому в адресе стоит сообщение. `focus=1` — тред открыт
+    // свайпом «ответить», и курсор сразу стоит в поле ввода.
     '/thread/:messageId': (data) => MaterialPage(
       child: ChatPage(
         target: MessageThreadTarget(
           Uri.decodeComponent(data.pathParameters['messageId'] ?? ''),
         ),
+        focusComposer: data.queryParameters['focus'] == '1',
       ),
     ),
   },

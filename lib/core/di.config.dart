@@ -294,17 +294,18 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i957.DisplayNameBloc>(
       () => _i957.DisplayNameBloc(gh<_i311.ProfileRepository>()),
     );
-    gh.factoryParam<_i658.CommentEditorBloc, int, dynamic>(
-      (questionId, _) =>
-          _i658.CommentEditorBloc(gh<_i359.CommentRepository>(), questionId),
-    );
     gh.factoryParam<_i373.ChatBloc, _i329.ChatTarget?, dynamic>(
       (target, _) => _i373.ChatBloc(
         gh<_i299.ChatRepository>(),
         gh<_i426.NotificationPermissions>(),
         gh<_i880.AuthRepository>(),
+        gh<_i742.SharedListsRepository>(),
         target,
       ),
+    );
+    gh.factoryParam<_i658.CommentEditorBloc, int, dynamic>(
+      (questionId, _) =>
+          _i658.CommentEditorBloc(gh<_i359.CommentRepository>(), questionId),
     );
     gh.factoryParam<_i517.GroupPostsBloc, String, dynamic>(
       (groupId, _) => _i517.GroupPostsBloc(

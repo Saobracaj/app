@@ -641,7 +641,23 @@
       "many": "{} replies",
       "other": "{} replies"
     },
-    "notifyBlocked": "Notifications are off in the system settings"
+    "notifyBlocked": "Notifications are off in the system settings",
+    "copy": "Copy text",
+    "copied": "Text copied",
+    "delete": "Delete",
+    "deleteTitle": "Delete the message?",
+    "deleteBody": "The message and its attachments disappear for everyone in the conversation. This cannot be undone.",
+    "deleteCancel": "Cancel",
+    "deleteConfirm": "Delete",
+    "report": "Report",
+    "reportTitle": "What is wrong with it?",
+    "reportReason": {
+      "spam": "Spam or advertising",
+      "abuse": "Abuse or harassment",
+      "other": "Something else"
+    },
+    "reportSent": "Report sent — we will look into it",
+    "tooManyAttachments": "One message takes at most 15 files"
   },
   "questionFeedback": {
     "report": "Report a problem",

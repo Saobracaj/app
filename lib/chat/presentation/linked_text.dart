@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/deep_links.dart';
+import '../../test/quest/preview/question_preview_sheet.dart';
 import '../../util/nav_to_url.dart';
+import 'shared_list_chip.dart';
 
 /// A link found inside a message body: where it sits in the text and where it
 /// points.
@@ -22,7 +24,8 @@ class TextLink {
 /// Anything that starts a link: an explicit scheme, or the `www.` people type
 /// instead of one.
 final _linkPattern = RegExp(
-  r'(?:https?://|www\.)[^\s<>"' r"']+",
+  r'(?:https?://|www\.)[^\s<>"'
+  r"']+",
   caseSensitive: false,
 );
 
@@ -72,15 +75,46 @@ bool isInternalLink(Uri uri) {
   return host == kDeepLinkHost || host.endsWith('.$kDeepLinkHost');
 }
 
+/// Номер вопроса, на который ведёт [uri], — `…/question/1234`.
+int? questionIdIn(Uri uri) {
+  if (!isInternalLink(uri)) return null;
+  final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+  if (segments.length < 2 || segments.first != 'question') return null;
+  return int.tryParse(segments[1]);
+}
+
+/// Код расшаренного списка, на который ведёт [uri], — `…/shared/ABCDEFGH`.
+String? sharedListCodeIn(Uri uri) {
+  if (!isInternalLink(uri)) return null;
+  final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+  if (segments.length < 2 || segments.first != 'shared') return null;
+  final codes = sharedListCodesIn('/shared/${segments[1]}');
+  return codes.isEmpty ? null : codes.first;
+}
+
 /// Open [uri], asking first when it leaves the product.
 ///
-/// A link to one of our own screens (a question, a konspekt, an invite) opens
-/// right here in the app — the browser never sees it. A support chat is also a
-/// place where strangers paste addresses at each other, so an outside link
-/// never opens on a single tap: the dialog shows where it actually goes before
-/// the browser does.
+/// Ссылка на вопрос и ссылка на список открываются ровно тем же, чем и чипы,
+/// которые под ними нарисованы: превью вопроса и лист списка. Иначе одно и то
+/// же место в сообщении вело бы себя по-разному в зависимости от того, попал
+/// палец в текст или в чип под ним.
+///
+/// Остальные адреса нашего домена открываются внутри приложения — им незачем в
+/// браузер. A support chat is also a place where strangers paste addresses at
+/// each other, so an outside link never opens on a single tap: the dialog shows
+/// where it actually goes before the browser does.
 Future<void> openMessageLink(BuildContext context, Uri uri) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
+  final questionId = questionIdIn(uri);
+  if (questionId != null) {
+    await showQuestionPreview(context, questionId);
+    return;
+  }
+  final code = sharedListCodeIn(uri);
+  if (code != null) {
+    await showSharedListSheet(context, code);
+    return;
+  }
   if (openAppUri(context, uri)) return;
   if (!isInternalLink(uri)) {
     final confirmed = await showDialog<bool>(
@@ -115,9 +149,7 @@ Future<void> openMessageLink(BuildContext context, Uri uri) async {
   }
   final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
   if (!launched) {
-    messenger?.showSnackBar(
-      SnackBar(content: Text('support.linkFailed'.tr())),
-    );
+    messenger?.showSnackBar(SnackBar(content: Text('support.linkFailed'.tr())));
   }
 }
 
