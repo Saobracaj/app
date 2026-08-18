@@ -9,6 +9,7 @@ import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/notifications/data/notification_permissions.dart';
+import 'package:saobracaj/question_lists/data/shared_lists_repository.dart';
 import 'package:saobracaj/chat/data/chat_repository.dart';
 import 'package:saobracaj/chat/models/chat_target.dart';
 import 'package:saobracaj/chat/models/chat_update.dart';
@@ -48,7 +49,8 @@ class _FakeApi implements HttpClientAdapter {
         ? json.decode(raw) as Map<String, dynamic>
         : (raw as Map).cast<String, dynamic>();
     final query = body['query'].toString();
-    final variables = (body['variables'] as Map?)?.cast<String, dynamic>() ?? {};
+    final variables =
+        (body['variables'] as Map?)?.cast<String, dynamic>() ?? {};
     final operation = RegExp(
       r'(?:query|mutation)\s+(\w+)',
     ).firstMatch(query)!.group(1)!;
@@ -61,7 +63,9 @@ class _FakeApi implements HttpClientAdapter {
       case 'Chat':
         data = {'chat': _thread()};
       case 'Me':
-        data = {'me': const {'id': 'u1', 'email': 'u@e', 'permissions': []}};
+        data = {
+          'me': const {'id': 'u1', 'email': 'u@e', 'permissions': []},
+        };
       case 'ChatMessages':
         data = {'chatMessages': _page(variables)};
       case 'MarkChatRead':
@@ -211,6 +215,7 @@ Map<String, dynamic> _message(
       repository,
       const NotificationPermissions(),
       AuthRepository(client, storage, AnalyticsService()),
+      SharedListsRepository(client),
       target,
     ),
     api: api,
@@ -218,7 +223,8 @@ Map<String, dynamic> _message(
   );
 }
 
-Future<void> _settle() => Future<void>.delayed(const Duration(milliseconds: 40));
+Future<void> _settle() =>
+    Future<void>.delayed(const Duration(milliseconds: 40));
 
 /// Поднять подписку: соединение, ack, subscribe.
 Future<void> _goLive(_Connector connector) async {
@@ -235,11 +241,7 @@ void _push(_FakeSocket socket, {required String kind, String? messageId}) {
     'type': 'next',
     'payload': {
       'data': {
-        'chatEvents': {
-          'chatId': 't1',
-          'kind': kind,
-          'messageId': messageId,
-        },
+        'chatEvents': {'chatId': 't1', 'kind': kind, 'messageId': messageId},
       },
     },
   });
@@ -324,29 +326,35 @@ void main() {
       await bloc.close();
     });
 
-    test('пользователю новое сообщение отмечается прочитанным автоматически', () async {
-      final api = _FakeApi(messages: [_message('m1', minute: 1)]);
-      final (:bloc, api: _, :sockets) = _bloc(api);
-      bloc.add(ChatOpened());
-      await _goLive(sockets);
-      // Одно — при открытии чата.
-      expect(api.markReadCalls, 1);
+    test(
+      'пользователю новое сообщение отмечается прочитанным автоматически',
+      () async {
+        final api = _FakeApi(messages: [_message('m1', minute: 1)]);
+        final (:bloc, api: _, :sockets) = _bloc(api);
+        bloc.add(ChatOpened());
+        await _goLive(sockets);
+        // Одно — при открытии чата.
+        expect(api.markReadCalls, 1);
 
-      api.messages = [
-        _message('m1', minute: 1),
-        _message('m2', fromStaff: true, minute: 2),
-      ];
-      _push(sockets.last, kind: 'MESSAGE_ADDED', messageId: 'm2');
-      await _settle();
+        api.messages = [
+          _message('m1', minute: 1),
+          _message('m2', fromStaff: true, minute: 2),
+        ];
+        _push(sockets.last, kind: 'MESSAGE_ADDED', messageId: 'm2');
+        await _settle();
 
-      expect(api.markReadCalls, 2);
-      expect(bloc.state.messages.last.isRead, isTrue);
-      await bloc.close();
-    });
+        expect(api.markReadCalls, 2);
+        expect(bloc.state.messages.last.isRead, isTrue);
+        await bloc.close();
+      },
+    );
 
     test('модератору новое сообщение прочитанным само не отмечается', () async {
       final api = _FakeApi(messages: [_message('m1', minute: 1)]);
-      final (:bloc, api: _, :sockets) = _bloc(api, target: const ChatIdTarget('t1'));
+      final (:bloc, api: _, :sockets) = _bloc(
+        api,
+        target: const ChatIdTarget('t1'),
+      );
       bloc.add(ChatOpened());
       await _goLive(sockets);
       expect(api.markReadCalls, 1); // Только явное открытие переписки.
@@ -365,36 +373,37 @@ void main() {
       await bloc.close();
     });
 
-    test('обрыв связи виден, а после переподключения переписка перечитывается', () async {
-      final api = _FakeApi(messages: [_message('m1', minute: 1)]);
-      final (:bloc, api: _, :sockets) = _bloc(api);
-      bloc.add(ChatOpened());
-      await _goLive(sockets);
-      expect(bloc.state.live, isTrue);
+    test(
+      'обрыв связи виден, а после переподключения переписка перечитывается',
+      () async {
+        final api = _FakeApi(messages: [_message('m1', minute: 1)]);
+        final (:bloc, api: _, :sockets) = _bloc(api);
+        bloc.add(ChatOpened());
+        await _goLive(sockets);
+        expect(bloc.state.live, isTrue);
 
-      await sockets.last.drop();
-      await _settle();
-      expect(bloc.state.live, isFalse);
+        await sockets.last.drop();
+        await _settle();
+        expect(bloc.state.live, isFalse);
 
-      // Пока связи не было, разработчик успел ответить: сервер бэклога не
-      // держит, поэтому после переподключения чат перечитывается целиком.
-      api.messages = [
-        _message('m1', minute: 1),
-        _message('m2', fromStaff: true, minute: 2),
-      ];
-      await _goLive(sockets);
+        // Пока связи не было, разработчик успел ответить: сервер бэклога не
+        // держит, поэтому после переподключения чат перечитывается целиком.
+        api.messages = [
+          _message('m1', minute: 1),
+          _message('m2', fromStaff: true, minute: 2),
+        ];
+        await _goLive(sockets);
 
-      expect(bloc.state.live, isTrue);
-      expect(bloc.state.messages.map((m) => m.id), ['m1', 'm2']);
-      await bloc.close();
-    });
+        expect(bloc.state.live, isTrue);
+        expect(bloc.state.messages.map((m) => m.id), ['m1', 'm2']);
+        await bloc.close();
+      },
+    );
 
     test('длинная переписка открывается на последней странице', () async {
       // 120 сообщений: страница 50 — значит хвост начинается с 70-го.
       final api = _FakeApi(
-        messages: [
-          for (var i = 0; i < 120; i++) _message('m$i', minute: i),
-        ],
+        messages: [for (var i = 0; i < 120; i++) _message('m$i', minute: i)],
       );
       final (:bloc, api: _, :sockets) = _bloc(api);
       bloc.add(ChatOpened());
@@ -407,25 +416,28 @@ void main() {
       await bloc.close();
     });
 
-    test('своё отправленное сообщение не задваивается событием подписки', () async {
-      final api = _FakeApi(messages: [_message('m1', minute: 1)]);
-      final (:bloc, api: _, :sockets) = _bloc(api);
-      bloc.add(ChatOpened());
-      await _goLive(sockets);
+    test(
+      'своё отправленное сообщение не задваивается событием подписки',
+      () async {
+        final api = _FakeApi(messages: [_message('m1', minute: 1)]);
+        final (:bloc, api: _, :sockets) = _bloc(api);
+        bloc.add(ChatOpened());
+        await _goLive(sockets);
 
-      api.messages = [_message('m1', minute: 1), _message('m2', minute: 2)];
-      bloc.add(ChatBodyChanged('привет'));
-      bloc.add(ChatSendPressed());
-      await _settle();
-      expect(bloc.state.messages.map((m) => m.id), ['m1', 'm2']);
+        api.messages = [_message('m1', minute: 1), _message('m2', minute: 2)];
+        bloc.add(ChatBodyChanged('привет'));
+        bloc.add(ChatSendPressed());
+        await _settle();
+        expect(bloc.state.messages.map((m) => m.id), ['m1', 'm2']);
 
-      // Сервер рассказывает про то же самое сообщение всем участникам.
-      _push(sockets.last, kind: 'MESSAGE_ADDED', messageId: 'm2');
-      await _settle();
+        // Сервер рассказывает про то же самое сообщение всем участникам.
+        _push(sockets.last, kind: 'MESSAGE_ADDED', messageId: 'm2');
+        await _settle();
 
-      expect(bloc.state.messages.map((m) => m.id), ['m1', 'm2']);
-      await bloc.close();
-    });
+        expect(bloc.state.messages.map((m) => m.id), ['m1', 'm2']);
+        await bloc.close();
+      },
+    );
 
     test('подписка закрывается вместе с экраном', () async {
       final (:bloc, :api, :sockets) = _bloc(

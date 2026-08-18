@@ -17,12 +17,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
+import '../../core/presentation/draggable_sheet.dart';
 import '../../question_lists/presentation/shared_list_page.dart';
 import '../../question_lists/state_management/shared_list_bloc.dart';
 import '../../question_lists/state_management/shared_list_events.dart';
 import '../../question_lists/state_management/shared_list_state.dart';
 import '../../test/quest/preview/question_preview_sheet.dart';
-
 
 /// Коды шаринга, упомянутые в тексте, в порядке появления и без повторов.
 ///
@@ -122,7 +122,11 @@ class _SharedListChipBody extends StatelessWidget {
             labelStyle: TextStyle(color: onSurface),
             onPressed: preview == null
                 ? null
-                : () => _openSheet(context, context.read<SharedListBloc>()),
+                : () => showSharedListSheet(
+                    context,
+                    context.read<SharedListBloc>().state.code,
+                    bloc: context.read<SharedListBloc>(),
+                  ),
           ),
         );
       },
@@ -130,74 +134,81 @@ class _SharedListChipBody extends StatelessWidget {
   }
 }
 
-/// Превью списка: название, вопросы и кнопка «развернуть».
-void _openSheet(BuildContext context, SharedListBloc bloc) {
-  showModalBottomSheet<void>(
+/// Превью расшаренного списка: название, вопросы и «развернуть».
+///
+/// Открывается и по чипу, и по самой ссылке в тексте сообщения — нажатие на
+/// подсвеченный `…/shared/CODE` обязано делать ровно то же, что нажатие на
+/// чип, который эта ссылка нарисовала.
+Future<void> showSharedListSheet(
+  BuildContext context,
+  String code, {
+  SharedListBloc? bloc,
+}) {
+  return showDraggableSheet<void>(
     context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder: (sheetContext) => BlocProvider.value(
-      value: bloc,
-      child: const _SharedListSheet(),
-    ),
+    builder: (sheetContext, controller) {
+      final sheet = _SharedListSheet(scrollController: controller);
+      // Чип уже загрузил превью — второй раз спрашивать его незачем; по ссылке
+      // из текста Bloc'а ещё нет, и лист заводит (и закрывает) свой.
+      return bloc == null
+          ? BlocProvider<SharedListBloc>(
+              create: (_) =>
+                  getIt<SharedListBloc>(param1: code)..add(SharedListStarted()),
+              child: sheet,
+            )
+          : BlocProvider<SharedListBloc>.value(value: bloc, child: sheet);
+    },
   );
 }
 
 class _SharedListSheet extends StatelessWidget {
-  const _SharedListSheet();
+  const _SharedListSheet({required this.scrollController});
+
+  final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<SharedListBloc, SharedListState>(
       builder: (context, state) {
         final preview = state.preview;
-        if (preview == null) {
-          return const SizedBox(
-            height: 160,
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
         final code = state.code;
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 4, 8, 8),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: preview.color == 0
-                          ? Theme.of(context).colorScheme.primary
-                          : Color(preview.color),
-                      radius: 10,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        preview.name,
-                        style: Theme.of(context).textTheme.titleMedium,
-                        overflow: TextOverflow.ellipsis,
+        return Column(
+          children: [
+            Expanded(
+              child: ListView(
+                // Контроллер листа, а не свой: внутреннего скроллинга у листа
+                // нет — тянется он сам, ровно как лист с вопросом.
+                controller: scrollController,
+                padding: const EdgeInsets.only(bottom: 8),
+                children: [
+                  const SheetHandle(),
+                  if (preview == null)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else ...[
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: preview.color == 0
+                                ? Theme.of(context).colorScheme.primary
+                                : Color(preview.color),
+                            radius: 10,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              preview.name,
+                              style: Theme.of(context).textTheme.titleMedium,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    IconButton(
-                      tooltip: 'support.expand'.tr(),
-                      icon: const Icon(Icons.open_in_full),
-                      onPressed: () {
-                        // Сначала закрываем лист, потом открываем экран: иначе
-                        // «назад» возвращало бы в уже пустой лист.
-                        Navigator.of(context).pop();
-                        _openScreen(context, code);
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
                     for (final id in preview.questionIds)
                       ListTile(
                         leading: const Icon(Icons.help_outline),
@@ -205,10 +216,21 @@ class _SharedListSheet extends StatelessWidget {
                         onTap: () => showQuestionPreview(context, id),
                       ),
                   ],
-                ),
+                ],
               ),
-            ],
-          ),
+            ),
+            const Divider(height: 1),
+            SheetActions(
+              onExpand: preview == null
+                  ? null
+                  : () {
+                      // Сначала закрываем лист, потом открываем экран: иначе
+                      // «назад» возвращало бы в уже пустой лист.
+                      Navigator.of(context).pop();
+                      _openScreen(context, code);
+                    },
+            ),
+          ],
         );
       },
     );
@@ -219,7 +241,8 @@ class _SharedListSheet extends StatelessWidget {
 /// абсолютный путь, и переход через роутер выбросил бы переписку из стека, а
 /// вернуться назад пользователь должен именно в неё.
 void _openScreen(BuildContext context, String code) {
-  Navigator.of(context, rootNavigator: true).push<void>(
-    MaterialPageRoute(builder: (_) => SharedListPage(code: code)),
-  );
+  Navigator.of(
+    context,
+    rootNavigator: true,
+  ).push<void>(MaterialPageRoute(builder: (_) => SharedListPage(code: code)));
 }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
+import '../../core/presentation/draggable_sheet.dart';
 import '../../test/quest/preview/question_preview_sheet.dart';
 import '../data/chat_image_cache.dart';
 import '../models/chat.dart';
@@ -138,41 +139,42 @@ class _QuestionListChip extends StatelessWidget {
 }
 
 /// The questions of a shared list, each opening the usual preview sheet.
+///
+/// Тот же лист, что и у ссылки на расшаренный список: тянется сам, ничего не
+/// прокручивается внутри, внизу — «Закрыть».
 Future<void> showSharedQuestionList(
   BuildContext context,
   ChatAttachment attachment,
 ) {
-  return showModalBottomSheet<void>(
+  return showDraggableSheet<void>(
     context: context,
-    showDragHandle: true,
-    isScrollControlled: true,
-    builder: (sheetContext) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-            child: Text(
-              attachment.fileName,
-              style: Theme.of(sheetContext).textTheme.titleMedium,
-            ),
+    builder: (sheetContext, controller) => Column(
+      children: [
+        Expanded(
+          child: ListView(
+            controller: controller,
+            padding: const EdgeInsets.only(bottom: 8),
+            children: [
+              const SheetHandle(),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+                child: Text(
+                  attachment.fileName,
+                  style: Theme.of(sheetContext).textTheme.titleMedium,
+                ),
+              ),
+              for (final id in attachment.questionIds)
+                ListTile(
+                  leading: const Icon(Icons.help_outline),
+                  title: Text('support.questionChip'.tr(args: ['$id'])),
+                  onTap: () => showQuestionPreview(sheetContext, id),
+                ),
+            ],
           ),
-          Flexible(
-            child: ListView(
-              shrinkWrap: true,
-              children: [
-                for (final id in attachment.questionIds)
-                  ListTile(
-                    leading: const Icon(Icons.help_outline),
-                    title: Text('support.questionChip'.tr(args: ['$id'])),
-                    onTap: () => showQuestionPreview(sheetContext, id),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+        const Divider(height: 1),
+        const SheetActions(),
+      ],
     ),
   );
 }
@@ -221,68 +223,82 @@ class _ImageTile extends StatelessWidget {
     final attachment = context.read<ChatImageBloc>().attachment;
     return Padding(
       padding: const EdgeInsets.only(top: 6),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(kSupportImageRadius),
-        child: SizedBox(
-          width: kSupportImageWidth,
-          height: kSupportImageHeight,
-          child: BlocBuilder<ChatImageBloc, ChatImageState>(
-            builder: (context, state) {
-              if (!state.hasUrl) {
-                return _ImagePlaceholder(
-                  fileName: attachment.fileName,
-                  loading: !state.failed,
-                );
-              }
-              return InkWell(
-                onTap: () => showChatPhotos(
-                  context,
-                  photos: gallery,
-                  initialIndex: gallery.indexWhere((a) => a.id == attachment.id)
-                      .clamp(0, gallery.length - 1),
-                  resolveUrl: resolveUrl,
-                ),
-                child: Hero(
-                  tag: supportImageHeroTag(attachment),
-                  child: Image(
-                    // Ключ — id вложения, а не подписанная ссылка: та меняется
-                    // при каждом перечитывании переписки, и без кэша по id одна
-                    // и та же фотография качалась заново при каждом
-                    // пролистывании истории.
-                    image: CachedChatImage(
-                      attachmentId: attachment.id,
-                      url: state.url,
-                    ),
-                    width: kSupportImageWidth,
-                    height: kSupportImageHeight,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, _, _) {
-                      // Reporting during a build is not allowed; the Bloc
-                      // ignores everything after the one retry, so repeats are
-                      // harmless.
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (context.mounted) {
-                          context.read<ChatImageBloc>().add(
-                            SupportImageLoadFailed(),
-                          );
-                        }
-                      });
-                      return _ImagePlaceholder(
-                        fileName: attachment.fileName,
-                        loading: !state.refreshed,
-                      );
-                    },
-                    frameBuilder: (context, child, frame, wasSync) =>
-                        frame == null && !wasSync
-                        ? _ImagePlaceholder(
-                            fileName: attachment.fileName,
-                            loading: true,
-                          )
-                        : child,
+      child: RepaintBoundary(
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(kSupportImageRadius),
+          child: SizedBox(
+            width: kSupportImageWidth,
+            height: kSupportImageHeight,
+            child: BlocBuilder<ChatImageBloc, ChatImageState>(
+              builder: (context, state) {
+                if (!state.hasUrl) {
+                  return _ImagePlaceholder(
+                    fileName: attachment.fileName,
+                    loading: !state.failed,
+                  );
+                }
+                return InkWell(
+                  onTap: () => showChatPhotos(
+                    context,
+                    photos: gallery,
+                    initialIndex: gallery
+                        .indexWhere((a) => a.id == attachment.id)
+                        .clamp(0, gallery.length - 1),
+                    resolveUrl: resolveUrl,
                   ),
-                ),
-              );
-            },
+                  child: Hero(
+                    tag: supportImageHeroTag(attachment),
+                    child: Image(
+                      // Ключ — id вложения, а не подписанная ссылка: та меняется
+                      // при каждом перечитывании переписки, и без кэша по id одна
+                      // и та же фотография качалась заново при каждом
+                      // пролистывании истории.
+                      image: CachedChatImage(
+                        attachmentId: attachment.id,
+                        url: state.url,
+                        // Разжимаем под размер плитки: при быстрой прокрутке
+                        // ленты декодирование снимка в полном разрешении — как
+                        // раз то, что съедало кадры.
+                        decodeWidth:
+                            (kSupportImageWidth *
+                                    MediaQuery.devicePixelRatioOf(context))
+                                .round(),
+                      ),
+                      width: kSupportImageWidth,
+                      height: kSupportImageHeight,
+                      fit: BoxFit.cover,
+                      // Плитка уже нарисованной фотографии не должна мигать, пока
+                      // рядом догружаются соседние.
+                      gaplessPlayback: true,
+                      filterQuality: FilterQuality.medium,
+                      errorBuilder: (context, _, _) {
+                        // Reporting during a build is not allowed; the Bloc
+                        // ignores everything after the one retry, so repeats are
+                        // harmless.
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (context.mounted) {
+                            context.read<ChatImageBloc>().add(
+                              SupportImageLoadFailed(),
+                            );
+                          }
+                        });
+                        return _ImagePlaceholder(
+                          fileName: attachment.fileName,
+                          loading: !state.refreshed,
+                        );
+                      },
+                      frameBuilder: (context, child, frame, wasSync) =>
+                          frame == null && !wasSync
+                          ? _ImagePlaceholder(
+                              fileName: attachment.fileName,
+                              loading: true,
+                            )
+                          : child,
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),

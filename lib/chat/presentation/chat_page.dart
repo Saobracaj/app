@@ -6,7 +6,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/di.dart';
 import '../../core/navigation.dart';
 import '../../public_comments/presentation/relative_time.dart';
-import '../../question_lists/domain/list_style.dart';
 import '../models/chat.dart';
 import '../models/chat_target.dart';
 import '../state_management/chat_bloc.dart';
@@ -24,16 +23,21 @@ import 'chat_attachment_views.dart';
 /// остальное — кто на какой стороне пузыря, какой мутацией уходит сообщение —
 /// дело Bloc'а, поэтому тот же экран показывает и тред, и будущие чаты групп.
 class ChatPage extends StatelessWidget {
-  const ChatPage({super.key, this.target});
+  const ChatPage({super.key, this.target, this.focusComposer = false});
 
   /// Разговор, который нужно открыть; `null` — свой чат с разработчиком.
   final ChatTarget? target;
+
+  /// Поставить курсор в поле ввода сразу: так открывается тред, вызванный
+  /// свайпом по сообщению, — жест означает «хочу ответить», и печатать надо
+  /// начинать, ничего больше не нажимая.
+  final bool focusComposer;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => getIt<ChatBloc>(param1: target)..add(ChatOpened()),
-      child: const _ChatView(),
+      child: _ChatView(focusComposer: focusComposer),
     );
   }
 }
@@ -55,7 +59,9 @@ class ChatContent extends StatelessWidget {
 }
 
 class _ChatView extends StatelessWidget {
-  const _ChatView();
+  const _ChatView({this.focusComposer = false});
+
+  final bool focusComposer;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +89,9 @@ class _ChatView extends StatelessWidget {
                   )
                 : null,
           ),
-          body: const SafeArea(child: _ChatBody(embedded: false)),
+          body: SafeArea(
+            child: _ChatBody(embedded: false, focusComposer: focusComposer),
+          ),
         );
       },
     );
@@ -153,9 +161,12 @@ class _NotificationsBell extends StatelessWidget {
 /// AppBar) сверху добавляются индикатор загрузки и строка про потерянное
 /// live-соединение — та же честность, что и у иконки в AppBar.
 class _ChatBody extends StatelessWidget {
-  const _ChatBody({required this.embedded});
+  const _ChatBody({required this.embedded, this.focusComposer = false});
 
   final bool embedded;
+
+  /// Ставить ли курсор в поле ввода при открытии — см. [ChatPage.focusComposer].
+  final bool focusComposer;
 
   @override
   Widget build(BuildContext context) {
@@ -166,9 +177,9 @@ class _ChatBody extends StatelessWidget {
       listener: (context, state) {
         if (state.notificationsPrompt) _askAboutNotifications(context);
         if (state.notice != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(state.notice!.tr())),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(state.notice!.tr())));
           context.read<ChatBloc>().add(ChatNoticeShown());
         }
       },
@@ -213,7 +224,7 @@ class _ChatBody extends StatelessWidget {
                     : _MessageList(state: state),
               ),
             ),
-            _Composer(state: state),
+            _Composer(state: state, focusComposer: focusComposer),
           ],
         );
       },
@@ -274,9 +285,8 @@ class _ErrorBanner extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.close),
               color: scheme.onErrorContainer,
-              onPressed: () => context.read<ChatBloc>().add(
-                ChatErrorDismissed(),
-              ),
+              onPressed: () =>
+                  context.read<ChatBloc>().add(ChatErrorDismissed()),
             ),
           ],
         ),
@@ -332,9 +342,14 @@ class _MessageList extends StatelessWidget {
       // reading position without measuring anything.
       reverse: true,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      itemCount: messages.length + header + (state.isThread && messages.isEmpty ? 1 : 0),
+      itemCount:
+          messages.length +
+          header +
+          (state.isThread && messages.isEmpty ? 1 : 0),
       itemBuilder: (context, index) {
-        final total = messages.length + header +
+        final total =
+            messages.length +
+            header +
             (state.isThread && messages.isEmpty ? 1 : 0);
         final position = total - 1 - index;
         if (state.isThread) {
@@ -390,9 +405,9 @@ class _RepliesHeader extends StatelessWidget {
           Expanded(child: Divider(color: scheme.outlineVariant)),
           Text(
             'support.replies'.tr(),
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: scheme.outline,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.labelLarge?.copyWith(color: scheme.outline),
           ),
           Expanded(child: Divider(color: scheme.outlineVariant)),
         ],
@@ -438,26 +453,11 @@ class _MessageBubble extends StatelessWidget {
         child: bubble,
       );
     }
-    // Свайп влево открывает тред и возвращает сообщение на место: жест как в
-    // Telegram, поэтому `confirmDismiss` всегда отвечает «не удалять».
-    return Dismissible(
-      key: ValueKey('swipe-${message.id}'),
-      direction: DismissDirection.endToStart,
-      dismissThresholds: const {DismissDirection.endToStart: 0.25},
-      background: Align(
-        alignment: Alignment.centerRight,
-        child: Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: Icon(
-            Icons.reply,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-        ),
-      ),
-      confirmDismiss: (_) async {
-        openMessageThread(context, message);
-        return false;
-      },
+    // Свайп влево открывает тред: сообщение уезжает за пальцем, но только до
+    // границы — на ней тред открывается сам, не дожидаясь, пока палец отпустят.
+    return _SwipeToOpenThread(
+      onTriggered: () =>
+          openMessageThread(context, message, focusComposer: true),
       child: GestureDetector(
         onLongPress: () => _showMenu(context),
         child: bubble,
@@ -465,11 +465,18 @@ class _MessageBubble extends StatelessWidget {
     );
   }
 
-  /// Меню по долгому тапу: ответить (тред) и — для своих сообщений — изменить.
+  /// Меню по долгому тапу: ответить (тред), скопировать текст, пожаловаться и —
+  /// для своих сообщений — изменить и удалить.
+  ///
+  /// «Пожаловаться» есть только на чужих сообщениях: жаловаться на себя не на
+  /// что, а «удалить» модератор чужого сообщения не получает — снимает его тот,
+  /// кто написал.
   Future<void> _showMenu(BuildContext context) async {
     final bloc = context.read<ChatBloc>();
-    final action = await showModalBottomSheet<String>(
+    final messenger = ScaffoldMessenger.of(context);
+    final action = await showModalBottomSheet<_MessageAction>(
       context: context,
+      showDragHandle: true,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -478,24 +485,103 @@ class _MessageBubble extends StatelessWidget {
               ListTile(
                 leading: const Icon(Icons.reply),
                 title: Text('support.reply'.tr()),
-                onTap: () => Navigator.of(ctx).pop('reply'),
+                onTap: () => Navigator.of(ctx).pop(_MessageAction.reply),
               ),
-            if (mine)
+            if (message.body.trim().isNotEmpty)
+              ListTile(
+                leading: const Icon(Icons.copy_outlined),
+                title: Text('support.copy'.tr()),
+                onTap: () => Navigator.of(ctx).pop(_MessageAction.copy),
+              ),
+            if (mine) ...[
               ListTile(
                 leading: const Icon(Icons.edit_outlined),
                 title: Text('support.edit'.tr()),
-                onTap: () => Navigator.of(ctx).pop('edit'),
+                onTap: () => Navigator.of(ctx).pop(_MessageAction.edit),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: Text('support.delete'.tr()),
+                onTap: () => Navigator.of(ctx).pop(_MessageAction.delete),
+              ),
+            ] else
+              ListTile(
+                leading: const Icon(Icons.flag_outlined),
+                title: Text('support.report'.tr()),
+                onTap: () => Navigator.of(ctx).pop(_MessageAction.report),
               ),
           ],
         ),
       ),
     );
     if (action == null || !context.mounted) return;
-    if (action == 'reply') {
-      openMessageThread(context, message);
-    } else if (action == 'edit') {
-      bloc.add(ChatEditStarted(message));
+    switch (action) {
+      case _MessageAction.reply:
+        openMessageThread(context, message, focusComposer: true);
+      case _MessageAction.copy:
+        await Clipboard.setData(ClipboardData(text: message.body));
+        messenger.showSnackBar(SnackBar(content: Text('support.copied'.tr())));
+      case _MessageAction.edit:
+        bloc.add(ChatEditStarted(message));
+      case _MessageAction.delete:
+        final confirmed = await _confirmDelete(context);
+        if (confirmed) bloc.add(ChatMessageDeleted(message));
+      case _MessageAction.report:
+        final reason = await _askReportReason(context);
+        if (reason != null) bloc.add(ChatMessageReported(message, reason));
     }
+  }
+
+  /// Удаление необратимо и уносит вложения — спрашиваем один раз.
+  Future<bool> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('support.deleteTitle'.tr()),
+        content: Text('support.deleteBody'.tr()),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('support.deleteCancel'.tr()),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('support.deleteConfirm'.tr()),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
+
+  /// Причина жалобы — готовым списком, а не полем ввода: модератору нужен
+  /// повод, а жалующемуся — одно нажатие.
+  Future<String?> _askReportReason(BuildContext context) {
+    const reasons = ['spam', 'abuse', 'other'];
+    return showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+              child: Text(
+                'support.reportTitle'.tr(),
+                style: Theme.of(ctx).textTheme.titleMedium,
+              ),
+            ),
+            for (final reason in reasons)
+              ListTile(
+                title: Text('support.reportReason.$reason'.tr()),
+                onTap: () => Navigator.of(ctx).pop(reason),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _bubble(BuildContext context) {
@@ -627,6 +713,84 @@ class _ThreadLink extends StatelessWidget {
   }
 }
 
+/// Что можно сделать с сообщением из меню по долгому тапу.
+enum _MessageAction { reply, copy, edit, delete, report }
+
+/// Свайп влево по сообщению — «ответить».
+///
+/// Сообщение уезжает за пальцем не дальше [_maxOffset], и на этой границе тред
+/// открывается сам: жест доводится до конца рукой, а не отпусканием, поэтому
+/// понятно, куда тянуть и когда отпустить. Stateful ровно ради одного числа —
+/// текущего сдвига.
+class _SwipeToOpenThread extends StatefulWidget {
+  const _SwipeToOpenThread({required this.onTriggered, required this.child});
+
+  final VoidCallback onTriggered;
+  final Widget child;
+
+  @override
+  State<_SwipeToOpenThread> createState() => _SwipeToOpenThreadState();
+}
+
+class _SwipeToOpenThreadState extends State<_SwipeToOpenThread> {
+  /// Дальше этого сообщение не уедет — и ровно здесь открывается тред.
+  static const double _maxOffset = 72;
+
+  double _offset = 0;
+
+  /// Тред за один жест открывается один раз: палец может остаться на границе.
+  bool _fired = false;
+
+  void _update(DragUpdateDetails details) {
+    if (_fired) return;
+    final next = (_offset + details.delta.dx).clamp(-_maxOffset, 0.0);
+    if (next != _offset) setState(() => _offset = next);
+    if (_offset <= -_maxOffset) {
+      _fired = true;
+      HapticFeedback.selectionClick();
+      setState(() => _offset = 0);
+      widget.onTriggered();
+    }
+  }
+
+  void _reset() {
+    _fired = false;
+    if (_offset != 0) setState(() => _offset = 0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progress = (_offset.abs() / _maxOffset).clamp(0.0, 1.0);
+    return GestureDetector(
+      onHorizontalDragUpdate: _update,
+      onHorizontalDragEnd: (_) => _reset(),
+      onHorizontalDragCancel: _reset,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Opacity(
+                  opacity: progress,
+                  child: Icon(
+                    Icons.reply,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Сдвиг в пикселях, а не в долях ширины: пузырь у каждого сообщения
+          // своей ширины, а граница жеста у всех одна.
+          Transform.translate(offset: Offset(_offset, 0), child: widget.child),
+        ],
+      ),
+    );
+  }
+}
+
 /// Открыть тред на сообщение поверх текущего экрана.
 ///
 /// Через [pushScreen], поэтому «назад» возвращает в переписку, откуда пришли, —
@@ -638,8 +802,9 @@ class _ThreadLink extends StatelessWidget {
 /// а вернуться из треда можно и без связи.
 Future<void> openMessageThread(
   BuildContext context,
-  ChatMessage message,
-) async {
+  ChatMessage message, {
+  bool focusComposer = false,
+}) async {
   final chatId = message.threadChatId;
   final bloc = context.read<ChatBloc>();
   await pushScreen(
@@ -647,14 +812,21 @@ Future<void> openMessageThread(
     // Адрес есть только у уже созданного треда; новый создаётся бэкендом при
     // открытии, и экран приходится толкать императивно.
     path: chatId == null ? 'thread/${message.id}' : 'chat/$chatId',
-    screen: () => ChatPage(target: MessageThreadTarget(message.id)),
+    // Фокус — часть адреса, а не только императивного вызова: стек у роутера
+    // строится из URL, и иначе открытый через него тред терял бы курсор.
+    queryParameters: focusComposer ? const {'focus': '1'} : null,
+    screen: () => ChatPage(
+      target: MessageThreadTarget(message.id),
+      focusComposer: focusComposer,
+    ),
   );
   if (!bloc.isClosed) bloc.add(ChatRefreshed());
 }
 
 class _Composer extends StatelessWidget {
-  const _Composer({required this.state});
+  const _Composer({required this.state, this.focusComposer = false});
   final ChatState state;
+  final bool focusComposer;
 
   @override
   Widget build(BuildContext context) {
@@ -691,11 +863,13 @@ class _Composer extends StatelessWidget {
                   ),
                 ],
               ),
-            if (state.uploading)
+            if (state.uploading || state.sharingList)
               LinearProgressIndicator(
-                value: state.uploadProgress > 0 ? state.uploadProgress : null,
+                value: state.uploading && state.uploadProgress > 0
+                    ? state.uploadProgress
+                    : null,
               ),
-            if (state.pending.isNotEmpty || state.pendingLists.isNotEmpty)
+            if (state.pending.isNotEmpty)
               Align(
                 alignment: Alignment.centerLeft,
                 child: Wrap(
@@ -710,21 +884,19 @@ class _Composer extends StatelessWidget {
                               : Icons.insert_drive_file_outlined,
                           size: 18,
                         ),
-                        label: Text(attachment.fileName),
+                        // Имя файла обрезается по ширине чипа: полтора десятка
+                        // вложений с длинными именами иначе занимают экран
+                        // целиком и выдавливают из него саму переписку.
+                        label: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 140),
+                          child: Text(
+                            attachment.fileName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         onDeleted: () =>
                             bloc.add(ChatAttachmentRemoved(attachment)),
-                      ),
-                    // Список вопросов ничего не загружает — он и в строке ввода
-                    // выглядит так же, как приедет получателю: цвет и название.
-                    for (final list in state.pendingLists)
-                      Chip(
-                        avatar: CircleAvatar(
-                          backgroundColor: list.avatarColor(context),
-                          radius: 9,
-                        ),
-                        label: Text(list.title),
-                        onDeleted: () =>
-                            bloc.add(ChatListRemoved(list.id)),
                       ),
                   ],
                 ),
@@ -736,15 +908,15 @@ class _Composer extends StatelessWidget {
                 IconButton(
                   tooltip: 'support.attach'.tr(),
                   icon: const Icon(Icons.attach_file),
-                  onPressed: state.uploading
+                  onPressed: state.uploading || state.sharingList
                       ? null
                       : () => showChatAttachMenu(context),
                 ),
                 Expanded(
                   child: _ComposerField(
+                    autofocus: focusComposer,
                     text: state.body,
-                    onChanged: (value) =>
-                        bloc.add(ChatBodyChanged(value)),
+                    onChanged: (value) => bloc.add(ChatBodyChanged(value)),
                     onSend: send,
                   ),
                 ),
@@ -776,9 +948,13 @@ class _ComposerField extends StatefulWidget {
     required this.text,
     required this.onChanged,
     required this.onSend,
+    this.autofocus = false,
   });
 
   final String text;
+
+  /// Забрать фокус сразу после открытия экрана.
+  final bool autofocus;
   final ValueChanged<String> onChanged;
 
   /// Fired by ⌘/Ctrl+Enter. Plain Enter stays a newline — a chat message here is
@@ -823,6 +999,7 @@ class _ComposerFieldState extends State<_ComposerField> {
       },
       child: TextField(
         controller: _controller,
+        autofocus: widget.autofocus,
         onChanged: widget.onChanged,
         // Поле начинается с одной строки и растёт под текст: пустое поле в три
         // строки съедало половину переписки на веб-версии.

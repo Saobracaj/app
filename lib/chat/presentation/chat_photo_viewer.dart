@@ -27,7 +27,6 @@ import '../state_management/chat_image_bloc.dart'
 import '../state_management/chat_image_events.dart';
 import '../state_management/chat_image_state.dart';
 
-
 /// Насколько далеко нужно утащить фотографию, чтобы отпускание её закрыло.
 const double _dismissDistance = 120;
 
@@ -52,7 +51,10 @@ Future<void> showChatPhotos(
       // Фон непрозрачный только к концу перехода: пока летит hero, под ним
       // должен просвечивать чат — иначе фотография вылетает из чёрного поля.
       opaque: false,
-      barrierColor: Colors.black,
+      // Чёрный фон рисует сам экран (и гасит его по мере смахивания), а не
+      // барьер маршрута: барьер лежит поверх переписки всегда и не дал бы
+      // просвечивать ей во время жеста.
+      barrierColor: Colors.transparent,
       transitionDuration: const Duration(milliseconds: 250),
       reverseTransitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (_, _, _) => ChatPhotoViewer(
@@ -107,9 +109,14 @@ class _ChatPhotoViewerState extends State<ChatPhotoViewer> {
 
   ChatAttachment get _current => widget.photos[_index];
 
-  /// Доля пути до закрытия, 0..1 — по ней гаснет фон и уменьшается картинка.
+  /// Доля пути до закрытия, 0..1 — по ней уменьшается картинка.
   double get _progress =>
       (_drag.dy.abs() / (_dismissDistance * 2)).clamp(0.0, 1.0);
+
+  /// Плотность чёрного фона: к моменту, когда отпускание закроет просмотр, под
+  /// фотографией уже видно переписку — жест сразу показывает, куда вернёшься.
+  double get _backdrop =>
+      (1 - _drag.dy.abs() / _dismissDistance).clamp(0.0, 1.0);
 
   void _goTo(int index) {
     if (index < 0 || index >= widget.photos.length) return;
@@ -162,7 +169,7 @@ class _ChatPhotoViewerState extends State<ChatPhotoViewer> {
       autofocus: true,
       onKeyEvent: _onKey,
       child: Scaffold(
-        backgroundColor: Colors.black.withValues(alpha: 1 - _progress),
+        backgroundColor: Colors.black.withValues(alpha: _backdrop),
         extendBodyBehindAppBar: true,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
@@ -209,10 +216,7 @@ class _ChatPhotoViewerState extends State<ChatPhotoViewer> {
             // Hero есть только у той фотографии, из которой пришли: остальные
             // в чате не видны, и лететь им не от чего.
             final hero = index == widget.initialIndex
-                ? Hero(
-                    tag: supportImageHeroTag(attachment),
-                    child: page,
-                  )
+                ? Hero(tag: supportImageHeroTag(attachment), child: page)
                 : page;
             if (index != _index) return hero;
             return GestureDetector(
@@ -330,9 +334,7 @@ class _PhotoSurfaceState extends State<_PhotoSurface> {
                 // единственной повторной подписи всё игнорирует.
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (context.mounted) {
-                    context.read<ChatImageBloc>().add(
-                      SupportImageLoadFailed(),
-                    );
+                    context.read<ChatImageBloc>().add(SupportImageLoadFailed());
                   }
                 });
                 return const Center(

@@ -17,7 +17,6 @@ import 'chat_image_disk.dart';
 import 'chat_image_disk_stub.dart'
     if (dart.library.io) 'chat_image_disk_io.dart';
 
-
 /// [ImageProvider], который берёт байты из кэша и, только если их там нет, —
 /// из сети по подписанной ссылке.
 ///
@@ -29,6 +28,7 @@ class CachedChatImage extends ImageProvider<ChatImageKey> {
     required this.attachmentId,
     required this.url,
     this.scale = 1.0,
+    this.decodeWidth,
   });
 
   /// Идентификатор вложения — он же ключ кэша.
@@ -41,9 +41,18 @@ class CachedChatImage extends ImageProvider<ChatImageKey> {
 
   final double scale;
 
+  /// До какой ширины (в пикселях устройства) разжимать картинку.
+  ///
+  /// Плитка в пузыре — 240 логических точек, а снимок с телефона приезжает
+  /// в полтора-две тысячи пикселей: разжатый целиком, он и декодируется дольше,
+  /// и занимает в кэше в двадцать раз больше памяти. При быстрой прокрутке это
+  /// как раз те кадры, которые пропадали. `null` — разжимать как есть, так
+  /// делает полноэкранный просмотр, где нужно всё разрешение.
+  final int? decodeWidth;
+
   @override
   Future<ChatImageKey> obtainKey(ImageConfiguration configuration) =>
-      SynchronousFuture(ChatImageKey(attachmentId, scale));
+      SynchronousFuture(ChatImageKey(attachmentId, scale, decodeWidth));
 
   @override
   ImageStreamCompleter loadImage(
@@ -65,34 +74,60 @@ class CachedChatImage extends ImageProvider<ChatImageKey> {
     if (bytes.isEmpty) {
       throw StateError('empty image for attachment $attachmentId');
     }
-    return decode(await ui.ImmutableBuffer.fromUint8List(bytes));
+    final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+    final width = decodeWidth;
+    if (width == null) return decode(buffer);
+    return decode(
+      buffer,
+      getTargetSize: (intrinsicWidth, intrinsicHeight) {
+        // Уменьшаем, но никогда не увеличиваем: картинка меньше плитки должна
+        // остаться собой.
+        if (intrinsicWidth <= width) {
+          return ui.TargetImageSize(
+            width: intrinsicWidth,
+            height: intrinsicHeight,
+          );
+        }
+        final height = (intrinsicHeight * width / intrinsicWidth).round();
+        return ui.TargetImageSize(width: width, height: height);
+      },
+    );
   }
 
   @override
   bool operator ==(Object other) =>
       other is CachedChatImage &&
       other.attachmentId == attachmentId &&
-      other.scale == scale;
+      other.scale == scale &&
+      other.decodeWidth == decodeWidth;
 
   @override
-  int get hashCode => Object.hash(attachmentId, scale);
+  int get hashCode => Object.hash(attachmentId, scale, decodeWidth);
 }
 
-/// Ключ кэша: вложение и масштаб. Публичный, потому что им параметризован
-/// [CachedChatImage].
+/// Ключ кэша: вложение, масштаб и ширина разжатия. Публичный, потому что им
+/// параметризован [CachedChatImage].
+///
+/// Ширина входит в ключ намеренно: уменьшенная плитка и полноразмерный снимок —
+/// это две разные картинки одного вложения, и подсунуть одну вместо другой
+/// нельзя.
 @immutable
 class ChatImageKey {
-  const ChatImageKey(this.id, this.scale);
+  const ChatImageKey(this.id, this.scale, [this.decodeWidth]);
 
   final String id;
   final double scale;
+  final int? decodeWidth;
 
   @override
   bool operator ==(Object other) =>
-      other is ChatImageKey && other.id == id && other.scale == scale;
+      other is ChatImageKey &&
+      other.id == id &&
+      other.scale == scale &&
+      other.decodeWidth == decodeWidth;
 
   @override
-  int get hashCode => Object.hash(id, scale);
+  int get hashCode => Object.hash(id, scale, decodeWidth);
 }
 
 /// Байты вложений: диск (кроме веба) плюс защёлка от параллельных загрузок
@@ -117,10 +152,7 @@ class ChatImageStore {
   http.Client client = http.Client();
 
   /// Байты вложения — из кэша, иначе из сети (и тогда в кэш).
-  Future<Uint8List> bytes({
-    required String attachmentId,
-    required String url,
-  }) {
+  Future<Uint8List> bytes({required String attachmentId, required String url}) {
     final running = _inFlight[attachmentId];
     if (running != null) return running;
     final future = _read(attachmentId, url);

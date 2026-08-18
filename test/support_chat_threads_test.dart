@@ -18,6 +18,7 @@ import 'package:saobracaj/chat/state_management/chat_events.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/notifications/data/notification_permissions.dart';
+import 'package:saobracaj/question_lists/data/shared_lists_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Треды в чате с разработчиком (правки по задаче 1217567372723190):
@@ -164,6 +165,7 @@ ChatBloc _bloc(_FakeApi api, {ChatTarget? target}) {
     repository,
     const NotificationPermissions(),
     AuthRepository(client, storage, AnalyticsService()),
+    SharedListsRepository(client),
     target,
   );
 }

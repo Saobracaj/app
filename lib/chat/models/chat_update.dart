@@ -47,13 +47,18 @@ enum ChatChangeKind {
 
   /// A thread was opened on a message of this conversation, so its reply link
   /// appears.
-  threadOpened;
+  threadOpened,
+
+  /// Автор удалил сообщение: его нужно убрать из ленты, а не просто перечитать
+  /// её — перечитывание страницы само по себе удалённое сообщение не уносит.
+  messageDeleted;
 
   static ChatChangeKind? parse(String? raw) => switch (raw?.toUpperCase()) {
     'MESSAGE_ADDED' => ChatChangeKind.messageAdded,
     'MESSAGE_EDITED' => ChatChangeKind.messageEdited,
     'READ_STATE_CHANGED' => ChatChangeKind.readStateChanged,
     'THREAD_OPENED' => ChatChangeKind.threadOpened,
+    'MESSAGE_DELETED' => ChatChangeKind.messageDeleted,
     _ => null,
   };
 }

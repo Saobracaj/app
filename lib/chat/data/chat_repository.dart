@@ -111,6 +111,18 @@ class ChatRepository {
     }
   ''';
 
+  static const _deleteMutation = r'''
+    mutation DeleteChatMessage($messageId: ID!) {
+      deleteChatMessage(messageId: $messageId)
+    }
+  ''';
+
+  static const _reportMutation = r'''
+    mutation ReportChatMessage($messageId: ID!, $reason: String!) {
+      reportChatMessage(messageId: $messageId, reason: $reason)
+    }
+  ''';
+
   static const _markReadMutation = r'''
     mutation MarkChatRead($chatId: ID!) { markChatRead(chatId: $chatId) }
   ''';
@@ -287,6 +299,31 @@ class ChatRepository {
     return ChatMessage.parse(
       (data['editChatMessage'] as Map).cast<String, dynamic>(),
     );
+  }
+
+  /// Удалить своё сообщение — вместе с вложениями и их байтами. Возвращает
+  /// `false`, если сообщения уже нет.
+  Future<bool> deleteMessage(String messageId) async {
+    final data = await _client.run(
+      _deleteMutation,
+      variables: {'messageId': messageId},
+      authenticated: true,
+    );
+    return data['deleteChatMessage'] == true;
+  }
+
+  /// Пожаловаться на чужое сообщение. Жалоба видна только модераторам; автору
+  /// сообщения о ней ничего не приходит.
+  Future<bool> reportMessage({
+    required String messageId,
+    required String reason,
+  }) async {
+    final data = await _client.run(
+      _reportMutation,
+      variables: {'messageId': messageId, 'reason': reason},
+      authenticated: true,
+    );
+    return data['reportChatMessage'] == true;
   }
 
   /// Mark the counterpart's messages in one conversation read.

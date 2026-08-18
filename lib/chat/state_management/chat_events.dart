@@ -24,18 +24,12 @@ class ChatFilePicked extends ChatEvent {}
 /// JPEG на устройстве и загрузка. Можно выбрать несколько снимков сразу.
 class ChatPhotosPicked extends ChatEvent {}
 
-/// Пункт «Список вопросов»: пользователь выбрал один из своих списков. Ничего
-/// не загружается — список уезжает вместе с сообщением, и бэкенд снимает с него
-/// снимок (название и вопросы) в момент отправки.
-class ChatListAttached extends ChatEvent {
-  ChatListAttached(this.list);
+/// Пункт «Список вопросов»: пользователь выбрал один из своих списков. Список
+/// уходит ссылкой шаринга — той же самой, что и при «поделиться» с экрана
+/// списка: Bloc просит у бэкенда код и дописывает адрес в строку ввода.
+class ChatListShared extends ChatEvent {
+  ChatListShared(this.list);
   final QuestionList list;
-}
-
-/// Убрать ещё не отправленный список из строки ввода.
-class ChatListRemoved extends ChatEvent {
-  ChatListRemoved(this.listId);
-  final String listId;
 }
 
 /// Drop a not-yet-sent attachment from the composer.
@@ -69,12 +63,31 @@ class ChatNotificationsDeclined extends ChatEvent {}
 /// The notification offer was accepted: ask the OS and turn push on.
 class ChatNotificationsAccepted extends ChatEvent {}
 
+/// «Удалить» в меню своего сообщения — после подтверждения.
+class ChatMessageDeleted extends ChatEvent {
+  ChatMessageDeleted(this.message);
+  final ChatMessage message;
+}
+
+/// «Пожаловаться» в меню сообщения: причина уходит модератору.
+class ChatMessageReported extends ChatEvent {
+  ChatMessageReported(this.message, this.reason);
+  final ChatMessage message;
+  final String reason;
+}
+
 /// Clear the inline error banner.
 class ChatErrorDismissed extends ChatEvent {}
 
 /// The backend says the conversation changed (a message was added, or somebody
 /// read one). Not dispatched by the UI — it comes off the subscription.
-class ChatChangedRemotely extends ChatEvent {}
+class ChatChangedRemotely extends ChatEvent {
+  ChatChangedRemotely({this.deletedMessageId});
+
+  /// Сообщение, которое автор удалил, — его нужно убрать из ленты: перечитанная
+  /// страница молчит о том, чего в ней больше нет.
+  final String? deletedMessageId;
+}
 
 /// The realtime connection came up or went down. [missed] is set when it is a
 /// reconnect: the server keeps no backlog, so whatever happened while the socket
