@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
+import '../../core/presentation/load_failed_view.dart';
 import '../../generated/locale_keys.g.dart';
 import '../state_management/group_bloc.dart';
 import '../state_management/group_events.dart';
@@ -48,6 +49,15 @@ class _InviteView extends StatelessWidget {
             (true, _, null) => const Center(child: CircularProgressIndicator()),
             (_, true, _) => Center(
               child: Text(LocaleKeys.groups_notFound.tr()),
+            ),
+            // Не прочиталось — говорим об этом здесь, а не снек-баром поверх
+            // пустого экрана; сеть вернётся — блок перечитает сам.
+            (_, _, null) when state.failed => LoadFailedView(
+              offline: state.failedOffline,
+              message: state.failedOffline
+                  ? LocaleKeys.network_noConnection.tr()
+                  : null,
+              onRetry: () => context.read<GroupBloc>().add(const GroupOpened()),
             ),
             (_, _, null) => const SizedBox.shrink(),
             _ => ListView(

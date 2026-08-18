@@ -20,7 +20,22 @@ String describeError(Object error, {String? fallback}) {
   return fallback ?? error.toString();
 }
 
+/// The text for a failed *user action* (publish, delete, join, rename …).
+///
+/// Same rules as [describeError], with one difference: a transport failure is
+/// not a bare "no network" label but a sentence about the action — the user
+/// pressed something and has to learn that nothing happened, and that it is
+/// worth trying again later.
+///
+/// Failed *loads* never use this (nor any snackbar): they render inline with a
+/// retry and are redone by themselves once `NetworkStatus` reports a reconnect.
+String describeActionError(Object error, {String? fallback}) {
+  if (isNetworkError(error)) {
+    return LocaleKeys.network_actionFailedOffline.tr();
+  }
+  return describeError(error, fallback: fallback);
+}
+
 /// Whether [error] is a "never reached the server" failure — the case where the
 /// UI shows "no network" and reloads on its own once the connection is back.
-bool isNetworkError(Object error) =>
-    error is GraphqlException && error.network;
+bool isNetworkError(Object error) => error is GraphqlException && error.network;

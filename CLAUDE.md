@@ -104,8 +104,18 @@ to announce. The building blocks live in `lib/core/network/`:
   subscribes to `NetworkStatus.onReconnected` to reload **by itself** — no
   snackbar for a failed *load*. Snackbars are for failed *user actions* only.
 - Never show `GraphqlException.message` for a network failure (it is an English
-  placeholder): pass errors through `describeError(e)` /
-  `isNetworkError(e)` (`lib/core/network/error_messages.dart`), which maps a
-  transport failure to `network.noConnection`.
+  placeholder — the "Network error" toast the operator kept seeing): pass errors
+  through `describeError(e)` / `describeActionError(e)` / `isNetworkError(e)`
+  (`lib/core/network/error_messages.dart`). `describeError` is the copy for the
+  inline "could not load" block (`network.noConnection`);
+  `describeActionError` is the copy for a snackbar after something the user
+  pressed (`network.actionFailedOffline`). `'$e'` in a state's `errorMessage`
+  is always a bug.
+- **A failed load never raises a snackbar** — only a failed *action* does. A
+  load reports itself through `failed` / `failedOffline` in the state, and the
+  screen renders `LoadFailedView` / `LoadFailedList` over it. In particular, a
+  failed read must not set `loaded`: "could not read" is not "there is nothing
+  here", and the empty-state copy would lie (this is what made a group's wall
+  answer «в группе ещё нет постов» while offline).
 - The home screen shows `OfflineHomeCard` (links to questions / simulation)
   instead of per-block retries while offline.

@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../core/network/error_messages.dart';
+import '../../core/network/network_status.dart';
 import '../../support_chat/models/support_chat.dart';
 import '../data/group_posts_repository.dart';
 import 'group_posts_events.dart';
@@ -14,11 +18,16 @@ import 'group_posts_state.dart';
 /// (see `GroupScreen`). Everything the composer holds lives here too: an
 /// attachment is uploaded the moment it is picked, so sending a post is one
 /// short mutation rather than a multi-megabyte wait.
+///
+/// A read that fails is not announced: the state carries [GroupPostsState.failed],
+/// the tab shows a retry line, and the wall re-reads itself the moment
+/// [NetworkStatus] says the connection is back. Snackbars are left to the
+/// author's own actions — publishing, attaching, deleting.
 @injectable
 class GroupPostsBloc extends Bloc<GroupPostsBlocEvent, GroupPostsState> {
-  GroupPostsBloc(this._posts, @factoryParam String groupId)
+  GroupPostsBloc(this._posts, this._network, @factoryParam String groupId)
     : super(GroupPostsState(groupId: groupId)) {
-    on<GroupPostsOpened>((event, emit) => _loadHead(emit, first: true));
+    on<GroupPostsOpened>(_onOpened);
     on<GroupPostsRefreshed>((event, emit) => _loadHead(emit));
     on<GroupPostsMoreRequested>(_onMore);
     on<GroupPostAttachPressed>(_onAttachPressed);
@@ -36,6 +45,9 @@ class GroupPostsBloc extends Bloc<GroupPostsBlocEvent, GroupPostsState> {
   }
 
   final GroupPostsRepository _posts;
+  final NetworkStatus _network;
+
+  StreamSubscription<void>? _reconnectSubscription;
 
   /// How many posts one page holds. The server caps a page at 50.
   static const pageSize = 20;
@@ -44,13 +56,29 @@ class GroupPostsBloc extends Bloc<GroupPostsBlocEvent, GroupPostsState> {
   /// instead of after a long upload.
   static const _maxAttachmentBytes = 20 * 1024 * 1024;
 
-  Future<void> _loadHead(
-    Emitter<GroupPostsState> emit, {
-    bool first = false,
-  }) async {
+  @override
+  Future<void> close() {
+    _reconnectSubscription?.cancel();
+    return super.close();
+  }
+
+  Future<void> _onOpened(
+    GroupPostsOpened event,
+    Emitter<GroupPostsState> emit,
+  ) async {
+    // Back online: redo the read that failed while offline, quietly — no
+    // snackbar, no button.
+    _reconnectSubscription ??= _network.onReconnected.listen((_) {
+      if (state.failed) add(const GroupPostsRefreshed());
+    });
+    await _loadHead(emit);
+  }
+
+  Future<void> _loadHead(Emitter<GroupPostsState> emit) async {
     emit(state.copyWith(loading: true));
     try {
       final page = await _posts.page(state.groupId, limit: pageSize);
+      if (emit.isDone) return;
       emit(
         state.copyWith(
           posts: page.posts,
@@ -59,16 +87,20 @@ class GroupPostsBloc extends Bloc<GroupPostsBlocEvent, GroupPostsState> {
           nextBeforeId: page.nextBeforeId,
           loading: false,
           loaded: true,
+          failed: false,
+          failedOffline: false,
         ),
       );
     } catch (e) {
+      if (emit.isDone) return;
+      // A refresh that fails leaves what is on screen readable; a first read
+      // that fails leaves the wall *unloaded* — marking it loaded would turn
+      // "could not read" into "nobody has posted here yet".
       emit(
         state.copyWith(
           loading: false,
-          // A refresh that fails leaves what is on screen readable; only the
-          // very first read has nothing to fall back on.
-          loaded: state.loaded || !first,
-          errorMessage: '$e',
+          failed: true,
+          failedOffline: isNetworkError(e),
         ),
       );
     }
@@ -102,8 +134,10 @@ class GroupPostsBloc extends Bloc<GroupPostsBlocEvent, GroupPostsState> {
           loadingMore: false,
         ),
       );
-    } catch (e) {
-      emit(state.copyWith(loadingMore: false, errorMessage: '$e'));
+    } catch (_) {
+      // Тоже загрузка, а не действие пользователя: молча возвращаем кнопку
+      // «загрузить ещё» вместо индикатора — снек-бара здесь не должно быть.
+      if (!emit.isDone) emit(state.copyWith(loadingMore: false));
     }
   }
 
@@ -119,7 +153,7 @@ class GroupPostsBloc extends Bloc<GroupPostsBlocEvent, GroupPostsState> {
     try {
       file = await openFile();
     } catch (e) {
-      emit(state.copyWith(errorMessage: '$e'));
+      emit(state.copyWith(errorMessage: describeActionError(e)));
       return;
     }
     if (file == null) return;
@@ -155,7 +189,9 @@ class GroupPostsBloc extends Bloc<GroupPostsBlocEvent, GroupPostsState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(uploading: false, errorMessage: '$e'));
+      emit(
+        state.copyWith(uploading: false, errorMessage: describeActionError(e)),
+      );
     }
   }
 
@@ -209,7 +245,9 @@ class GroupPostsBloc extends Bloc<GroupPostsBlocEvent, GroupPostsState> {
         ),
       );
     } catch (e) {
-      emit(state.copyWith(submitting: false, errorMessage: '$e'));
+      emit(
+        state.copyWith(submitting: false, errorMessage: describeActionError(e)),
+      );
     }
   }
 
@@ -227,7 +265,9 @@ class GroupPostsBloc extends Bloc<GroupPostsBlocEvent, GroupPostsState> {
     try {
       await _posts.deletePost(event.postId);
     } catch (e) {
-      emit(state.copyWith(posts: previous, errorMessage: '$e'));
+      emit(
+        state.copyWith(posts: previous, errorMessage: describeActionError(e)),
+      );
     }
   }
 

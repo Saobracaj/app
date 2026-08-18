@@ -19,6 +19,13 @@ abstract class GroupState with _$GroupState {
     /// The first load is running.
     @Default(false) bool loading,
 
+    /// The last read failed. Rendered inline with a retry, never as a snackbar
+    /// — see [errorMessage].
+    @Default(false) bool failed,
+
+    /// That failure was a transport one, so the copy says "no connection".
+    @Default(false) bool failedOffline,
+
     /// A write (rename, remove, invite, …) is running — the actions stay
     /// disabled meanwhile.
     @Default(false) bool busy,
@@ -29,7 +36,8 @@ abstract class GroupState with _$GroupState {
     /// The group was deleted or left from this screen: the UI closes it.
     @Default(false) bool closed,
 
-    /// The last failure, surfaced once and then cleared.
+    /// The last failed *write* (rename, remove, invite, …), surfaced once as a
+    /// snackbar and then cleared. A failed read never sets it: see [failed].
     String? errorMessage,
   }) = _GroupState;
 

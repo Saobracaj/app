@@ -183,7 +183,7 @@ class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
       );
     } catch (e) {
       if (emit.isDone) return;
-      emit(state.copyWith(busy: false, errorMessage: describeError(e)));
+      emit(state.copyWith(busy: false, errorMessage: describeActionError(e)));
     }
   }
 
@@ -236,7 +236,7 @@ class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
       );
     } catch (e) {
       if (emit.isDone) return;
-      emit(state.copyWith(busy: false, errorMessage: describeError(e)));
+      emit(state.copyWith(busy: false, errorMessage: describeActionError(e)));
     }
   }
 

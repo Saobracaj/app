@@ -39,8 +39,3 @@ class GroupFeedLiveChanged extends GroupFeedBlocEvent {
   /// Whether events may have been missed while the connection was down.
   final bool missedEvents;
 }
-
-/// The error message was shown; clear it.
-class GroupFeedErrorShown extends GroupFeedBlocEvent {
-  const GroupFeedErrorShown();
-}

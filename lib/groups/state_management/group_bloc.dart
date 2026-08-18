@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../core/network/error_messages.dart';
+import '../../core/network/network_status.dart';
 import '../../feature_flags/data/feature_flags_repository.dart';
 import '../data/groups_repository.dart';
 import 'group_events.dart';
@@ -17,10 +21,19 @@ import 'group_state.dart';
 /// The user's own list of groups lives in `GroupsBloc`; both read the same
 /// [GroupsRepository], so a rename here reaches the home-screen card without
 /// either of them knowing about the other.
+///
+/// A failed *read* is shown inline ([GroupState.failed]) and redone by itself
+/// once [NetworkStatus] reports a reconnect — no snackbar. Only the writes the
+/// user asked for report their failure, and a transport one reads as "no
+/// connection to the server", never as the client's English placeholder.
 @injectable
 class GroupBloc extends Bloc<GroupEditEvent, GroupState> {
-  GroupBloc(this._groups, this._flags, @factoryParam String groupId)
-    : super(GroupState(groupId: groupId)) {
+  GroupBloc(
+    this._groups,
+    this._flags,
+    this._network,
+    @factoryParam String groupId,
+  ) : super(GroupState(groupId: groupId)) {
     on<GroupOpened>(_onOpened);
     on<GroupRenamed>(
       (event, emit) =>
@@ -52,18 +65,45 @@ class GroupBloc extends Bloc<GroupEditEvent, GroupState> {
 
   final GroupsRepository _groups;
   final FeatureFlagsRepository _flags;
+  final NetworkStatus _network;
+
+  StreamSubscription<void>? _reconnectSubscription;
+
+  @override
+  Future<void> close() {
+    _reconnectSubscription?.cancel();
+    return super.close();
+  }
 
   Future<void> _onOpened(GroupOpened event, Emitter<GroupState> emit) async {
-    emit(state.copyWith(loading: true, errorMessage: null));
+    // Back online: re-read the group that could not be read while offline.
+    _reconnectSubscription ??= _network.onReconnected.listen((_) {
+      if (state.failed) add(const GroupOpened());
+    });
+    emit(state.copyWith(loading: true, failed: false));
     try {
       final group = await _groups.load(state.groupId);
       if (emit.isDone) return;
       emit(
-        state.copyWith(loading: false, group: group, notFound: group == null),
+        state.copyWith(
+          loading: false,
+          failed: false,
+          failedOffline: false,
+          group: group,
+          notFound: group == null,
+        ),
       );
     } catch (e) {
       if (emit.isDone) return;
-      emit(state.copyWith(loading: false, errorMessage: e.toString()));
+      // Читать — не действие пользователя: сообщение не всплывает, а остаётся
+      // на экране вместе с кнопкой «повторить».
+      emit(
+        state.copyWith(
+          loading: false,
+          failed: true,
+          failedOffline: isNetworkError(e),
+        ),
+      );
     }
   }
 
@@ -78,7 +118,7 @@ class GroupBloc extends Bloc<GroupEditEvent, GroupState> {
       emit(state.copyWith(busy: false, closed: true));
     } catch (e) {
       if (emit.isDone) return;
-      emit(state.copyWith(busy: false, errorMessage: e.toString()));
+      emit(state.copyWith(busy: false, errorMessage: describeActionError(e)));
     }
   }
 
@@ -106,7 +146,7 @@ class GroupBloc extends Bloc<GroupEditEvent, GroupState> {
       emit(state.copyWith(busy: false, group: group, notFound: group == null));
     } catch (e) {
       if (emit.isDone) return;
-      emit(state.copyWith(busy: false, errorMessage: e.toString()));
+      emit(state.copyWith(busy: false, errorMessage: describeActionError(e)));
     }
   }
 }
