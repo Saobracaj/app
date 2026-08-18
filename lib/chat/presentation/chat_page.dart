@@ -553,13 +553,14 @@ class _MessageBubble extends StatelessWidget {
                         if (a.isImage && !a.deleted) a,
                     ],
                   ),
-                // Ссылка на тред живёт между текстом сообщения и временем его
-                // отправки — ровно там, где её просили.
-                if (message.hasThread && !inThread)
-                  _ThreadLink(message: message, onSurface: foreground),
                 const SizedBox(height: 2),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+                // Нижняя строка пузыря: время, отметка о правке, галочки — и
+                // ссылка на тред в самом правом углу, на одном уровне с ними.
+                // Wrap, а не Row: у длинного «Изменено» рядом с «10 ответов» на
+                // узком экране строка иначе вылезает за край пузыря.
+                Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  alignment: WrapAlignment.end,
                   spacing: 4,
                   children: [
                     Text(
@@ -583,6 +584,8 @@ class _MessageBubble extends StatelessWidget {
                         color: foreground.withValues(alpha: 0.6),
                       ),
                     ],
+                    if (message.hasThread && !inThread)
+                      _ThreadLink(message: message, onSurface: foreground),
                   ],
                 ),
               ],
@@ -594,7 +597,10 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-/// Маленькая ссылка на тред под текстом сообщения.
+/// Маленькая ссылка на тред в правом нижнем углу пузыря, рядом со временем.
+///
+/// Без [Align] и без растяжек: пузырь должен оставаться шириной по своему
+/// содержимому, а не разъезжаться на всю ленту из-за одной этой строчки.
 class _ThreadLink extends StatelessWidget {
   const _ThreadLink({required this.message, required this.onSurface});
 
@@ -603,22 +609,20 @@ class _ThreadLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: TextButton.icon(
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          foregroundColor: onSurface,
-        ),
-        icon: const Icon(Icons.forum_outlined, size: 16),
-        label: Text(
-          'support.threadReplies'.plural(message.replyCount),
-          style: Theme.of(context).textTheme.labelMedium,
-        ),
-        onPressed: () => openMessageThread(context, message),
+    return TextButton.icon(
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        foregroundColor: onSurface,
+        visualDensity: VisualDensity.compact,
       ),
+      icon: const Icon(Icons.forum_outlined, size: 16),
+      label: Text(
+        'support.threadReplies'.plural(message.replyCount),
+        style: Theme.of(context).textTheme.labelMedium,
+      ),
+      onPressed: () => openMessageThread(context, message),
     );
   }
 }
@@ -627,15 +631,25 @@ class _ThreadLink extends StatelessWidget {
 ///
 /// Через [pushScreen], поэтому «назад» возвращает в переписку, откуда пришли, —
 /// и так же работает, из какого бы экрана чат ни переиспользовали.
-void openMessageThread(BuildContext context, ChatMessage message) {
+///
+/// На возврате переписка перечитывается: пока читатель был в треде, у сообщения
+/// прибавилось ответов, и ссылка «N ответов» под ним должна это показывать.
+/// Живое событие из треда делает то же самое, но только пока socket жив, —
+/// а вернуться из треда можно и без связи.
+Future<void> openMessageThread(
+  BuildContext context,
+  ChatMessage message,
+) async {
   final chatId = message.threadChatId;
-  pushScreen(
+  final bloc = context.read<ChatBloc>();
+  await pushScreen(
     context,
     // Адрес есть только у уже созданного треда; новый создаётся бэкендом при
     // открытии, и экран приходится толкать императивно.
     path: chatId == null ? 'thread/${message.id}' : 'chat/$chatId',
     screen: () => ChatPage(target: MessageThreadTarget(message.id)),
   );
+  if (!bloc.isClosed) bloc.add(ChatRefreshed());
 }
 
 class _Composer extends StatelessWidget {

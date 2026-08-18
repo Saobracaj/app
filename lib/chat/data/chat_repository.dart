@@ -69,6 +69,13 @@ class ChatRepository {
     }
   ''';
 
+  static final _messageQuery =
+      '''
+    query ChatMessage(\$messageId: ID!) {
+      chatMessage(messageId: \$messageId) { $_messageFields }
+    }
+  ''';
+
   static const _myUnreadQuery = r'''
     query MySupportUnreadCount { mySupportUnreadCount }
   ''';
@@ -178,6 +185,22 @@ class ChatRepository {
     );
     return ChatMessagePage.parse(
       (data['chatMessages'] as Map).cast<String, dynamic>(),
+    );
+  }
+
+  /// Одно сообщение по идентификатору.
+  ///
+  /// Так читается шапка треда: сообщение, ответы на которое он собирает, лежит
+  /// в родительском чате, а не в ленте самого треда, и достать его из страницы
+  /// ответов нельзя.
+  Future<ChatMessage> message(String messageId) async {
+    final data = await _client.run(
+      _messageQuery,
+      variables: {'messageId': messageId},
+      authenticated: true,
+    );
+    return ChatMessage.parse(
+      (data['chatMessage'] as Map).cast<String, dynamic>(),
     );
   }
 

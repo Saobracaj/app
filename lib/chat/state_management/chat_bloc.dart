@@ -263,21 +263,19 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   }
 
   /// Сообщение, ответы на которое собирает тред, — шапка над лентой ответов.
-  /// Читается один раз: правки родителя приезжают своим событием в его чате.
+  ///
+  /// Читается отдельным запросом: в самой ленте треда родителя нет, он живёт в
+  /// родительском чате. Один раз за открытие — правки родителя приезжают своим
+  /// событием в его чате, а не сюда.
   Future<ChatMessage?> _parentMessage(Chat chat) async {
     if (!chat.isThread || state.parentMessage != null) return null;
     final id = chat.parentMessageId;
     if (id == null) return null;
     try {
-      final page = await _chat.messages(chat.id, offset: 0, limit: 1);
-      // Родителя в самой ленте треда нет — он живёт в родительском чате, и
-      // отдельного запроса «одно сообщение» в API нет; поэтому шапку рисуем из
-      // того, что известно о треде, когда сообщение не пришло вместе с ним.
-      return page.nodes.firstWhere(
-        (m) => m.id == id,
-        orElse: () => ChatMessage(id: id, createdAt: DateTime.now()),
-      );
+      return await _chat.message(id);
     } catch (_) {
+      // Пустая шапка честнее выдуманной: лучше показать одни ответы, чем
+      // пузырь «Без имени, только что» вместо настоящего сообщения.
       return null;
     }
   }
