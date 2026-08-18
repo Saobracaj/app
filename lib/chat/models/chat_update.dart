@@ -51,7 +51,10 @@ enum ChatChangeKind {
 
   /// Автор удалил сообщение: его нужно убрать из ленты, а не просто перечитать
   /// её — перечитывание страницы само по себе удалённое сообщение не уносит.
-  messageDeleted;
+  messageDeleted,
+
+  /// Кто-то поставил или снял реакцию на сообщение этого разговора.
+  reactionChanged;
 
   static ChatChangeKind? parse(String? raw) => switch (raw?.toUpperCase()) {
     'MESSAGE_ADDED' => ChatChangeKind.messageAdded,
@@ -59,6 +62,7 @@ enum ChatChangeKind {
     'READ_STATE_CHANGED' => ChatChangeKind.readStateChanged,
     'THREAD_OPENED' => ChatChangeKind.threadOpened,
     'MESSAGE_DELETED' => ChatChangeKind.messageDeleted,
+    'REACTION_CHANGED' => ChatChangeKind.reactionChanged,
     _ => null,
   };
 }

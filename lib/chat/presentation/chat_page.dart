@@ -474,13 +474,20 @@ class _MessageBubble extends StatelessWidget {
   Future<void> _showMenu(BuildContext context) async {
     final bloc = context.read<ChatBloc>();
     final messenger = ScaffoldMessenger.of(context);
-    final action = await showModalBottomSheet<_MessageAction>(
+    // Результат — либо пункт меню, либо эмодзи из верхней строки: реакция
+    // ставится тем же нажатием, что и любое другое действие, и лист за собой
+    // закрывает.
+    final choice = await showModalBottomSheet<Object>(
       context: context,
       showDragHandle: true,
       builder: (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            _ReactionRow(
+              message: message,
+              onPicked: (emoji) => Navigator.of(ctx).pop(emoji),
+            ),
             if (!inThread)
               ListTile(
                 leading: const Icon(Icons.reply),
@@ -514,8 +521,10 @@ class _MessageBubble extends StatelessWidget {
         ),
       ),
     );
-    if (action == null || !context.mounted) return;
-    switch (action) {
+    if (choice == null || !context.mounted) return;
+    switch (choice) {
+      case String emoji:
+        bloc.add(ChatReactionToggled(message, emoji));
       case _MessageAction.reply:
         openMessageThread(context, message, focusComposer: true);
       case _MessageAction.copy:
@@ -529,6 +538,9 @@ class _MessageBubble extends StatelessWidget {
       case _MessageAction.report:
         final reason = await _askReportReason(context);
         if (reason != null) bloc.add(ChatMessageReported(message, reason));
+      // Меню возвращает только эти два вида значений; ветка нужна анализатору.
+      default:
+        break;
     }
   }
 
@@ -639,6 +651,8 @@ class _MessageBubble extends StatelessWidget {
                         if (a.isImage && !a.deleted) a,
                     ],
                   ),
+                if (message.reactions.isNotEmpty)
+                  _MessageReactions(message: message, onSurface: foreground),
                 const SizedBox(height: 2),
                 // Нижняя строка пузыря: время, отметка о правке, галочки — и
                 // ссылка на тред в самом правом углу, на одном уровне с ними.
@@ -709,6 +723,93 @@ class _ThreadLink extends StatelessWidget {
         style: Theme.of(context).textTheme.labelMedium,
       ),
       onPressed: () => openMessageThread(context, message),
+    );
+  }
+}
+
+/// Строка эмодзи в верху меню сообщения.
+///
+/// Набор маленький и закрытый ([chatReactionEmojis]) — ровно на одну строку,
+/// без «ещё» и без клавиатуры: выбор из шести значков делается одним движением,
+/// а всё, что шире, бэкенд всё равно не примет. Уже поставленная своя реакция
+/// подсвечена, и нажатие на неё её снимает.
+class _ReactionRow extends StatelessWidget {
+  const _ReactionRow({required this.message, required this.onPicked});
+
+  final ChatMessage message;
+  final ValueChanged<String> onPicked;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          for (final emoji in chatReactionEmojis)
+            IconButton(
+              onPressed: () => onPicked(emoji),
+              icon: Text(emoji, style: const TextStyle(fontSize: 24)),
+              style: IconButton.styleFrom(
+                backgroundColor: message.hasMyReaction(emoji)
+                    ? scheme.primaryContainer
+                    : null,
+              ),
+              tooltip: emoji,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Реакции под сообщением: значок и сколько человек его поставили.
+///
+/// Нажатие делает то же, что и строка в меню: ставит свою реакцию или снимает
+/// её — присоединиться к чужой реакции должно быть одним касанием, без меню.
+class _MessageReactions extends StatelessWidget {
+  const _MessageReactions({required this.message, required this.onSurface});
+
+  final ChatMessage message;
+  final Color onSurface;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Wrap(
+        spacing: 4,
+        runSpacing: 4,
+        children: [
+          for (final reaction in message.reactions)
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => context.read<ChatBloc>().add(
+                ChatReactionToggled(message, reaction.emoji),
+              ),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: reaction.mine
+                      ? scheme.primary.withValues(alpha: 0.18)
+                      : onSurface.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: reaction.mine ? scheme.primary : Colors.transparent,
+                  ),
+                ),
+                child: Text(
+                  '${reaction.emoji} ${reaction.count}',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: onSurface),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

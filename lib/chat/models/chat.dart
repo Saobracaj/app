@@ -167,6 +167,34 @@ abstract class ChatAttachment with _$ChatAttachment {
   }
 }
 
+/// Реакции, которые можно поставить на сообщение, — зеркало серверного
+/// `REACTION_EMOJIS` (`saobracaj_backend`, `src/chat/model.rs`).
+///
+/// Набор закрыт с обеих сторон: в меню помещается ровно одна строка значков, а
+/// произвольную строку бэкенд всё равно отказывается принимать. Порядок здесь —
+/// это порядок в меню.
+const chatReactionEmojis = <String>['👍', '❤️', '😂', '😮', '😢', '🙏'];
+
+/// Одна реакция на сообщение: эмодзи, сколько человек его поставили и стоит ли
+/// среди них моя — по [mine] значок подсвечивается и снимается повторным
+/// нажатием.
+@freezed
+abstract class ChatReaction with _$ChatReaction {
+  const factory ChatReaction({
+    required String emoji,
+    @Default(0) int count,
+    @Default(false) bool mine,
+  }) = _ChatReaction;
+
+  const ChatReaction._();
+
+  static ChatReaction parse(Map<String, dynamic> json) => ChatReaction(
+    emoji: json['emoji']?.toString() ?? '',
+    count: (json['count'] as num?)?.toInt() ?? 0,
+    mine: json['mine'] == true,
+  );
+}
+
 /// One message of a conversation. [fromStaff] says which side wrote it, and
 /// [readAt] is when the *other* side read it (null while unread).
 @freezed
@@ -191,12 +219,16 @@ abstract class ChatMessage with _$ChatMessage {
     /// Сколько в этом треде ответов: из этого рисуется ссылка под сообщением.
     @Default(0) int replyCount,
     @Default(<ChatAttachment>[]) List<ChatAttachment> attachments,
+
+    /// Реакции на сообщение, по одной на эмодзи, в порядке первого появления.
+    @Default(<ChatReaction>[]) List<ChatReaction> reactions,
   }) = _ChatMessage;
 
   const ChatMessage._();
 
   static ChatMessage parse(Map<String, dynamic> json) {
     final rawAttachments = json['attachments'];
+    final rawReactions = json['reactions'];
     return ChatMessage(
       id: json['id'].toString(),
       threadId: json['threadId']?.toString() ?? '',
@@ -219,6 +251,12 @@ abstract class ChatMessage with _$ChatMessage {
                 .map((e) => ChatAttachment.parse(e.cast<String, dynamic>()))
                 .toList()
           : const [],
+      reactions: rawReactions is List
+          ? rawReactions
+                .whereType<Map>()
+                .map((e) => ChatReaction.parse(e.cast<String, dynamic>()))
+                .toList()
+          : const [],
     );
   }
 
@@ -229,6 +267,36 @@ abstract class ChatMessage with _$ChatMessage {
 
   /// Есть ли у сообщения тред с ответами.
   bool get hasThread => (threadChatId ?? '').isNotEmpty && replyCount > 0;
+
+  /// Стоит ли на сообщении моя реакция [emoji].
+  bool hasMyReaction(String emoji) =>
+      reactions.any((r) => r.emoji == emoji && r.mine);
+
+  /// Сообщение, каким оно становится сразу после нажатия на реакцию — до
+  /// ответа сервера.
+  ///
+  /// Правило продукта целиком здесь: своя реакция снимается повторным
+  /// нажатием, чужие только пересчитываются, а опустевший значок исчезает —
+  /// у бэкенда та же логика, и Bloc'у остаётся только отправить запрос.
+  ChatMessage withToggledReaction(String emoji) {
+    final updated = <ChatReaction>[];
+    var found = false;
+    for (final reaction in reactions) {
+      if (reaction.emoji != emoji) {
+        updated.add(reaction);
+        continue;
+      }
+      found = true;
+      final count = reaction.mine ? reaction.count - 1 : reaction.count + 1;
+      if (count > 0) {
+        updated.add(reaction.copyWith(count: count, mine: !reaction.mine));
+      }
+    }
+    if (!found) {
+      updated.add(ChatReaction(emoji: emoji, count: 1, mine: true));
+    }
+    return copyWith(reactions: updated);
+  }
 }
 
 /// Что за сущность обсуждается — зеркало серверного `ChatEntityType`.

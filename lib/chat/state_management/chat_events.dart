@@ -69,6 +69,15 @@ class ChatMessageDeleted extends ChatEvent {
   final ChatMessage message;
 }
 
+/// Реакция на сообщение: нажали эмодзи — в меню сообщения или по уже
+/// стоящему значку под ним. Одно и то же событие и ставит реакцию, и снимает
+/// свою.
+class ChatReactionToggled extends ChatEvent {
+  ChatReactionToggled(this.message, this.emoji);
+  final ChatMessage message;
+  final String emoji;
+}
+
 /// «Пожаловаться» в меню сообщения: причина уходит модератору.
 class ChatMessageReported extends ChatEvent {
   ChatMessageReported(this.message, this.reason);
