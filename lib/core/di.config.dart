@@ -291,10 +291,6 @@ extension GetItInjectableX on _i174.GetIt {
         threadId,
       ),
     );
-    gh.factoryParam<_i517.GroupPostsBloc, String, dynamic>(
-      (groupId, _) =>
-          _i517.GroupPostsBloc(gh<_i607.GroupPostsRepository>(), groupId),
-    );
     gh.factory<_i957.DisplayNameBloc>(
       () => _i957.DisplayNameBloc(gh<_i311.ProfileRepository>()),
     );
@@ -310,10 +306,10 @@ extension GetItInjectableX on _i174.GetIt {
         target,
       ),
     );
-    gh.factoryParam<_i1064.GroupBloc, String, dynamic>(
-      (groupId, _) => _i1064.GroupBloc(
-        gh<_i685.GroupsRepository>(),
-        gh<_i389.FeatureFlagsRepository>(),
+    gh.factoryParam<_i517.GroupPostsBloc, String, dynamic>(
+      (groupId, _) => _i517.GroupPostsBloc(
+        gh<_i607.GroupPostsRepository>(),
+        gh<_i958.NetworkStatus>(),
         groupId,
       ),
     );
@@ -351,6 +347,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factoryParam<_i794.AskAiChatBloc, _i997.AskAiChatScope, String>(
       (scope, scopeId) =>
           _i794.AskAiChatBloc(gh<_i154.AskAiChatRepository>(), scope, scopeId),
+    );
+    gh.factoryParam<_i481.GroupFeedBloc, String, dynamic>(
+      (groupId, _) => _i481.GroupFeedBloc(
+        gh<_i685.GroupsRepository>(),
+        gh<_i958.NetworkStatus>(),
+        groupId,
+      ),
     );
     gh.factory<_i618.NotificationsBloc>(
       () => _i618.NotificationsBloc(
@@ -402,6 +405,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i388.AuthBloc>(),
       ),
     );
+    gh.factoryParam<_i1064.GroupBloc, String, dynamic>(
+      (groupId, _) => _i1064.GroupBloc(
+        gh<_i685.GroupsRepository>(),
+        gh<_i389.FeatureFlagsRepository>(),
+        gh<_i958.NetworkStatus>(),
+        groupId,
+      ),
+    );
     gh.factoryParam<
       _i968.ChatImageBloc,
       _i310.ChatAttachment,
@@ -431,10 +442,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i389.FeatureFlagsRepository>(),
         gh<_i958.NetworkStatus>(),
       ),
-    );
-    gh.factoryParam<_i481.GroupFeedBloc, String, dynamic>(
-      (groupId, _) =>
-          _i481.GroupFeedBloc(gh<_i685.GroupsRepository>(), groupId),
     );
     gh.factoryParam<_i955.CommentCountBloc, int, dynamic>(
       (questionId, _) => _i955.CommentCountBloc(
