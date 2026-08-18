@@ -495,9 +495,7 @@
       "firstPracticePass": "{} — прва положена симулација",
       "flawlessSubcategory": "{} — блок „{}“ без грешке",
       "almostFlawlessSubcategory": "{} — блок „{}“ скоро без грешака",
-      "practiceStreak": "{} — положених симулација заредом: {}",
-      "postCreated": "{} je napisao/la objavu",
-      "postCommented": "{} je komentarisao/la objavu"
+      "practiceStreak": "{} — положених симулација заредом: {}"
     },
     "feed": {
       "title": "Догађаји групе",
@@ -512,26 +510,13 @@
       "mistakes": "Питања са потешкоћама: {}",
       "noMistakes": "Без грешака",
       "openMistakes": "Вежбај ова питања",
-      "offline": "Нема везе са сервером — освежи",
-      "tab": "Aktivnosti"
+      "offline": "Нема везе са сервером — освежи"
     },
     "createHint": "Zajednička priprema: zajednički feed i statistika članova.",
-    "posts": {
-      "tab": "Objave",
-      "empty": "U grupi još nema objava",
-      "hint": "Napišite grupi…",
-      "attachFile": "Priloži datoteku",
-      "attachList": "Priloži listu pitanja",
-      "noLists": "Još nemate svoje liste pitanja",
-      "listQuestions": "Pitanja: {}",
-      "comment": "Komentariši",
-      "commentsCount": "Komentari: {}",
-      "commentsTitle": "Komentari",
-      "commentHint": "Vaš komentar…",
-      "noComments": "Još nema komentara",
-      "delete": "Obriši",
-      "deleteConfirmTitle": "Obrisati objavu?",
-      "deleteConfirmBody": "Objava i njeni komentari biće obrisani. Ova radnja se ne može poništiti."
+    "chat": {
+      "title": "Ћаскање групе",
+      "empty": "Ћаскање групе је празно — пишите први",
+      "hint": "Порука групи…"
     }
   },
   "questionAnalysis": {

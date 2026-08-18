@@ -32,7 +32,7 @@ class GroupsRepository {
   /// resolved lazily by the server, so they are only asked for on the group
   /// screen.
   static const _groupFields =
-      'id name ownerId createdAt memberCount viewerIsOwner';
+      'id name ownerId createdAt memberCount viewerIsOwner chatUnreadCount';
 
   static const _memberFields = 'userId displayName joinedAt isOwner';
 
@@ -47,7 +47,6 @@ class GroupsRepository {
     practice { points mistakes passed durationSeconds wrongAnswers }
     achievement { achievement streak subcategory }
     rename { name previousName }
-    post { postId preview }
   ''';
 
   static const _inviteFields = 'token groupId createdAt expiresAt';

@@ -8,11 +8,11 @@ import '../models/chat_update.dart';
 /// Data access for the **chats** (`saobracaj_backend`, `src/chat/`).
 ///
 /// A conversation is addressed by its id, whatever it is about: the user's own
-/// «чат с разработчиком», the thread of a message, later a group's chat. Only
+/// «чат с разработчиком», a group's chat, the thread of a message. Only
 /// *opening* one differs — [supportChat] resolves the caller's support chat from
-/// the token, [messageThread] opens (creating it if needed) the thread of a
-/// message — and after that every call here takes a plain chat id, which is what
-/// lets one Bloc and one screen serve all of them.
+/// the token, [groupChat] and [messageThread] open (creating it if needed) the
+/// chat of a group or of a message — and after that every call here takes a
+/// plain chat id, which is what lets one Bloc and one screen serve all of them.
 ///
 /// Attachment URLs come back signed and short-lived (15 minutes); a stale one is
 /// re-signed through [attachmentUrl] rather than by re-reading the whole chat.
@@ -38,9 +38,9 @@ class ChatRepository {
   ''';
 
   static const _chatFields = r'''
-    id entityType entityId parentMessageId isGroup userId userDisplayName
-    userEmail createdAt lastMessageAt lastMessagePreview unreadCount
-    messagesCount notificationsEnabled
+    id entityType entityId entityName parentMessageId isGroup userId
+    userDisplayName userEmail createdAt lastMessageAt lastMessagePreview
+    unreadCount messagesCount notificationsEnabled
   ''';
 
   static const _supportChatQuery =
@@ -57,6 +57,13 @@ class ChatRepository {
       '''
     mutation OpenMessageThread(\$messageId: ID!) {
       openMessageThread(messageId: \$messageId) { $_chatFields }
+    }
+  ''';
+
+  static const _groupChatQuery =
+      '''
+    query GroupChat(\$groupId: String!) {
+      chatFor(entityType: GROUP, entityId: \$groupId) { $_chatFields }
     }
   ''';
 
@@ -170,6 +177,18 @@ class ChatRepository {
     return Chat.parse(
       (data['openMessageThread'] as Map).cast<String, dynamic>(),
     );
+  }
+
+  /// Чат группы: бэкенд создаёт его при первом открытии, поэтому «открыть» и
+  /// «создать» здесь — одно и то же. Пускает внутрь состав группы, а не список
+  /// участников чата, так что вышедшему из группы прилетит ошибка доступа.
+  Future<Chat> groupChat(String groupId) async {
+    final data = await _client.run(
+      _groupChatQuery,
+      variables: {'groupId': groupId},
+      authenticated: true,
+    );
+    return Chat.parse((data['chatFor'] as Map).cast<String, dynamic>());
   }
 
   /// A page of one conversation's messages, oldest first.

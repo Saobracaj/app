@@ -259,6 +259,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       SupportChatTarget() => _chat.supportChat(),
       ChatIdTarget(:final chatId) => _chat.chat(chatId),
       MessageThreadTarget(:final messageId) => _chat.messageThread(messageId),
+      GroupChatTarget(:final groupId) => _chat.groupChat(groupId),
     };
   }
 

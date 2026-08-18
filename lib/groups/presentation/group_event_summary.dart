@@ -55,10 +55,6 @@ String groupEventSummary(BuildContext context, GroupEvent event) {
       return key.tr(args: [actor, '${details.points}']);
     case GroupEventKind.achievementUnlocked:
       return _achievementSummary(context, event, actor);
-    case GroupEventKind.postCreated:
-      return LocaleKeys.groups_event_postCreated.tr(args: [actor]);
-    case GroupEventKind.postCommented:
-      return LocaleKeys.groups_event_postCommented.tr(args: [actor]);
     case GroupEventKind.unknown:
       return '';
   }

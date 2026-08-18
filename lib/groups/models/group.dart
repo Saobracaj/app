@@ -37,6 +37,10 @@ abstract class Group with _$Group {
 
     /// The last few feed entries, for the group card on the home screen.
     @Default(<GroupEvent>[]) List<GroupEvent> feedPreview,
+
+    /// Непрочитанные сообщения в чате группы — значок на карточке и на кнопке
+    /// чата. Ноль, пока чат никто не открывал: до этого его просто нет.
+    @Default(0) int chatUnreadCount,
   }) = _Group;
 
   const Group._();
@@ -64,6 +68,7 @@ abstract class Group with _$Group {
         json['feedPreview'],
         GroupEvent.fromJson,
       ).where((e) => e.isRenderable).toList(),
+      chatUnreadCount: (json['chatUnreadCount'] as num?)?.toInt() ?? 0,
     );
   }
 

@@ -38,9 +38,6 @@ import '../chat/state_management/chat_image_bloc.dart' as _i968;
 import '../chat/state_management/support_chats_bloc.dart' as _i667;
 import '../feature_flags/data/feature_flags_repository.dart' as _i389;
 import '../feature_flags/domain/app_feature.dart' as _i392;
-import '../group_posts/data/group_posts_repository.dart' as _i607;
-import '../group_posts/state_management/group_posts_bloc.dart' as _i517;
-import '../group_posts/state_management/post_comments_bloc.dart' as _i494;
 import '../groups/data/groups_repository.dart' as _i685;
 import '../groups/state_management/group_bloc.dart' as _i1064;
 import '../groups/state_management/group_feed_bloc.dart' as _i481;
@@ -169,9 +166,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i512.BillingAdminRepository>(
       () => _i512.BillingAdminRepository(gh<_i483.GraphqlClient>()),
-    );
-    gh.lazySingleton<_i607.GroupPostsRepository>(
-      () => _i607.GroupPostsRepository(gh<_i483.GraphqlClient>()),
     );
     gh.lazySingleton<_i491.KonspektRepository>(
       () => _i491.KonspektRepository(gh<_i483.GraphqlClient>()),
@@ -306,13 +300,6 @@ extension GetItInjectableX on _i174.GetIt {
         target,
       ),
     );
-    gh.factoryParam<_i517.GroupPostsBloc, String, dynamic>(
-      (groupId, _) => _i517.GroupPostsBloc(
-        gh<_i607.GroupPostsRepository>(),
-        gh<_i958.NetworkStatus>(),
-        groupId,
-      ),
-    );
     gh.factory<_i667.SupportChatsBloc>(
       () => _i667.SupportChatsBloc(gh<_i299.ChatRepository>()),
     );
@@ -331,10 +318,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i875.PushTokenService>(
       () => _i875.PushTokenService(gh<_i880.AuthRepository>()),
       dispose: (i) => i.dispose(),
-    );
-    gh.factoryParam<_i494.PostCommentsBloc, String, dynamic>(
-      (postId, _) =>
-          _i494.PostCommentsBloc(gh<_i607.GroupPostsRepository>(), postId),
     );
     gh.factoryParam<_i198.KonspektBloc, String, String?>(
       (categoryId, initialSection) => _i198.KonspektBloc(

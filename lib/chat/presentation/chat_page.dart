@@ -20,9 +20,10 @@ import 'chat_attachment_views.dart';
 /// Один разговор.
 ///
 /// Экран ничего не знает про поддержку: ему дают [target] — свой чат с
-/// разработчиком (по умолчанию), конкретное обращение, тред на сообщение. Всё
-/// остальное — кто на какой стороне пузыря, какой мутацией уходит сообщение —
-/// дело Bloc'а, поэтому тот же экран показывает и тред, и будущие чаты групп.
+/// разработчиком (по умолчанию), конкретное обращение, чат группы, тред на
+/// сообщение. Всё остальное — кто на какой стороне пузыря, какой мутацией
+/// уходит сообщение — дело Bloc'а, поэтому один и тот же экран показывает и
+/// переписку с разработчиком, и разговор группы, и тред внутри него.
 class ChatPage extends StatelessWidget {
   const ChatPage({super.key, this.target});
 
@@ -89,11 +90,15 @@ class _ChatView extends StatelessWidget {
     );
   }
 
-  /// Заголовок разговора: тред — «Тред», чужое обращение — имя собеседника,
-  /// свой чат — «Чат с разработчиком».
+  /// Заголовок разговора: тред — «Тред», чат группы — её название, чужое
+  /// обращение — имя собеседника, свой чат — «Чат с разработчиком».
   String _titleOf(ChatState state, ChatTarget target) {
     if (state.isThread) return 'support.threadHeader'.tr();
     final chat = state.thread;
+    if (chat != null && chat.isGroupChat) {
+      return chat.title.isNotEmpty ? chat.title : 'groups.chat.title'.tr();
+    }
+    if (target is GroupChatTarget) return 'groups.chat.title'.tr();
     if (chat != null &&
         chat.entityType == ChatEntityType.support &&
         chat.userId != state.myUserId &&
@@ -209,7 +214,10 @@ class _ChatBody extends StatelessWidget {
                 behavior: HitTestBehavior.opaque,
                 onTap: () => FocusScope.of(context).unfocus(),
                 child: state.isEmpty && !state.isThread
-                    ? _EmptyState(isModerator: isModerator)
+                    ? _EmptyState(
+                        isModerator: isModerator,
+                        isGroup: state.thread?.isGroupChat ?? false,
+                      )
                     : _MessageList(state: state),
               ),
             ),
@@ -286,8 +294,11 @@ class _ErrorBanner extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.isModerator});
+  const _EmptyState({required this.isModerator, this.isGroup = false});
   final bool isModerator;
+
+  /// Чат группы: он ничей, поэтому «напишите нам» здесь неуместно.
+  final bool isGroup;
 
   @override
   Widget build(BuildContext context) {
@@ -298,13 +309,15 @@ class _EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.support_agent,
+              isGroup ? Icons.forum_outlined : Icons.support_agent,
               size: 48,
               color: Theme.of(context).colorScheme.outline,
             ),
             const SizedBox(height: 12),
             Text(
-              isModerator
+              isGroup
+                  ? 'groups.chat.empty'.tr()
+                  : isModerator
                   ? 'support.emptyThread'.tr()
                   : 'support.emptyOwn'.tr(),
               textAlign: TextAlign.center,
@@ -743,6 +756,9 @@ class _Composer extends StatelessWidget {
                 Expanded(
                   child: _ComposerField(
                     text: state.body,
+                    hintText: state.thread?.isGroupChat ?? false
+                        ? 'groups.chat.hint'.tr()
+                        : 'support.hint'.tr(),
                     onChanged: (value) =>
                         bloc.add(ChatBodyChanged(value)),
                     onSend: send,
@@ -774,11 +790,16 @@ class _Composer extends StatelessWidget {
 class _ComposerField extends StatefulWidget {
   const _ComposerField({
     required this.text,
+    required this.hintText,
     required this.onChanged,
     required this.onSend,
   });
 
   final String text;
+
+  /// Подсказка в пустом поле: у чата группы она своя — пишут группе, а не
+  /// разработчику.
+  final String hintText;
   final ValueChanged<String> onChanged;
 
   /// Fired by ⌘/Ctrl+Enter. Plain Enter stays a newline — a chat message here is
@@ -831,7 +852,7 @@ class _ComposerFieldState extends State<_ComposerField> {
         textInputAction: TextInputAction.newline,
         keyboardType: TextInputType.multiline,
         decoration: InputDecoration(
-          hintText: 'support.hint'.tr(),
+          hintText: widget.hintText,
           border: const OutlineInputBorder(),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 12,
