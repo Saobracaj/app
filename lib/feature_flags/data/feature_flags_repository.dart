@@ -94,7 +94,19 @@ class FeatureFlagsRepository {
   /// Pull the caller's resolved catalog from the backend and cache the premium
   /// grants. Called on startup and after login. Network/transient failures are
   /// swallowed — the cached snapshot stays in effect.
-  Future<void> refreshFromBackend() async {
+  ///
+  /// Single-flight: `main()` asks for the grants as soon as a stored session is
+  /// found, and `AuthBloc` asks again the moment that session is published —
+  /// two calls a few milliseconds apart that would fetch the very same answer.
+  /// The second one joins the first instead of spending a second request.
+  Future<void> refreshFromBackend() =>
+      _refreshInFlight ??= _refreshFromBackend().whenComplete(() {
+        _refreshInFlight = null;
+      });
+
+  Future<void>? _refreshInFlight;
+
+  Future<void> _refreshFromBackend() async {
     try {
       final data = await _client.run(
         'query FeatureFlags { featureFlags { flags { key access enabled } } }',
