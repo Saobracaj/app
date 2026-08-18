@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:saobracaj/core/markdown/phrase_highlight.dart';
-import 'package:saobracaj/dictionary/dictionary.dart';
+import 'package:saobracaj/dictionary/dict_links.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/theme/quiz_colors.dart';
 
@@ -94,7 +94,7 @@ class AnswerOptionCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       QuestMarkdown(
-                        text: choice.text.trim().dict,
+                        text: dictLinks(context, choice.text.trim()),
                         highlights: highlights,
                         pStyle: theme.textTheme.bodyMedium?.copyWith(
                           color: foreground,

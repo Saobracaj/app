@@ -2,6 +2,10 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/auth/data/token_storage.dart';
+import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
+import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
@@ -58,10 +62,23 @@ Widget _host(Question question) {
     startLocale: const Locale('sr'),
     path: 'assets/translations',
     assetLoader: const CodegenLoader(),
-    // Провайдер выше MaterialApp — как в приложении: шит живёт в навигаторе,
-    // а не внутри экрана, который его открыл.
-    child: BlocProvider<AllQuestionsBloc>(
-      create: (_) => _StubAllQuestionsBloc(data),
+    // Провайдеры выше MaterialApp — как в приложении: шит живёт в навигаторе,
+    // а не внутри экрана, который его открыл. Флаги нужны тексту вопроса:
+    // подсветку определений можно выключить в настройках.
+    child: MultiBlocProvider(
+      providers: [
+        BlocProvider<AllQuestionsBloc>(
+          create: (_) => _StubAllQuestionsBloc(data),
+        ),
+        BlocProvider(
+          create: (_) => FeatureFlagsBloc(
+            FeatureFlagsRepository(
+              GraphqlClient(TokenStorage()),
+              TokenStorage(),
+            ),
+          ),
+        ),
+      ],
       child: Builder(
         builder: (context) => MaterialApp(
           localizationsDelegates: context.localizationDelegates,
