@@ -1,3 +1,4 @@
+import '../../question_lists/models/question_list.dart';
 import '../models/support_chat.dart';
 
 /// User actions of the support-chat screen.
@@ -16,9 +17,26 @@ class SupportChatBodyChanged extends SupportChatEvent {
   final String body;
 }
 
-/// The user picked a file to attach; it is uploaded immediately and sits as a
-/// pending attachment until the message is sent.
-class SupportChatAttachPressed extends SupportChatEvent {}
+/// Пункт «Файл» меню вложений: системный выбор файла, загрузка байт в байт.
+class SupportChatFilePicked extends SupportChatEvent {}
+
+/// Пункт «Фотография» меню вложений: системный выбор из галереи, пережатие в
+/// JPEG на устройстве и загрузка. Можно выбрать несколько снимков сразу.
+class SupportChatPhotosPicked extends SupportChatEvent {}
+
+/// Пункт «Список вопросов»: пользователь выбрал один из своих списков. Ничего
+/// не загружается — список уезжает вместе с сообщением, и бэкенд снимает с него
+/// снимок (название и вопросы) в момент отправки.
+class SupportChatListAttached extends SupportChatEvent {
+  SupportChatListAttached(this.list);
+  final QuestionList list;
+}
+
+/// Убрать ещё не отправленный список из строки ввода.
+class SupportChatListRemoved extends SupportChatEvent {
+  SupportChatListRemoved(this.listId);
+  final String listId;
+}
 
 /// Drop a not-yet-sent attachment from the composer.
 class SupportChatAttachmentRemoved extends SupportChatEvent {

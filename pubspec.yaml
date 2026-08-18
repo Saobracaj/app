@@ -100,6 +100,14 @@ dependencies:
   # flutter.dev package rather than file_picker: the latter pins win32 ^5, which
   # cannot coexist with share_plus/package_info_plus here.
   file_selector: ^1.1.0
+  # Выбор фотографии из системной галереи для чата (пункт «Фотография» меню
+  # вложений). file_selector открывает файловый менеджер, а не галерею, поэтому
+  # для фото нужен именно image_picker.
+  image_picker: ^1.1.2
+  # Пережатие фотографий в JPEG на устройстве (lib/support_chat/data/
+  # photo_compressor.dart). Чистый Dart — работает и в wasm-вебе, где
+  # image_picker игнорирует imageQuality.
+  image: ^4.5.4
 
 dev_dependencies:
   flutter_test:

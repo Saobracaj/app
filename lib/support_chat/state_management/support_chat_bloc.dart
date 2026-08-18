@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:file_selector/file_selector.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../auth/data/auth_repository.dart';
 import '../../core/network/error_messages.dart';
 import '../../notifications/data/notification_permissions.dart';
+import '../../question_lists/models/question_list.dart';
+import '../data/photo_compressor.dart';
 import '../data/support_chat_repository.dart';
 import '../models/support_chat.dart';
 import '../models/support_chat_update.dart';
@@ -45,8 +48,11 @@ class SupportChatBloc extends Bloc<SupportChatEvent, SupportChatState> {
     on<SupportChatLiveChanged>(_onLiveChanged);
     on<SupportChatRefreshed>(_onRefreshed);
     on<SupportChatBodyChanged>(_onBodyChanged);
-    on<SupportChatAttachPressed>(_onAttachPressed);
+    on<SupportChatFilePicked>(_onFilePicked);
+    on<SupportChatPhotosPicked>(_onPhotosPicked);
     on<SupportChatAttachmentRemoved>(_onAttachmentRemoved);
+    on<SupportChatListAttached>(_onListAttached);
+    on<SupportChatListRemoved>(_onListRemoved);
     on<SupportChatSendPressed>(_onSendPressed);
     on<SupportChatNotificationsDeclined>(_onNotificationsDeclined);
     on<SupportChatNotificationsAccepted>(_onNotificationsAccepted);
@@ -60,6 +66,11 @@ class SupportChatBloc extends Bloc<SupportChatEvent, SupportChatState> {
 
   final SupportChatRepository _chat;
   final NotificationPermissions _permissions;
+
+  /// Системный выбор фотографий. Создаётся здесь, а не приходит из getIt:
+  /// `ImagePicker` — тонкая обёртка над каналом платформы без состояния.
+  final ImagePicker _picker = ImagePicker();
+
   final AuthRepository _authRepo;
 
   /// The conversation to show, or `null` for the caller's own.
@@ -264,10 +275,10 @@ class SupportChatBloc extends Bloc<SupportChatEvent, SupportChatState> {
     emit(state.copyWith(body: event.body));
   }
 
-  /// Pick a file and upload it right away, so sending the message afterwards is
-  /// instant and the user sees the attachment before committing to it.
-  Future<void> _onAttachPressed(
-    SupportChatAttachPressed event,
+  /// «Файл»: системный выбор, загрузка байт в байт — файл должен дойти до
+  /// получателя ровно таким, каким его выбрали.
+  Future<void> _onFilePicked(
+    SupportChatFilePicked event,
     Emitter<SupportChatState> emit,
   ) async {
     if (state.uploading) return;
@@ -279,31 +290,89 @@ class SupportChatBloc extends Bloc<SupportChatEvent, SupportChatState> {
       return;
     }
     if (file == null) return;
+    final bytes = await file.readAsBytes();
+    final mimeType = file.mimeType;
+    await _upload(
+      emit,
+      bytes: bytes,
+      fileName: file.name,
+      // The backend decides whether an attachment is a picture purely from
+      // the MIME type it is told, and `XFile.mimeType` is null on every
+      // platform except the web — without the fallback every screenshot sent
+      // from a phone arrived as `application/octet-stream` and was filed away
+      // as a plain download instead of being shown in the bubble.
+      contentType: mimeType == null || mimeType.isEmpty
+          ? contentTypeForFileName(file.name)
+          : mimeType,
+    );
+  }
 
-    emit(state.copyWith(uploading: true, uploadProgress: 0, errorMessage: null));
+  /// «Фотография»: системная галерея, пережатие в JPEG на устройстве, загрузка.
+  ///
+  /// Можно выбрать сразу несколько — они загружаются по очереди и по очереди
+  /// появляются в строке ввода, так что уже загруженное не теряется, если на
+  /// третьем снимке пропала связь.
+  Future<void> _onPhotosPicked(
+    SupportChatPhotosPicked event,
+    Emitter<SupportChatState> emit,
+  ) async {
+    if (state.uploading) return;
+    final List<XFile> photos;
     try {
-      final bytes = await file.readAsBytes();
-      if (bytes.length > _maxAttachmentBytes) {
-        emit(
-          state.copyWith(
-            uploading: false,
-            errorMessage: 'support.attachmentTooLarge',
-          ),
-        );
-        return;
-      }
-      final mimeType = file.mimeType;
+      photos = await _picker.pickMultiImage(
+        // Уменьшение и качество на Android/iOS делает системный кодек — почти
+        // бесплатно; в вебе эти параметры игнорируются, и всю работу берёт на
+        // себя `compressPhoto`.
+        maxWidth: kPhotoMaxDimension.toDouble(),
+        maxHeight: kPhotoMaxDimension.toDouble(),
+        imageQuality: kPhotoJpegQuality,
+      );
+    } catch (e) {
+      emit(state.copyWith(errorMessage: _message(e)));
+      return;
+    }
+    if (photos.isEmpty) return;
+    for (final photo in photos) {
+      if (isClosed || emit.isDone) return;
+      final compressed = await compressPhoto(
+        bytes: await photo.readAsBytes(),
+        fileName: photo.name,
+      );
+      final ok = await _upload(
+        emit,
+        bytes: compressed.bytes,
+        fileName: compressed.fileName,
+        contentType: compressed.contentType,
+      );
+      if (!ok) return;
+    }
+  }
+
+  /// Загрузить готовые байты и показать их в строке ввода. Возвращает `false`,
+  /// если не вышло, — тогда очередь из нескольких фотографий останавливается.
+  Future<bool> _upload(
+    Emitter<SupportChatState> emit, {
+    required Uint8List bytes,
+    required String fileName,
+    String? contentType,
+  }) async {
+    if (bytes.length > _maxAttachmentBytes) {
+      emit(
+        state.copyWith(
+          uploading: false,
+          errorMessage: 'support.attachmentTooLarge',
+        ),
+      );
+      return false;
+    }
+    emit(
+      state.copyWith(uploading: true, uploadProgress: 0, errorMessage: null),
+    );
+    try {
       final attachment = await _chat.uploadAttachment(
         bytes: bytes,
-        fileName: file.name,
-        // The backend decides whether an attachment is a picture purely from
-        // the MIME type it is told, and `XFile.mimeType` is null on every
-        // platform except the web — without the fallback every screenshot sent
-        // from a phone arrived as `application/octet-stream` and was filed away
-        // as a plain download instead of being shown in the bubble.
-        contentType: mimeType == null || mimeType.isEmpty
-            ? contentTypeForFileName(file.name)
-            : mimeType,
+        fileName: fileName,
+        contentType: contentType,
         threadId: threadId,
         // Progress ticks arrive from Dio, outside this handler's emit window,
         // so they come back in as their own event.
@@ -313,6 +382,7 @@ class SupportChatBloc extends Bloc<SupportChatEvent, SupportChatState> {
           }
         },
       );
+      if (emit.isDone) return false;
       emit(
         state.copyWith(
           uploading: false,
@@ -320,9 +390,34 @@ class SupportChatBloc extends Bloc<SupportChatEvent, SupportChatState> {
           pending: [...state.pending, attachment],
         ),
       );
+      return true;
     } catch (e) {
-      emit(state.copyWith(uploading: false, errorMessage: _message(e)));
+      if (!emit.isDone) {
+        emit(state.copyWith(uploading: false, errorMessage: _message(e)));
+      }
+      return false;
     }
+  }
+
+  void _onListAttached(
+    SupportChatListAttached event,
+    Emitter<SupportChatState> emit,
+  ) {
+    if (state.pendingLists.any((l) => l.id == event.list.id)) return;
+    emit(state.copyWith(pendingLists: [...state.pendingLists, event.list]));
+  }
+
+  void _onListRemoved(
+    SupportChatListRemoved event,
+    Emitter<SupportChatState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        pendingLists: state.pendingLists
+            .where((l) => l.id != event.listId)
+            .toList(),
+      ),
+    );
   }
 
   void _onAttachmentRemoved(
@@ -347,6 +442,7 @@ class SupportChatBloc extends Bloc<SupportChatEvent, SupportChatState> {
     if (!state.canSend) return;
     final body = state.body.trim();
     final attachmentIds = state.pending.map((a) => a.id).toList();
+    final listIds = state.pendingLists.map((l) => l.id).toList();
 
     emit(state.copyWith(sending: true, errorMessage: null));
     try {
@@ -355,13 +451,19 @@ class SupportChatBloc extends Bloc<SupportChatEvent, SupportChatState> {
               threadId: threadId!,
               body: body,
               attachmentIds: attachmentIds,
+              questionListIds: listIds,
             )
-          : await _chat.send(body: body, attachmentIds: attachmentIds);
+          : await _chat.send(
+              body: body,
+              attachmentIds: attachmentIds,
+              questionListIds: listIds,
+            );
       emit(
         state.copyWith(
           sending: false,
           body: '',
           pending: const [],
+          pendingLists: const <QuestionList>[],
           // Through the same merge as a live update: the subscription is about
           // to deliver this very message back, and it must not double up.
           messages: _merge([message]),

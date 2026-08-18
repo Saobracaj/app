@@ -88,8 +88,8 @@ class SupportChatRepository {
 
   static final _sendMutation =
       '''
-    mutation SendSupportMessage(\$body: String!, \$attachmentIds: [ID!], \$questionIds: [Int!]) {
-      sendSupportMessage(body: \$body, attachmentIds: \$attachmentIds, questionIds: \$questionIds) {
+    mutation SendSupportMessage(\$body: String!, \$attachmentIds: [ID!], \$questionIds: [Int!], \$questionListIds: [ID!]) {
+      sendSupportMessage(body: \$body, attachmentIds: \$attachmentIds, questionIds: \$questionIds, questionListIds: \$questionListIds) {
         $_messageFields
       }
     }
@@ -97,8 +97,8 @@ class SupportChatRepository {
 
   static final _replyMutation =
       '''
-    mutation ReplyToSupportThread(\$threadId: ID!, \$body: String!, \$attachmentIds: [ID!], \$questionIds: [Int!]) {
-      replyToSupportThread(threadId: \$threadId, body: \$body, attachmentIds: \$attachmentIds, questionIds: \$questionIds) {
+    mutation ReplyToSupportThread(\$threadId: ID!, \$body: String!, \$attachmentIds: [ID!], \$questionIds: [Int!], \$questionListIds: [ID!]) {
+      replyToSupportThread(threadId: \$threadId, body: \$body, attachmentIds: \$attachmentIds, questionIds: \$questionIds, questionListIds: \$questionListIds) {
         $_messageFields
       }
     }
@@ -212,10 +212,15 @@ class SupportChatRepository {
 
   /// Send into the caller's own conversation. Question links in [body] become
   /// «вопрос N» attachments server-side; [questionIds] adds them explicitly.
+  ///
+  /// [questionListIds] — списки самого отправителя: бэкенд снимает с них снимок
+  /// (название, цвет и вопросы) в момент отправки, потому что у получателя
+  /// доступа к чужим спискам нет, а владелец может их потом переименовать.
   Future<SupportMessage> send({
     required String body,
     List<String> attachmentIds = const [],
     List<int> questionIds = const [],
+    List<String> questionListIds = const [],
   }) async {
     final data = await _client.run(
       _sendMutation,
@@ -223,6 +228,7 @@ class SupportChatRepository {
         'body': body,
         'attachmentIds': attachmentIds,
         'questionIds': questionIds,
+        'questionListIds': questionListIds,
       },
       authenticated: true,
     );
@@ -237,6 +243,7 @@ class SupportChatRepository {
     required String body,
     List<String> attachmentIds = const [],
     List<int> questionIds = const [],
+    List<String> questionListIds = const [],
   }) async {
     final data = await _client.run(
       _replyMutation,
@@ -245,6 +252,7 @@ class SupportChatRepository {
         'body': body,
         'attachmentIds': attachmentIds,
         'questionIds': questionIds,
+        'questionListIds': questionListIds,
       },
       authenticated: true,
     );

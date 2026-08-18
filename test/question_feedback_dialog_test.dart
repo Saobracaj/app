@@ -43,6 +43,7 @@ class _FakeSupportChat extends SupportChatRepository {
     required String body,
     List<String> attachmentIds = const [],
     List<int> questionIds = const [],
+    List<String> questionListIds = const [],
   }) async {
     messages.add((body: body, questionIds: questionIds));
     return SupportMessage(id: 'm1', body: body, createdAt: DateTime(2026, 8, 7));

@@ -599,7 +599,7 @@
     "hint": "Сообщение…",
     "send": "Отправить",
     "sendTooltip": "Отправить (⌘/Ctrl + Enter)",
-    "attach": "Прикрепить файл",
+    "attach": "Вложить",
     "download": "Скачать",
     "refresh": "Обновить",
     "offline": "Нет связи с сервером — обновить",
@@ -630,7 +630,19 @@
       "other": "{} обращений"
     },
     "imageDeleted": "Изображение удалено",
-    "fileDeleted": "Файл удалён"
+    "fileDeleted": "Файл удалён",
+    "attachPhoto": "Фотография",
+    "attachFile": "Файл",
+    "attachList": "Список вопросов",
+    "noOwnLists": "У вас пока нет своих списков вопросов",
+    "listQuestions": {
+      "one": "{} вопрос",
+      "few": "{} вопроса",
+      "many": "{} вопросов",
+      "other": "{} вопросов"
+    },
+    "sharedListLoading": "Список…",
+    "expand": "Развернуть"
   },
   "questionFeedback": {
     "report": "Сообщить об ошибке",

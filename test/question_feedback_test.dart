@@ -42,6 +42,7 @@ class _FakeSupportChat extends SupportChatRepository {
     required String body,
     List<String> attachmentIds = const [],
     List<int> questionIds = const [],
+    List<String> questionListIds = const [],
   }) async {
     if (failure != null) throw failure!;
     messages.add((body: body, questionIds: questionIds));

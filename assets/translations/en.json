@@ -581,7 +581,7 @@
     "hint": "Message…",
     "send": "Send",
     "sendTooltip": "Send (⌘/Ctrl + Enter)",
-    "attach": "Attach a file",
+    "attach": "Attach",
     "download": "Download",
     "refresh": "Refresh",
     "offline": "No connection to the server — refresh",
@@ -610,7 +610,17 @@
       "other": "{} requests"
     },
     "imageDeleted": "Image deleted",
-    "fileDeleted": "File deleted"
+    "fileDeleted": "File deleted",
+    "attachPhoto": "Photo",
+    "attachFile": "File",
+    "attachList": "Question list",
+    "noOwnLists": "You have no question lists of your own yet",
+    "listQuestions": {
+      "one": "{} question",
+      "other": "{} questions"
+    },
+    "sharedListLoading": "List…",
+    "expand": "Expand"
   },
   "questionFeedback": {
     "report": "Report a problem",

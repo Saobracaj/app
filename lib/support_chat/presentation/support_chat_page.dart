@@ -5,11 +5,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
 import '../../public_comments/presentation/relative_time.dart';
+import '../../question_lists/domain/list_style.dart';
 import '../models/support_chat.dart';
 import '../state_management/support_chat_bloc.dart';
 import '../state_management/support_chat_events.dart';
 import '../state_management/support_chat_state.dart';
+import 'chat_attach_menu.dart';
 import 'linked_text.dart';
+import 'shared_list_chip.dart';
 import 'support_attachment_views.dart';
 
 /// One support conversation.
@@ -337,10 +340,19 @@ class _MessageBubble extends StatelessWidget {
                     style: TextStyle(color: foreground),
                     linkColor: mine ? foreground : scheme.primary,
                   ),
+                // Ссылка на расшаренный список — это тот же вложенный список,
+                // просто присланный ссылкой: показываем его так же, как чип
+                // вложения, а не голым URL.
+                for (final code in sharedListCodesIn(message.body))
+                  SharedListChip(code: code, onSurface: foreground),
                 for (final attachment in message.attachments)
                   SupportAttachmentView(
                     attachment: attachment,
                     onSurface: foreground,
+                    gallery: [
+                      for (final a in message.attachments)
+                        if (a.isImage && !a.deleted) a,
+                    ],
                   ),
                 const SizedBox(height: 2),
                 Row(
@@ -395,7 +407,7 @@ class _Composer extends StatelessWidget {
               LinearProgressIndicator(
                 value: state.uploadProgress > 0 ? state.uploadProgress : null,
               ),
-            if (state.pending.isNotEmpty)
+            if (state.pending.isNotEmpty || state.pendingLists.isNotEmpty)
               Align(
                 alignment: Alignment.centerLeft,
                 child: Wrap(
@@ -414,6 +426,18 @@ class _Composer extends StatelessWidget {
                         onDeleted: () =>
                             bloc.add(SupportChatAttachmentRemoved(attachment)),
                       ),
+                    // Список вопросов ничего не загружает — он и в строке ввода
+                    // выглядит так же, как приедет получателю: цвет и название.
+                    for (final list in state.pendingLists)
+                      Chip(
+                        avatar: CircleAvatar(
+                          backgroundColor: list.avatarColor(context),
+                          radius: 9,
+                        ),
+                        label: Text(list.title),
+                        onDeleted: () =>
+                            bloc.add(SupportChatListRemoved(list.id)),
+                      ),
                   ],
                 ),
               ),
@@ -426,7 +450,7 @@ class _Composer extends StatelessWidget {
                   icon: const Icon(Icons.attach_file),
                   onPressed: state.uploading
                       ? null
-                      : () => bloc.add(SupportChatAttachPressed()),
+                      : () => showChatAttachMenu(context),
                 ),
                 Expanded(
                   child: _ComposerField(
