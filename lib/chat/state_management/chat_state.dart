@@ -55,6 +55,10 @@ abstract class ChatState with _$ChatState {
 
     /// Одноразовое сообщение для snackbar'а: «уведомления включены/выключены».
     String? notice,
+
+    /// Уведомления запрещены в настройках системы: колокольчик показывает это
+    /// отдельно, потому что включённые для чата оповещения всё равно не придут.
+    @Default(false) bool systemNotificationsBlocked,
   }) = _ChatState;
 
   const ChatState._();

@@ -138,6 +138,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         // Без него ленту всё равно видно; «моими» станут сообщения стороны.
       }
     }
+    await _refreshSystemNotifications(emit);
     await _load(emit);
     // Подписка — после первого чтения: у своего чата и у треда идентификатор
     // разговора становится известен только оттуда.
@@ -588,6 +589,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     final chat = state.thread;
     final chatId = _chatId;
     if (chat == null || chatId == null) return;
+    // Колокольчик, перечёркнутый системой, сначала занимается системой:
+    // включать оповещения чата, которые всё равно не придут, бессмысленно.
+    if (state.systemNotificationsBlocked) {
+      await _ensureSystemNotifications();
+      await _refreshSystemNotifications(emit);
+      if (state.systemNotificationsBlocked) return;
+    }
     final enabled = !chat.notificationsEnabled;
     try {
       await _chat.setNotifications(chatId: chatId, enabled: enabled);
@@ -604,7 +612,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     );
     // Включённые для чата оповещения бесполезны, пока выключены системные:
     // спрашиваем разрешение ровно тогда, когда пользователь их включил.
-    if (enabled) await _ensureSystemNotifications();
+    if (enabled) {
+      await _ensureSystemNotifications();
+      await _refreshSystemNotifications(emit);
+    }
   }
 
   String _noticeKey({required bool enabled, required bool thread}) {
@@ -612,6 +623,17 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       return enabled ? 'support.notifyOnThread' : 'support.notifyOffThread';
     }
     return enabled ? 'support.notifyOnChat' : 'support.notifyOffChat';
+  }
+
+  /// Разрешены ли уведомления системой — от этого зависит вид колокольчика.
+  Future<void> _refreshSystemNotifications(Emitter<ChatState> emit) async {
+    try {
+      final status = await _permissions.status();
+      if (emit.isDone) return;
+      emit(state.copyWith(systemNotificationsBlocked: !status.granted));
+    } catch (_) {
+      // На вебе и в тестах разрешения может не быть вовсе — тогда молчим.
+    }
   }
 
   /// Спросить систему про уведомления (или отправить в настройки, если в них

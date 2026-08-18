@@ -118,11 +118,26 @@ class _NotificationsBell extends StatelessWidget {
     return BlocBuilder<ChatBloc, ChatState>(
       buildWhen: (a, b) =>
           a.thread?.notificationsEnabled != b.thread?.notificationsEnabled ||
+          a.systemNotificationsBlocked != b.systemNotificationsBlocked ||
           a.loaded != b.loaded,
       builder: (context, state) {
         final chat = state.thread;
         if (chat == null) return const SizedBox.shrink();
+        final blocked = state.systemNotificationsBlocked;
         final on = chat.notificationsEnabled;
+        if (blocked) {
+          // Запрет системы важнее переключателя чата: показываем именно его, а
+          // нажатие ведёт в системный диалог (или в настройки).
+          return IconButton(
+            tooltip: 'support.notifyBlocked'.tr(),
+            icon: Icon(
+              Icons.notifications_off,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () =>
+                context.read<ChatBloc>().add(ChatNotificationsToggled()),
+          );
+        }
         return IconButton(
           tooltip: on ? 'support.notifyOff'.tr() : 'support.notifyOn'.tr(),
           icon: Icon(on ? Icons.notifications : Icons.notifications_off),

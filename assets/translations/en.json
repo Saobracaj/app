@@ -640,7 +640,8 @@
       "few": "{} replies",
       "many": "{} replies",
       "other": "{} replies"
-    }
+    },
+    "notifyBlocked": "Notifications are off in the system settings"
   },
   "questionFeedback": {
     "report": "Report a problem",

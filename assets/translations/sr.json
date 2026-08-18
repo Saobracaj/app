@@ -652,7 +652,8 @@
       "few": "{} odgovora",
       "many": "{} odgovora",
       "other": "{} odgovora"
-    }
+    },
+    "notifyBlocked": "Obaveštenja su isključena u podešavanjima sistema"
   },
   "questionFeedback": {
     "report": "Пријави грешку",
