@@ -139,6 +139,7 @@ class _FakeSocket implements GraphqlSocket {
 
 class _Connector {
   final List<_FakeSocket> sockets = [];
+  int _acked = 0;
 
   Future<GraphqlSocket> call(Uri url) async {
     final socket = _FakeSocket();
@@ -147,6 +148,27 @@ class _Connector {
   }
 
   _FakeSocket get last => sockets.last;
+
+  /// Дождаться соединения, которому ещё не отвечали `connection_ack`.
+  ///
+  /// Соединение открывается не мгновенно, а после первой загрузки переписки,
+  /// поэтому ждать его фиксированной паузой нельзя: на загруженной машине
+  /// пауза истекает раньше, чем сокет создан.
+  Future<_FakeSocket> awaitNext() async {
+    await _until(() => sockets.length > _acked);
+    if (sockets.length <= _acked) {
+      throw StateError('соединение так и не открылось');
+    }
+    _acked = sockets.length;
+    return sockets.last;
+  }
+}
+
+/// Крутить цикл событий, пока условие не станет истинным (или не выйдет срок).
+Future<void> _until(bool Function() done) async {
+  for (var i = 0; i < 400 && !done(); i++) {
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+  }
 }
 
 Map<String, dynamic> _message(
@@ -200,8 +222,9 @@ Future<void> _settle() => Future<void>.delayed(const Duration(milliseconds: 40))
 
 /// Поднять подписку: соединение, ack, subscribe.
 Future<void> _goLive(_Connector connector) async {
-  await _settle();
-  connector.last.emit({'type': 'connection_ack'});
+  final socket = await connector.awaitNext();
+  socket.emit({'type': 'connection_ack'});
+  await _until(() => socket.subscription != null);
   await _settle();
 }
 
