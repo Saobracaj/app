@@ -186,7 +186,7 @@ void main() {
     Finder segmentOf(String number) => find
         .ancestor(
           of: find.text(number),
-          matching: find.byType(AnimatedContainer),
+          matching: find.byType(QuestionProgressSegment),
         )
         .first;
 
@@ -214,7 +214,7 @@ void main() {
     Finder segmentOf(String number) => find
         .ancestor(
           of: find.text(number),
-          matching: find.byType(AnimatedContainer),
+          matching: find.byType(QuestionProgressSegment),
         )
         .first;
     // Внешний ListView тела: вложенные списки (разметка вопроса) не скроллятся.
@@ -279,6 +279,134 @@ void main() {
       const Offset(0, -120),
     );
     expect(find.text('145'), findsOneWidget);
+
+    // Схлопывание после прокрутки: полоска возвращается на своё место под
+    // шапкой, а не остаётся уехавшей вместе с прокруткой навигатора.
+    await tester.tap(find.text('145'), warnIfMissed: false);
+    await tester.pumpAndSettle();
+    final segment = find
+        .ancestor(
+          of: find.text('1'),
+          matching: find.byType(QuestionProgressSegment),
+        )
+        .first;
+    expect(tester.getTopLeft(segment).dy, closeTo(4, 1));
+  });
+
+  testWidgets('145 вопросов на телефоне: свёрнутая полоса — одна строка '
+      'в границах экрана', (tester) async {
+    // На узком экране обычный зазор между 145 сегментами шире, чем сам экран.
+    // Полоса должна ужать зазор, а не вылезти за края и не разъехаться на
+    // несколько полос.
+    await tester.binding.setSurfaceSize(const Size(390, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: QuestionProgressHeader(
+            entries: [
+              for (var i = 1; i <= 145; i++)
+                QuestionNavigatorEntry(
+                  questionId: i,
+                  number: i,
+                  points: 2,
+                  status: QuestionStatus.unanswered,
+                ),
+            ],
+            currentQuestionId: 1,
+            onQuestionSelected: (_) {},
+            child: ListView(
+              children: const [SizedBox(key: Key('body'), height: 2000)],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final segments = find.byType(QuestionProgressSegment);
+    expect(segments, findsNWidgets(145));
+    for (var i = 0; i < 145; i++) {
+      final rect = tester.getRect(segments.at(i));
+      // Полоса занимает одну строку…
+      expect(rect.top, closeTo(4, 0.5));
+      // …и целиком помещается между полями экрана (по 15 точек с каждой
+      // стороны).
+      expect(rect.left, greaterThanOrEqualTo(14.5));
+      expect(rect.right, lessThanOrEqualTo(375.5));
+    }
+  });
+
+  testWidgets('раскрытие в несколько строк не дрожит: чипы сразу едут '
+      'в свою строку', (tester) async {
+    // Раньше строки перекладывал Wrap прямо во время анимации ширины: чипы по
+    // одному перескакивали на следующую строку, число строк менялось на ходу,
+    // и переход дрожал (задача 1217520881378737). Теперь раскладка обоих
+    // состояний известна заранее, поэтому на каждом промежуточном кадре строк
+    // ровно столько же, сколько будет в конце, а каждый чип едет к своему
+    // месту, ни разу не сменив строку.
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: QuestionProgressHeader(
+            entries: [
+              for (var i = 1; i <= 40; i++)
+                QuestionNavigatorEntry(
+                  questionId: i,
+                  number: i,
+                  points: 2,
+                  status: QuestionStatus.unanswered,
+                ),
+            ],
+            currentQuestionId: 1,
+            onQuestionSelected: (_) {},
+            child: ListView(
+              children: const [SizedBox(key: Key('body'), height: 2000)],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final segments = find.byType(QuestionProgressSegment);
+    List<double> tops() => [
+      for (var i = 0; i < 40; i++) tester.getTopLeft(segments.at(i)).dy,
+    ];
+
+    await tester.tap(find.text('1'), warnIfMissed: false);
+    await tester.pump();
+
+    // Снимаем положения по ходу анимации и в конце.
+    final frames = <List<double>>[];
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+      frames.add(tops());
+    }
+    await tester.pumpAndSettle();
+    final settled = tops();
+    final rowCount = settled.toSet().length;
+    // 40 чипов в 800 точках ширины укладываются больше чем в одну строку —
+    // иначе тест ничего бы не проверял.
+    expect(rowCount, greaterThan(1));
+
+    for (final frame in frames) {
+      // Строк на промежуточном кадре столько же, сколько в раскрытой полосе.
+      expect(frame.toSet().length, rowCount);
+      for (var i = 0; i < 40; i++) {
+        // Чип едет вниз к своему месту и не проскакивает его.
+        expect(frame[i], lessThanOrEqualTo(settled[i] + 0.01));
+      }
+    }
+    // И каждый следующий кадр не отбрасывает чип назад.
+    for (var f = 1; f < frames.length; f++) {
+      for (var i = 0; i < 40; i++) {
+        expect(
+          frames[f][i],
+          greaterThanOrEqualTo(frames[f - 1][i] - 0.01),
+        );
+      }
+    }
   });
 
   testWidgets('нельзя выбрать больше нужного: лишний тап не выбирается, '
