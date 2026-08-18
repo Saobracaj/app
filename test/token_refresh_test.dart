@@ -229,14 +229,13 @@ void main() {
           },
         },
       },
+      // Первый после обновления уходит сразу, двум следующим достаётся один
+      // склеенный документ.
       {
         'data': {'me': null},
       },
       {
-        'data': {'me': null},
-      },
-      {
-        'data': {'me': null},
+        'data': {'_b0_me': null, '_b1_me': null},
       },
     ]);
     final client = _client(adapter, TokenStorage());
@@ -251,6 +250,7 @@ void main() {
         .where((r) => _operationOf(r).contains('refreshToken('))
         .length;
     expect(refreshes, 1);
+    expect(adapter.requests, hasLength(3));
   });
 
   test('гостевой запрос уходит без токена и не рушится', () async {

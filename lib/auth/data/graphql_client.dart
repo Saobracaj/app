@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode;
 
 import '../../core/network/network_status.dart';
 import '../auth_config.dart';
+import 'graphql_batch.dart';
 import 'jwt.dart';
 import 'token_storage.dart';
 
@@ -59,6 +61,21 @@ class AuthExpiredException extends GraphqlException {
 /// flips it back — that is what drives the "no network" copy and the automatic
 /// reloads once the connection returns.
 ///
+/// **Queries are batched, without waiting for each other.** Opening a screen
+/// wakes several independent Blocs at once, and each of them used to spend its
+/// own round trip (the home screen alone fired `me`, `featureFlags`,
+/// `myQuestionLists` and `myGroups`). So a query that arrives while another
+/// request is *already in flight* is held back and leaves with the ones next to
+/// it as a single GraphQL document, split back apart on arrival — see
+/// `graphql_batch.dart`. Identical queries collected this way are asked once.
+///
+/// Nothing is ever delayed to build a batch: with the line idle the query goes
+/// out immediately, so a chain of dependent requests is exactly as fast as it
+/// was, and a burst only ever fills time the app was going to spend waiting
+/// anyway. Mutations are never batched (merging side effects is a different
+/// problem) and are never held back; neither is anything the merger cannot
+/// rewrite safely.
+///
 /// Registered for DI via `RegisterModule` in `lib/core/di.dart` (the optional
 /// `languageProvider` / `dio` / `networkStatus` params keep injectable from
 /// introspecting the constructor directly).
@@ -68,19 +85,33 @@ class GraphqlClient {
     Dio? dio,
     this.languageProvider,
     NetworkStatus? networkStatus,
+    this.batchQueries = true,
+    this.maxBatchSize = 16,
   }) : _network = networkStatus,
        _dio =
-          dio ??
-          Dio(
-            BaseOptions(
-              connectTimeout: const Duration(seconds: 15),
-              receiveTimeout: const Duration(seconds: 20),
-            ),
-          );
+           dio ??
+           Dio(
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 15),
+               receiveTimeout: const Duration(seconds: 20),
+             ),
+           );
 
   final Dio _dio;
   final TokenStorage _storage;
   final NetworkStatus? _network;
+
+  /// Whether queries piling up behind an in-flight request travel together.
+  /// Off in the tests that assert what a single operation puts on the wire.
+  final bool batchQueries;
+
+  /// Upper bound on the operations in one document, so a screen that fires a
+  /// burst of queries cannot build an unbounded request.
+  final int maxBatchSize;
+
+  /// Queries waiting for the request ahead of them, per `authenticated` flag —
+  /// the two carry different headers, so they cannot share a request.
+  final Map<bool, _BatchQueue> _queues = {};
 
   /// Returns the current UI language code (e.g. `ru`), used for `Accept-Language`.
   final String Function()? languageProvider;
@@ -104,16 +135,20 @@ class GraphqlClient {
   /// Runs [query] with [variables]. When [authenticated] is true the request
   /// carries the bearer token, which is refreshed beforehand if it has expired
   /// and once more if the server still rejects it.
+  ///
+  /// A query issued while another request is in flight shares a request with
+  /// the queries next to it (see [batchQueries]); nothing is ever delayed for
+  /// the sake of a batch, and mutations never batch at all.
   Future<Map<String, dynamic>> run(
     String query, {
     Map<String, dynamic> variables = const {},
     bool authenticated = false,
   }) async {
-    if (!authenticated) return _send(query, variables, false);
+    if (!authenticated) return _dispatch(query, variables, false);
 
     await _ensureFreshAccessToken();
     try {
-      return await _send(query, variables, true);
+      return await _dispatch(query, variables, true);
     } on AuthExpiredException {
       rethrow;
     } on GraphqlException catch (e) {
@@ -121,7 +156,164 @@ class GraphqlClient {
       // would replay the request (and any side effect) for nothing.
       if (e.network || !e.isAuthError) rethrow;
       if (!await _tryRefresh()) rethrow;
+      // On its own: the batch this query travelled in is long gone, and the
+      // point of the retry is *this* operation with a fresh token.
       return _send(query, variables, true);
+    }
+  }
+
+  /// Sends [query] now if the line is free, otherwise parks it for the batch
+  /// that goes out when the request ahead of it comes back.
+  Future<Map<String, dynamic>> _dispatch(
+    String query,
+    Map<String, dynamic> variables,
+    bool authenticated,
+  ) {
+    final parsed = batchQueries ? parseBatchableQuery(query) : null;
+    // A mutation (or anything the merger will not touch) never waits and never
+    // holds the line: unchanged behaviour, down to the bytes on the wire.
+    if (parsed == null) return _send(query, variables, authenticated);
+
+    final queue = _queues.putIfAbsent(authenticated, _BatchQueue.new);
+    if (!queue.busy) {
+      queue.busy = true;
+      return _watch(
+        queue,
+        authenticated,
+        _send(query, variables, authenticated),
+      );
+    }
+
+    final pending = _PendingQuery(query, parsed, variables);
+    // The same query with the same variables, asked for twice while the line is
+    // busy (the app refreshes feature flags from `main()` and from the session
+    // holder), is one field on the wire and one answer for both callers.
+    for (final queued in queue.pending) {
+      if (queued.isSameRequestAs(pending)) return queued.completer.future;
+    }
+    queue.pending.add(pending);
+    return pending.completer.future;
+  }
+
+  /// Frees the line once [request] settles, and sends whatever queued up behind
+  /// it meanwhile. The caller's own outcome is untouched.
+  Future<Map<String, dynamic>> _watch(
+    _BatchQueue queue,
+    bool authenticated,
+    Future<Map<String, dynamic>> request,
+  ) {
+    unawaited(
+      request
+          .then<void>((_) {}, onError: (Object _) {})
+          .whenComplete(() => _drain(queue, authenticated)),
+    );
+    return request;
+  }
+
+  /// Sends the queued queries, a batch per round trip, until nothing is left —
+  /// then hands the line back. Every round is one request: the queries that
+  /// arrive while it is out are the next round's batch.
+  Future<void> _drain(_BatchQueue queue, bool authenticated) async {
+    while (queue.pending.isNotEmpty) {
+      // At most [maxBatchSize] operations per document; the rest go in the
+      // round after this one.
+      final size = queue.pending.length < maxBatchSize
+          ? queue.pending.length
+          : maxBatchSize;
+      final pending = queue.pending.take(size).toList();
+      queue.pending.removeRange(0, size);
+
+      // A single queued query has nothing to merge — send it as it was written.
+      if (pending.length == 1) {
+        await _settleAlone(pending.single, authenticated);
+        continue;
+      }
+
+      final merged = mergeBatchableQueries(
+        [for (final p in pending) p.parsed],
+        [for (final p in pending) p.variables],
+      );
+      if (kDebugMode) {
+        // Visible proof during manual QA that a screen's requests travelled
+        // together, and a cheap way to spot a screen that still does not.
+        debugPrint('GraphQL: ${pending.length} queries in one request');
+      }
+      final dynamic body;
+      try {
+        body = await _post(merged.query, merged.variables, authenticated);
+      } catch (e, stack) {
+        // Transport failure or a non-GraphQL answer: every caller in the batch
+        // gets the outcome it would have had on its own.
+        for (final p in pending) {
+          p.completer.completeError(e, stack);
+        }
+        continue;
+      }
+      _splitBatch(body, merged.prefixes, pending, authenticated);
+    }
+    queue.busy = false;
+  }
+
+  /// Hands each caller in [pending] its slice of the batched [body].
+  ///
+  /// An error carrying a `path` belongs to exactly one operation and only that
+  /// caller sees it. Anything else — an error the server could not attribute
+  /// (a parse or validation failure), or a payload that lost a caller's fields
+  /// because a *neighbour's* non-null field errored and nulled the whole
+  /// `data` — means the merge cannot be trusted for those callers, and they are
+  /// asked again one by one. Wasteful, but it is the difference between a
+  /// batching bug degrading performance and it breaking a screen.
+  void _splitBatch(
+    dynamic body,
+    List<String> prefixes,
+    List<_PendingQuery> pending,
+    bool authenticated,
+  ) {
+    final envelope = body is Map ? body : const {};
+    final errors = envelope['errors'];
+    final ownErrors = <int, dynamic>{};
+    var unattributed = body is! Map;
+    if (errors is List) {
+      for (final error in errors) {
+        final owner = batchErrorOwner(error, prefixes);
+        if (owner == null) {
+          unattributed = true;
+        } else {
+          ownErrors.putIfAbsent(owner, () => error);
+        }
+      }
+    }
+
+    for (var i = 0; i < pending.length; i++) {
+      final caller = pending[i];
+      if (unattributed) {
+        unawaited(_settleAlone(caller, authenticated));
+        continue;
+      }
+      final error = ownErrors[i];
+      if (error != null) {
+        caller.completer.completeError(_graphqlError(error));
+        continue;
+      }
+      final data = extractBatchData(envelope['data'], prefixes[i]);
+      if (data == null) {
+        unawaited(_settleAlone(caller, authenticated));
+        continue;
+      }
+      caller.completer.complete(data);
+    }
+  }
+
+  /// Runs one queued query on its own and settles its caller with the result.
+  /// Never throws — the failure belongs to the caller's future, not to the
+  /// batching machinery that is running it.
+  Future<void> _settleAlone(_PendingQuery caller, bool authenticated) async {
+    try {
+      caller.completer.complete(
+        await _send(caller.query, caller.variables, authenticated),
+      );
+    } catch (e, stack) {
+      caller.completer.completeError(e, stack);
     }
   }
 
@@ -273,6 +465,15 @@ class GraphqlClient {
     String query,
     Map<String, dynamic> variables,
     bool authenticated,
+  ) async => _unwrap(await _post(query, variables, authenticated));
+
+  /// Posts one GraphQL document and answers with the raw response envelope
+  /// (`data` *and* `errors`). [_send] reduces it to the payload; the batched
+  /// path needs both halves to route each error to the caller that owns it.
+  Future<dynamic> _post(
+    String query,
+    Map<String, dynamic> variables,
+    bool authenticated,
   ) async {
     final headers = <String, String>{
       'Content-Type': 'application/json',
@@ -298,7 +499,7 @@ class GraphqlClient {
       throw _transportFailure(e);
     }
     _network?.reportSuccess();
-    return _unwrap(response.data);
+    return response.data;
   }
 
   /// Turn a GraphQL response body into its `data` payload, raising the server's
@@ -310,21 +511,26 @@ class GraphqlClient {
     }
     final errors = body['errors'];
     if (errors is List && errors.isNotEmpty) {
-      final first = errors.first;
-      String? message;
-      String? code;
-      if (first is Map) {
-        message = first['message']?.toString();
-        final extensions = first['extensions'];
-        if (extensions is Map) code = extensions['code']?.toString();
-      }
-      throw GraphqlException(message ?? 'Request failed', code: code);
+      throw _graphqlError(errors.first);
     }
     final payload = body['data'];
     if (payload is! Map<String, dynamic>) {
       throw GraphqlException('Empty server response');
     }
     return payload;
+  }
+
+  /// One entry of a response's `errors` array as an exception, keeping the
+  /// server's message and its stable `extensions.code`.
+  GraphqlException _graphqlError(dynamic error) {
+    String? message;
+    String? code;
+    if (error is Map) {
+      message = error['message']?.toString();
+      final extensions = error['extensions'];
+      if (extensions is Map) code = extensions['code']?.toString();
+    }
+    return GraphqlException(message ?? 'Request failed', code: code);
   }
 
   /// The multipart half of [_send]: same headers, same error envelope, but the
@@ -339,9 +545,7 @@ class GraphqlClient {
     String fileVariable,
     void Function(int sent, int total)? onProgress,
   ) async {
-    final headers = <String, String>{
-      'X-Device-Id': await _storage.deviceId(),
-    };
+    final headers = <String, String>{'X-Device-Id': await _storage.deviceId()};
     final lang = languageProvider?.call();
     if (lang != null && lang.isNotEmpty) headers['Accept-Language'] = lang;
     final token = await _storage.accessToken;
@@ -360,8 +564,9 @@ class GraphqlClient {
       '0': MultipartFile.fromBytes(
         bytes,
         filename: fileName,
-        contentType:
-            contentType == null ? null : DioMediaType.parse(contentType),
+        contentType: contentType == null
+            ? null
+            : DioMediaType.parse(contentType),
       ),
     });
 
@@ -417,4 +622,44 @@ class GraphqlClient {
     }
     return e.message ?? 'Network error';
   }
+}
+
+/// One query waiting for its batch to go out.
+class _PendingQuery {
+  _PendingQuery(this.query, this.parsed, this.variables);
+
+  final String query;
+  final BatchableQuery parsed;
+  final Map<String, dynamic> variables;
+  final Completer<Map<String, dynamic>> completer =
+      Completer<Map<String, dynamic>>();
+
+  /// The variables as JSON, for comparing two queued requests; `null` when they
+  /// cannot be encoded, which simply means "never equal to anything".
+  late final String? _signature = _encodeVariables();
+
+  String? _encodeVariables() {
+    try {
+      return jsonEncode(variables);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Whether [other] asks the server exactly the same thing, so one field on
+  /// the wire can answer both.
+  bool isSameRequestAs(_PendingQuery other) =>
+      query == other.query &&
+      _signature != null &&
+      _signature == other._signature;
+}
+
+/// The queries queued for one `authenticated` flag, behind the request that is
+/// currently on the wire for it.
+class _BatchQueue {
+  final List<_PendingQuery> pending = [];
+
+  /// Whether a request this queue is responsible for is in flight. While it is,
+  /// arriving queries wait for it instead of opening a connection of their own.
+  bool busy = false;
 }

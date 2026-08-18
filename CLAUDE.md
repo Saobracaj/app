@@ -119,3 +119,28 @@ to announce. The building blocks live in `lib/core/network/`:
   answer «в группе ещё нет постов» while offline).
 - The home screen shows `OfflineHomeCard` (links to questions / simulation)
   instead of per-block retries while offline.
+
+## GraphQL queries are batched — a fake server must not assume one operation per request
+
+`GraphqlClient` merges the *queries* that pile up while another request is in
+flight into a single document (`lib/auth/data/graphql_batch.dart`): opening a
+screen wakes several Blocs at once, and they used to spend a round trip each.
+Nothing is ever delayed for the sake of a batch — with the line idle a query
+goes out immediately, so a chain of dependent requests is exactly as fast as
+before. Mutations never batch, and identical queries collected in one round are
+asked once.
+
+Two consequences worth knowing:
+
+- **Call sites need no change.** A batched query is namespaced (`me` travels as
+  `_b0_me: me`, `$id` as `$_b0_id`) and split back apart on arrival, so each
+  caller gets its own payload and its own errors — an error carrying a `path`
+  reaches only the operation it belongs to. When the merged document cannot be
+  trusted (an error the server could not attribute, or a payload a neighbour's
+  failure nulled), the affected callers are simply re-asked one by one.
+- **Test fakes must handle a merged document.** A fake `HttpClientAdapter` that
+  picks the operation out of `query` by name will meet `query _Batch` once two
+  of the screen's queries overlap. Either answer with the `_bN_`-prefixed keys
+  (see `test/graphql_batching_test.dart`), or build the client with
+  `batchQueries: false` when the test is about what a single operation puts on
+  the wire.
