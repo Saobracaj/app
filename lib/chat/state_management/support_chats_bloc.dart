@@ -2,34 +2,34 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../core/network/error_messages.dart';
-import '../data/support_chat_repository.dart';
-import 'support_threads_events.dart';
-import 'support_threads_state.dart';
+import '../data/chat_repository.dart';
+import 'support_chats_events.dart';
+import 'support_chats_state.dart';
 
 /// The moderator's list of support conversations, newest activity first.
 ///
 /// Reading the list deliberately does **not** mark anything read — that only
-/// happens when a moderator opens one conversation (see [SupportChatBloc]).
+/// happens when a moderator opens one conversation (see [ChatBloc]).
 @injectable
-class SupportThreadsBloc extends Bloc<SupportThreadsEvent, SupportThreadsState> {
-  SupportThreadsBloc(this._chat) : super(const SupportThreadsState()) {
-    on<SupportThreadsRequested>((_, emit) => _load(emit, state.onlyUnread));
-    on<SupportThreadsFilterToggled>(
+class SupportChatsBloc extends Bloc<SupportChatsEvent, SupportChatsState> {
+  SupportChatsBloc(this._chat) : super(const SupportChatsState()) {
+    on<SupportChatsRequested>((_, emit) => _load(emit, state.onlyUnread));
+    on<SupportChatsFilterToggled>(
       (event, emit) => _load(emit, event.onlyUnread),
     );
   }
 
-  final SupportChatRepository _chat;
+  final ChatRepository _chat;
 
   Future<void> _load(
-    Emitter<SupportThreadsState> emit,
+    Emitter<SupportChatsState> emit,
     bool onlyUnread,
   ) async {
     emit(
       state.copyWith(loading: true, onlyUnread: onlyUnread, errorMessage: null),
     );
     try {
-      final page = await _chat.threads(onlyUnread: onlyUnread);
+      final page = await _chat.supportChats(onlyUnread: onlyUnread);
       emit(
         state.copyWith(
           loading: false,

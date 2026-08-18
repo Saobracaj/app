@@ -581,7 +581,7 @@
     "hint": "Message…",
     "send": "Send",
     "sendTooltip": "Send (⌘/Ctrl + Enter)",
-    "attach": "Attach a file",
+    "attach": "Attach",
     "download": "Download",
     "refresh": "Refresh",
     "offline": "No connection to the server — refresh",
@@ -610,7 +610,38 @@
       "other": "{} requests"
     },
     "imageDeleted": "Image deleted",
-    "fileDeleted": "File deleted"
+    "fileDeleted": "File deleted",
+    "attachPhoto": "Photo",
+    "attachFile": "File",
+    "attachList": "Question list",
+    "noOwnLists": "You have no question lists of your own yet",
+    "listQuestions": {
+      "one": "{} question",
+      "other": "{} questions"
+    },
+    "sharedListLoading": "List…",
+    "expand": "Expand",
+    "threadHeader": "Thread",
+    "replies": "Replies",
+    "noReplies": "No replies yet",
+    "reply": "Reply",
+    "edit": "Edit",
+    "edited": "Edited",
+    "editing": "Editing a message",
+    "editCancel": "Cancel editing",
+    "notifyOn": "Turn notifications on",
+    "notifyOff": "Turn notifications off",
+    "notifyOnChat": "Notifications are on for this chat",
+    "notifyOffChat": "Notifications are off for this chat",
+    "notifyOnThread": "Notifications are on for this thread",
+    "notifyOffThread": "Notifications are off for this thread",
+    "threadReplies": {
+      "one": "{} reply",
+      "few": "{} replies",
+      "many": "{} replies",
+      "other": "{} replies"
+    },
+    "notifyBlocked": "Notifications are off in the system settings"
   },
   "questionFeedback": {
     "report": "Report a problem",

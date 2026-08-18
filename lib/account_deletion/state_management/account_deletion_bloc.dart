@@ -21,8 +21,8 @@ class AccountDeletionBloc
     on<DeletePublicCommentsToggled>(
       (e, emit) => emit(state.copyWith(deletePublicComments: e.value)),
     );
-    on<DeleteSupportAttachmentsToggled>(
-      (e, emit) => emit(state.copyWith(deleteSupportAttachments: e.value)),
+    on<DeleteChatAttachmentsToggled>(
+      (e, emit) => emit(state.copyWith(deleteChatAttachments: e.value)),
     );
     on<DeleteSupportChatToggled>(
       (e, emit) => emit(state.copyWith(deleteSupportChat: e.value)),
@@ -121,7 +121,7 @@ class AccountDeletionBloc
       final deleted = await _repository.deleteAccount(
         code: state.code.trim(),
         deletePublicComments: state.deletePublicComments,
-        deleteSupportAttachments: state.deletesSupportAttachments,
+        deleteChatAttachments: state.deletesChatAttachments,
         deleteSupportChat: state.deleteSupportChat,
         deleteGroupHistory: state.deleteGroupHistory,
         acceptIrreversible: state.acceptIrreversible,

@@ -48,7 +48,7 @@ class _FakeRepository extends AccountDeletionRepository {
   Future<bool> deleteAccount({
     required String code,
     required bool deletePublicComments,
-    required bool deleteSupportAttachments,
+    required bool deleteChatAttachments,
     required bool deleteSupportChat,
     required bool deleteGroupHistory,
     required bool acceptIrreversible,
@@ -58,7 +58,7 @@ class _FakeRepository extends AccountDeletionRepository {
     lastDelete = {
       'code': code,
       'deletePublicComments': deletePublicComments,
-      'deleteSupportAttachments': deleteSupportAttachments,
+      'deleteChatAttachments': deleteChatAttachments,
       'deleteSupportChat': deleteSupportChat,
       'deleteGroupHistory': deleteGroupHistory,
       'acceptIrreversible': acceptIrreversible,
@@ -139,7 +139,7 @@ void main() {
     await _settle();
     final s = h.bloc.state;
     expect(s.deletePublicComments, isFalse);
-    expect(s.deleteSupportAttachments, isFalse);
+    expect(s.deleteChatAttachments, isFalse);
     expect(s.deleteSupportChat, isFalse);
     expect(s.deleteGroupHistory, isFalse);
     expect(s.clearLocalData, isFalse);
@@ -157,7 +157,7 @@ void main() {
     expect(h.repo.lastDelete, {
       'code': '123456',
       'deletePublicComments': false,
-      'deleteSupportAttachments': false,
+      'deleteChatAttachments': false,
       'deleteSupportChat': false,
       'deleteGroupHistory': false,
       'acceptIrreversible': true,
@@ -172,8 +172,8 @@ void main() {
     h.bloc.add(DeleteSupportChatToggled(true));
     await _settle();
     // Строка «фотографии и файлы» в чек-листе показывается отмеченной.
-    expect(h.bloc.state.deleteSupportAttachments, isFalse);
-    expect(h.bloc.state.deletesSupportAttachments, isTrue);
+    expect(h.bloc.state.deleteChatAttachments, isFalse);
+    expect(h.bloc.state.deletesChatAttachments, isTrue);
   });
 
   test('при активной подписке нужно отдельное согласие', () async {
@@ -216,7 +216,7 @@ void main() {
       'code': '123456',
       'deletePublicComments': true,
       // Отдельно не отмечались — но удаление переписки уносит и вложения.
-      'deleteSupportAttachments': true,
+      'deleteChatAttachments': true,
       'deleteSupportChat': true,
       'deleteGroupHistory': true,
       'acceptIrreversible': true,

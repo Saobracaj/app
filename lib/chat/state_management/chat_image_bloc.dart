@@ -1,10 +1,10 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
-import '../data/support_chat_repository.dart';
-import '../models/support_chat.dart';
-import 'support_image_events.dart';
-import 'support_image_state.dart';
+import '../data/chat_repository.dart';
+import '../models/chat.dart';
+import 'chat_image_events.dart';
+import 'chat_image_state.dart';
 
 /// Where a fresh signed link for an attachment comes from. The support chat and
 /// the group wall sign through different queries, and this is the whole of the
@@ -21,19 +21,19 @@ typedef AttachmentUrlResolver = Future<String> Function(String attachmentId);
 /// tries once more; only a second failure is taken at face value, which keeps a
 /// genuinely broken attachment from re-signing forever.
 @injectable
-class SupportImageBloc extends Bloc<SupportImageEvent, SupportImageState> {
-  SupportImageBloc(
+class ChatImageBloc extends Bloc<ChatImageEvent, ChatImageState> {
+  ChatImageBloc(
     this._chat,
     @factoryParam this.attachment,
     @factoryParam this.resolveUrl,
-  ) : super(SupportImageState(url: attachment.url ?? '')) {
+  ) : super(ChatImageState(url: attachment.url ?? '')) {
     on<SupportImageLoadFailed>(_onLoadFailed);
   }
 
-  final SupportChatRepository _chat;
+  final ChatRepository _chat;
 
   /// The attachment being shown. Its own `url` is only the starting point.
-  final SupportAttachment attachment;
+  final ChatAttachment attachment;
 
   /// How to re-sign it; `null` means the support chat's own query, which is
   /// where this started and still where most attachments live.
@@ -41,7 +41,7 @@ class SupportImageBloc extends Bloc<SupportImageEvent, SupportImageState> {
 
   Future<void> _onLoadFailed(
     SupportImageLoadFailed event,
-    Emitter<SupportImageState> emit,
+    Emitter<ChatImageState> emit,
   ) async {
     if (state.failed || state.refreshed) {
       emit(state.copyWith(refreshed: true, failed: true));

@@ -9,8 +9,8 @@ class DeletePublicCommentsToggled extends AccountDeletionEvent {
   final bool value;
 }
 
-class DeleteSupportAttachmentsToggled extends AccountDeletionEvent {
-  DeleteSupportAttachmentsToggled(this.value);
+class DeleteChatAttachmentsToggled extends AccountDeletionEvent {
+  DeleteChatAttachmentsToggled(this.value);
   final bool value;
 }
 

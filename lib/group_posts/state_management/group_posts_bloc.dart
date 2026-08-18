@@ -4,9 +4,9 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../chat/models/chat.dart';
 import '../../core/network/error_messages.dart';
 import '../../core/network/network_status.dart';
-import '../../support_chat/models/support_chat.dart';
 import '../data/group_posts_repository.dart';
 import 'group_posts_events.dart';
 import 'group_posts_state.dart';

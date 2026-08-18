@@ -115,5 +115,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Доступ к галерее нужен, чтобы прикрепить фотографию к сообщению в чате с разработчиком.</string>
 </dict>
 </plist>

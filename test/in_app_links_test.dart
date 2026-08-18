@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:routemaster/routemaster.dart';
-import 'package:saobracaj/support_chat/presentation/linked_text.dart';
+import 'package:saobracaj/chat/presentation/linked_text.dart';
 import 'package:saobracaj/util/nav_to_url.dart';
 
 /// Ссылка на saobracaj.gleb.at ведёт на экран, который у приложения уже есть,

@@ -17,8 +17,8 @@ import 'package:saobracaj/notifications/data/notification_permissions.dart';
 import 'package:saobracaj/question_feedback/domain/question_feedback_source.dart';
 import 'package:saobracaj/question_feedback/presentation/report_problem_button.dart';
 import 'package:saobracaj/question_feedback/state_management/question_feedback_bloc.dart';
-import 'package:saobracaj/support_chat/data/support_chat_repository.dart';
-import 'package:saobracaj/support_chat/models/support_chat.dart';
+import 'package:saobracaj/chat/data/chat_repository.dart';
+import 'package:saobracaj/chat/models/chat.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Клиент-заглушка: сеть в этих тестах не используется.
@@ -33,19 +33,26 @@ class _FakeClient extends GraphqlClient {
   }) async => const {};
 }
 
-class _FakeSupportChat extends SupportChatRepository {
+class _FakeSupportChat extends ChatRepository {
   _FakeSupportChat(super.client, super.subscriptions);
 
-  final List<({String body, List<int> questionIds})> messages = [];
+  final List<({String body, List<int> questionIds})> sent = [];
+
+  /// Свой чат с разработчиком: жалоба сначала спрашивает его идентификатор.
+  @override
+  Future<Chat> supportChat() async =>
+      Chat(id: 'c1', createdAt: DateTime(2026, 8, 7));
 
   @override
-  Future<SupportMessage> send({
+  Future<ChatMessage> send({
+    required String chatId,
     required String body,
     List<String> attachmentIds = const [],
     List<int> questionIds = const [],
+    List<String> questionListIds = const [],
   }) async {
-    messages.add((body: body, questionIds: questionIds));
-    return SupportMessage(id: 'm1', body: body, createdAt: DateTime(2026, 8, 7));
+    sent.add((body: body, questionIds: questionIds));
+    return ChatMessage(id: 'm1', body: body, createdAt: DateTime(2026, 8, 7));
   }
 }
 
@@ -154,9 +161,9 @@ void main() {
     await tester.tap(send);
     await tester.pumpAndSettle();
 
-    expect(chat.messages.single.body, contains('ответ неверный'));
-    expect(chat.messages.single.body, startsWith('Report · discussion'));
-    expect(chat.messages.single.questionIds, [7001]);
+    expect(chat.sent.single.body, contains('ответ неверный'));
+    expect(chat.sent.single.body, startsWith('Report · discussion'));
+    expect(chat.sent.single.questionIds, [7001]);
     // Диалог закрылся, а пользователю показали подтверждение.
     expect(find.text('questionFeedback.title'), findsNothing);
     expect(find.text('questionFeedback.sent'), findsOneWidget);
@@ -177,6 +184,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('questionFeedback.title'), findsNothing);
-    expect(chat.messages, isEmpty);
+    expect(chat.sent, isEmpty);
   });
 }

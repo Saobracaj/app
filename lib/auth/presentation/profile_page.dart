@@ -19,8 +19,8 @@ import '../../profile/state_management/display_name_events.dart';
 import '../../public_comments/presentation/moderation_page.dart';
 import '../../push_test/presentation/test_push_page.dart';
 import '../../subscription/presentation/subscription_page.dart';
-import '../../support_chat/presentation/support_chat_page.dart';
-import '../../support_chat/presentation/support_threads_page.dart';
+import '../../chat/presentation/chat_page.dart';
+import '../../chat/presentation/support_chats_page.dart';
 import '../../test/about/about_page.dart';
 import '../../theme/presentation/appearance_page.dart';
 import '../domain/settings_section.dart';
@@ -139,8 +139,8 @@ class ProfilePage extends StatelessWidget {
     SettingsSection.subscription => const SubscriptionPage(),
     SettingsSection.appearance => const AppearancePage(),
     SettingsSection.notifications => const NotificationsPage(),
-    SettingsSection.supportChat => const SupportChatPage(),
-    SettingsSection.supportThreads => const SupportThreadsPage(),
+    SettingsSection.supportChat => const ChatPage(),
+    SettingsSection.supportThreads => const SupportChatsPage(),
     SettingsSection.moderation => const ModerationPage(),
     SettingsSection.billing => const BillingAdminPage(),
     SettingsSection.testPush => const TestPushPage(),
@@ -426,11 +426,11 @@ class _SectionPanel extends StatelessWidget {
       ),
       SettingsSection.supportChat => const SurfaceCard(
         padding: EdgeInsets.zero,
-        child: SupportChatContent(),
+        child: ChatContent(),
       ),
       SettingsSection.supportThreads => const SurfaceCard(
         padding: EdgeInsets.symmetric(vertical: 8),
-        child: SupportThreadsContent(),
+        child: SupportChatsContent(),
       ),
       SettingsSection.moderation => const SurfaceCard(
         padding: EdgeInsets.symmetric(vertical: 8),

@@ -10,8 +10,8 @@ import 'package:saobracaj/notifications/data/notification_permissions.dart';
 import 'package:saobracaj/question_feedback/domain/question_feedback_source.dart';
 import 'package:saobracaj/question_feedback/state_management/question_feedback_bloc.dart';
 import 'package:saobracaj/question_feedback/state_management/question_feedback_events.dart';
-import 'package:saobracaj/support_chat/data/support_chat_repository.dart';
-import 'package:saobracaj/support_chat/models/support_chat.dart';
+import 'package:saobracaj/chat/data/chat_repository.dart';
+import 'package:saobracaj/chat/models/chat.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Ключ общей настройки push — тот же, что у экрана уведомлений и чата.
@@ -31,21 +31,28 @@ class _FakeClient extends GraphqlClient {
 
 /// Заглушка чата: запоминает отправленные сообщения (или падает, если задана
 /// [failure]).
-class _FakeSupportChat extends SupportChatRepository {
+class _FakeSupportChat extends ChatRepository {
   _FakeSupportChat(super.client, super.subscriptions);
 
-  final List<({String body, List<int> questionIds})> messages = [];
+  final List<({String body, List<int> questionIds})> sent = [];
   Object? failure;
 
+  /// Свой чат с разработчиком: жалоба сначала спрашивает его идентификатор.
   @override
-  Future<SupportMessage> send({
+  Future<Chat> supportChat() async =>
+      Chat(id: 'c1', createdAt: DateTime(2026, 8, 7));
+
+  @override
+  Future<ChatMessage> send({
+    required String chatId,
     required String body,
     List<String> attachmentIds = const [],
     List<int> questionIds = const [],
+    List<String> questionListIds = const [],
   }) async {
     if (failure != null) throw failure!;
-    messages.add((body: body, questionIds: questionIds));
-    return SupportMessage(id: 'm1', body: body, createdAt: DateTime(2026, 8, 7));
+    sent.add((body: body, questionIds: questionIds));
+    return ChatMessage(id: 'm1', body: body, createdAt: DateTime(2026, 8, 7));
   }
 }
 
@@ -148,7 +155,7 @@ void main() {
       built.bloc.add(QuestionFeedbackSubmitted());
       await built.bloc.stream.firstWhere((s) => s.sent);
 
-      final sent = built.chat.messages.single;
+      final sent = built.chat.sent.single;
       expect(sent.body, '''
 Report · discussion
 https://saobracaj.gleb.at/question/1234
@@ -166,7 +173,7 @@ https://saobracaj.gleb.at/question/1234
       built.bloc.add(QuestionFeedbackSubmitted());
       await built.bloc.stream.firstWhere((s) => s.sent);
 
-      expect(built.chat.messages.single.body, startsWith('Report · summary'));
+      expect(built.chat.sent.single.body, startsWith('Report · summary'));
     });
 
     test('со вкладки объяснения источник — explanation', () async {
@@ -177,7 +184,7 @@ https://saobracaj.gleb.at/question/1234
       built.bloc.add(QuestionFeedbackSubmitted());
       await built.bloc.stream.firstWhere((s) => s.sent);
 
-      expect(built.chat.messages.single.body, startsWith('Report · explanation'));
+      expect(built.chat.sent.single.body, startsWith('Report · explanation'));
     });
 
     test('пустой текст отправить нельзя', () async {
@@ -188,7 +195,7 @@ https://saobracaj.gleb.at/question/1234
       await pumpEventQueue();
 
       expect(built.bloc.state.canSend, isFalse);
-      expect(built.chat.messages, isEmpty);
+      expect(built.chat.sent, isEmpty);
       expect(built.bloc.state.sent, isFalse);
     });
 
@@ -201,7 +208,7 @@ https://saobracaj.gleb.at/question/1234
 
       expect(built.bloc.state.signedIn, isFalse);
       expect(built.bloc.state.canSend, isFalse);
-      expect(built.chat.messages, isEmpty);
+      expect(built.chat.sent, isEmpty);
     });
 
     test('ошибка отправки показывается, а текст остаётся', () async {

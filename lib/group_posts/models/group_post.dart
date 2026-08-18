@@ -1,12 +1,12 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-import '../../support_chat/models/support_chat.dart';
+import '../../chat/models/chat.dart';
 
 part 'group_post.freezed.dart';
 
 /// One post on a group's wall.
 ///
-/// Its attachments are [SupportAttachment]s and not a type of their own: the
+/// Its attachments are [ChatAttachment]s and not a type of their own: the
 /// backend sends the very same fields for both (`group_posts` reuses the support
 /// chat's attachment vocabulary), so the model, the parsing and the widgets are
 /// shared rather than copied.
@@ -23,7 +23,7 @@ abstract class GroupPost with _$GroupPost {
 
     /// Whether the reader may delete it — its author, or the group's owner.
     @Default(false) bool deletableByMe,
-    @Default(<SupportAttachment>[]) List<SupportAttachment> attachments,
+    @Default(<ChatAttachment>[]) List<ChatAttachment> attachments,
   }) = _GroupPost;
 
   const GroupPost._();
@@ -42,9 +42,9 @@ abstract class GroupPost with _$GroupPost {
     attachments:
         (json['attachments'] as List?)
             ?.whereType<Map>()
-            .map((e) => SupportAttachment.parse(e.cast<String, dynamic>()))
+            .map((e) => ChatAttachment.parse(e.cast<String, dynamic>()))
             .toList() ??
-        const <SupportAttachment>[],
+        const <ChatAttachment>[],
   );
 }
 

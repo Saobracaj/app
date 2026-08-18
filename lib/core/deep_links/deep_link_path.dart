@@ -40,6 +40,9 @@ const _linkableRoots = {
   // `saobracaj://support/threads/<id>` for the moderator's view of one — both
   // are what the backend puts in a support notification.
   'support',
+  // Любой чат и тред по ссылке из пуша: `saobracaj://chat/<id>`.
+  'chat',
+  'thread',
   // Top-level screens a notification may point at: the settings hub (the
   // test-push screen suggests `/settings`), the subscription and its tariffs,
   // and the moderator's screens.

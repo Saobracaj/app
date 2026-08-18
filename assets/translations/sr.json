@@ -590,7 +590,7 @@
     "hint": "Порука…",
     "send": "Пошаљи",
     "sendTooltip": "Пошаљи (⌘/Ctrl + Enter)",
-    "attach": "Приложи датотеку",
+    "attach": "Приложи",
     "download": "Преузми",
     "refresh": "Освежи",
     "offline": "Нема везе са сервером — освежи",
@@ -621,7 +621,39 @@
       "other": "{} обраћања"
     },
     "imageDeleted": "Слика је обрисана",
-    "fileDeleted": "Фајл је обрисан"
+    "fileDeleted": "Фајл је обрисан",
+    "attachPhoto": "Фотографија",
+    "attachFile": "Фајл",
+    "attachList": "Листа питања",
+    "noOwnLists": "Још немате својих листа питања",
+    "listQuestions": {
+      "one": "{} питање",
+      "few": "{} питања",
+      "other": "{} питања"
+    },
+    "sharedListLoading": "Листа…",
+    "expand": "Прошири",
+    "threadHeader": "Nit",
+    "replies": "Odgovori",
+    "noReplies": "Još nema odgovora",
+    "reply": "Odgovori",
+    "edit": "Izmeni",
+    "edited": "Izmenjeno",
+    "editing": "Izmena poruke",
+    "editCancel": "Otkaži izmenu",
+    "notifyOn": "Uključi obaveštenja",
+    "notifyOff": "Isključi obaveštenja",
+    "notifyOnChat": "Obaveštenja su uključena za ovaj čet",
+    "notifyOffChat": "Obaveštenja su isključena za ovaj čet",
+    "notifyOnThread": "Obaveštenja su uključena za ovu nit",
+    "notifyOffThread": "Obaveštenja su isključena za ovu nit",
+    "threadReplies": {
+      "one": "{} odgovor",
+      "few": "{} odgovora",
+      "many": "{} odgovora",
+      "other": "{} odgovora"
+    },
+    "notifyBlocked": "Obaveštenja su isključena u podešavanjima sistema"
   },
   "questionFeedback": {
     "report": "Пријави грешку",

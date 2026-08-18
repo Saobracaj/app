@@ -1,9 +1,9 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
-part 'support_chat.freezed.dart';
+part 'chat.freezed.dart';
 
 /// What a support-chat attachment is, mirroring the backend's `AttachmentKind`.
-enum SupportAttachmentKind {
+enum ChatAttachmentKind {
   /// A stored binary the user downloads.
   file,
 
@@ -18,12 +18,12 @@ enum SupportAttachmentKind {
   /// list's name and its question ids, rendered as one chip.
   questionList;
 
-  static SupportAttachmentKind parse(String? raw) =>
+  static ChatAttachmentKind parse(String? raw) =>
       switch (raw?.toUpperCase()) {
-        'IMAGE' => SupportAttachmentKind.image,
-        'QUESTION' => SupportAttachmentKind.question,
-        'QUESTION_LIST' => SupportAttachmentKind.questionList,
-        _ => SupportAttachmentKind.file,
+        'IMAGE' => ChatAttachmentKind.image,
+        'QUESTION' => ChatAttachmentKind.question,
+        'QUESTION_LIST' => ChatAttachmentKind.questionList,
+        _ => ChatAttachmentKind.file,
       };
 }
 
@@ -84,20 +84,20 @@ String? contentTypeForFileName(String fileName) =>
 /// One attachment of a support message.
 ///
 /// [url] is a **short-lived** signed link the backend hands only to a
-/// participant of the conversation; it is null for a [SupportAttachmentKind.question]
+/// participant of the conversation; it is null for a [ChatAttachmentKind.question]
 /// (which stores nothing) and can expire, so anything long-lived re-reads it
 /// through `supportAttachmentUrl`.
 @freezed
-abstract class SupportAttachment with _$SupportAttachment {
-  const factory SupportAttachment({
+abstract class ChatAttachment with _$ChatAttachment {
+  const factory ChatAttachment({
     required String id,
-    required SupportAttachmentKind kind,
+    required ChatAttachmentKind kind,
     @Default('') String fileName,
     @Default('') String contentType,
     @Default(0) int sizeBytes,
     int? questionId,
 
-    /// The questions of a shared list, for [SupportAttachmentKind.questionList];
+    /// The questions of a shared list, for [ChatAttachmentKind.questionList];
     /// the list's name is in [fileName].
     @Default(<int>[]) List<int> questionIds,
     String? url,
@@ -106,14 +106,14 @@ abstract class SupportAttachment with _$SupportAttachment {
     /// their photos and files with them. Rendered as a placeholder.
     @Default(false) bool deleted,
     required DateTime createdAt,
-  }) = _SupportAttachment;
+  }) = _ChatAttachment;
 
-  const SupportAttachment._();
+  const ChatAttachment._();
 
-  static SupportAttachment parse(Map<String, dynamic> json) =>
-      SupportAttachment(
+  static ChatAttachment parse(Map<String, dynamic> json) =>
+      ChatAttachment(
         id: json['id'].toString(),
-        kind: SupportAttachmentKind.parse(json['kind']?.toString()),
+        kind: ChatAttachmentKind.parse(json['kind']?.toString()),
         fileName: json['fileName']?.toString() ?? '',
         contentType: json['contentType']?.toString() ?? '',
         sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
@@ -139,7 +139,7 @@ abstract class SupportAttachment with _$SupportAttachment {
   /// and its extension.
   bool get isImage {
     if (isReference) return false;
-    if (kind == SupportAttachmentKind.image) return true;
+    if (kind == ChatAttachmentKind.image) return true;
     return contentType.toLowerCase().startsWith('image/') ||
         _imageExtensions.contains(_extensionOf(fileName));
   }
@@ -147,8 +147,8 @@ abstract class SupportAttachment with _$SupportAttachment {
   /// Whether the attachment stores nothing at all — a reference to something
   /// the app already has (a question, a shared list).
   bool get isReference =>
-      kind == SupportAttachmentKind.question ||
-      kind == SupportAttachmentKind.questionList;
+      kind == ChatAttachmentKind.question ||
+      kind == ChatAttachmentKind.questionList;
 
   /// A human-readable size ("1,2 МБ"), empty for a reference.
   String get readableSize {
@@ -167,11 +167,11 @@ abstract class SupportAttachment with _$SupportAttachment {
   }
 }
 
-/// One message in a support thread. [fromStaff] says which side wrote it, and
+/// One message of a conversation. [fromStaff] says which side wrote it, and
 /// [readAt] is when the *other* side read it (null while unread).
 @freezed
-abstract class SupportMessage with _$SupportMessage {
-  const factory SupportMessage({
+abstract class ChatMessage with _$ChatMessage {
+  const factory ChatMessage({
     required String id,
     @Default('') String threadId,
     @Default('') String authorId,
@@ -180,14 +180,24 @@ abstract class SupportMessage with _$SupportMessage {
     @Default('') String body,
     required DateTime createdAt,
     DateTime? readAt,
-    @Default(<SupportAttachment>[]) List<SupportAttachment> attachments,
-  }) = _SupportMessage;
 
-  const SupportMessage._();
+    /// Когда автор последний раз правил сообщение; `null` — не правил. Рядом со
+    /// временем отправки показывается «Изменено».
+    DateTime? editedAt,
 
-  static SupportMessage parse(Map<String, dynamic> json) {
+    /// Чат с ответами на это сообщение — тред, если его уже открывали.
+    String? threadChatId,
+
+    /// Сколько в этом треде ответов: из этого рисуется ссылка под сообщением.
+    @Default(0) int replyCount,
+    @Default(<ChatAttachment>[]) List<ChatAttachment> attachments,
+  }) = _ChatMessage;
+
+  const ChatMessage._();
+
+  static ChatMessage parse(Map<String, dynamic> json) {
     final rawAttachments = json['attachments'];
-    return SupportMessage(
+    return ChatMessage(
       id: json['id'].toString(),
       threadId: json['threadId']?.toString() ?? '',
       authorId: json['authorId']?.toString() ?? '',
@@ -198,23 +208,68 @@ abstract class SupportMessage with _$SupportMessage {
           DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ??
           DateTime.now(),
       readAt: DateTime.tryParse(json['readAt']?.toString() ?? '')?.toLocal(),
+      editedAt: DateTime.tryParse(
+        json['editedAt']?.toString() ?? '',
+      )?.toLocal(),
+      threadChatId: json['threadChatId']?.toString(),
+      replyCount: (json['replyCount'] as num?)?.toInt() ?? 0,
       attachments: rawAttachments is List
           ? rawAttachments
                 .whereType<Map>()
-                .map((e) => SupportAttachment.parse(e.cast<String, dynamic>()))
+                .map((e) => ChatAttachment.parse(e.cast<String, dynamic>()))
                 .toList()
           : const [],
     );
   }
 
   bool get isRead => readAt != null;
+
+  /// Правилось ли сообщение после отправки.
+  bool get isEdited => editedAt != null;
+
+  /// Есть ли у сообщения тред с ответами.
+  bool get hasThread => (threadChatId ?? '').isNotEmpty && replyCount > 0;
 }
 
-/// A conversation between one user and the developers.
+/// Что за сущность обсуждается — зеркало серверного `ChatEntityType`.
+enum ChatEntityType {
+  /// Чат пользователя с разработчиком.
+  support,
+
+  /// Тред: ответы на одно сообщение.
+  messageThread,
+
+  /// Чат группы (задел, пока такие чаты никто не создаёт).
+  group,
+
+  /// Обсуждение вопроса (задел).
+  question;
+
+  static ChatEntityType parse(String? raw) => switch (raw?.toUpperCase()) {
+    'MESSAGE_THREAD' => ChatEntityType.messageThread,
+    'GROUP' => ChatEntityType.group,
+    'QUESTION' => ChatEntityType.question,
+    _ => ChatEntityType.support,
+  };
+}
+
+/// Один разговор. О чём он — говорит пара ([entityType], [entityId]); всё
+/// остальное одинаково для чата с разработчиком, треда и будущих групповых
+/// чатов, поэтому их всех показывает один экран и ведёт один Bloc.
 @freezed
-abstract class SupportThread with _$SupportThread {
-  const factory SupportThread({
+abstract class Chat with _$Chat {
+  const factory Chat({
     required String id,
+    @Default(ChatEntityType.support) ChatEntityType entityType,
+    @Default('') String entityId,
+
+    /// Сообщение, ответы на которое собирает этот чат, — только у треда.
+    String? parentMessageId,
+    @Default(false) bool isGroup,
+
+    /// Включены ли у **этого** пользователя оповещения об этом разговоре. По
+    /// умолчанию выключены — и у чатов, и у тредов.
+    @Default(false) bool notificationsEnabled,
     @Default('') String userId,
     @Default('') String userDisplayName,
 
@@ -227,12 +282,19 @@ abstract class SupportThread with _$SupportThread {
     /// Messages the *reading* side has not seen yet.
     @Default(0) int unreadCount,
     @Default(0) int messagesCount,
-  }) = _SupportThread;
+  }) = _Chat;
 
-  const SupportThread._();
+  const Chat._();
 
-  static SupportThread parse(Map<String, dynamic> json) => SupportThread(
+  static Chat parse(Map<String, dynamic> json) => Chat(
     id: json['id'].toString(),
+    entityType: ChatEntityType.parse(json['entityType']?.toString()),
+    entityId: json['entityId']?.toString() ?? '',
+    parentMessageId: (json['parentMessageId']?.toString() ?? '').isEmpty
+        ? null
+        : json['parentMessageId'].toString(),
+    isGroup: json['isGroup'] == true,
+    notificationsEnabled: json['notificationsEnabled'] == true,
     userId: json['userId']?.toString() ?? '',
     userDisplayName: json['userDisplayName']?.toString() ?? '',
     userEmail: json['userEmail']?.toString() ?? '',
@@ -247,24 +309,28 @@ abstract class SupportThread with _$SupportThread {
     messagesCount: (json['messagesCount'] as num?)?.toInt() ?? 0,
   );
 
-  /// What to show as the thread's name in the moderator list.
+  /// What to show as the conversation's name in the moderator list.
   String get title => userDisplayName.isNotEmpty ? userDisplayName : userEmail;
+
+  /// Тред ли это — от этого зависят и заголовок, и то, что внутри треда нельзя
+  /// создать ещё один тред.
+  bool get isThread => entityType == ChatEntityType.messageThread;
 }
 
 /// A page of messages, oldest first.
 @freezed
-abstract class SupportMessagePage with _$SupportMessagePage {
-  const factory SupportMessagePage({
-    @Default(<SupportMessage>[]) List<SupportMessage> nodes,
+abstract class ChatMessagePage with _$ChatMessagePage {
+  const factory ChatMessagePage({
+    @Default(<ChatMessage>[]) List<ChatMessage> nodes,
     @Default(0) int totalCount,
     @Default(false) bool hasNextPage,
-  }) = _SupportMessagePage;
+  }) = _ChatMessagePage;
 
-  const SupportMessagePage._();
+  const ChatMessagePage._();
 
-  static SupportMessagePage parse(Map<String, dynamic> json) =>
-      SupportMessagePage(
-        nodes: _nodes(json, SupportMessage.parse),
+  static ChatMessagePage parse(Map<String, dynamic> json) =>
+      ChatMessagePage(
+        nodes: _nodes(json, ChatMessage.parse),
         totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
         hasNextPage: json['hasNextPage'] == true,
       );
@@ -272,18 +338,18 @@ abstract class SupportMessagePage with _$SupportMessagePage {
 
 /// A page of conversations for the moderator list, newest activity first.
 @freezed
-abstract class SupportThreadPage with _$SupportThreadPage {
-  const factory SupportThreadPage({
-    @Default(<SupportThread>[]) List<SupportThread> nodes,
+abstract class ChatConnection with _$ChatConnection {
+  const factory ChatConnection({
+    @Default(<Chat>[]) List<Chat> nodes,
     @Default(0) int totalCount,
     @Default(false) bool hasNextPage,
-  }) = _SupportThreadPage;
+  }) = _ChatConnection;
 
-  const SupportThreadPage._();
+  const ChatConnection._();
 
-  static SupportThreadPage parse(Map<String, dynamic> json) =>
-      SupportThreadPage(
-        nodes: _nodes(json, SupportThread.parse),
+  static ChatConnection parse(Map<String, dynamic> json) =>
+      ChatConnection(
+        nodes: _nodes(json, Chat.parse),
         totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
         hasNextPage: json['hasNextPage'] == true,
       );

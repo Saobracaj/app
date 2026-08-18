@@ -9,10 +9,11 @@ import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/notifications/data/notification_permissions.dart';
-import 'package:saobracaj/support_chat/data/support_chat_repository.dart';
-import 'package:saobracaj/support_chat/models/support_chat_update.dart';
-import 'package:saobracaj/support_chat/state_management/support_chat_bloc.dart';
-import 'package:saobracaj/support_chat/state_management/support_chat_events.dart';
+import 'package:saobracaj/chat/data/chat_repository.dart';
+import 'package:saobracaj/chat/models/chat_target.dart';
+import 'package:saobracaj/chat/models/chat_update.dart';
+import 'package:saobracaj/chat/state_management/chat_bloc.dart';
+import 'package:saobracaj/chat/state_management/chat_events.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Живое обновление чата с разработчиком: сообщения и галочки прочтения
@@ -55,23 +56,19 @@ class _FakeApi implements HttpClientAdapter {
 
     final Map<String, dynamic> data;
     switch (operation) {
-      case 'MySupportThread':
-        data = {'mySupportThread': _thread()};
-      case 'SupportThread':
-        data = {'supportThread': _thread()};
-      case 'MySupportMessages':
-      case 'SupportMessages':
-        data = {
-          operation == 'MySupportMessages'
-                  ? 'mySupportMessages'
-                  : 'supportMessages':
-              _page(variables),
-        };
-      case 'MarkSupportThreadRead':
+      case 'MySupportChat':
+        data = {'mySupportChat': _thread()};
+      case 'Chat':
+        data = {'chat': _thread()};
+      case 'Me':
+        data = {'me': const {'id': 'u1', 'email': 'u@e', 'permissions': []}};
+      case 'ChatMessages':
+        data = {'chatMessages': _page(variables)};
+      case 'MarkChatRead':
         markReadCalls++;
-        data = {'markSupportThreadRead': 1};
-      case 'SendSupportMessage':
-        data = {'sendSupportMessage': messages.last};
+        data = {'markChatRead': 1};
+      case 'SendChatMessage':
+        data = {'sendChatMessage': messages.last};
       default:
         data = {};
     }
@@ -170,14 +167,14 @@ Map<String, dynamic> _message(
   'attachments': const [],
 };
 
-({SupportChatBloc bloc, _FakeApi api, _Connector sockets}) _bloc(
+({ChatBloc bloc, _FakeApi api, _Connector sockets}) _bloc(
   _FakeApi api, {
-  String? threadId,
+  ChatTarget? target,
 }) {
   final storage = TokenStorage();
   final client = GraphqlClient(storage, dio: Dio()..httpClientAdapter = api);
   final connector = _Connector();
-  final repository = SupportChatRepository(
+  final repository = ChatRepository(
     client,
     GraphqlSubscriptionClient(
       client,
@@ -188,11 +185,11 @@ Map<String, dynamic> _message(
     ),
   );
   return (
-    bloc: SupportChatBloc(
+    bloc: ChatBloc(
       repository,
       const NotificationPermissions(),
       AuthRepository(client, storage, AnalyticsService()),
-      threadId,
+      target,
     ),
     api: api,
     sockets: connector,
@@ -215,8 +212,8 @@ void _push(_FakeSocket socket, {required String kind, String? messageId}) {
     'type': 'next',
     'payload': {
       'data': {
-        'supportChatEvents': {
-          'threadId': 't1',
+        'chatEvents': {
+          'chatId': 't1',
           'kind': kind,
           'messageId': messageId,
         },
@@ -238,30 +235,31 @@ void main() {
   group('разбор события подписки', () {
     test('вид изменения приходит с сервера в верхнем регистре', () {
       expect(
-        SupportChangeKind.parse('MESSAGE_ADDED'),
-        SupportChangeKind.messageAdded,
+        ChatChangeKind.parse('MESSAGE_ADDED'),
+        ChatChangeKind.messageAdded,
       );
       expect(
-        SupportChangeKind.parse('READ_STATE_CHANGED'),
-        SupportChangeKind.readStateChanged,
+        ChatChangeKind.parse('READ_STATE_CHANGED'),
+        ChatChangeKind.readStateChanged,
       );
       // Незнакомый вид — от более нового сервера; молча пропускаем.
-      expect(SupportChangeKind.parse('WAT'), isNull);
-      expect(SupportChangeKind.parse(null), isNull);
+      expect(ChatChangeKind.parse('WAT'), isNull);
+      expect(ChatChangeKind.parse(null), isNull);
     });
   });
 
   group('живое обновление переписки', () {
-    test('свой чат подписывается без id треда', () async {
+    test('свой чат подписывается по идентификатору разговора', () async {
       final (:bloc, :api, :sockets) = _bloc(
         _FakeApi(messages: [_message('m1')]),
       );
-      bloc.add(SupportChatOpened());
+      bloc.add(ChatOpened());
       await _goLive(sockets);
 
       final subscription = sockets.last.subscription!;
-      expect(subscription['payload']['query'], contains('supportChatEvents'));
-      expect(subscription['payload']['variables'], {'threadId': null});
+      expect(subscription['payload']['query'], contains('chatEvents'));
+      // Подписка идёт по идентификатору открытого разговора, каким бы он ни был.
+      expect(subscription['payload']['variables'], {'chatId': 't1'});
       expect(bloc.state.live, isTrue);
       await bloc.close();
     });
@@ -269,7 +267,7 @@ void main() {
     test('ответ разработчика появляется сам, без обновления вручную', () async {
       final api = _FakeApi(messages: [_message('m1', minute: 1)]);
       final (:bloc, api: _, :sockets) = _bloc(api);
-      bloc.add(SupportChatOpened());
+      bloc.add(ChatOpened());
       await _goLive(sockets);
       expect(bloc.state.messages.map((m) => m.id), ['m1']);
 
@@ -289,7 +287,7 @@ void main() {
     test('прочтение собеседником меняет галочки на своих сообщениях', () async {
       final api = _FakeApi(messages: [_message('m1', minute: 1)]);
       final (:bloc, api: _, :sockets) = _bloc(api);
-      bloc.add(SupportChatOpened());
+      bloc.add(ChatOpened());
       await _goLive(sockets);
       expect(bloc.state.messages.single.isRead, isFalse);
 
@@ -306,7 +304,7 @@ void main() {
     test('пользователю новое сообщение отмечается прочитанным автоматически', () async {
       final api = _FakeApi(messages: [_message('m1', minute: 1)]);
       final (:bloc, api: _, :sockets) = _bloc(api);
-      bloc.add(SupportChatOpened());
+      bloc.add(ChatOpened());
       await _goLive(sockets);
       // Одно — при открытии чата.
       expect(api.markReadCalls, 1);
@@ -325,8 +323,8 @@ void main() {
 
     test('модератору новое сообщение прочитанным само не отмечается', () async {
       final api = _FakeApi(messages: [_message('m1', minute: 1)]);
-      final (:bloc, api: _, :sockets) = _bloc(api, threadId: 't1');
-      bloc.add(SupportChatOpened());
+      final (:bloc, api: _, :sockets) = _bloc(api, target: const ChatIdTarget('t1'));
+      bloc.add(ChatOpened());
       await _goLive(sockets);
       expect(api.markReadCalls, 1); // Только явное открытие переписки.
 
@@ -347,7 +345,7 @@ void main() {
     test('обрыв связи виден, а после переподключения переписка перечитывается', () async {
       final api = _FakeApi(messages: [_message('m1', minute: 1)]);
       final (:bloc, api: _, :sockets) = _bloc(api);
-      bloc.add(SupportChatOpened());
+      bloc.add(ChatOpened());
       await _goLive(sockets);
       expect(bloc.state.live, isTrue);
 
@@ -376,7 +374,7 @@ void main() {
         ],
       );
       final (:bloc, api: _, :sockets) = _bloc(api);
-      bloc.add(SupportChatOpened());
+      bloc.add(ChatOpened());
       await _settle();
 
       expect(api.lastOffset, 70);
@@ -389,12 +387,12 @@ void main() {
     test('своё отправленное сообщение не задваивается событием подписки', () async {
       final api = _FakeApi(messages: [_message('m1', minute: 1)]);
       final (:bloc, api: _, :sockets) = _bloc(api);
-      bloc.add(SupportChatOpened());
+      bloc.add(ChatOpened());
       await _goLive(sockets);
 
       api.messages = [_message('m1', minute: 1), _message('m2', minute: 2)];
-      bloc.add(SupportChatBodyChanged('привет'));
-      bloc.add(SupportChatSendPressed());
+      bloc.add(ChatBodyChanged('привет'));
+      bloc.add(ChatSendPressed());
       await _settle();
       expect(bloc.state.messages.map((m) => m.id), ['m1', 'm2']);
 
@@ -410,7 +408,7 @@ void main() {
       final (:bloc, :api, :sockets) = _bloc(
         _FakeApi(messages: [_message('m1')]),
       );
-      bloc.add(SupportChatOpened());
+      bloc.add(ChatOpened());
       await _goLive(sockets);
 
       await bloc.close();
