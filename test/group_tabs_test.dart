@@ -28,13 +28,15 @@ import 'package:saobracaj/question_lists/data/shared_lists_repository.dart';
 import 'package:saobracaj/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Экран группы: лента событий и разговор — две вкладки одного экрана
-/// (задача 1217568064138007), а не экран и кнопка в его шапке.
+/// Экран группы: разговор и лента событий — две вкладки одного экрана
+/// (задача 1217568064138007), а не экран и кнопка в его шапке. Чат идёт
+/// первым и открывается по умолчанию (задача 1217634641911230).
 ///
-/// Проверяется то, что в этой перестановке легко сломать: что чат не
-/// открывается вместе с группой (открытие помечает сообщения прочитанными,
-/// значок непрочитанного обнулился бы сам собой), что вкладка — настоящий
-/// адрес, и что переключение туда-обратно не перечитывает ленту заново.
+/// Проверяется то, что в этой перестановке легко сломать: что группа
+/// открывается на разговоре, что вкладка — настоящий адрес, что переключение
+/// туда-обратно не перечитывает ленту заново и что заход сразу на ленту чат не
+/// трогает (открытие помечает сообщения прочитанными, значок непрочитанного
+/// обнулился бы сам собой).
 
 /// Сервер одной группы с одним событием и одним сообщением в чате.
 class _FakeApi implements HttpClientAdapter {
@@ -132,7 +134,10 @@ class _FakeApi implements HttpClientAdapter {
 /// Приложение из одних только маршрутов группы — и это настоящие маршруты
 /// приложения, а не их копия: вкладки задаются в `routes.dart`, проверять надо
 /// именно их.
-({Widget app, RoutemasterDelegate router}) _app(_FakeApi api) {
+({Widget app, RoutemasterDelegate router}) _app(
+  _FakeApi api, {
+  String start = '/groups/g1/feed',
+}) {
   final storage = TokenStorage();
   // Запросы не склеиваются в один документ: фейковый сервер отвечает по имени
   // операции, а `_Batch` ему не по зубам.
@@ -170,7 +175,7 @@ class _FakeApi implements HttpClientAdapter {
   final router = RoutemasterDelegate(
     routesBuilder: (_) => RouteMap(
       routes: {
-        '/': (_) => const Redirect('/groups/g1/feed'),
+        '/': (_) => Redirect(start),
         for (final path in const [
           '/groups/:id/feed',
           '/groups/:id/feed/events',
@@ -234,7 +239,7 @@ void main() {
 
   tearDown(() => getIt.reset());
 
-  testWidgets('у группы две вкладки, и чат открывается только своей', (
+  testWidgets('группа открывается на чате, вторая вкладка — события', (
     tester,
   ) async {
     final api = _FakeApi();
@@ -242,34 +247,46 @@ void main() {
     await tester.pumpWidget(app);
     await _load(
       tester,
-      until: () => find.textContaining('Мила').evaluate().isNotEmpty,
-    );
-
-    // Обе вкладки на месте, открыта лента.
-    expect(find.text('События'), findsOneWidget);
-    expect(find.text('Чат'), findsOneWidget);
-    expect(find.textContaining('Мила'), findsWidgets);
-    // Главное: разговор не открыт. Открытие помечает сообщения прочитанными,
-    // так что чат группы не должен трогаться, пока его вкладку не выбрали.
-    expect(api.operations, isNot(contains('GroupChat')));
-
-    await tester.tap(find.text('Чат'));
-    await _load(
-      tester,
       until: () => find.text('привет группе').evaluate().isNotEmpty,
     );
 
+    // Обе вкладки на месте, и открыт разговор: в группу заходят разговаривать.
+    expect(find.text('Чат'), findsOneWidget);
+    expect(find.text('События'), findsOneWidget);
     expect(find.text('привет группе'), findsOneWidget);
-    expect(api.operations, contains('GroupChat'));
     // Вкладка — настоящий адрес: ссылка из пуша ведёт прямо сюда.
     expect(router.currentConfiguration?.path, '/groups/g1/feed/chat');
 
-    // Возврат к событиям ленту заново не читает: её Bloc живёт над вкладками.
-    final feedRequests = api.feedRequests;
     await tester.tap(find.text('События'));
-    await _load(tester);
+    await _load(
+      tester,
+      until: () => find.textContaining('Мила').evaluate().isNotEmpty,
+    );
+
     expect(find.textContaining('Мила'), findsWidgets);
-    expect(api.feedRequests, feedRequests);
     expect(router.currentConfiguration?.path, '/groups/g1/feed/events');
+
+    // Возврат к разговору ленту заново не читает: её Bloc живёт над вкладками.
+    final feedRequests = api.feedRequests;
+    await tester.tap(find.text('Чат'));
+    await _load(tester);
+    expect(find.text('привет группе'), findsOneWidget);
+    expect(api.feedRequests, feedRequests);
+    expect(router.currentConfiguration?.path, '/groups/g1/feed/chat');
+  });
+
+  testWidgets('заход сразу на ленту разговор не открывает', (tester) async {
+    final api = _FakeApi();
+    final (:app, :router) = _app(api, start: '/groups/g1/feed/events');
+    await tester.pumpWidget(app);
+    await _load(
+      tester,
+      until: () => find.textContaining('Мила').evaluate().isNotEmpty,
+    );
+
+    expect(router.currentConfiguration?.path, '/groups/g1/feed/events');
+    // Главное: разговор не открыт. Открытие помечает сообщения прочитанными,
+    // так что чат группы не должен трогаться, пока его вкладку не выбрали.
+    expect(api.operations, isNot(contains('GroupChat')));
   });
 }

@@ -123,12 +123,13 @@ void main() {
     ]);
   });
 
-  test('экран группы — две вкладки: события и чат', () {
+  test('экран группы — две вкладки: чат и события', () {
     // Вкладки — настоящие адреса (TabPage), поэтому ссылка на разговор
     // открывает его вкладкой внутри группы, а не отдельным экраном поверх неё.
+    // Чат идёт первым: группа открывается на разговоре.
     final page = _build('/groups/g1/feed');
     expect(page, isA<TabPage>());
-    expect((page! as TabPage).paths, ['events', 'chat']);
+    expect((page! as TabPage).paths, ['chat', 'events']);
     expect(_build('/groups/g1/feed/events'), isA<MaterialPage>());
     expect(_build('/groups/g1/feed/chat'), isA<MaterialPage>());
     // Вопросы события и управление группой остаются НАД экраном группы: внутри
