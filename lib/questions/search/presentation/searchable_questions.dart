@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/categories.dart';
+import 'package:saobracaj/core/presentation/dismiss_focus.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/questions/presentation/question_list_tile.dart';
 import 'package:saobracaj/questions/questions_page.dart';
@@ -55,68 +56,75 @@ class _SearchableQuestionsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (wide) {
-      return Column(
+      // Нажатие мимо поля поиска (по пустому месту шапки, списка категорий или
+      // результатов) снимает фокус — иначе на мобильных клавиатура остаётся
+      // висеть над результатами.
+      return DismissFocusOnTap(
+        child: Column(
+          children: [
+            QuestionsWideHeader(
+              showTitle: showTitle,
+              trailing: const _SearchField(),
+            ),
+            BlocBuilder<QuestionSearchBloc, QuestionSearchState>(
+              builder: (context, state) {
+                if (!state.isActive || state.matchCount == 0) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: _ResultsCount(count: state.matchCount),
+                );
+              },
+            ),
+            Expanded(
+              child: BlocBuilder<QuestionSearchBloc, QuestionSearchState>(
+                builder: (context, state) {
+                  if (!state.isActive) {
+                    return const Padding(
+                      padding: EdgeInsets.only(top: 26),
+                      child: Categories(wide: true),
+                    );
+                  }
+                  if (state.groups.isEmpty) return const _NoResults();
+                  return ReadableWidth(
+                    child: _SearchResults(groups: state.groups),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return DismissFocusOnTap(
+      child: Column(
         children: [
-          QuestionsWideHeader(
-            showTitle: showTitle,
-            trailing: const _SearchField(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: _SearchField(),
           ),
           BlocBuilder<QuestionSearchBloc, QuestionSearchState>(
             builder: (context, state) {
+              // When there are no hits the `_NoResults` placeholder already
+              // conveys that, so the count line only shows for non-empty results.
               if (!state.isActive || state.matchCount == 0) {
                 return const SizedBox.shrink();
               }
-              return Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: _ResultsCount(count: state.matchCount),
-              );
+              return _ResultsCount(count: state.matchCount);
             },
           ),
           Expanded(
             child: BlocBuilder<QuestionSearchBloc, QuestionSearchState>(
               builder: (context, state) {
-                if (!state.isActive) {
-                  return const Padding(
-                    padding: EdgeInsets.only(top: 26),
-                    child: Categories(wide: true),
-                  );
-                }
+                if (!state.isActive) return const Categories();
                 if (state.groups.isEmpty) return const _NoResults();
-                return ReadableWidth(
-                  child: _SearchResults(groups: state.groups),
-                );
+                return _SearchResults(groups: state.groups);
               },
             ),
           ),
         ],
-      );
-    }
-    return Column(
-      children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: _SearchField(),
-        ),
-        BlocBuilder<QuestionSearchBloc, QuestionSearchState>(
-          builder: (context, state) {
-            // When there are no hits the `_NoResults` placeholder already
-            // conveys that, so the count line only shows for non-empty results.
-            if (!state.isActive || state.matchCount == 0) {
-              return const SizedBox.shrink();
-            }
-            return _ResultsCount(count: state.matchCount);
-          },
-        ),
-        Expanded(
-          child: BlocBuilder<QuestionSearchBloc, QuestionSearchState>(
-            builder: (context, state) {
-              if (!state.isActive) return const Categories();
-              if (state.groups.isEmpty) return const _NoResults();
-              return _SearchResults(groups: state.groups);
-            },
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -218,6 +226,9 @@ class _SearchResults extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
+      // Пролистывание результатов — тоже способ сказать «я закончил печатать»:
+      // клавиатура уходит, освобождая пол-экрана под сами результаты.
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       children: [
         for (final group in groups) ...[
           const SizedBox(height: 16),
