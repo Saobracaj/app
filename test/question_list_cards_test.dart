@@ -71,7 +71,7 @@ void main() {
   group('onListColor', () {
     test('на тёмном цвете — белый, на светлом — чёрный', () {
       // Жёлтый из палитры списков: белая иконка на нём не читается.
-      expect(onListColor(const Color(0xFFFDD835)), Colors.black);
+      expect(onListColor(const Color(0xFFFDD835)), Colors.black87);
       expect(onListColor(const Color(0xFF3949AB)), Colors.white);
     });
   });
