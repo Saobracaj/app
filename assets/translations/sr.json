@@ -359,6 +359,11 @@
     "chronicMistakes": "Честе грешке",
     "personalWeakSpots": "Моје слабе тачке",
     "questionsCount": "Питања: {}",
+    "questionsPlural": {
+      "one": "{} питање",
+      "few": "{} питања",
+      "other": "{} питања"
+    },
     "create": "Направи листу",
     "createTitle": "Нова листа",
     "editTitle": "Измена листе",

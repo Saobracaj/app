@@ -350,6 +350,10 @@
     "chronicMistakes": "Chronic mistakes",
     "personalWeakSpots": "Personal weak spots",
     "questionsCount": "Questions: {}",
+    "questionsPlural": {
+      "one": "{} question",
+      "other": "{} questions"
+    },
     "create": "Create a list",
     "createTitle": "New list",
     "editTitle": "Edit list",

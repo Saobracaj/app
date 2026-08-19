@@ -72,7 +72,7 @@ class QuestionListsSection extends StatelessWidget {
                     : null,
               ),
               ResponsiveGrid(
-                minItemWidth: 232,
+                minItemWidth: 176,
                 children: [
                   for (final list in lists)
                     QuestionListChip(
@@ -101,24 +101,30 @@ class QuestionListsSection extends StatelessWidget {
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: [
-                  for (final list in lists)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: QuestionListChip(
-                        list: list,
-                        onTap: () => Routemaster.of(
-                          context,
-                        ).push('/lists/${Uri.encodeComponent(list.id)}'),
+              // Плитки в ленте выравниваются по самой высокой: у списка с
+              // названием в две строки карточка выше, и без растягивания ряд
+              // выглядел бы рваным (в макете плитки — flex-строка).
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final list in lists)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: QuestionListChip(
+                          list: list,
+                          onTap: () => Routemaster.of(
+                            context,
+                          ).push('/lists/${Uri.encodeComponent(list.id)}'),
+                        ),
                       ),
-                    ),
-                  if (customEnabled)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 4),
-                      child: _CreateListChip(),
-                    ),
-                ],
+                    if (customEnabled)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 4),
+                        child: _CreateListChip(),
+                      ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -138,8 +144,8 @@ Future<void> _createList(BuildContext context) async {
   bloc.add(QuestionListCreated(name: draft.name, color: draft.color));
 }
 
-/// One list rendered as a compact card: a round colour/icon avatar, the list's
-/// title and how many questions it holds.
+/// Одна плитка списка по карточке дизайн-системы «Списки вопросов»:
+/// иконка-тайл сверху, под ней название и счётчик вопросов.
 class QuestionListChip extends StatelessWidget {
   const QuestionListChip({
     super.key,
@@ -152,7 +158,7 @@ class QuestionListChip extends StatelessWidget {
   final VoidCallback? onTap;
 
   /// В сетке широкого экрана карточка занимает всю ячейку, а не фиксированные
-  /// 160 логических пикселей ленты.
+  /// [kListCardWidth] логических пикселей ленты.
   final bool expand;
 
   @override
@@ -161,45 +167,39 @@ class QuestionListChip extends StatelessWidget {
     // Material с InkWell внутри, а не InkWell поверх непрозрачного Container:
     // иначе hover-подсветка рисуется под карточкой и не видна.
     return Material(
-      color: expand
-          ? theme.colorScheme.surface
-          : theme.colorScheme.surfaceContainerHighest,
+      color: theme.colorScheme.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: expand
-            ? BorderSide(color: theme.colorScheme.outlineVariant)
-            : BorderSide.none,
+        borderRadius: BorderRadius.circular(kListCardRadius),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Container(
-          width: expand ? null : 160,
-          padding: expand
-              ? const EdgeInsets.all(14)
-              : const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
+          width: expand ? null : kListCardWidth,
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               QuestionListAvatar(list: list),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      list.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelLarge,
-                    ),
-                    Text(
-                      LocaleKeys.questionLists_questionsCount.tr(
-                        args: ['${list.questionIds.length}'],
-                      ),
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
+              const SizedBox(height: 8),
+              Text(
+                list.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  height: 1.25,
+                ),
+              ),
+              Text(
+                LocaleKeys.questionLists_questionsPlural.plural(
+                  list.questionIds.length,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -210,10 +210,16 @@ class QuestionListChip extends StatelessWidget {
   }
 }
 
-/// The round leading avatar of a list: the user's colour for a custom list, the
-/// theme colour plus a glyph for an automatic one.
+/// Ширина плитки в горизонтальной ленте (`flex:0 0 150px` в макете).
+const double kListCardWidth = 150;
+
+/// Скругление плитки списка (`border-radius:18px`).
+const double kListCardRadius = 18;
+
+/// Иконка-тайл списка: скруглённый квадрат в цвете списка с иконкой в парном
+/// on-цвете (см. [QuestionListX.avatarColors]).
 class QuestionListAvatar extends StatelessWidget {
-  const QuestionListAvatar({super.key, required this.list, this.size = 32});
+  const QuestionListAvatar({super.key, required this.list, this.size = 30});
 
   final QuestionList list;
   final double size;
@@ -221,16 +227,18 @@ class QuestionListAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final icon = list.icon;
+    final colors = list.avatarColors(context);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: list.avatarColor(context),
-        shape: BoxShape.circle,
+        color: colors.background,
+        // Пропорция макета: тайл 30×30 со скруглением 10.
+        borderRadius: BorderRadius.circular(size / 3),
       ),
       child: icon == null
           ? null
-          : Icon(icon, size: size * 0.55, color: Colors.white),
+          : Icon(icon, size: size * 0.55, color: colors.foreground),
     );
   }
 }
@@ -246,23 +254,28 @@ class _CreateListChip extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(kListCardRadius),
+        side: BorderSide(color: theme.colorScheme.outlineVariant, width: 1.5),
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () => _createList(context),
         child: Container(
-          width: 160,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
+          width: kListCardWidth,
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: theme.colorScheme.outlineVariant,
+                    width: 1.5,
+                  ),
                 ),
                 child: Icon(
                   Icons.add,
@@ -270,13 +283,14 @@ class _CreateListChip extends StatelessWidget {
                   color: theme.colorScheme.primary,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  LocaleKeys.questionLists_create.tr(),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelLarge,
+              const SizedBox(height: 8),
+              Text(
+                LocaleKeys.questionLists_create.tr(),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  height: 1.25,
                 ),
               ),
             ],
