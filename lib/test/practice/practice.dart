@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saobracaj/core/keyboard_hints.dart';
+import 'package:saobracaj/core/swipe_pagination.dart';
 import 'package:saobracaj/core/keyboard_pagination.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
@@ -510,9 +511,16 @@ class _QuestionContent extends StatelessWidget {
                 ],
               );
 
-              final scrollable = SingleChildScrollView(
-                controller: scrollController,
-                child: content,
+              // Свайп по телу вопроса листает его так же, как «претходно /
+              // следеће питање» и стрелки; кнопки прибитой к низу панели
+              // (широкий экран) остаются вне жеста.
+              final scrollable = SwipePagination(
+                onPrevious: examActions.previous,
+                onNext: examActions.next,
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: content,
+                ),
               );
 
               return KeyboardPagination(
