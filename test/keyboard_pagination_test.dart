@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/core/keyboard_pagination.dart';
+import 'package:saobracaj/core/question_pager.dart';
 import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
@@ -123,6 +124,13 @@ Widget _practice({
 Future<void> _press(WidgetTester tester, LogicalKeyboardKey key) async {
   await tester.sendKeyEvent(key);
   await tester.pump();
+}
+
+/// То же в тренажёре, где вопросы листает [QuestionPager]: следующий вопрос
+/// приезжает анимацией, а не подменяется за один кадр.
+Future<void> _pressQuest(WidgetTester tester, LogicalKeyboardKey key) async {
+  await _press(tester, key);
+  await tester.pumpAndSettle();
 }
 
 /// Симуляция экзамена тикает секундным таймером, так что `pumpAndSettle` тут
@@ -518,7 +526,7 @@ void main() {
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pump();
 
-      await _press(tester, LogicalKeyboardKey.arrowRight);
+      await _pressQuest(tester, LogicalKeyboardKey.arrowRight);
       await tester.pumpAndSettle();
       expect(find.text('Питање 2 / 3'), findsOneWidget);
     });
@@ -529,25 +537,25 @@ void main() {
       expect(find.text('Питање 1 / 3'), findsOneWidget);
 
       // ← на первом вопросе — некуда.
-      await _press(tester, LogicalKeyboardKey.arrowLeft);
+      await _pressQuest(tester, LogicalKeyboardKey.arrowLeft);
       expect(find.text('Питање 1 / 3'), findsOneWidget);
 
       // → без выбора — пропуск вопроса, как кнопкой «Следеће».
-      await _press(tester, LogicalKeyboardKey.arrowRight);
+      await _pressQuest(tester, LogicalKeyboardKey.arrowRight);
       expect(find.text('Питање 2 / 3'), findsOneWidget);
       expect(find.text('Питање број 2'), findsOneWidget);
 
       // Фокус остался у обработчика и после смены вопроса.
-      await _press(tester, LogicalKeyboardKey.arrowRight);
+      await _pressQuest(tester, LogicalKeyboardKey.arrowRight);
       expect(find.text('Питање 3 / 3'), findsOneWidget);
 
       // → на последнем — не завершает прогон и не открывает диалог.
-      await _press(tester, LogicalKeyboardKey.arrowRight);
+      await _pressQuest(tester, LogicalKeyboardKey.arrowRight);
       await tester.pump();
       expect(find.text('Питање 3 / 3'), findsOneWidget);
       expect(find.byType(AlertDialog), findsNothing);
 
-      await _press(tester, LogicalKeyboardKey.arrowLeft);
+      await _pressQuest(tester, LogicalKeyboardKey.arrowLeft);
       expect(find.text('Питање 2 / 3'), findsOneWidget);
     });
 
@@ -564,7 +572,7 @@ void main() {
         isFalse,
       );
 
-      await _press(tester, LogicalKeyboardKey.space);
+      await _pressQuest(tester, LogicalKeyboardKey.space);
       await tester.pumpAndSettle();
       expect(
         tester.widget<AnswerOptionCard>(card('Тачан одговор 1')).revealed,
@@ -576,7 +584,7 @@ void main() {
       expect(reveal.onPressed, isNull);
 
       // Повторный пробел после раскрытия ничего не ломает.
-      await _press(tester, LogicalKeyboardKey.space);
+      await _pressQuest(tester, LogicalKeyboardKey.space);
       await tester.pumpAndSettle();
       expect(find.text('Питање 1 / 3'), findsOneWidget);
     });
@@ -589,7 +597,7 @@ void main() {
 
       await tester.tap(find.text('Нетачан одговор 1'));
       await tester.pump();
-      await _press(tester, LogicalKeyboardKey.arrowRight);
+      await _pressQuest(tester, LogicalKeyboardKey.arrowRight);
       await tester.pumpAndSettle();
 
       expect(find.text('Питање 1 / 3'), findsOneWidget);
@@ -597,7 +605,7 @@ void main() {
       expect(find.byIcon(Icons.check), findsOneWidget);
 
       // Уже раскрыто — → идёт дальше.
-      await _press(tester, LogicalKeyboardKey.arrowRight);
+      await _pressQuest(tester, LogicalKeyboardKey.arrowRight);
       await tester.pumpAndSettle();
       expect(find.text('Питање 2 / 3'), findsOneWidget);
     });

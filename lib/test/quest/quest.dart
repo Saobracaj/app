@@ -7,7 +7,7 @@ import 'package:saobracaj/core/keyboard_hints.dart';
 import 'package:saobracaj/core/keyboard_pagination.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
-import 'package:saobracaj/core/swipe_pagination.dart';
+import 'package:saobracaj/core/question_pager.dart';
 import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/dictionary/dict_links.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
@@ -105,172 +105,269 @@ class Quest extends StatelessWidget {
             subcategory,
             presentation: options.presentation,
           ),
-          child: BlocBuilder<QuestBloc, QuestState>(
-            builder: (context, state) {
-              final questBloc = context.read<QuestBloc>();
-              // One description of the run, shared by the progress strip and
-              // whoever else needs it, so they cannot drift apart.
-              final entries = [
-                for (var i = 0; i < state.questions.length; i++)
-                  _entryFor(state, qs, i),
-              ];
-              if (state.finalizeTest) {
-                context.read<AllQuestionsBloc>().add(LoadStatistics());
-                // The answers just recorded change the automatic
-                // "recent mistakes" list on the home screen.
-                context.read<QuestionListsBloc>().add(QuestionListsRefreshed());
-                return FinalizeTestWidget();
-              }
-              final currentId = state.questions[state.currentQuestionIndex];
-              final question = qs.firstWhere(
-                (element) => element.id == currentId,
-              );
-              return MultiBlocProvider(
-                // Deliberately NOT keyed by question: the blocs live for the
-                // whole run and are reset through QuestionChanged /
-                // ResetTranslation below. Recreating the subtree per question
-                // (the old approach) also recreated the progress strip, which
-                // killed its collapse animation on every jump.
-                providers: [
-                  BlocProvider(create: (context) => TranslationsBloc()),
-                  // Hoisted above the Scaffold so the app bar and the pinned
-                  // bottom bar see the selection / reveal state too.
-                  BlocProvider(
-                    create: (context) => QuestContentBloc(
-                      {...question.choices},
-                      state.answers[currentId] ?? answers ?? {},
-                      currentId,
-                      revealAnswers: openChat || revealAnswers,
-                      presentation: options.presentation,
-                    ),
-                  ),
-                ],
-                child: BlocListener<QuestBloc, QuestState>(
-                  listenWhen: (prev, curr) =>
-                      prev.currentQuestionIndex != curr.currentQuestionIndex,
-                  listener: (context, state) {
-                    // Selection state must not leak between questions (and the
-                    // RU toggle deliberately resets).
-                    final id = state.questions[state.currentQuestionIndex];
-                    final q = qs.firstWhere((element) => element.id == id);
-                    context.read<QuestContentBloc>().add(
-                      QuestionChanged(
-                        {...q.choices},
-                        state.answers[id] ?? {},
-                        id,
-                      ),
-                    );
-                    context.read<TranslationsBloc>().add(ResetTranslation());
-                  },
-                  child: Builder(
-                    builder: (context) {
-                      final wide = context.isExpandedScreen;
-                      final first = state.currentQuestionIndex == 0;
-                      final last =
-                          state.currentQuestionIndex ==
-                          state.questions.length - 1;
-                      // Один набор действий на все способы листать вопросы:
-                      // кнопки нижней панели, клавиши ← / → / пробел и свайпы
-                      // (→ записывает выбор, как «Дальше»; на последнем
-                      // вопросе вперёд идти некуда — завершение прогона
-                      // остаётся за явным нажатием кнопки).
-                      final actions = QuestActions(context, question);
-                      final content = wide
-                          ? _WideQuestBody(
-                              key: ValueKey(currentId),
-                              question: question,
-                              first: first,
-                              last: last,
-                              openChat: openChat,
-                              chatMessageId: chatMessageId,
-                            )
-                          : ListView(
-                              // Короткий вопрос тоже должен отзываться на
-                              // потяг — иначе полосу не раскрыть жестом.
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              children: [
-                                QuestionContent(
-                                  key: ValueKey(currentId),
-                                  question: question,
-                                  openChat: openChat,
-                                  chatMessageId: chatMessageId,
-                                ),
-                              ],
-                            );
-                      // Свайп листает вопросы теми же путями, что кнопки и
-                      // стрелки: жест висит на теле вопроса, шапка, полоса
-                      // прогресса и нижняя панель остаются на месте.
-                      final body = SwipePagination(
-                        onPrevious: first ? null : actions.previous,
-                        onNext: last ? null : actions.next,
-                        child: content,
-                      );
-                      final bottomBar = wide
-                          // На широком экране действия стоят прямо под
-                          // вариантами ответа (см. _WideQuestBody) — мышью до
-                          // прибитой к низу окна панели тянуться неудобно.
-                          ? null
-                          : QuestBottomBar(
-                              question: question,
-                              first: first,
-                              last: last,
-                            );
-                      final pagination = QuestionPagination(
-                        entries: entries,
-                        currentQuestionId: currentId,
-                        onQuestionSelected: (picked) =>
-                            questBloc.add(MoveToQuestion(picked)),
-                      );
-                      // Низ экрана: панель действий (на узком экране),
-                      // на вебе — пагинация и под ней мелкая подсказка,
-                      // что теми же путями ходят ← / → и пробел. Если
-                      // собирать нечего (широкий экран вне веба) —
-                      // панели нет вовсе.
-                      final bottomChildren = <Widget>[
-                        ?bottomBar,
-                        if (kIsWeb) pagination,
-                        if (KeyboardHints.visible)
-                          KeyboardHints(navigation: state.questions.length > 1),
-                      ];
-                      return KeyboardPagination(
-                        onPrevious: first ? null : actions.previous,
-                        onNext: last ? null : actions.next,
-                        onShowAnswer: actions.showAnswer,
-                        child: Scaffold(
-                          appBar: QuestAppBar(
-                            questionNumber: state.currentQuestionIndex + 1,
-                            questionCount: state.questions.length,
-                            points: question.points,
-                            questionId: currentId,
-                            categoryId: question.categoryId,
-                          ),
-                          // Полоса закреплена под шапкой, а её раскрытием
-                          // управляют жесты тела: потяг вниз у самого верха
-                          // раскрывает навигатор, прокрутка вверх — сворачивает.
-                          // На вебе полосы нет: там мышь, и вместо жеста внизу
-                          // страницы стоит раскрытая пагинация (см. ниже).
-                          body: kIsWeb
-                              ? body
-                              : QuestionProgressHeader(
-                                  entries: entries,
-                                  currentQuestionId: currentId,
-                                  onQuestionSelected: (picked) =>
-                                      questBloc.add(MoveToQuestion(picked)),
-                                  child: body,
-                                ),
-                          bottomNavigationBar: bottomChildren.isEmpty
-                              ? null
-                              : Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: bottomChildren,
-                                ),
-                        ),
-                      );
-                    },
-                  ),
+          child: _QuestRun(
+            questions: qs,
+            options: options,
+            openChat: openChat,
+            chatMessageId: chatMessageId,
+            revealAnswers: revealAnswers,
+            answers: answers,
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Прогон вопросов: страницы-вопросы под общей шапкой, полосой прогресса и
+/// нижней панелью.
+///
+/// Stateful ради трёх вещей, которые обязаны пережить перестройку экрана:
+/// листалки ([QuestionPager] со своим `PageController`), непрерывного
+/// положения между вопросами (по нему полоса прогресса ведёт подсветку) и
+/// блоков содержимого — по одному на вопрос.
+///
+/// Блок на вопрос, а не один на прогон: страницы живут рядом, сосед виден уже
+/// во время свайпа, и его выбор нельзя держать в общем блоке. Заодно это
+/// чинит и старую потерю состояния — вернувшись к вопросу свайпом назад,
+/// пользователь застаёт его таким, каким оставил (выбор на месте, раскрытый
+/// ответ раскрыт), а не сброшенным.
+class _QuestRun extends StatefulWidget {
+  const _QuestRun({
+    required this.questions,
+    required this.options,
+    required this.openChat,
+    required this.chatMessageId,
+    required this.revealAnswers,
+    required this.answers,
+  });
+
+  /// Весь банк вопросов (с уже перемешанными вариантами, если так просили) —
+  /// прогон берёт из него свои по id.
+  final List<Question> questions;
+  final StartTestState options;
+
+  /// Как открыли экран: см. одноимённые поля [Quest]. Всё это относится
+  /// только к первому вопросу прогона — дальше пользователь листает сам.
+  final bool openChat;
+  final String? chatMessageId;
+  final bool revealAnswers;
+  final Set<Choice>? answers;
+
+  @override
+  State<_QuestRun> createState() => _QuestRunState();
+}
+
+class _QuestRunState extends State<_QuestRun> {
+  final _contentBlocs = <int, QuestContentBloc>{};
+
+  /// Положение прогона между вопросами (0 — первый, 1.5 — ровно между вторым
+  /// и третьим): его ведёт листалка, а читает полоса прогресса.
+  final _position = ValueNotifier<double>(0);
+
+  @override
+  void dispose() {
+    for (final bloc in _contentBlocs.values) {
+      bloc.close();
+    }
+    _position.dispose();
+    super.dispose();
+  }
+
+  Question _question(int id) =>
+      widget.questions.firstWhere((element) => element.id == id);
+
+  /// Блок вопроса [id], один на весь прогон. Первый вопрос получает то, с чем
+  /// экран открыли (глубокая ссылка в обсуждение, предпросмотр с уже
+  /// раскрытым ответом), остальные — только записанный ранее ответ.
+  QuestContentBloc _contentBloc(QuestState state, int id) {
+    return _contentBlocs.putIfAbsent(id, () {
+      final initial = state.questions.first == id;
+      return QuestContentBloc(
+        {..._question(id).choices},
+        state.answers[id] ?? (initial ? widget.answers : null) ?? {},
+        id,
+        revealAnswers: initial && (widget.openChat || widget.revealAnswers),
+        presentation: widget.options.presentation,
+      );
+    });
+  }
+
+  /// Прогон уехал с вопроса [index] свайпом: записываем выбор ровно так же,
+  /// как это делает кнопка «Дальше» (неполный набор — подсказка и ничего не
+  /// записываем, неверный — записываем и раскрываем верные ответы, только
+  /// уже на оставленной позади странице).
+  void _recordOnLeave(BuildContext context, QuestState state, int index) {
+    if (index < 0 || index >= state.questions.length) return;
+    final id = state.questions[index];
+    final bloc = _contentBlocs[id];
+    if (bloc == null) return;
+    // Тот же выбор уже записан — второй попытки в статистике быть не должно
+    // (вопрос можно листать туда-сюда сколько угодно).
+    final recorded = state.answers[id];
+    if (recorded != null && setEquals(recorded, bloc.state.selectedChoices)) {
+      return;
+    }
+    QuestActions(context, _question(id), content: bloc).submit();
+  }
+
+  /// Страница одного вопроса — со своим блоком содержимого и своей
+  /// прокруткой.
+  Widget _page(BuildContext context, QuestState state, int index) {
+    final id = state.questions[index];
+    final question = _question(id);
+    // Глубокая ссылка ведёт в обсуждение конкретного вопроса — открывать ту
+    // же вкладку на всех следующих не за чем.
+    final deepLink = widget.openChat && state.questions.first == id;
+    return BlocProvider.value(
+      value: _contentBloc(state, id),
+      child: context.isExpandedScreen
+          ? _WideQuestBody(
+              question: question,
+              first: index == 0,
+              last: index == state.questions.length - 1,
+              openChat: deepLink,
+              chatMessageId: deepLink ? widget.chatMessageId : null,
+            )
+          : ListView(
+              // Короткий вопрос тоже должен отзываться на потяг — иначе полосу
+              // прогресса не раскрыть жестом.
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                QuestionContent(
+                  question: question,
+                  openChat: deepLink,
+                  chatMessageId: deepLink ? widget.chatMessageId : null,
                 ),
-              );
-            },
+              ],
+            ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<QuestBloc, QuestState>(
+      builder: (context, state) {
+        final questBloc = context.read<QuestBloc>();
+        // One description of the run, shared by the progress strip and
+        // whoever else needs it, so they cannot drift apart.
+        final entries = [
+          for (var i = 0; i < state.questions.length; i++)
+            _entryFor(state, widget.questions, i),
+        ];
+        if (state.finalizeTest) {
+          context.read<AllQuestionsBloc>().add(LoadStatistics());
+          // The answers just recorded change the automatic
+          // "recent mistakes" list on the home screen.
+          context.read<QuestionListsBloc>().add(QuestionListsRefreshed());
+          return FinalizeTestWidget();
+        }
+        final currentId = state.questions[state.currentQuestionIndex];
+        final question = _question(currentId);
+        return MultiBlocProvider(
+          // Перевод — на весь прогон (и сбрасывается при переходе), а блок
+          // содержимого текущего вопроса поднят над Scaffold, чтобы шапка и
+          // прибитая к низу панель видели выбор и раскрытие. Сам блок при
+          // этом принадлежит прогону, а не этому месту дерева, — той же
+          // страницей он выдаётся и внутри листалки.
+          providers: [
+            BlocProvider(create: (context) => TranslationsBloc()),
+            BlocProvider.value(value: _contentBloc(state, currentId)),
+          ],
+          child: BlocListener<QuestBloc, QuestState>(
+            listenWhen: (prev, curr) =>
+                prev.currentQuestionIndex != curr.currentQuestionIndex,
+            // РУ-подстрочник новый вопрос встречает выключенным.
+            listener: (context, state) =>
+                context.read<TranslationsBloc>().add(ResetTranslation()),
+            child: Builder(
+              builder: (context) {
+                final wide = context.isExpandedScreen;
+                final first = state.currentQuestionIndex == 0;
+                final last =
+                    state.currentQuestionIndex == state.questions.length - 1;
+                // Один набор действий на все способы листать вопросы: кнопки
+                // нижней панели и клавиши ← / → / пробел. Свайп идёт своим
+                // путём — страница едет за пальцем, и остановить её на
+                // полпути нельзя, — поэтому он только записывает выбор
+                // (см. [_recordOnLeave]).
+                final actions = QuestActions(context, question);
+                final body = QuestionPager(
+                  index: state.currentQuestionIndex,
+                  itemCount: state.questions.length,
+                  position: _position,
+                  onIndexChanged: (index) =>
+                      questBloc.add(MoveToQuestion(state.questions[index])),
+                  onLeaving: (index) => _recordOnLeave(context, state, index),
+                  itemBuilder: (context, index) => _page(context, state, index),
+                );
+                final bottomBar = wide
+                    // На широком экране действия стоят прямо под вариантами
+                    // ответа (см. _WideQuestBody) — мышью до прибитой к низу
+                    // окна панели тянуться неудобно.
+                    ? null
+                    : QuestBottomBar(
+                        question: question,
+                        first: first,
+                        last: last,
+                      );
+                final pagination = QuestionPagination(
+                  entries: entries,
+                  currentQuestionId: currentId,
+                  onQuestionSelected: (picked) =>
+                      questBloc.add(MoveToQuestion(picked)),
+                );
+                // Низ экрана: панель действий (на узком экране),
+                // на вебе — пагинация и под ней мелкая подсказка,
+                // что теми же путями ходят ← / → и пробел. Если
+                // собирать нечего (широкий экран вне веба) —
+                // панели нет вовсе.
+                final bottomChildren = <Widget>[
+                  ?bottomBar,
+                  if (kIsWeb) pagination,
+                  if (KeyboardHints.visible)
+                    KeyboardHints(navigation: state.questions.length > 1),
+                ];
+                return KeyboardPagination(
+                  onPrevious: first ? null : actions.previous,
+                  onNext: last ? null : actions.next,
+                  onShowAnswer: actions.showAnswer,
+                  child: Scaffold(
+                    appBar: QuestAppBar(
+                      questionNumber: state.currentQuestionIndex + 1,
+                      questionCount: state.questions.length,
+                      points: question.points,
+                      questionId: currentId,
+                      categoryId: question.categoryId,
+                    ),
+                    // Полоса закреплена под шапкой, а её раскрытием
+                    // управляют жесты тела: потяг вниз у самого верха
+                    // раскрывает навигатор, прокрутка вверх — сворачивает.
+                    // Прокрутка вопроса приходит к ней через листалку, то
+                    // есть на уровень глубже (scrollDepth). На вебе полосы
+                    // нет: там мышь, и вместо жеста внизу страницы стоит
+                    // раскрытая пагинация (см. ниже).
+                    body: kIsWeb
+                        ? body
+                        : QuestionProgressHeader(
+                            entries: entries,
+                            currentQuestionId: currentId,
+                            position: _position,
+                            scrollDepth: 1,
+                            onQuestionSelected: (picked) =>
+                                questBloc.add(MoveToQuestion(picked)),
+                            child: body,
+                          ),
+                    bottomNavigationBar: bottomChildren.isEmpty
+                        ? null
+                        : Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: bottomChildren,
+                          ),
+                  ),
+                );
+              },
+            ),
           ),
         );
       },
@@ -310,7 +407,6 @@ QuestionNavigatorEntry _entryFor(
 /// they don't push the answers off screen either.
 class _WideQuestBody extends StatelessWidget {
   const _WideQuestBody({
-    super.key,
     required this.question,
     required this.first,
     required this.last,
