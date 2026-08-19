@@ -34,3 +34,11 @@ class MessageThreadTarget extends ChatTarget {
   const MessageThreadTarget(this.messageId);
   final String messageId;
 }
+
+/// Обсуждение вопроса — чат на странице самого вопроса. Разговор может ещё не
+/// существовать: бэкенд создаёт его при первом открытии, поэтому цель хранит
+/// номер вопроса, а не идентификатор чата.
+class QuestionChatTarget extends ChatTarget {
+  const QuestionChatTarget(this.questionId);
+  final int questionId;
+}

@@ -43,8 +43,8 @@ class Quest extends StatelessWidget {
     required this.questions,
     required this.options,
     this.subcategory,
-    this.openComments = false,
-    this.commentThreadId,
+    this.openChat = false,
+    this.chatMessageId,
     this.revealAnswers = false,
     this.answers,
   });
@@ -55,8 +55,8 @@ class Quest extends StatelessWidget {
 
   /// Deep-link support: open straight into the discussion tab (revealing the
   /// feature tabs) and, optionally, expand/scroll to a specific thread.
-  final bool openComments;
-  final String? commentThreadId;
+  final bool openChat;
+  final String? chatMessageId;
 
   /// Start with the answers already revealed, and with [answers] preselected —
   /// how the question preview sheet hands a question it has already been
@@ -140,7 +140,7 @@ class Quest extends StatelessWidget {
                       {...question.choices},
                       state.answers[currentId] ?? answers ?? {},
                       currentId,
-                      revealAnswers: openComments || revealAnswers,
+                      revealAnswers: openChat || revealAnswers,
                       presentation: options.presentation,
                     ),
                   ),
@@ -181,8 +181,8 @@ class Quest extends StatelessWidget {
                               question: question,
                               first: first,
                               last: last,
-                              openComments: openComments,
-                              commentThreadId: commentThreadId,
+                              openChat: openChat,
+                              chatMessageId: chatMessageId,
                             )
                           : ListView(
                               // Короткий вопрос тоже должен отзываться на
@@ -192,8 +192,8 @@ class Quest extends StatelessWidget {
                                 QuestionContent(
                                   key: ValueKey(currentId),
                                   question: question,
-                                  openComments: openComments,
-                                  commentThreadId: commentThreadId,
+                                  openChat: openChat,
+                                  chatMessageId: chatMessageId,
                                 ),
                               ],
                             );
@@ -314,15 +314,15 @@ class _WideQuestBody extends StatelessWidget {
     required this.question,
     required this.first,
     required this.last,
-    required this.openComments,
-    required this.commentThreadId,
+    required this.openChat,
+    required this.chatMessageId,
   });
 
   final Question question;
   final bool first;
   final bool last;
-  final bool openComments;
-  final String? commentThreadId;
+  final bool openChat;
+  final String? chatMessageId;
 
   @override
   Widget build(BuildContext context) {
@@ -353,8 +353,8 @@ class _WideQuestBody extends StatelessWidget {
                       children: [
                         QuestionContent(
                           question: question,
-                          openComments: openComments,
-                          commentThreadId: commentThreadId,
+                          openChat: openChat,
+                          chatMessageId: chatMessageId,
                           showFeatureTabs: false,
                         ),
                         QuestBottomBar(
@@ -397,11 +397,11 @@ class _WideQuestBody extends StatelessWidget {
                       QuestionFeaturesTabs(
                         questionId: question.id,
                         categoryId: question.categoryId,
-                        initialFeature: openComments
+                        initialFeature: openChat
                             ? AppFeature.publicQuestionComments
                             : null,
-                        commentThreadId: openComments ? commentThreadId : null,
-                        autoScroll: openComments,
+                        chatMessageId: openChat ? chatMessageId : null,
+                        autoScroll: openChat,
                       ),
                       const SizedBox(height: 24),
                     ],
@@ -424,8 +424,8 @@ class QuestionContent extends StatelessWidget {
   const QuestionContent({
     super.key,
     required this.question,
-    this.openComments = false,
-    this.commentThreadId,
+    this.openChat = false,
+    this.chatMessageId,
     this.showFeatureTabs = true,
   });
 
@@ -433,8 +433,8 @@ class QuestionContent extends StatelessWidget {
 
   /// Deep-link into the discussion for this question (reveal tabs + open the
   /// comments tab and scroll to it).
-  final bool openComments;
-  final String? commentThreadId;
+  final bool openChat;
+  final String? chatMessageId;
 
   /// The wide layout hosts the tabs in its own right-hand pane and switches
   /// them off here.
@@ -557,13 +557,11 @@ class QuestionContent extends StatelessWidget {
                             child: QuestionFeaturesTabs(
                               questionId: question.id,
                               categoryId: question.categoryId,
-                              initialFeature: openComments
+                              initialFeature: openChat
                                   ? AppFeature.publicQuestionComments
                                   : null,
-                              commentThreadId: openComments
-                                  ? commentThreadId
-                                  : null,
-                              autoScroll: openComments,
+                              chatMessageId: openChat ? chatMessageId : null,
+                              autoScroll: openChat,
                             ),
                           ),
                       ],

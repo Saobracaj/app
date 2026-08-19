@@ -265,38 +265,7 @@
     "hint": "Comment text (Markdown)"
   },
   "comments": {
-    "write": "Write a comment",
-    "reply": "Reply",
-    "send": "Send",
-    "showMore": "Show more",
-    "showPrevious": "Show previous replies ({})",
-    "empty": "No comments yet. Be the first!",
-    "banned": "You cannot leave comments.",
-    "anonymous": "Anonymous",
-    "deleteTitle": "Delete comment?",
     "cancel": "Cancel",
-    "delete": "Delete",
-    "subscribeTitle": "Subscribe to replies?",
-    "subscribeBody": "Get notified about new replies in this thread.",
-    "subscribeNotNow": "Not now",
-    "subscribe": "Subscribe",
-    "subscribedTooltip": "You are subscribed to replies",
-    "subscribeTooltip": "Subscribe to replies",
-    "loadError": "Failed to load comments",
-    "moderation": {
-      "title": "Comment moderation",
-      "subtitle": "Review and delete comments, bans",
-      "empty": "No comments yet.",
-      "questionLabel": "Question #{}",
-      "replyLabel": "reply",
-      "goToQuestion": "Go to question",
-      "deleteComment": "Delete comment",
-      "banUser": "Ban user",
-      "deleteTitle": "Delete comment?",
-      "banTitle": "Ban user from commenting?",
-      "banAction": "Ban",
-      "banned": "User banned from commenting."
-    },
     "displayName": {
       "title": "Display name",
       "description": "Choose a name other users will see next to your comments.",
@@ -309,15 +278,6 @@
       "errorControlChars": "Name must not contain control characters",
       "errorReserved": "This name is reserved, please choose another"
     },
-    "report": "Report",
-    "reportTitle": "Report this comment?",
-    "reportBody": "The comment will be sent to the moderators for review.",
-    "reported": "Report sent",
-    "copy": "Copy text",
-    "copied": "Text copied",
-    "subscribeThread": "Subscribe to thread",
-    "unsubscribe": "Unsubscribe from thread",
-    "replyingTo": "Replying to {}",
     "time": {
       "justNow": "just now",
       "minutes": {
@@ -340,8 +300,14 @@
         "one": "{} year ago",
         "other": "{} years ago"
       }
-    },
-    "deletedBody": "Message deleted"
+    }
+  },
+  "questionChat": {
+    "empty": "Nobody has written anything here yet. Start the discussion.",
+    "loadError": "Could not load the discussion",
+    "hint": "Write a message",
+    "noName": "Your messages are signed “No name”.",
+    "setName": "Set a name"
   },
   "questionLists": {
     "section": "Question lists",
@@ -651,20 +617,6 @@
     },
     "reportSent": "Report sent — we will look into it",
     "tooManyAttachments": "One message takes at most 15 files"
-  },
-  "questionFeedback": {
-    "report": "Report a problem",
-    "title": "Report a problem",
-    "whatIsWrong": "What is wrong?",
-    "hint": "Describe what is wrong here",
-    "send": "Send",
-    "cancel": "Cancel",
-    "notify": "Notify me about the reply",
-    "notifyHint": "Notifications apply to the whole chat with the developer",
-    "notifyBlocked": "Notifications are blocked in the system settings",
-    "signInRequired": "Sign in to send a message",
-    "signIn": "Sign in",
-    "sent": "Sent to the developer"
   },
   "notFound": {
     "title": "Page not found",

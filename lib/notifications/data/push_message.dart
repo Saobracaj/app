@@ -9,7 +9,7 @@ import '../../core/deep_links.dart';
 /// The backend (`base_rust_backend`, `FcmV1Sender`) sends the title and body in
 /// the FCM `notification` block and the deep link — when there is one — as
 /// `data.link`. The link takes any of the shapes the backend produces:
-///   * `saobracaj://question/123?comments=1` or `saobracaj://support` — the
+///   * `saobracaj://question/123?chat=1` or `saobracaj://support` — the
 ///     app's own scheme;
 ///   * `https://saobracaj.gleb.at/question/123` — the web address;
 ///   * `/settings` — a bare in-app path (what the test-push screen suggests),

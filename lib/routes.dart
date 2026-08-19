@@ -15,7 +15,6 @@ import 'package:saobracaj/theme/presentation/appearance_page.dart';
 import 'package:saobracaj/notifications/presentation/notifications_page.dart';
 import 'package:saobracaj/profile/presentation/display_name_page.dart';
 import 'package:saobracaj/account_deletion/presentation/account_deletion_page.dart';
-import 'package:saobracaj/public_comments/presentation/moderation_page.dart';
 import 'package:saobracaj/billing_admin/presentation/billing_admin_page.dart';
 import 'package:saobracaj/push_test/presentation/test_push_page.dart';
 import 'package:saobracaj/groups/presentation/group_feed_page.dart';
@@ -95,7 +94,7 @@ final routes = RouteMap(
     },
     '/quest': questPage,
     // Deep link to a single question's discussion:
-    // saobracaj://question/{id}?comments=1&thread={topCommentId}
+    // saobracaj://question/{id}?chat=1&message={chatMessageId}
     '/question/:id': questCommentsPage,
     '/question/:id/zakon': zakonPage,
     '/quest/zakon': zakonPage,
@@ -244,7 +243,6 @@ final routes = RouteMap(
     '/displayName': (_) => const MaterialPage(child: DisplayNamePage()),
     // Удаление аккаунта: чек-лист контента, согласия, код из письма.
     '/deleteAccount': (_) => const MaterialPage(child: AccountDeletionPage()),
-    '/moderation': (_) => const MaterialPage(child: ModerationPage()),
     // Денежный стол оператора (право `manage_billing` проверяет бэкенд).
     '/billing': (_) => const MaterialPage(child: BillingAdminPage()),
     // Инструмент администратора: ставит один тестовый пуш в очередь. Пункт в
@@ -289,17 +287,24 @@ final routes = RouteMap(
 );
 
 /// Deep link into a single question opened straight on its discussion tab.
-/// Path: `/question/{id}`; query `comments=1` opens the comments tab and
-/// scrolls to it, `thread={topCommentId}` expands that thread.
+///
+/// Path: `/question/{id}`; query `chat=1` opens the discussion tab and scrolls
+/// to it, `message={chatMessageId}` reveals and highlights one message inside
+/// it (the address a notification about a reply carries).
+///
+/// `comments=1` и `thread=` — те же два параметра под старыми именами: по ним
+/// в оповещениях, разосланных до перехода обсуждений на чат, ссылки продолжают
+/// открывать вкладку, а не пустую страницу.
 MaterialPage questCommentsPage(dynamic data) {
   final id = int.tryParse(data.pathParameters['id'] as String? ?? '');
-  final comments = data.queryParameters['comments'];
+  final chat = data.queryParameters['chat'] ?? data.queryParameters['comments'];
   return MaterialPage(
     child: Quest(
       options: StartTestState(random: false, randomOptionsOrder: false),
       questions: id != null ? [id] : const <int>[],
-      openComments: comments == '1' || comments == 'true',
-      commentThreadId: data.queryParameters['thread'],
+      openChat: chat == '1' || chat == 'true',
+      chatMessageId:
+          data.queryParameters['message'] ?? data.queryParameters['thread'],
     ),
   );
 }

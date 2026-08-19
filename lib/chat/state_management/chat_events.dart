@@ -11,6 +11,10 @@ class ChatOpened extends ChatEvent {}
 /// Pull-to-refresh / retry after an error.
 class ChatRefreshed extends ChatEvent {}
 
+/// Показать сообщения старше самого раннего показанного: нажали «показать
+/// ещё» или прокрутили до конца уже загруженного.
+class ChatOlderRequested extends ChatEvent {}
+
 /// The composer's text changed.
 class ChatBodyChanged extends ChatEvent {
   ChatBodyChanged(this.body);

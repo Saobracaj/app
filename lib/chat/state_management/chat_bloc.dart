@@ -53,6 +53,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatChangedRemotely>(_onChangedRemotely);
     on<ChatLiveChanged>(_onLiveChanged);
     on<ChatRefreshed>(_onRefreshed);
+    on<ChatOlderRequested>(_onOlderRequested);
     on<ChatBodyChanged>(_onBodyChanged);
     on<ChatFilePicked>(_onFilePicked);
     on<ChatPhotosPicked>(_onPhotosPicked);
@@ -132,6 +133,11 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   /// How many messages one read carries. The server caps a page at 50.
   static const pageSize = 50;
 
+  /// Смещение первого показанного сообщения от начала разговора: `0` — видно
+  /// самое первое, `null` — разговор ещё ни разу не читали. По нему и решается,
+  /// есть ли что подгружать выше.
+  int? _windowOffset;
+
   @override
   Future<void> close() {
     _live?.cancel();
@@ -158,7 +164,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     // Opening the chat is what marks the other side's messages read.
     await _markRead(emit);
 
-    if (!_isModerator) await _maybeOfferNotifications(emit);
+    // Разговор о вопросе открывается заодно с самим вопросом, а предложение
+    // про оповещения делается один раз на всё приложение: тратить его на
+    // случайную страницу нельзя — там оно и не к месту.
+    if (!_isModerator && target is! QuestionChatTarget) {
+      await _maybeOfferNotifications(emit);
+    }
   }
 
   /// Go live. A failure here is silent on purpose: a chat that cannot subscribe
@@ -271,11 +282,18 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           thread: chat,
           parentMessage: parent ?? state.parentMessage,
           messages: _merge(page.nodes),
+          hasOlder: (_windowOffset ?? 0) > 0,
         ),
       );
     } catch (e) {
       if (emit.isDone || silent) return;
-      emit(state.copyWith(loading: false, errorMessage: _message(e)));
+      emit(
+        state.copyWith(
+          loading: false,
+          errorMessage: _message(e),
+          loadFailedOffline: isNetworkError(e),
+        ),
+      );
     }
   }
 
@@ -289,6 +307,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
       ChatIdTarget(:final chatId) => _chat.chat(chatId),
       MessageThreadTarget(:final messageId) => _chat.messageThread(messageId),
       GroupChatTarget(:final groupId) => _chat.groupChat(groupId),
+      QuestionChatTarget(:final questionId) => _chat.questionChat(questionId),
     };
   }
 
@@ -317,7 +336,51 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     final offset = chat.messagesCount > pageSize
         ? chat.messagesCount - pageSize
         : 0;
+    // Сервер отдаёт не больше 50 сообщений за раз, поэтому перечитывается
+    // всегда хвост, а уже подгруженная история остаётся на экране: [_merge]
+    // хранит всё, чего в странице нет. Граница окна только опускается — вверх
+    // её двигает лишь «показать ещё».
+    _windowOffset = _windowOffset == null || offset < _windowOffset!
+        ? offset
+        : _windowOffset;
     return _chat.messages(chat.id, offset: offset, limit: pageSize);
+  }
+
+  /// Ещё одна страница — та, что старше самой старой показанной.
+  ///
+  /// Страницы у сервера считаются от начала разговора, поэтому «старше» — это
+  /// шаг назад по смещению: окно растёт вверх, к первому сообщению.
+  Future<void> _onOlderRequested(
+    ChatOlderRequested event,
+    Emitter<ChatState> emit,
+  ) async {
+    final chatId = _chatId;
+    final offset = _windowOffset;
+    if (chatId == null || offset == null || offset <= 0) return;
+    if (state.loadingOlder) return;
+    emit(state.copyWith(loadingOlder: true));
+    final next = offset > pageSize ? offset - pageSize : 0;
+    try {
+      final page = await _chat.messages(
+        chatId,
+        offset: next,
+        limit: offset - next,
+      );
+      if (emit.isDone) return;
+      _windowOffset = next;
+      emit(
+        state.copyWith(
+          loadingOlder: false,
+          messages: _merge(page.nodes),
+          hasOlder: next > 0,
+        ),
+      );
+    } catch (e) {
+      if (emit.isDone) return;
+      // Не дочитанная история — не повод рушить экран: то, что уже видно,
+      // остаётся на месте, а кнопка «показать ещё» пробует снова.
+      emit(state.copyWith(loadingOlder: false, errorMessage: _message(e)));
+    }
   }
 
   /// Fold a freshly-read page into what is on screen, keyed by id: the server's

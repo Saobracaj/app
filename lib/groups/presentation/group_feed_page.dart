@@ -7,7 +7,7 @@ import '../../core/presentation/load_failed.dart';
 import '../../core/presentation/pagination.dart';
 import '../../generated/locale_keys.g.dart';
 import '../../models/models.dart';
-import '../../public_comments/presentation/relative_time.dart';
+import '../../core/presentation/relative_time.dart';
 import '../../questions/state_management/all_questions_bloc.dart';
 import '../../test/practice/practice.dart' show formatDuration;
 import '../../test/quest/preview/question_preview_sheet.dart';
