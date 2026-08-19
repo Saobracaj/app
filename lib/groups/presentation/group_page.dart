@@ -15,23 +15,25 @@ import '../state_management/group_feed_events.dart';
 import '../state_management/group_feed_state.dart';
 import '../state_management/groups_bloc.dart';
 
-/// Экран группы: две вкладки — «События» и «Чат».
+/// Экран группы: две вкладки — «Чат» и «События».
 ///
 /// Разговор больше не спрятан за кнопкой в шапке ленты: в группе одинаково
 /// нужны обе стороны, и переключаться между ними надо одним касанием, а не
-/// открытием и закрытием отдельного экрана.
+/// открытием и закрытием отдельного экрана. Первой идёт вкладка чата, она же
+/// открывается по умолчанию: в группу заходят разговаривать, а лента событий
+/// — сводка, за которой возвращаются реже.
 ///
-/// Вкладки адресуемые (routemaster [TabPage]): у ленты свой путь
-/// `/groups/:id/feed/events`, у чата — прежний `/groups/:id/feed/chat`, так
-/// что ссылка из пуша по-прежнему открывает разговор, только уже вкладкой.
+/// Вкладки адресуемые (routemaster [TabPage]): у чата путь
+/// `/groups/:id/feed/chat`, у ленты — `/groups/:id/feed/events`, так что
+/// ссылка из пуша по-прежнему открывает разговор, только уже вкладкой.
 /// Переключение вкладки оставляет запись в истории — по той же причине, что и
 /// в нижней навигации: иначе «назад» в вебе выбрасывает с сайта.
 ///
 /// Оба Bloc'а живут здесь, над вкладками: PageView сносит невидимую вкладку с
 /// дерева, и разговор перечитывался бы целиком при каждом переключении.
-/// Провайдеры ленивые, и это важно для чата: [ChatOpened] помечает сообщения
-/// прочитанными, поэтому его Bloc должен создаваться, только когда вкладку
-/// «Чат» действительно открыли, а не когда открыли группу.
+/// Провайдеры ленивые: при переходе сразу на `/groups/:id/feed/events` вкладка
+/// чата не строится, и [ChatOpened] (он помечает сообщения прочитанными) не
+/// случается за спиной у пользователя.
 class GroupPage extends StatelessWidget {
   const GroupPage({super.key, required this.groupId});
 
@@ -65,7 +67,7 @@ class _GroupView extends StatelessWidget {
     // TabPage.of подписывает на смену вкладки: шапка меняет свои кнопки вместе
     // с ней (колокольчик — только у чата, «нет связи» — только у ленты).
     final tabs = TabPage.of(context);
-    final onChat = tabs.index == 1;
+    final onChat = tabs.index == 0;
     final feed = context.watch<GroupFeedBloc>().state;
     final group = _group(context);
     return Scaffold(
@@ -108,7 +110,6 @@ class _GroupView extends StatelessWidget {
         bottom: TabBar(
           controller: tabs.controller,
           tabs: [
-            Tab(text: LocaleKeys.groups_tabs_events.tr()),
             Tab(
               child: _ChatTabLabel(
                 // Непрочитанное берётся из myGroups: пока вкладку не открыли,
@@ -117,6 +118,7 @@ class _GroupView extends StatelessWidget {
                 unread: onChat ? 0 : (group?.chatUnreadCount ?? 0),
               ),
             ),
+            Tab(text: LocaleKeys.groups_tabs_events.tr()),
           ],
         ),
       ),
