@@ -368,6 +368,12 @@
     "chronicMistakes": "Хронические ошибки",
     "personalWeakSpots": "Личные слабые места",
     "questionsCount": "Вопросов: {}",
+    "questionsPlural": {
+      "one": "{} вопрос",
+      "few": "{} вопроса",
+      "many": "{} вопросов",
+      "other": "{} вопроса"
+    },
     "create": "Создать список",
     "createTitle": "Новый список",
     "editTitle": "Редактирование списка",

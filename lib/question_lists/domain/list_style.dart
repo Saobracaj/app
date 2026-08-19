@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 import '../../generated/locale_keys.g.dart';
+import '../../theme/quiz_colors.dart';
 import '../models/question_list.dart';
 
 /// The colours offered when creating or editing a custom list. Picked to stay
@@ -56,27 +57,71 @@ extension QuestionListX on QuestionList {
     _ => name,
   };
 
-  /// The colour of the round leading avatar: the user's pick for a custom list,
-  /// a theme colour for an automatic one — each automatic list keeps its own so
-  /// they are told apart at a glance in the row.
-  Color avatarColor(BuildContext context) {
-    if (!isAuto) return Color(color);
-    final scheme = Theme.of(context).colorScheme;
+  /// Цвет иконки-тайла и цвет самой иконки — всегда пара «цвет / on-цвет»
+  /// (требование дизайн-системы, карточка «Списки вопросов»): белая иконка
+  /// поверх `primary` не проходила по контрасту на светлом primary тёмной
+  /// схемы. Автосписки берут пары из токенов викторины и схемы, у
+  /// пользовательских списков цвет произвольный, поэтому on-цвет считается по
+  /// яркости — см. [onListColor].
+  ListAvatarColors avatarColors(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    if (!isAuto) {
+      final background = Color(color);
+      return ListAvatarColors(background, onListColor(background));
+    }
+    final quiz = theme.quiz;
+    // Каждый автосписок держит свою пару, чтобы они различались в ленте с
+    // одного взгляда.
     return switch (id) {
-      kLastExamMistakesListId => scheme.secondary,
-      kChronicMistakesListId => scheme.error,
-      kPersonalWeakSpotsListId => scheme.tertiary,
-      _ => scheme.primary,
+      kLastExamMistakesListId => ListAvatarColors(
+        scheme.secondary,
+        scheme.onSecondary,
+      ),
+      kChronicMistakesListId => ListAvatarColors(quiz.warning, quiz.onWarning),
+      kPersonalWeakSpotsListId => ListAvatarColors(
+        scheme.tertiary,
+        scheme.onTertiary,
+      ),
+      // «Последние ошибки» — ошибка викторины и по смыслу, и по цвету.
+      _ => ListAvatarColors(quiz.wrong, quiz.onWrong),
     };
   }
 
-  /// The icon inside the avatar. Automatic lists carry a meaningful glyph;
-  /// custom ones are identified by their colour alone.
+  /// Только подложка иконки — для мест, где иконка не рисуется (кружок в меню
+  /// вложений чата).
+  Color avatarColor(BuildContext context) => avatarColors(context).background;
+
+  /// The icon inside the avatar tile. Automatic lists carry a meaningful
+  /// glyph; a custom list is told apart by its colour and gets a neutral one.
   IconData? get icon => switch (id) {
     kRecentMistakesListId => Icons.error_outline,
     kLastExamMistakesListId => Icons.assignment_late_outlined,
     kChronicMistakesListId => Icons.repeat,
     kPersonalWeakSpotsListId => Icons.trending_down,
-    _ => isAuto ? Icons.list_alt : null,
+    // У пользовательского списка своей иконки нет: тайл всё равно должен
+    // читаться как иконка, а не как пустой цветной квадрат.
+    _ => isAuto ? Icons.list_alt : Icons.label_outline,
   };
+}
+
+/// Пара «цвет подложки / цвет иконки» тайла списка.
+@immutable
+class ListAvatarColors {
+  const ListAvatarColors(this.background, this.foreground);
+
+  /// Подложка тайла.
+  final Color background;
+
+  /// Цвет иконки поверх [background].
+  final Color foreground;
+}
+
+/// On-цвет к произвольному пользовательскому цвету: по воспринимаемой яркости
+/// подложки, как в swatch-сетке витрины дизайн-системы
+/// (`design-system/build_ds.py`, `is_dark`). Порог 150/255 подобран там же.
+Color onListColor(Color background) {
+  final luminance =
+      0.299 * background.r + 0.587 * background.g + 0.114 * background.b;
+  return luminance < 150 / 255 ? Colors.white : Colors.black;
 }

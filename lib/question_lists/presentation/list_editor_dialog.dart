@@ -170,8 +170,10 @@ class _ColorDot extends StatelessWidget {
                 )
               : null,
         ),
+        // Галочка берёт on-цвет к выбранному цвету: белая на жёлтом swatch'е
+        // была нечитаема.
         child: selected
-            ? const Icon(Icons.check, size: 18, color: Colors.white)
+            ? Icon(Icons.check, size: 18, color: onListColor(color))
             : null,
       ),
     );
