@@ -7,6 +7,7 @@ import 'package:saobracaj/core/keyboard_hints.dart';
 import 'package:saobracaj/core/keyboard_pagination.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
+import 'package:saobracaj/core/swipe_pagination.dart';
 import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/dictionary/dict_links.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
@@ -168,7 +169,13 @@ class Quest extends StatelessWidget {
                       final last =
                           state.currentQuestionIndex ==
                           state.questions.length - 1;
-                      final body = wide
+                      // Один набор действий на все способы листать вопросы:
+                      // кнопки нижней панели, клавиши ← / → / пробел и свайпы
+                      // (→ записывает выбор, как «Дальше»; на последнем
+                      // вопросе вперёд идти некуда — завершение прогона
+                      // остаётся за явным нажатием кнопки).
+                      final actions = QuestActions(context, question);
+                      final content = wide
                           ? _WideQuestBody(
                               key: ValueKey(currentId),
                               question: question,
@@ -190,6 +197,14 @@ class Quest extends StatelessWidget {
                                 ),
                               ],
                             );
+                      // Свайп листает вопросы теми же путями, что кнопки и
+                      // стрелки: жест висит на теле вопроса, шапка, полоса
+                      // прогресса и нижняя панель остаются на месте.
+                      final body = SwipePagination(
+                        onPrevious: first ? null : actions.previous,
+                        onNext: last ? null : actions.next,
+                        child: content,
+                      );
                       final bottomBar = wide
                           // На широком экране действия стоят прямо под
                           // вариантами ответа (см. _WideQuestBody) — мышью до
@@ -206,12 +221,6 @@ class Quest extends StatelessWidget {
                         onQuestionSelected: (picked) =>
                             questBloc.add(MoveToQuestion(picked)),
                       );
-                      // Клавиатура: ← / → листают вопросы теми же путями,
-                      // что кнопки нижней панели (→ записывает выбор, как
-                      // «Дальше»; на последнем вопросе → ничего не делает —
-                      // завершение прогона остаётся за явным нажатием
-                      // кнопки), пробел = «показать ответ».
-                      final actions = QuestActions(context, question);
                       // Низ экрана: панель действий (на узком экране),
                       // на вебе — пагинация и под ней мелкая подсказка,
                       // что теми же путями ходят ← / → и пробел. Если
