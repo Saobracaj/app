@@ -42,6 +42,25 @@ String genListId() {
   return '${hex(0, 4)}-${hex(4, 6)}-${hex(6, 8)}-${hex(8, 10)}-${hex(10, 16)}';
 }
 
+/// The readable ink for something drawn on top of [background]: whichever of
+/// white and near-black contrasts with it more. Used for the fixed
+/// [kListColors] swatches, which keep their colour in both themes — several of
+/// them sit mid-way in luminance, where `estimateBrightnessForColor` still
+/// answers "white" and the glyph is the harder one to make out (white on the
+/// yellow swatch was unreadable outright).
+Color onListColor(Color background) =>
+    _contrastRatio(Colors.black87, background) >=
+        _contrastRatio(Colors.white, background)
+    ? Colors.black87
+    : Colors.white;
+
+/// The WCAG contrast ratio between two opaque colours, `(L1 + .05) / (L2 + .05)`.
+double _contrastRatio(Color a, Color b) {
+  final la = a.computeLuminance();
+  final lb = b.computeLuminance();
+  return (max(la, lb) + 0.05) / (min(la, lb) + 0.05);
+}
+
 /// Presentation helpers shared by the home-screen chips, the list screen and the
 /// "add to list" menu.
 extension QuestionListX on QuestionList {
@@ -115,13 +134,4 @@ class ListAvatarColors {
 
   /// Цвет иконки поверх [background].
   final Color foreground;
-}
-
-/// On-цвет к произвольному пользовательскому цвету: по воспринимаемой яркости
-/// подложки, как в swatch-сетке витрины дизайн-системы
-/// (`design-system/build_ds.py`, `is_dark`). Порог 150/255 подобран там же.
-Color onListColor(Color background) {
-  final luminance =
-      0.299 * background.r + 0.587 * background.g + 0.114 * background.b;
-  return luminance < 150 / 255 ? Colors.white : Colors.black;
 }
