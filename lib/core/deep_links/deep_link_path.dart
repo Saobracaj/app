@@ -50,7 +50,6 @@ const _linkableRoots = {
   'notifications',
   'subscription',
   'tariffs',
-  'moderation',
   'billing',
 };
 

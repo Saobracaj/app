@@ -35,6 +35,7 @@ import '../chat/models/chat.dart' as _i310;
 import '../chat/models/chat_target.dart' as _i329;
 import '../chat/state_management/chat_bloc.dart' as _i373;
 import '../chat/state_management/chat_image_bloc.dart' as _i968;
+import '../chat/state_management/question_chat_count_bloc.dart' as _i67;
 import '../chat/state_management/support_chats_bloc.dart' as _i667;
 import '../feature_flags/data/feature_flags_repository.dart' as _i389;
 import '../feature_flags/domain/app_feature.dart' as _i392;
@@ -51,15 +52,8 @@ import '../notifications/data/push_token_service.dart' as _i875;
 import '../notifications/state_management/notifications_bloc.dart' as _i618;
 import '../profile/data/profile_repository.dart' as _i311;
 import '../profile/state_management/display_name_bloc.dart' as _i957;
-import '../public_comments/data/public_comments_repository.dart' as _i989;
-import '../public_comments/state_management/comment_count_bloc.dart' as _i955;
-import '../public_comments/state_management/comments_bloc.dart' as _i405;
-import '../public_comments/state_management/moderation_bloc.dart' as _i515;
 import '../push_test/data/push_test_repository.dart' as _i548;
 import '../push_test/state_management/test_push_bloc.dart' as _i246;
-import '../question_feedback/domain/question_feedback_source.dart' as _i7;
-import '../question_feedback/state_management/question_feedback_bloc.dart'
-    as _i751;
 import '../question_lists/data/question_lists_repository.dart' as _i206;
 import '../question_lists/data/shared_lists_repository.dart' as _i742;
 import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
@@ -173,9 +167,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i311.ProfileRepository>(
       () => _i311.ProfileRepository(gh<_i483.GraphqlClient>()),
     );
-    gh.lazySingleton<_i989.PublicCommentsRepository>(
-      () => _i989.PublicCommentsRepository(gh<_i483.GraphqlClient>()),
-    );
     gh.lazySingleton<_i548.PushTestRepository>(
       () => _i548.PushTestRepository(gh<_i483.GraphqlClient>()),
     );
@@ -219,9 +210,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.factory<_i443.BillingAdminBloc>(
       () => _i443.BillingAdminBloc(gh<_i512.BillingAdminRepository>()),
-    );
-    gh.factory<_i515.ModerationBloc>(
-      () => _i515.ModerationBloc(gh<_i989.PublicCommentsRepository>()),
     );
     gh.lazySingleton<_i880.AuthRepository>(
       () => _i880.AuthRepository(
@@ -273,20 +261,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i388.AuthBloc>(),
       ),
     );
-    gh.factoryParam<_i405.CommentsBloc, int, String?>(
-      (questionId, threadId) => _i405.CommentsBloc(
-        gh<_i989.PublicCommentsRepository>(),
-        gh<_i311.ProfileRepository>(),
-        gh<_i388.AuthBloc>(),
-        gh<_i880.AuthRepository>(),
-        gh<_i426.NotificationPermissions>(),
-        gh<_i958.NetworkStatus>(),
-        questionId,
-        threadId,
-      ),
-    );
     gh.factory<_i957.DisplayNameBloc>(
       () => _i957.DisplayNameBloc(gh<_i311.ProfileRepository>()),
+    );
+    gh.factoryParam<_i67.QuestionChatCountBloc, int, dynamic>(
+      (questionId, _) =>
+          _i67.QuestionChatCountBloc(gh<_i299.ChatRepository>(), questionId),
     );
     gh.factoryParam<_i373.ChatBloc, _i329.ChatTarget?, dynamic>(
       (target, _) => _i373.ChatBloc(
@@ -344,20 +324,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i880.AuthRepository>(),
         gh<_i388.AuthBloc>(),
         gh<_i426.NotificationPermissions>(),
-      ),
-    );
-    gh.factoryParam<
-      _i751.QuestionFeedbackBloc,
-      int,
-      _i7.QuestionFeedbackSource
-    >(
-      (questionId, source) => _i751.QuestionFeedbackBloc(
-        gh<_i299.ChatRepository>(),
-        gh<_i426.NotificationPermissions>(),
-        gh<_i880.AuthRepository>(),
-        gh<_i388.AuthBloc>(),
-        questionId,
-        source,
       ),
     );
     gh.factoryParam<_i718.SharedListBloc, String, dynamic>(
@@ -425,13 +391,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i388.AuthBloc>(),
         gh<_i389.FeatureFlagsRepository>(),
         gh<_i958.NetworkStatus>(),
-      ),
-    );
-    gh.factoryParam<_i955.CommentCountBloc, int, dynamic>(
-      (questionId, _) => _i955.CommentCountBloc(
-        gh<_i989.PublicCommentsRepository>(),
-        gh<_i388.AuthBloc>(),
-        questionId,
       ),
     );
     return this;

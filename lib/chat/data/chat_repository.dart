@@ -68,6 +68,19 @@ class ChatRepository {
     }
   ''';
 
+  static const _questionChatQuery =
+      '''
+    query QuestionChat(\$questionId: String!) {
+      chatFor(entityType: QUESTION, entityId: \$questionId) { $_chatFields }
+    }
+  ''';
+
+  static const _questionChatCountQuery = '''
+    query QuestionChatMessageCount(\$questionId: Int!) {
+      questionChatMessageCount(questionId: \$questionId)
+    }
+  ''';
+
   static final _messagesQuery =
       '''
     query ChatMessages(\$chatId: ID!, \$offset: Int, \$limit: Int) {
@@ -208,6 +221,29 @@ class ChatRepository {
       authenticated: true,
     );
     return Chat.parse((data['chatFor'] as Map).cast<String, dynamic>());
+  }
+
+  /// Обсуждение вопроса: один разговор на вопрос, общий для всех. Бэкенд
+  /// создаёт его при первом открытии — как и у группы, «открыть» и «создать»
+  /// здесь одно и то же.
+  Future<Chat> questionChat(int questionId) async {
+    final data = await _client.run(
+      _questionChatQuery,
+      variables: {'questionId': '$questionId'},
+      authenticated: true,
+    );
+    return Chat.parse((data['chatFor'] as Map).cast<String, dynamic>());
+  }
+
+  /// Сколько сообщений в обсуждении вопроса — для значка на вкладке. Не
+  /// создаёт разговора: у вопроса, о котором ещё не говорили, это ноль.
+  Future<int> questionChatMessageCount(int questionId) async {
+    final data = await _client.run(
+      _questionChatCountQuery,
+      variables: {'questionId': questionId},
+      authenticated: true,
+    );
+    return (data['questionChatMessageCount'] as num?)?.toInt() ?? 0;
   }
 
   /// A page of one conversation's messages, oldest first.

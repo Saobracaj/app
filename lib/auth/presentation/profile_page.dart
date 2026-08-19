@@ -16,7 +16,6 @@ import '../../notifications/presentation/notifications_page.dart';
 import '../../profile/presentation/display_name_page.dart';
 import '../../profile/state_management/display_name_bloc.dart';
 import '../../profile/state_management/display_name_events.dart';
-import '../../public_comments/presentation/moderation_page.dart';
 import '../../push_test/presentation/test_push_page.dart';
 import '../../subscription/presentation/subscription_page.dart';
 import '../../chat/presentation/chat_page.dart';
@@ -141,7 +140,6 @@ class ProfilePage extends StatelessWidget {
     SettingsSection.notifications => const NotificationsPage(),
     SettingsSection.supportChat => const ChatPage(),
     SettingsSection.supportThreads => const SupportChatsPage(),
-    SettingsSection.moderation => const ModerationPage(),
     SettingsSection.billing => const BillingAdminPage(),
     SettingsSection.testPush => const TestPushPage(),
     SettingsSection.features => const FeatureFlagsPage(),
@@ -237,15 +235,6 @@ class ProfilePage extends StatelessWidget {
           icon: Icons.inbox_outlined,
           title: 'support.threadsTitle'.tr(),
           subtitle: 'support.threadsSubtitle'.tr(),
-        ),
-      // Moderation is gated on the backend `moderate_comments`
-      // permission, so the entry only appears for moderators.
-      if (permissions.contains('moderate_comments'))
-        _SettingsEntry(
-          section: SettingsSection.moderation,
-          icon: Icons.shield_outlined,
-          title: LocaleKeys.comments_moderation_title.tr(),
-          subtitle: LocaleKeys.comments_moderation_subtitle.tr(),
         ),
       // Денежный стол: заказы, подтверждение оплаты, подписки вручную,
       // тарифы и реквизиты. Гейт — бэкендовое право `manage_billing`; оно
@@ -431,10 +420,6 @@ class _SectionPanel extends StatelessWidget {
       SettingsSection.supportThreads => const SurfaceCard(
         padding: EdgeInsets.symmetric(vertical: 8),
         child: SupportChatsContent(),
-      ),
-      SettingsSection.moderation => const SurfaceCard(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: ModerationContent(),
       ),
       SettingsSection.billing => const SurfaceCard(
         padding: EdgeInsets.symmetric(vertical: 8),

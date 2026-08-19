@@ -5,7 +5,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
 import '../../core/navigation.dart';
-import '../../public_comments/presentation/relative_time.dart';
+import '../../generated/locale_keys.g.dart';
+import '../../core/presentation/relative_time.dart';
 import '../models/chat.dart';
 import '../models/chat_target.dart';
 import '../state_management/chat_bloc.dart';
@@ -232,7 +233,7 @@ class _ChatBody extends StatelessWidget {
                     : _MessageList(state: state),
               ),
             ),
-            _Composer(state: state, focusComposer: focusComposer),
+            ChatComposer(state: state, focusComposer: focusComposer),
           ],
         );
       },
@@ -370,7 +371,7 @@ class _MessageList extends StatelessWidget {
             final parent = state.parentMessage;
             return parent == null
                 ? const SizedBox.shrink()
-                : _MessageBubble(
+                : ChatMessageBubble(
                     message: parent,
                     mine: state.isMine(parent),
                     // Родитель показан как есть: свайп и «ответить» на нём
@@ -393,7 +394,7 @@ class _MessageList extends StatelessWidget {
           }
         }
         final message = messages[position - header];
-        return _MessageBubble(
+        return ChatMessageBubble(
           message: message,
           mine: state.isMine(message),
           inThread: state.isThread,
@@ -443,8 +444,13 @@ String authorName(ChatMessage message) {
       : 'support.unknownUser'.tr();
 }
 
-class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({
+/// Пузырь одного сообщения — реакции, меню по долгому тапу, свайп «ответить».
+///
+/// Публичный: те же сообщения показывает и чат на странице вопроса, и
+/// переписывать их вёрстку второй раз незачем. Берёт [ChatBloc] из контекста.
+class ChatMessageBubble extends StatelessWidget {
+  const ChatMessageBubble({
+    super.key,
     required this.message,
     required this.mine,
     this.inThread = false,
@@ -937,8 +943,14 @@ Future<void> openMessageThread(
   if (!bloc.isClosed) bloc.add(ChatRefreshed());
 }
 
-class _Composer extends StatelessWidget {
-  const _Composer({required this.state, this.focusComposer = false});
+/// Строка ввода сообщения — вложения, правка, отправка. Публичная по той же
+/// причине, что и [ChatMessageBubble].
+class ChatComposer extends StatelessWidget {
+  const ChatComposer({
+    super.key,
+    required this.state,
+    this.focusComposer = false,
+  });
   final ChatState state;
   final bool focusComposer;
 
@@ -1030,9 +1042,12 @@ class _Composer extends StatelessWidget {
                   child: _ComposerField(
                     autofocus: focusComposer,
                     text: state.body,
-                    hintText: state.thread?.isGroupChat ?? false
-                        ? 'groups.chat.hint'.tr()
-                        : 'support.hint'.tr(),
+                    hintText: switch (state.thread?.entityType) {
+                      ChatEntityType.question =>
+                        LocaleKeys.questionChat_hint.tr(),
+                      ChatEntityType.group => 'groups.chat.hint'.tr(),
+                      _ => 'support.hint'.tr(),
+                    },
                     onChanged: (value) => bloc.add(ChatBodyChanged(value)),
                     onSend: send,
                   ),

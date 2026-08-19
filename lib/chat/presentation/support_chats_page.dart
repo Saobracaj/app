@@ -4,7 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
-import '../../public_comments/presentation/relative_time.dart';
+import '../../core/presentation/relative_time.dart';
 import '../state_management/support_chats_bloc.dart';
 import '../state_management/support_chats_events.dart';
 import '../state_management/support_chats_state.dart';
@@ -35,8 +35,7 @@ class SupportChatsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) =>
-          getIt<SupportChatsBloc>()..add(SupportChatsRequested()),
+      create: (_) => getIt<SupportChatsBloc>()..add(SupportChatsRequested()),
       child: const _SupportChatsView(),
     );
   }
@@ -81,13 +80,12 @@ class _SupportChatsView extends StatelessWidget {
                 SupportChatsState(loading: true) => const Center(
                   child: CircularProgressIndicator(),
                 ),
-                SupportChatsState(errorMessage: final String message) =>
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(message, textAlign: TextAlign.center),
-                    ),
+                SupportChatsState(errorMessage: final String message) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(message, textAlign: TextAlign.center),
                   ),
+                ),
                 SupportChatsState(threads: final threads)
                     when threads.isEmpty =>
                   Center(child: Text('support.noThreads'.tr())),

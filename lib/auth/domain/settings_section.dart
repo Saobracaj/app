@@ -7,6 +7,7 @@
 /// разделам так же, как по остальным экранам.
 enum SettingsSection {
   profile('profile'),
+
   /// Только в вебе: текущий тариф, срок действия и заказы. В мобильных
   /// сборках пункт не показывается — подписка там не упоминается вовсе.
   subscription('subscription'),
@@ -14,7 +15,7 @@ enum SettingsSection {
   notifications('notifications'),
   supportChat('support'),
   supportThreads('support-threads'),
-  moderation('moderation'),
+
   /// Денежный стол — админка платежей и подписок для держателей
   /// `manage_billing` (перенесена из Angular-панели).
   billing('billing'),

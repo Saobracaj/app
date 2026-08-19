@@ -32,6 +32,11 @@ abstract class ChatState with _$ChatState {
     ChatMessage? editing,
     @Default(<ChatMessage>[]) List<ChatMessage> messages,
 
+    /// Выше показанного есть ещё история: подгружается по «показать ещё» и
+    /// сама, когда читатель до неё прокрутил.
+    @Default(false) bool hasOlder,
+    @Default(false) bool loadingOlder,
+
     /// Composer text.
     @Default('') String body,
 
@@ -47,6 +52,10 @@ abstract class ChatState with _$ChatState {
     @Default(0.0) double uploadProgress,
     @Default(false) bool sending,
     String? errorMessage,
+
+    /// Первое чтение не удалось из-за отсутствия связи, а не из-за отказа
+    /// сервера: блок «не удалось загрузить» рисует облачко, а не крестик.
+    @Default(false) bool loadFailedOffline,
 
     /// Show the "turn notifications on?" offer (owner's side, asked once).
     @Default(false) bool notificationsPrompt,

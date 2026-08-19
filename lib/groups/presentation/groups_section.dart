@@ -9,7 +9,7 @@ import '../../core/presentation/wide_layout.dart';
 import '../../feature_flags/domain/app_feature.dart';
 import '../../feature_flags/presentation/feature_gate.dart';
 import '../../generated/locale_keys.g.dart';
-import '../../public_comments/presentation/relative_time.dart';
+import '../../core/presentation/relative_time.dart';
 import '../models/group.dart';
 import '../models/group_event.dart' show groupEventIsWorthShowing;
 import '../state_management/groups_bloc.dart';

@@ -6,12 +6,10 @@ import '../../../../core/di.dart';
 import '../../../../feature_flags/domain/app_feature.dart';
 import '../../../../generated/locale_keys.g.dart';
 import '../../../../feature_flags/state_management/feature_flags_bloc.dart';
-import '../../../../public_comments/presentation/public_comments_widget.dart';
-import '../../../../public_comments/state_management/comment_count_bloc.dart';
-import '../../../../public_comments/state_management/comment_count_events.dart';
-import '../../../../public_comments/state_management/comment_count_state.dart';
-import '../../../../question_feedback/domain/question_feedback_source.dart';
-import '../../../../question_feedback/presentation/report_problem_button.dart';
+import '../../../../chat/presentation/question_chat_section.dart';
+import '../../../../chat/state_management/question_chat_count_bloc.dart';
+import '../../../../chat/state_management/question_chat_count_events.dart';
+import '../../../../chat/state_management/question_chat_count_state.dart';
 import '../../comment/comment_widget/comment_widget.dart';
 import '../ask_ai/presentation/ask_ai_chat_section.dart';
 import '../state_management/question_features_bloc.dart';
@@ -39,7 +37,7 @@ class QuestionFeaturesTabs extends StatelessWidget {
     required this.questionId,
     required this.categoryId,
     this.initialFeature,
-    this.commentThreadId,
+    this.chatMessageId,
     this.autoScroll = false,
   });
 
@@ -49,10 +47,11 @@ class QuestionFeaturesTabs extends StatelessWidget {
   /// category's konspekt.
   final String categoryId;
 
-  /// Deep-link support: the tab to pre-select (e.g. the discussion), the thread
-  /// to expand inside it, and whether to scroll this panel into view on open.
+  /// Deep-link support: the tab to pre-select (e.g. the discussion), the chat
+  /// message to reveal inside it, and whether to scroll this panel into view on
+  /// open.
   final AppFeature? initialFeature;
-  final String? commentThreadId;
+  final String? chatMessageId;
   final bool autoScroll;
 
   /// The per-question features, in the order their tabs appear.
@@ -78,22 +77,22 @@ class QuestionFeaturesTabs extends StatelessWidget {
 
     // Honour a deep-linked initial tab only when that feature is actually
     // visible to this user.
-    final initial =
-        (initialFeature != null && enabled.contains(initialFeature))
-            ? initialFeature
-            : null;
+    final initial = (initialFeature != null && enabled.contains(initialFeature))
+        ? initialFeature
+        : null;
 
     return MultiBlocProvider(
       providers: [
         BlocProvider(
           create: (_) => getIt<QuestionFeaturesBloc>(param1: initial),
         ),
-        // The tab badge only needs the scalar top-level count; kept apart from
-        // the full comments Bloc scoped inside the discussion tab.
+        // Значку нужен один скаляр, поэтому он читается отдельно от чата,
+        // живущего внутри самой вкладки.
         if (enabled.contains(AppFeature.publicQuestionComments))
           BlocProvider(
-            create: (_) => getIt<CommentCountBloc>(param1: questionId)
-              ..add(CommentCountRequested()),
+            create: (_) =>
+                getIt<QuestionChatCountBloc>(param1: questionId)
+                  ..add(QuestionChatCountRequested()),
           ),
         // Loads the excerpts up front: the tab is only shown once they exist.
         if (enabled.contains(AppFeature.categorySummaries))
@@ -123,7 +122,10 @@ class QuestionFeaturesTabs extends StatelessWidget {
           if (visible.isEmpty) return const SizedBox.shrink();
           // Fall back to the first visible tab, and re-anchor if the previously
           // selected tab disappeared (e.g. the user logged out).
-          final selected = (state.selected != null && visible.contains(state.selected)) ? state.selected! : visible.first;
+          final selected =
+              (state.selected != null && visible.contains(state.selected))
+              ? state.selected!
+              : visible.first;
           final card = Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: Container(
@@ -151,7 +153,7 @@ class QuestionFeaturesTabs extends StatelessWidget {
                       feature: selected,
                       questionId: questionId,
                       categoryId: categoryId,
-                      commentThreadId: commentThreadId,
+                      chatMessageId: chatMessageId,
                     ),
                   ),
                 ],
@@ -221,7 +223,7 @@ class _TabPill extends StatelessWidget {
     Widget icon = baseIcon;
     // The collapsed discussion tab still shows how much is inside it.
     if (feature == AppFeature.publicQuestionComments && !selected) {
-      icon = BlocBuilder<CommentCountBloc, CommentCountState>(
+      icon = BlocBuilder<QuestionChatCountBloc, QuestionChatCountState>(
         builder: (context, state) => Badge.count(
           count: state.count,
           isLabelVisible: state.count > 0,
@@ -256,9 +258,7 @@ class _TabPill extends StatelessWidget {
                         padding: const EdgeInsets.only(left: 7),
                         child: _TabLabel(
                           feature: feature,
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelMedium
+                          style: Theme.of(context).textTheme.labelMedium
                               ?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: color,
@@ -300,7 +300,7 @@ class _TabLabel extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       );
     }
-    return BlocBuilder<CommentCountBloc, CommentCountState>(
+    return BlocBuilder<QuestionChatCountBloc, QuestionChatCountState>(
       builder: (context, state) => Text(
         state.count > 0 ? '$label · ${state.count}' : label,
         style: style,
@@ -316,80 +316,37 @@ class _TabContent extends StatelessWidget {
     required this.feature,
     required this.questionId,
     required this.categoryId,
-    this.commentThreadId,
+    this.chatMessageId,
   });
 
   final AppFeature feature;
   final int questionId;
   final String categoryId;
-  final String? commentThreadId;
+  final String? chatMessageId;
 
   @override
   Widget build(BuildContext context) {
     switch (feature) {
-      // Объяснение, конспект и обсуждение — вкладки с чужим содержимым, в
-      // котором пользователю есть на что пожаловаться, поэтому кнопка «Сообщить
-      // об ошибке» живёт под ними (и только под ними).
       case AppFeature.questionComments:
-        return _WithReportButton(
-          questionId: questionId,
-          source: QuestionFeedbackSource.explanation,
-          child: CommentWidget(questionId: questionId),
-        );
+        return CommentWidget(questionId: questionId);
       case AppFeature.categorySummaries:
-        return _WithReportButton(
-          questionId: questionId,
-          source: QuestionFeedbackSource.summary,
-          child: QuestionKonspektTab(categoryId: categoryId),
-        );
+        return QuestionKonspektTab(categoryId: categoryId);
+      // Обсуждение вопроса — обычный чат приложения, только перевёрнутый:
+      // поле ввода сверху, под ним свежее сообщение, дальше в прошлое.
       case AppFeature.publicQuestionComments:
-        return _WithReportButton(
+        return QuestionChatSection(
           questionId: questionId,
-          source: QuestionFeedbackSource.discussion,
-          child: PublicCommentsWidget(
-            questionId: questionId,
-            threadId: commentThreadId,
-          ),
+          messageId: chatMessageId,
         );
       case AppFeature.questionAnalysis:
         return QuestionAnalysisTab(questionId: questionId);
       // Вкладка — это только чат: разбор вопроса и выдержки из закона уже есть
       // на вкладках «Объяснение» и «Конспект», дублировать их здесь незачем.
-      // Ответы AI — сгенерированный контент, в котором бывает на что
-      // пожаловаться, поэтому кнопка «Сообщить об ошибке» есть и здесь.
       case AppFeature.askAi:
-        return _WithReportButton(
-          questionId: questionId,
-          source: QuestionFeedbackSource.askAi,
-          child: AskAiChatSection(questionId: questionId),
-        );
+        return AskAiChatSection(questionId: questionId);
       default:
         return _ComingSoon(feature: feature);
     }
-  }
-}
-
-/// Содержимое вкладки с кнопкой «Сообщить об ошибке» под ним.
-class _WithReportButton extends StatelessWidget {
-  const _WithReportButton({
-    required this.questionId,
-    required this.source,
-    required this.child,
-  });
-
-  final int questionId;
-  final QuestionFeedbackSource source;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        child,
-        ReportProblemButton(questionId: questionId, source: source),
-      ],
-    );
   }
 }
 
@@ -442,11 +399,17 @@ class _ComingSoon extends StatelessWidget {
         children: [
           Icon(spec.icon, size: 40, color: scheme.outline),
           const SizedBox(height: 12),
-          Text(spec.label, style: Theme.of(context).textTheme.titleMedium, textAlign: TextAlign.center),
+          Text(
+            spec.label,
+            style: Theme.of(context).textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: 4),
           Text(
             LocaleKeys.questionTabs_comingSoon.tr(),
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
         ],
@@ -464,15 +427,25 @@ class _TabSpec {
 }
 
 _TabSpec _specFor(AppFeature feature) => switch (feature) {
-  AppFeature.questionComments =>
-    _TabSpec(Icons.sticky_note_2_outlined, LocaleKeys.questionTabs_explanation.tr()),
-  AppFeature.categorySummaries =>
-    _TabSpec(Icons.menu_book_outlined, LocaleKeys.questionTabs_konspekt.tr()),
-  AppFeature.publicQuestionComments =>
-    _TabSpec(Icons.forum_outlined, LocaleKeys.questionTabs_discussion.tr()),
-  AppFeature.questionAnalysis =>
-    _TabSpec(Icons.insights_outlined, LocaleKeys.questionTabs_analysis.tr()),
-  AppFeature.askAi =>
-    _TabSpec(Icons.auto_awesome_outlined, LocaleKeys.questionTabs_askAi.tr()),
+  AppFeature.questionComments => _TabSpec(
+    Icons.sticky_note_2_outlined,
+    LocaleKeys.questionTabs_explanation.tr(),
+  ),
+  AppFeature.categorySummaries => _TabSpec(
+    Icons.menu_book_outlined,
+    LocaleKeys.questionTabs_konspekt.tr(),
+  ),
+  AppFeature.publicQuestionComments => _TabSpec(
+    Icons.forum_outlined,
+    LocaleKeys.questionTabs_discussion.tr(),
+  ),
+  AppFeature.questionAnalysis => _TabSpec(
+    Icons.insights_outlined,
+    LocaleKeys.questionTabs_analysis.tr(),
+  ),
+  AppFeature.askAi => _TabSpec(
+    Icons.auto_awesome_outlined,
+    LocaleKeys.questionTabs_askAi.tr(),
+  ),
   _ => const _TabSpec(Icons.info_outline, ''),
 };

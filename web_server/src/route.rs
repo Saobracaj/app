@@ -166,7 +166,7 @@ mod tests {
 
     #[test]
     fn a_question_is_the_same_page_wherever_it_is_opened_from() {
-        let direct = Route::parse("/question/11", "comments=1");
+        let direct = Route::parse("/question/11", "chat=1&message=m7");
         let from_konspekt = Route::parse("/konspekt/question/11", "");
 
         assert_eq!(direct, Route::Question { id: 11 });
