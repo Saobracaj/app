@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:saobracaj/theme/quiz_colors.dart';
 
@@ -57,10 +58,21 @@ class QuestionProgressHeader extends StatefulWidget {
     required this.currentQuestionId,
     required this.onQuestionSelected,
     required this.child,
+    this.position,
+    this.scrollDepth = 0,
   });
 
   final List<QuestionNavigatorEntry> entries;
   final int currentQuestionId;
+
+  /// Непрерывное положение прогона между вопросами — см.
+  /// [QuestionProgressStrip.position].
+  final ValueListenable<double>? position;
+
+  /// На какой глубине вложенности приходит прокрутка тела вопроса. Ноль —
+  /// когда [child] и есть прокручиваемое тело; единица — когда между ними
+  /// стоит листалка вопросов (её собственная страница-прокрутка).
+  final int scrollDepth;
 
   /// Called with the id of the chip the user tapped.
   final ValueChanged<int> onQuestionSelected;
@@ -91,8 +103,10 @@ class _QuestionProgressHeaderState extends State<QuestionProgressHeader> {
     // A single-question run draws no strip, so there is nothing to toggle.
     if (widget.entries.length < 2) return false;
     // Scrollables nested in the body (the comments feed in the feature tabs)
-    // are none of the strip's business.
-    if (notification.depth != 0) return false;
+    // are none of the strip's business — как и горизонтальная прокрутка самой
+    // листалки вопросов, которая идёт с той же глубины, что и тело.
+    if (notification.depth != widget.scrollDepth) return false;
+    if (notification.metrics.axis != Axis.vertical) return false;
     if (notification is ScrollStartNotification ||
         notification is ScrollEndNotification) {
       _pullDown = 0;
@@ -147,6 +161,7 @@ class _QuestionProgressHeaderState extends State<QuestionProgressHeader> {
         QuestionProgressStrip(
           entries: widget.entries,
           currentQuestionId: widget.currentQuestionId,
+          position: widget.position,
           expanded: _expanded,
           onExpandedChanged: (value) => setState(() => _expanded = value),
           onQuestionSelected: widget.onQuestionSelected,
@@ -179,10 +194,17 @@ class QuestionProgressStrip extends StatelessWidget {
     required this.expanded,
     required this.onExpandedChanged,
     required this.onQuestionSelected,
+    this.position,
   });
 
   final List<QuestionNavigatorEntry> entries;
   final int currentQuestionId;
+
+  /// Непрерывное положение прогона между вопросами (0 — первый вопрос, 1.5 —
+  /// ровно между вторым и третьим): его отдаёт листалка, и по нему подсветка
+  /// текущего сегмента переезжает за пальцем, а не перескакивает по факту
+  /// смены вопроса. Без него подсветка стоит на [currentQuestionId].
+  final ValueListenable<double>? position;
 
   /// Whether the segments are shown as numbered chips; owned by the caller so
   /// that scroll gestures can drive it too.
@@ -209,15 +231,39 @@ class QuestionProgressStrip extends StatelessWidget {
             tween: Tween<double>(end: expanded ? 1 : 0),
             duration: _duration,
             curve: _curve,
-            builder: (context, t, _) => _layer(context, geometry, t),
+            builder: (context, t, _) {
+              final listenable = position;
+              if (listenable == null) {
+                return _layer(context, geometry, t, _currentIndex.toDouble());
+              }
+              return ValueListenableBuilder<double>(
+                valueListenable: listenable,
+                builder: (context, at, _) => _layer(context, geometry, t, at),
+              );
+            },
           );
         },
       ),
     );
   }
 
-  /// Полоса на промежуточной фазе [t] (0 — свёрнута, 1 — раскрыта).
-  Widget _layer(BuildContext context, _StripGeometry geometry, double t) {
+  /// Индекс текущего вопроса — им подсветка стоит, когда листалка своего
+  /// положения не сообщает.
+  int get _currentIndex {
+    final index = entries.indexWhere(
+      (entry) => entry.questionId == currentQuestionId,
+    );
+    return index < 0 ? 0 : index;
+  }
+
+  /// Полоса на промежуточной фазе [t] (0 — свёрнута, 1 — раскрыта), с
+  /// подсветкой в положении [at] (см. [position]).
+  Widget _layer(
+    BuildContext context,
+    _StripGeometry geometry,
+    double t,
+    double at,
+  ) {
     // A long run (145 questions in an exam category) folds into more chip
     // rows than the screen holds. Capping the navigator's height keeps the
     // question visible below it — so the usual ways to close it (scrolling
@@ -244,7 +290,7 @@ class QuestionProgressStrip extends StatelessWidget {
                 for (var i = 0; i < entries.length; i++)
                   Positioned.fromRect(
                     rect: geometry.rectAt(i, t),
-                    child: _segment(context, entries[i], t),
+                    child: _segment(context, entries[i], i, t, at),
                   ),
               ],
             ),
@@ -254,18 +300,28 @@ class QuestionProgressStrip extends StatelessWidget {
     );
   }
 
-  Widget _segment(BuildContext context, QuestionNavigatorEntry entry, double t) {
+  Widget _segment(
+    BuildContext context,
+    QuestionNavigatorEntry entry,
+    int index,
+    double t,
+    double at,
+  ) {
     final theme = Theme.of(context);
     final quiz = theme.quiz;
     final scheme = theme.colorScheme;
     final isCurrent = entry.questionId == currentQuestionId;
-    final (background, foreground) = isCurrent
-        ? (scheme.primary, scheme.onPrimary)
-        : switch (entry.status) {
-            QuestionStatus.unanswered => (quiz.unanswered, quiz.onUnanswered),
-            QuestionStatus.correct => (quiz.correct, quiz.onCorrect),
-            QuestionStatus.wrong => (quiz.wrong, quiz.onWrong),
-          };
+    final (statusBackground, statusForeground) = switch (entry.status) {
+      QuestionStatus.unanswered => (quiz.unanswered, quiz.onUnanswered),
+      QuestionStatus.correct => (quiz.correct, quiz.onCorrect),
+      QuestionStatus.wrong => (quiz.wrong, quiz.onWrong),
+    };
+    // Подсветка не перескакивает с сегмента на сегмент, а переезжает: на
+    // полпути между вопросами оба соседа подсвечены наполовину, и полоса
+    // идёт ровно за пальцем, который тянет страницу.
+    final accent = (1 - (index - at).abs()).clamp(0.0, 1.0);
+    final background = Color.lerp(statusBackground, scheme.primary, accent)!;
+    final foreground = Color.lerp(statusForeground, scheme.onPrimary, accent)!;
 
     return GestureDetector(
       onTap: () {

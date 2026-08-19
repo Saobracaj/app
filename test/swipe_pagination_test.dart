@@ -17,15 +17,14 @@ import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/test/practice/practice.dart';
 import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
-import 'package:saobracaj/test/quest/quest.dart';
-import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 import 'package:saobracaj/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Свайпы по вопросам (задача 1217568064138016): протяжка влево — следующий
-/// вопрос, вправо — предыдущий, и в тренажёре ([Quest]), и в симуляции
-/// экзамена ([Practice]). Плюс сам [SwipePagination]: что он считает свайпом,
-/// а что обязан оставить прокрутке, выделению текста и мыши.
+/// вопрос, вправо — предыдущий. Здесь — сам [SwipePagination] (что он считает
+/// свайпом, а что обязан оставить прокрутке, выделению текста и мыши) и
+/// симуляция экзамена, которая им листается. Тренажёр с тех пор переехал на
+/// настоящий [PageView] — см. `question_pager_test.dart`.
 
 class _StubAllQuestionsBloc extends AllQuestionsBloc {
   _StubAllQuestionsBloc(this._data);
@@ -100,13 +99,6 @@ Widget _app(Widget home) {
     ),
   );
 }
-
-Widget _quest() => _app(
-  Quest(
-    options: StartTestState(random: false, randomOptionsOrder: false),
-    questions: const [1, 2, 3],
-  ),
-);
 
 Widget _practice() => _app(
   Practice(
@@ -338,52 +330,6 @@ void main() {
 
       await _swipe(tester, find.byType(ListView), distance: -240);
       expect(log, ['next']);
-    });
-  });
-
-  group('Тренажёр (Quest)', () {
-    testWidgets('свайпы листают вопросы, на краях — ничего', (tester) async {
-      await tester.pumpWidget(_quest());
-      await tester.pumpAndSettle();
-      expect(find.text('Питање 1 / 3'), findsOneWidget);
-
-      // Вправо на первом вопросе — некуда.
-      await _swipe(tester, find.text('Питање број 1'), distance: 240);
-      expect(find.text('Питање 1 / 3'), findsOneWidget);
-
-      // Влево без выбора — пропуск вопроса, как кнопкой «Следеће».
-      await _swipe(tester, find.text('Питање број 1'), distance: -240);
-      expect(find.text('Питање 2 / 3'), findsOneWidget);
-      expect(find.text('Питање број 2'), findsOneWidget);
-
-      await _swipe(tester, find.text('Питање број 2'), distance: -240);
-      expect(find.text('Питање 3 / 3'), findsOneWidget);
-
-      // Влево на последнем — не завершает прогон и не открывает диалог.
-      await _swipe(tester, find.text('Питање број 3'), distance: -240);
-      expect(find.text('Питање 3 / 3'), findsOneWidget);
-      expect(find.byType(AlertDialog), findsNothing);
-
-      await _swipe(tester, find.text('Питање број 3'), distance: 240);
-      expect(find.text('Питање 2 / 3'), findsOneWidget);
-    });
-
-    testWidgets('свайп вперёд с неверным ответом раскрывает верный и остаётся '
-        'на вопросе', (tester) async {
-      await tester.pumpWidget(_quest());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Нетачан одговор 1'));
-      await tester.pump();
-      await _swipe(tester, find.text('Питање број 1'), distance: -240);
-
-      expect(find.text('Питање 1 / 3'), findsOneWidget);
-      expect(find.byIcon(Icons.close), findsOneWidget);
-      expect(find.byIcon(Icons.check), findsOneWidget);
-
-      // Уже раскрыто — следующий свайп идёт дальше.
-      await _swipe(tester, find.text('Питање број 1'), distance: -240);
-      expect(find.text('Питање 2 / 3'), findsOneWidget);
     });
   });
 

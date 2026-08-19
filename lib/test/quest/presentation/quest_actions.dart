@@ -17,13 +17,19 @@ import '../state_management/quest_content_bloc.dart';
 /// по одним и тем же правилам. [context] должен видеть [QuestBloc] и
 /// [QuestContentBloc] текущего вопроса.
 class QuestActions {
-  const QuestActions(this.context, this.question);
+  const QuestActions(this.context, this.question, {this.content});
 
   final BuildContext context;
   final Question question;
 
+  /// Блок содержимого вопроса, если это не тот, что стоит в [context]: так
+  /// экран записывает выбор на странице, которую только что увели свайпом —
+  /// текущей она уже не считается.
+  final QuestContentBloc? content;
+
   QuestBloc get _questBloc => context.read<QuestBloc>();
-  QuestContentBloc get _contentBloc => context.read<QuestContentBloc>();
+  QuestContentBloc get _contentBloc =>
+      content ?? context.read<QuestContentBloc>();
 
   /// «Режим презентации» текущего прогона (см. [QuestBloc.presentation]).
   bool get presentation => _questBloc.presentation;
