@@ -7,12 +7,13 @@ part 'quest_content_bloc.freezed.dart';
 /// Per-question state for the exam ("quest") flow: which choices are selected
 /// and whether the correct answers are revealed.
 ///
-/// One instance lives for the whole run; [QuestionChanged] swaps it to the next
-/// question (the bloc used to be recreated per question via a keyed provider,
-/// but that also recreated the progress strip and killed its collapse
-/// animation).
+/// По блоку на вопрос, и все они живут до конца прогона (их держит экран, см.
+/// `_QuestRun`): страницы вопросов стоят рядом в листалке, а вернувшись к
+/// вопросу, пользователь застаёт его таким, каким оставил. Раньше блок был
+/// один на прогон и сбрасывался событием `QuestionChanged` — вместе с ним
+/// сбрасывался и выбор.
 class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
-  int questionId;
+  final int questionId;
 
   /// «Режим презентации»: каждый вопрос открывается уже раскрытым — как будто
   /// «показать ответ» нажали заранее, — и остаётся таким при переходах.
@@ -35,23 +36,6 @@ class QuestContentBloc extends Bloc<QuestContentEvent, QuesContentState> {
        ) {
     on<AddChoice>(_onAddChoise);
     on<ShowCorrectAnswers>(_onShowCorrectAnswers);
-    on<QuestionChanged>(_onQuestionChanged);
-  }
-
-  /// Full reset for the newly shown question: selection must not leak between
-  /// questions, and a previously recorded answer comes back pre-selected.
-  void _onQuestionChanged(
-    QuestionChanged event,
-    Emitter<QuesContentState> emit,
-  ) {
-    questionId = event.questionId;
-    emit(
-      QuesContentState(
-        choices: event.choices,
-        selectedChoices: event.currentAnswers,
-        showCorrectAnswers: presentation,
-      ),
-    );
   }
 
   /// Выбор ограничен количеством верных вариантов: лишний тап ничего не
@@ -97,15 +81,6 @@ class AddChoice extends QuestContentEvent {
 }
 
 class ShowCorrectAnswers extends QuestContentEvent {}
-
-/// The run moved to another question — reset the bloc to it.
-class QuestionChanged extends QuestContentEvent {
-  final Set<Choice> choices;
-  final Set<Choice> currentAnswers;
-  final int questionId;
-
-  QuestionChanged(this.choices, this.currentAnswers, this.questionId);
-}
 
 @freezed
 sealed class QuesContentState with _$QuesContentState {

@@ -138,42 +138,37 @@ void main() {
     expect(find.text('Прикажи одговор'), findsNothing);
   });
 
-  test(
-    'QuestContentBloc в презентации остаётся раскрытым при смене вопроса',
-    () {
-      final q1 = _question(id: 1);
-      final q2 = _question(id: 2);
-      final bloc = QuestContentBloc(
-        {...q1.choices},
-        {},
-        q1.id,
-        presentation: true,
-      );
-      expect(bloc.state.showCorrectAnswers, isTrue);
-
-      bloc.add(QuestionChanged({...q2.choices}, {}, q2.id));
-      // Событие обрабатывается асинхронно — ждём микротаск.
-      return Future<void>.delayed(Duration.zero).then((_) {
-        expect(bloc.state.showCorrectAnswers, isTrue);
-        expect(bloc.state.selectedChoices, isEmpty);
-        return bloc.close();
-      });
-    },
-  );
-
-  test('QuestContentBloc без презентации сбрасывает раскрытие при смене '
-      'вопроса', () async {
+  // У каждого вопроса теперь свой блок (их держит экран прогона), так что
+  // «смена вопроса» — это новый блок, а не сброс старого.
+  test('QuestContentBloc в презентации открывает вопрос уже раскрытым', () async {
     final q1 = _question(id: 1);
     final q2 = _question(id: 2);
-    final bloc = QuestContentBloc({...q1.choices}, {}, q1.id);
-    expect(bloc.state.showCorrectAnswers, isFalse);
-    bloc.add(ShowCorrectAnswers());
+    final first = QuestContentBloc({...q1.choices}, {}, q1.id, presentation: true);
+    final second = QuestContentBloc({...q2.choices}, {}, q2.id, presentation: true);
+
+    expect(first.state.showCorrectAnswers, isTrue);
+    expect(second.state.showCorrectAnswers, isTrue);
+    expect(second.state.selectedChoices, isEmpty);
+
+    await first.close();
+    await second.close();
+  });
+
+  test('QuestContentBloc без презентации открывает вопрос нераскрытым', () async {
+    final q1 = _question(id: 1);
+    final q2 = _question(id: 2);
+    final first = QuestContentBloc({...q1.choices}, {}, q1.id);
+    expect(first.state.showCorrectAnswers, isFalse);
+    first.add(ShowCorrectAnswers());
     await Future<void>.delayed(Duration.zero);
-    expect(bloc.state.showCorrectAnswers, isTrue);
-    bloc.add(QuestionChanged({...q2.choices}, {}, q2.id));
-    await Future<void>.delayed(Duration.zero);
-    expect(bloc.state.showCorrectAnswers, isFalse);
-    await bloc.close();
+    expect(first.state.showCorrectAnswers, isTrue);
+
+    // Соседний вопрос от этого раскрытым не становится.
+    final second = QuestContentBloc({...q2.choices}, {}, q2.id);
+    expect(second.state.showCorrectAnswers, isFalse);
+
+    await first.close();
+    await second.close();
   });
 
   test('адрес прогона несёт presentation=true только когда режим включён', () {

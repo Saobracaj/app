@@ -59,7 +59,7 @@ void main() {
       expect(bloc.state.limitHits, 0);
     });
 
-    test('смена вопроса сбрасывает счётчик подсказок', () async {
+    test('у соседнего вопроса свой счётчик подсказок', () async {
       final choices = _choices();
       final bloc = quest.QuestContentBloc(choices.toSet(), {}, 1);
 
@@ -69,11 +69,13 @@ void main() {
       }
       expect(bloc.state.limitHits, 1);
 
-      bloc.add(quest.QuestionChanged(choices.toSet(), {}, 2));
-      await _settle();
-
-      expect(bloc.state.limitHits, 0);
-      expect(bloc.state.selectedChoices, isEmpty);
+      // Блок на вопрос: следующий вопрос заводит свой, а не переиспользует
+      // этот, — счётчик подсказок и выбор у него чистые.
+      final next = quest.QuestContentBloc(choices.toSet(), {}, 2);
+      expect(next.state.limitHits, 0);
+      expect(next.state.selectedChoices, isEmpty);
+      await next.close();
+      await bloc.close();
     });
   });
 
