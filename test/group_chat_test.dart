@@ -214,9 +214,11 @@ void main() {
   });
 
   group('маршруты', () {
-    test('чат группы лежит под её лентой — «назад» возвращает в ленту', () {
+    test('чат группы — её вкладка: свой адрес внутри экрана группы', () {
       expect(routes.get('/groups/g1/feed'), isNotNull);
       expect(routes.get('/groups/g1/feed/chat'), isNotNull);
+      // Раскладка вкладок проверяется в routes_test и group_tabs_test.
+      expect(routes.get('/groups/g1/feed/events'), isNotNull);
     });
   });
 }

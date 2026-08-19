@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
-import '../../core/di.dart';
 import '../../core/presentation/load_failed.dart';
 import '../../core/presentation/pagination.dart';
 import '../../generated/locale_keys.g.dart';
@@ -17,24 +16,23 @@ import '../models/group_event.dart';
 import '../state_management/group_feed_bloc.dart';
 import '../state_management/group_feed_events.dart';
 import '../state_management/group_feed_state.dart';
-import '../state_management/groups_bloc.dart';
 import 'group_event_summary.dart';
 
-/// The group screen: everything that has happened in the group, with the
-/// group's chat one tap away in the app bar.
+/// Вкладка «События» экрана группы: всё, что в ней произошло.
 ///
-/// Talking is the chat's business (`/groups/:id/feed/chat` — the ordinary chat
-/// screen with a [GroupChatTarget]); this screen only ever *reports*, which is
-/// why the wall that used to sit next to it in a second tab is gone.
+/// Шапка, вкладки и переключение на разговор — дело [GroupPage]; здесь только
+/// список. [GroupFeedBloc] тоже живёт там, над вкладками: невидимую вкладку
+/// PageView сносит с дерева, и лента перечитывалась бы при каждом
+/// переключении.
 ///
-/// The list grows in both directions: pages of history load as the reader
-/// scrolls down, and new events arrive over the subscription while the screen is
-/// open (the requirement is that an open feed refreshes itself). Both go through
-/// [GroupFeedBloc], which owns the ordering.
+/// Список растёт в обе стороны: страницы истории подгружаются при прокрутке
+/// вниз, а новые события приезжают по подписке, пока экран открыт (открытая
+/// лента обязана обновляться сама). И то и другое — через [GroupFeedBloc],
+/// который владеет порядком.
 ///
-/// Every line is built here from the event's structured payload — the server
-/// sends no ready-made sentences, because the reader may be reading in any of
-/// three languages.
+/// Каждая строка собирается здесь из структурированных полей события: готовых
+/// предложений сервер не присылает, потому что читать могут на любом из трёх
+/// языков.
 class GroupFeedPage extends StatelessWidget {
   const GroupFeedPage({super.key, required this.groupId});
 
@@ -42,129 +40,41 @@ class GroupFeedPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) =>
-          getIt<GroupFeedBloc>(param1: groupId)..add(const GroupFeedOpened()),
-      child: _FeedView(groupId: groupId),
-    );
-  }
-}
-
-class _FeedView extends StatelessWidget {
-  const _FeedView({required this.groupId});
-
-  final String groupId;
-
-  /// Whether the signed-in user owns this group, read from the app-wide list
-  /// (`myGroups` carries `viewerIsOwner`) — the feed itself never loads the
-  /// full group.
-  bool _viewerOwnsGroup(BuildContext context) {
-    final groups = context.watch<GroupsBloc>().state.groups;
-    for (final group in groups) {
-      if (group.id == groupId) return group.viewerIsOwner;
-    }
-    return false;
-  }
-
-  /// Непрочитанные сообщения чата группы — оттуда же, из `myGroups`: экран
-  /// ленты сам чат не открывает и знать о нём иначе не может.
-  int _unreadChatMessages(BuildContext context) {
-    final groups = context.watch<GroupsBloc>().state.groups;
-    for (final group in groups) {
-      if (group.id == groupId) return group.chatUnreadCount;
-    }
-    return 0;
-  }
-
-  @override
-  Widget build(BuildContext context) {
     // Ошибки чтения ленты не всплывают снек-баром: их место — прямо в списке
     // (кнопка «повторить») и значок «нет связи» в шапке.
     return BlocBuilder<GroupFeedBloc, GroupFeedState>(
       builder: (context, state) {
-        // Считается в build (itemBuilder меню вызывается вне фазы билда, там
-        // watch запрещён); watch — чтобы пункт «Приглашение» появился, как
-        // только myGroups доехал.
-        final ownsGroup = _viewerOwnsGroup(context);
-        final unreadChat = _unreadChatMessages(context);
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(
-              state.groupName.isEmpty
-                  ? LocaleKeys.groups_feed_title.tr()
-                  : state.groupName,
-            ),
-            actions: [
-              // Разговор группы — соседний экран, а не вкладка: писать и читать
-              // ленту событий одновременно всё равно нельзя, а чат сам по себе
-              // полноэкранный.
-              IconButton(
-                tooltip: LocaleKeys.groups_chat_title.tr(),
-                onPressed: () =>
-                    Routemaster.of(context).push('/groups/$groupId/feed/chat'),
-                icon: Badge.count(
-                  count: unreadChat,
-                  isLabelVisible: unreadChat > 0,
-                  child: const Icon(Icons.forum_outlined),
-                ),
-              ),
-              // Honest about the live connection: when it is down the list is
-              // still readable, it just stops updating by itself.
-              if (state.loaded && !state.live)
-                IconButton(
-                  tooltip: LocaleKeys.groups_feed_offline.tr(),
-                  onPressed: () => context.read<GroupFeedBloc>().add(
-                    const GroupFeedRefreshed(),
-                  ),
-                  icon: const Icon(Icons.cloud_off_outlined),
-                ),
-              // Управление группой вынесено в меню — сама карточка группы
-              // открывает ленту. «Участники» доступны всем, «Приглашение» —
-              // только владельцу (признак берётся из myGroups в общем
-              // GroupsBloc). Навигация через onSelected: контекст пункта меню
-              // к моменту срабатывания уже снят с дерева вместе с самим меню.
-              PopupMenuButton<String>(
-                onSelected: (item) =>
-                    Routemaster.of(context).push('/groups/$groupId/feed/$item'),
-                itemBuilder: (_) => [
-                  PopupMenuItem(
-                    value: 'members',
-                    child: Text(LocaleKeys.groups_members.tr()),
-                  ),
-                  if (ownsGroup)
-                    PopupMenuItem(
-                      value: 'invite',
-                      child: Text(LocaleKeys.groups_invite_title.tr()),
-                    ),
-                ],
-              ),
-            ],
-            bottom: state.loading && state.loaded
-                ? const PreferredSize(
-                    preferredSize: Size.fromHeight(4),
-                    child: LinearProgressIndicator(),
-                  )
-                : null,
-          ),
-          body: RefreshIndicator(
-            onRefresh: () async =>
-                context.read<GroupFeedBloc>().add(const GroupFeedRefreshed()),
-            child: switch ((state.loaded, state.failed, state.isEmpty)) {
-              // Первая страница не пришла и не придёт сама: индикатор врал бы
-              // бесконечно, а «событий пока нет» — просто врал.
-              (false, true, _) => LoadFailedList(
-                message: state.failedOffline
-                    ? LocaleKeys.groups_feed_offline.tr()
-                    : LocaleKeys.network_loadFailed.tr(),
-                onRetry: () => context.read<GroupFeedBloc>().add(
+        return Column(
+          children: [
+            // Роль полосы под AppBar: она общая с вкладкой чата, поэтому
+            // индикатор обновления рисуется внутри вкладки.
+            if (state.loading && state.loaded)
+              const LinearProgressIndicator(minHeight: 4),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async => context.read<GroupFeedBloc>().add(
                   const GroupFeedRefreshed(),
                 ),
+                child: switch ((state.loaded, state.failed, state.isEmpty)) {
+                  // Первая страница не пришла и не придёт сама: индикатор врал
+                  // бы бесконечно, а «событий пока нет» — просто врал.
+                  (false, true, _) => LoadFailedList(
+                    message: state.failedOffline
+                        ? LocaleKeys.groups_feed_offline.tr()
+                        : LocaleKeys.network_loadFailed.tr(),
+                    onRetry: () => context.read<GroupFeedBloc>().add(
+                      const GroupFeedRefreshed(),
+                    ),
+                  ),
+                  (false, _, _) => const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                  (_, _, true) => _EmptyFeed(),
+                  _ => _FeedList(groupId: groupId, state: state),
+                },
               ),
-              (false, _, _) => const Center(child: CircularProgressIndicator()),
-              (_, _, true) => _EmptyFeed(),
-              _ => _FeedList(state: state),
-            },
-          ),
+            ),
+          ],
         );
       },
     );
@@ -191,8 +101,9 @@ class _EmptyFeed extends StatelessWidget {
 }
 
 class _FeedList extends StatelessWidget {
-  const _FeedList({required this.state});
+  const _FeedList({required this.groupId, required this.state});
 
+  final String groupId;
   final GroupFeedState state;
 
   @override
@@ -215,7 +126,7 @@ class _FeedList extends StatelessWidget {
               onLoadMore: loadMore,
             );
           }
-          return GroupFeedTile(event: events[index]);
+          return GroupFeedTile(groupId: groupId, event: events[index]);
         },
       ),
     );
@@ -226,17 +137,28 @@ class _FeedList extends StatelessWidget {
 /// score and a colour, an exam attempt carries its points and the questions that
 /// went wrong, everything else is a single sentence.
 class GroupFeedTile extends StatelessWidget {
-  const GroupFeedTile({super.key, required this.event});
+  const GroupFeedTile({super.key, required this.groupId, required this.event});
 
+  /// Группа, чья это лента: вопросы события открываются её адресом — см.
+  /// [_SubcategoryTile].
+  final String groupId;
   final GroupEvent event;
 
   @override
   Widget build(BuildContext context) {
     return switch (event.kind) {
       GroupEventKind.subcategoryCompleted when event.subcategory != null =>
-        _SubcategoryTile(event: event, details: event.subcategory!),
+        _SubcategoryTile(
+          groupId: groupId,
+          event: event,
+          details: event.subcategory!,
+        ),
       GroupEventKind.practiceFinished when event.practice != null =>
-        _PracticeTile(event: event, details: event.practice!),
+        _PracticeTile(
+          groupId: groupId,
+          event: event,
+          details: event.practice!,
+        ),
       _ => _SimpleTile(event: event),
     };
   }
@@ -274,8 +196,13 @@ class _SimpleTile extends StatelessWidget {
 /// that is better or worse than their last attempt at it. Tapping it opens the
 /// block.
 class _SubcategoryTile extends StatelessWidget {
-  const _SubcategoryTile({required this.event, required this.details});
+  const _SubcategoryTile({
+    required this.groupId,
+    required this.event,
+    required this.details,
+  });
 
+  final String groupId;
   final GroupEvent event;
   final SubcategoryCompletedDetails details;
 
@@ -326,13 +253,15 @@ class _SubcategoryTile extends StatelessWidget {
       trailing: questions.isEmpty
           ? null
           : const Icon(Icons.chevron_right, size: 20),
-      // Относительный путь: вопросы открываются как '/groups/:id/feed/q', так
-      // что «назад» (и завершение прохождения) возвращает в ленту, а не на
-      // главную.
+      // Полный путь, а не относительный: лента живёт вкладкой по адресу
+      // '/groups/:id/feed/events', и относительное 'q' открыло бы вопросы
+      // внутри вкладки, под её же шапкой. '/groups/:id/feed/q' лежит над
+      // экраном группы, так что «назад» (и завершение прохождения) возвращает
+      // в ленту, а не на главную.
       onTap: questions.isEmpty
           ? null
           : () => Routemaster.of(context).push(
-              'q?q=${questions.join(',')}'
+              '/groups/$groupId/feed/q?q=${questions.join(',')}'
               '&subcategory=${details.subcategory}',
             ),
     );
@@ -358,8 +287,13 @@ class _SubcategoryTile extends StatelessWidget {
 /// An exam simulation: the score, pass or fail, and the questions the person
 /// stumbled on — expandable, and openable as a practice run.
 class _PracticeTile extends StatelessWidget {
-  const _PracticeTile({required this.event, required this.details});
+  const _PracticeTile({
+    required this.groupId,
+    required this.event,
+    required this.details,
+  });
 
+  final String groupId;
   final GroupEvent event;
   final PracticeFinishedDetails details;
 
@@ -456,10 +390,11 @@ class _PracticeTile extends StatelessWidget {
             Align(
               alignment: AlignmentDirectional.centerStart,
               child: TextButton.icon(
-                // Относительный путь — см. комментарий в _SubcategoryTile.
-                onPressed: () => Routemaster.of(
-                  context,
-                ).push('q?q=${wrong.map((q) => q.id).join(',')}'),
+                // Полный путь — см. комментарий в _SubcategoryTile.
+                onPressed: () => Routemaster.of(context).push(
+                  '/groups/$groupId/feed/q'
+                  '?q=${wrong.map((q) => q.id).join(',')}',
+                ),
                 icon: const Icon(Icons.play_arrow_outlined),
                 label: Text(LocaleKeys.groups_feed_openMistakes.tr()),
               ),

@@ -508,6 +508,10 @@
       "title": "Group chat",
       "empty": "The group chat is empty — be the first to write",
       "hint": "Message to the group…"
+    },
+    "tabs": {
+      "events": "Activity",
+      "chat": "Chat"
     }
   },
   "questionAnalysis": {
