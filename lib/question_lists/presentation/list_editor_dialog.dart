@@ -171,7 +171,7 @@ class _ColorDot extends StatelessWidget {
               : null,
         ),
         child: selected
-            ? const Icon(Icons.check, size: 18, color: Colors.white)
+            ? Icon(Icons.check, size: 18, color: onListColor(color))
             : null,
       ),
     );

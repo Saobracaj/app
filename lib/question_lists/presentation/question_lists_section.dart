@@ -230,7 +230,11 @@ class QuestionListAvatar extends StatelessWidget {
       ),
       child: icon == null
           ? null
-          : Icon(icon, size: size * 0.55, color: Colors.white),
+          : Icon(
+              icon,
+              size: size * 0.55,
+              color: list.avatarForegroundColor(context),
+            ),
     );
   }
 }

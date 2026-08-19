@@ -41,6 +41,25 @@ String genListId() {
   return '${hex(0, 4)}-${hex(4, 6)}-${hex(6, 8)}-${hex(8, 10)}-${hex(10, 16)}';
 }
 
+/// The readable ink for something drawn on top of [background]: whichever of
+/// white and near-black contrasts with it more. Used for the fixed
+/// [kListColors] swatches, which keep their colour in both themes — several of
+/// them sit mid-way in luminance, where `estimateBrightnessForColor` still
+/// answers "white" and the glyph is the harder one to make out (white on the
+/// yellow swatch was unreadable outright).
+Color onListColor(Color background) =>
+    _contrastRatio(Colors.black87, background) >=
+        _contrastRatio(Colors.white, background)
+    ? Colors.black87
+    : Colors.white;
+
+/// The WCAG contrast ratio between two opaque colours, `(L1 + .05) / (L2 + .05)`.
+double _contrastRatio(Color a, Color b) {
+  final la = a.computeLuminance();
+  final lb = b.computeLuminance();
+  return (max(la, lb) + 0.05) / (min(la, lb) + 0.05);
+}
+
 /// Presentation helpers shared by the home-screen chips, the list screen and the
 /// "add to list" menu.
 extension QuestionListX on QuestionList {
@@ -67,6 +86,23 @@ extension QuestionListX on QuestionList {
       kChronicMistakesListId => scheme.error,
       kPersonalWeakSpotsListId => scheme.tertiary,
       _ => scheme.primary,
+    };
+  }
+
+  /// The colour of the glyph drawn inside the avatar. An automatic list sits on
+  /// a role colour, so the glyph takes that role's paired `on…` colour: on the
+  /// dark theme the roles are light pastels, and a hard-coded white icon all
+  /// but disappeared on them. A custom list sits on a colour the user picked
+  /// from [kListColors], which does not follow the theme — there the readable
+  /// foreground is chosen from the background's own luminance.
+  Color avatarForegroundColor(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    if (!isAuto) return onListColor(Color(color));
+    return switch (id) {
+      kLastExamMistakesListId => scheme.onSecondary,
+      kChronicMistakesListId => scheme.onError,
+      kPersonalWeakSpotsListId => scheme.onTertiary,
+      _ => scheme.onPrimary,
     };
   }
 
