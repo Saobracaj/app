@@ -119,9 +119,20 @@ class GraphqlSubscriptionClient {
     late final StreamController<GraphqlSubscriptionMessage> controller;
     controller = StreamController<GraphqlSubscriptionMessage>(
       onListen: () {
-        _operations[id] = _Operation(id, query, variables, controller);
+        final operation = _Operation(id, query, variables, controller);
+        _operations[id] = operation;
         _sessionOver = false;
-        unawaited(_ensureConnected());
+        // Сокет уже открыт и подтверждён — например, его держит подписка
+        // ленты группы, пока открывают вкладку её чата. `connection_ack` для
+        // этой операции уже не придёт, поэтому она стартует прямо отсюда;
+        // без этого поздний подписчик молча оставался без событий и вечно
+        // показывал «нет связи».
+        if (_acked) {
+          _start(operation);
+          controller.add(const GraphqlSubscriptionResumed(firstConnect: true));
+        } else {
+          unawaited(_ensureConnected());
+        }
       },
       onCancel: () {
         final operation = _operations.remove(id);
