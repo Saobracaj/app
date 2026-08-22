@@ -1,7 +1,18 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- Required by permission_handler to request the notification permission on
          Android 13+ (used by the push-notifications toggle). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- firebase_analytics pulls in play-services-measurement, which merges the
+         advertising-ID permission into the manifest. We declare on Play Console
+         that the app does NOT use the advertising ID, and Play rejects any
+         artifact whose manifest disagrees with that declaration, so the
+         permission is removed at merge time. The cost is Firebase Analytics
+         demographics and ad attribution; ordinary events, screens, audiences
+         and Crashlytics are unaffected. -->
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="remove"/>
     <application
         android:label="saobracaj"
         android:name="${applicationName}"
