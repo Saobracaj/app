@@ -63,6 +63,16 @@ class _FakeApi implements HttpClientAdapter {
         'me': const {'id': 'u1', 'email': 'u@e', 'permissions': []},
       },
       'ChatMessages' => {'chatMessages': _page(vars)},
+      'SendChatMessage' => {
+        'sendChatMessage': {
+          'id': 'sent',
+          'authorId': 'u1',
+          'authorDisplayName': 'Я',
+          'fromStaff': false,
+          'body': vars['body'],
+          'createdAt': '2026-08-18T10:00:00Z',
+        },
+      },
       'MarkChatRead' => {'markChatRead': 0},
       _ => const {},
     };
@@ -162,6 +172,39 @@ Future<void> _until(bool Function() done) async {
   for (var i = 0; i < 400 && !done(); i++) {
     await Future<void>.delayed(const Duration(milliseconds: 5));
   }
+}
+
+/// Вкладка обсуждения на готовом [bloc]: локализация и прокрутка страницы
+/// вокруг — как на настоящем экране вопроса.
+Future<void> _pumpTab(WidgetTester tester, ChatBloc bloc) async {
+  await tester.pumpWidget(
+    EasyLocalization(
+      useOnlyLangCode: true,
+      ignorePluralRules: false,
+      supportedLocales: const [Locale('sr'), Locale('ru'), Locale('en')],
+      fallbackLocale: const Locale('ru'),
+      startLocale: const Locale('ru'),
+      saveLocale: false,
+      path: 'assets/translations',
+      assetLoader: const CodegenLoader(),
+      child: Builder(
+        builder: (context) => MaterialApp(
+          locale: context.locale,
+          localizationsDelegates: context.localizationDelegates,
+          supportedLocales: context.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: BlocProvider.value(
+                value: bloc,
+                child: const QuestionChatView(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
 }
 
 void main() {
@@ -294,6 +337,71 @@ void main() {
         lessThan(oldest),
         reason: 'свежее выше, дальше вниз — в прошлое',
       );
+      await tester.runAsync(bloc.close);
+    });
+
+    testWidgets('поле ввода — всегда в одну строку и не растёт под текст', (
+      tester,
+    ) async {
+      final api = _FakeApi(total: 3);
+      late final ChatBloc bloc;
+      await tester.runAsync(() async {
+        bloc = _bloc(api);
+        bloc.add(ChatOpened());
+        await _until(() => bloc.state.messages.isNotEmpty);
+      });
+
+      await _pumpTab(tester, bloc);
+
+      final field = find.byType(TextField);
+      final emptyHeight = tester.getSize(field).height;
+
+      // Текст на несколько строк длиннее любого экрана: поле над перепиской
+      // всё равно остаётся одной строкой и не сдвигает её вниз.
+      await tester.enterText(
+        field,
+        'очень длинное сообщение, которое никак не помещается в одну строку '
+        'и раньше растягивало поле ввода на несколько строк подряд',
+      );
+      await tester.pump();
+
+      expect(
+        tester.getSize(field).height,
+        emptyHeight,
+        reason: 'поле не растёт под текст',
+      );
+      await tester.runAsync(bloc.close);
+    });
+
+    testWidgets('Enter (действие «отправить») отправляет сообщение', (
+      tester,
+    ) async {
+      final api = _FakeApi(total: 3);
+      late final ChatBloc bloc;
+      await tester.runAsync(() async {
+        bloc = _bloc(api);
+        bloc.add(ChatOpened());
+        await _until(() => bloc.state.messages.isNotEmpty);
+      });
+
+      await _pumpTab(tester, bloc);
+
+      await tester.enterText(find.byType(TextField), 'привет');
+      // Bloc живёт в настоящей зоне (создан в runAsync), поэтому сперва текст
+      // доезжает до него там, и только потом кадр возвращает композеру свежий
+      // canSend.
+      await tester.runAsync(() => _until(() => bloc.state.body == 'привет'));
+      await tester.pump();
+      // Однострочному полю перенос строки не нужен, поэтому его действие —
+      // «отправить»: и Enter на клавиатуре, и кнопка Send на экранной.
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.runAsync(
+        () => _until(() => api.operations.contains('SendChatMessage')),
+      );
+
+      final sent = api.operations.indexOf('SendChatMessage');
+      expect(sent, isNot(-1), reason: 'мутация отправки ушла на сервер');
+      expect(api.variables[sent]['body'], 'привет');
       await tester.runAsync(bloc.close);
     });
   });

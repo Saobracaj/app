@@ -101,7 +101,9 @@ class QuestionChatView extends StatelessWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ChatComposer(state: state),
+            // Поле — в одну строку и не растёт под текст: оно стоит над
+            // перепиской, и каждая лишняя строка сдвигала бы её вниз.
+            ChatComposer(state: state, singleLine: true),
             // Своё «Без имени» под своим же сообщением объясняется прямо здесь:
             // имя ставится в настройках, и туда ведёт эта строка. Показывается
             // только тому, кто уже написал безымянным — до первого сообщения
