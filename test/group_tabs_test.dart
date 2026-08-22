@@ -11,6 +11,7 @@ import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
+import 'package:saobracaj/auth/state_management/auth/auth_state.dart';
 import 'package:saobracaj/chat/data/chat_repository.dart';
 import 'package:saobracaj/chat/models/chat_target.dart';
 import 'package:saobracaj/chat/state_management/chat_bloc.dart';
@@ -194,14 +195,23 @@ class _FakeApi implements HttpClientAdapter {
     path: 'assets/translations',
     assetLoader: const CodegenLoader(),
     child: Builder(
-      builder: (context) => BlocProvider(
-        create: (_) => GroupsBloc(
-          groups,
-          ProfileRepository(client),
-          AuthBloc(auth, subscriptions),
-          FeatureFlagsRepository(client, storage),
-          network,
-        ),
+      builder: (context) => MultiBlocProvider(
+        providers: [
+          // Композер чата спрашивает у AuthBloc, не гость ли читатель; в этом
+          // тесте читатель всегда участник группы, то есть авторизован.
+          BlocProvider<AuthBloc>(
+            create: (_) => _AuthedBloc(auth, subscriptions),
+          ),
+          BlocProvider(
+            create: (_) => GroupsBloc(
+              groups,
+              ProfileRepository(client),
+              AuthBloc(auth, subscriptions),
+              FeatureFlagsRepository(client, storage),
+              network,
+            ),
+          ),
+        ],
         child: MaterialApp.router(
           locale: context.locale,
           supportedLocales: context.supportedLocales,
@@ -217,6 +227,15 @@ class _FakeApi implements HttpClientAdapter {
 
 /// Дать запросам дойти: настоящий асинхронный код крутится только внутри
 /// [WidgetTester.runAsync], а таймеры приложения — на игрушечных часах `pump`.
+/// AuthBloc, всегда авторизованный: композеру чата важно только одно — не
+/// принять участника группы за гостя и не спрятать от него строку ввода.
+class _AuthedBloc extends AuthBloc {
+  _AuthedBloc(super.repository, super.subscriptions);
+
+  @override
+  AuthState get state => const AuthState(status: AuthStatus.authenticated);
+}
+
 Future<void> _load(WidgetTester tester, {bool Function()? until}) async {
   for (var i = 0; i < 60; i++) {
     if (until != null && until()) break;

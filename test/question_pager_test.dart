@@ -7,10 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:saobracaj/auth/data/graphql_client.dart';
-import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/core/question_pager.dart';
-import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/models/models.dart';
@@ -21,6 +18,7 @@ import 'package:saobracaj/test/quest/quest.dart';
 import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 import 'package:saobracaj/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'guest_flags_without_discussion.dart';
 
 /// Прокрутка вопросов настоящим [PageView] (задача 1217635084826817): что
 /// [QuestionPager] считает свайпом, куда при этом едет прогон в тренажёре и
@@ -77,10 +75,8 @@ Widget _quest() => EasyLocalization(
       BlocProvider<AllQuestionsBloc>(
         create: (_) => _StubAllQuestionsBloc(_data()),
       ),
-      BlocProvider(
-        create: (_) => FeatureFlagsBloc(
-          FeatureFlagsRepository(GraphqlClient(TokenStorage()), TokenStorage()),
-        ),
+      BlocProvider<FeatureFlagsBloc>(
+        create: (_) => GuestFlagsWithoutDiscussionBloc(),
       ),
     ],
     child: Builder(

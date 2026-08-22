@@ -2,7 +2,9 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:routemaster/routemaster.dart';
 
+import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../core/di.dart';
 import '../../core/navigation.dart';
 import '../../generated/locale_keys.g.dart';
@@ -517,9 +519,15 @@ class ChatMessageBubble extends StatelessWidget {
   /// «Пожаловаться» есть только на чужих сообщениях: жаловаться на себя не на
   /// что, а «удалить» модератор чужого сообщения не получает — снимает его тот,
   /// кто написал.
+  ///
+  /// Гостю остаётся только «Скопировать»: реакции, ответ и жалоба — действия
+  /// от имени пользователя, которого у гостя нет.
   Future<void> _showMenu(BuildContext context) async {
     final bloc = context.read<ChatBloc>();
     final messenger = ScaffoldMessenger.of(context);
+    final guest = !context.read<AuthBloc>().state.isAuthenticated;
+    // Пустое меню (гость + сообщение без текста) не стоит открывать вовсе.
+    if (guest && message.body.trim().isEmpty) return;
     // Результат — либо пункт меню, либо эмодзи из верхней строки: реакция
     // ставится тем же нажатием, что и любое другое действие, и лист за собой
     // закрывает.
@@ -530,11 +538,12 @@ class ChatMessageBubble extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _ReactionRow(
-              message: message,
-              onPicked: (emoji) => Navigator.of(ctx).pop(emoji),
-            ),
-            if (!inThread)
+            if (!guest)
+              _ReactionRow(
+                message: message,
+                onPicked: (emoji) => Navigator.of(ctx).pop(emoji),
+              ),
+            if (!inThread && !guest)
               ListTile(
                 leading: const Icon(Icons.reply),
                 title: Text('support.reply'.tr()),
@@ -546,7 +555,9 @@ class ChatMessageBubble extends StatelessWidget {
                 title: Text('support.copy'.tr()),
                 onTap: () => Navigator.of(ctx).pop(_MessageAction.copy),
               ),
-            if (mine) ...[
+            if (guest)
+              const SizedBox.shrink()
+            else if (mine) ...[
               ListTile(
                 leading: const Icon(Icons.edit_outlined),
                 title: Text('support.edit'.tr()),
@@ -823,6 +834,11 @@ class _MessageReactions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    // Гость реакции видит, но не переключает: у него нет пользователя, от
+    // имени которого реакция ставится.
+    final guest = context.select<AuthBloc, bool>(
+      (b) => !b.state.isAuthenticated,
+    );
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Wrap(
@@ -832,9 +848,11 @@ class _MessageReactions extends StatelessWidget {
           for (final reaction in message.reactions)
             InkWell(
               borderRadius: BorderRadius.circular(12),
-              onTap: () => context.read<ChatBloc>().add(
-                ChatReactionToggled(message, reaction.emoji),
-              ),
+              onTap: guest
+                  ? null
+                  : () => context.read<ChatBloc>().add(
+                      ChatReactionToggled(message, reaction.emoji),
+                    ),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -983,6 +1001,14 @@ class ChatComposer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Гость обсуждение читает, но не пишет: вместо строки ввода — приглашение
+    // войти. Проверка живёт прямо здесь, чтобы каждый экран с композером
+    // (обсуждение вопроса, тред на его сообщение) вёл себя одинаково.
+    final guest = context.select<AuthBloc, bool>(
+      (b) => !b.state.isAuthenticated,
+    );
+    if (guest) return const _GuestComposerPrompt();
+
     final bloc = context.read<ChatBloc>();
     void send() {
       if (state.canSend) bloc.add(ChatSendPressed());
@@ -1091,6 +1117,40 @@ class ChatComposer extends StatelessWidget {
                   onPressed: state.canSend ? send : null,
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Что видит гость на месте строки ввода: короткое объяснение и кнопка входа.
+///
+/// Не пустое место и не задизейбленное поле: пустота выглядит поломкой, а
+/// серое поле — багом. Приглашение честно говорит, чего не хватает, и ведёт
+/// туда, где это чинится.
+class _GuestComposerPrompt extends StatelessWidget {
+  const _GuestComposerPrompt();
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+        child: Row(
+          spacing: 12,
+          children: [
+            Expanded(
+              child: Text(
+                LocaleKeys.questionChat_guestPrompt.tr(),
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+            FilledButton.tonal(
+              onPressed: () => Routemaster.of(context).push('/login'),
+              child: Text(LocaleKeys.questionChat_guestSignIn.tr()),
             ),
           ],
         ),

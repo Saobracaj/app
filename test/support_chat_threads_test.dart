@@ -8,7 +8,10 @@ import 'package:saobracaj/auth/data/auth_repository.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
+import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
+import 'package:saobracaj/auth/state_management/auth/auth_state.dart';
 import 'package:saobracaj/core/analytics/analytics_service.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/chat/data/chat_repository.dart';
 import 'package:saobracaj/chat/models/chat_target.dart';
@@ -193,6 +196,23 @@ Future<void> _load(WidgetTester tester, {bool Function()? until}) async {
   }
 }
 
+/// AuthBloc, всегда авторизованный: композеру важно только одно — не принять
+/// участника переписки за гостя и не спрятать от него строку ввода.
+class _AuthedBloc extends AuthBloc {
+  _AuthedBloc()
+    : super(
+        AuthRepository(
+          GraphqlClient(TokenStorage()),
+          TokenStorage(),
+          AnalyticsService(),
+        ),
+        GraphqlSubscriptionClient(GraphqlClient(TokenStorage()), TokenStorage()),
+      );
+
+  @override
+  AuthState get state => const AuthState(status: AuthStatus.authenticated);
+}
+
 /// Экран чата с настоящими переводами — и под настоящим роутером: тред
 /// открывается через `pushScreen`, которому нужен Routemaster в дереве.
 Widget _app() => EasyLocalization(
@@ -203,19 +223,22 @@ Widget _app() => EasyLocalization(
   path: 'assets/translations',
   assetLoader: const CodegenLoader(),
   child: Builder(
-    builder: (context) => MaterialApp.router(
-      locale: context.locale,
-      supportedLocales: context.supportedLocales,
-      localizationsDelegates: context.localizationDelegates,
-      routerDelegate: RoutemasterDelegate(
-        routesBuilder: (_) => RouteMap(
-          routes: {
-            '/': (_) => const Redirect('/support'),
-            '/support': (_) => const MaterialPage(child: ChatPage()),
-          },
+    builder: (context) => BlocProvider<AuthBloc>(
+      create: (_) => _AuthedBloc(),
+      child: MaterialApp.router(
+        locale: context.locale,
+        supportedLocales: context.supportedLocales,
+        localizationsDelegates: context.localizationDelegates,
+        routerDelegate: RoutemasterDelegate(
+          routesBuilder: (_) => RouteMap(
+            routes: {
+              '/': (_) => const Redirect('/support'),
+              '/support': (_) => const MaterialPage(child: ChatPage()),
+            },
+          ),
         ),
+        routeInformationParser: const RoutemasterParser(),
       ),
-      routeInformationParser: const RoutemasterParser(),
     ),
   ),
 );
