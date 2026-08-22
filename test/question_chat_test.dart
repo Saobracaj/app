@@ -65,6 +65,16 @@ class _FakeApi implements HttpClientAdapter {
         'me': const {'id': 'u1', 'email': 'u@e', 'permissions': []},
       },
       'ChatMessages' => {'chatMessages': _page(vars)},
+      'SendChatMessage' => {
+        'sendChatMessage': {
+          'id': 'sent',
+          'authorId': 'u1',
+          'authorDisplayName': 'Я',
+          'fromStaff': false,
+          'body': vars['body'],
+          'createdAt': '2026-08-18T10:00:00Z',
+        },
+      },
       'MarkChatRead' => {'markChatRead': 0},
       _ => const {},
     };
@@ -144,12 +154,18 @@ class _FixedAuthBloc extends AuthBloc {
   _FixedAuthBloc(this._status)
     : super(
         AuthRepository(
-          GraphqlClient(TokenStorage(), dio: Dio()..httpClientAdapter = _FakeApi()),
+          GraphqlClient(
+            TokenStorage(),
+            dio: Dio()..httpClientAdapter = _FakeApi(),
+          ),
           TokenStorage(),
           AnalyticsService(),
         ),
         GraphqlSubscriptionClient(
-          GraphqlClient(TokenStorage(), dio: Dio()..httpClientAdapter = _FakeApi()),
+          GraphqlClient(
+            TokenStorage(),
+            dio: Dio()..httpClientAdapter = _FakeApi(),
+          ),
           TokenStorage(),
           connector: (_) async => _DeadSocket(),
           endpoint: Uri.parse('ws://localhost:8080/ws'),
@@ -337,7 +353,36 @@ void main() {
       await tester.runAsync(bloc.close);
     });
 
-    testWidgets('гость читает ленту, но вместо поля ввода — приглашение войти', (
+    testWidgets(
+      'гость читает ленту, но вместо поля ввода — приглашение войти',
+      (tester) async {
+        final api = _FakeApi(total: 3);
+        late final ChatBloc bloc;
+        await tester.runAsync(() async {
+          bloc = _bloc(api);
+          bloc.add(ChatOpened());
+          await _until(() => bloc.state.messages.isNotEmpty);
+        });
+
+        await _pumpSection(tester, bloc, auth: AuthStatus.unauthenticated);
+
+        // Сообщения видны и без входа…
+        expect(find.text('сообщение 2'), findsOneWidget);
+        // …а писать нечем: ни поля ввода, ни кнопки отправить — только
+        // объяснение и кнопка входа.
+        expect(find.byType(TextField), findsNothing);
+        expect(
+          find.text(
+            'Войдите в аккаунт, чтобы писать в обсуждении и ставить реакции.',
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('Войти'), findsOneWidget);
+        await tester.runAsync(bloc.close);
+      },
+    );
+
+    testWidgets('поле ввода — всегда в одну строку и не растёт под текст', (
       tester,
     ) async {
       final api = _FakeApi(total: 3);
@@ -348,18 +393,57 @@ void main() {
         await _until(() => bloc.state.messages.isNotEmpty);
       });
 
-      await _pumpSection(tester, bloc, auth: AuthStatus.unauthenticated);
+      await _pumpSection(tester, bloc, auth: AuthStatus.authenticated);
 
-      // Сообщения видны и без входа…
-      expect(find.text('сообщение 2'), findsOneWidget);
-      // …а писать нечем: ни поля ввода, ни кнопки отправить — только
-      // объяснение и кнопка входа.
-      expect(find.byType(TextField), findsNothing);
-      expect(
-        find.text('Войдите в аккаунт, чтобы писать в обсуждении и ставить реакции.'),
-        findsOneWidget,
+      final field = find.byType(TextField);
+      final emptyHeight = tester.getSize(field).height;
+
+      // Текст на несколько строк длиннее любого экрана: поле над перепиской
+      // всё равно остаётся одной строкой и не сдвигает её вниз.
+      await tester.enterText(
+        field,
+        'очень длинное сообщение, которое никак не помещается в одну строку '
+        'и раньше растягивало поле ввода на несколько строк подряд',
       );
-      expect(find.text('Войти'), findsOneWidget);
+      await tester.pump();
+
+      expect(
+        tester.getSize(field).height,
+        emptyHeight,
+        reason: 'поле не растёт под текст',
+      );
+      await tester.runAsync(bloc.close);
+    });
+
+    testWidgets('Enter (действие «отправить») отправляет сообщение', (
+      tester,
+    ) async {
+      final api = _FakeApi(total: 3);
+      late final ChatBloc bloc;
+      await tester.runAsync(() async {
+        bloc = _bloc(api);
+        bloc.add(ChatOpened());
+        await _until(() => bloc.state.messages.isNotEmpty);
+      });
+
+      await _pumpSection(tester, bloc, auth: AuthStatus.authenticated);
+
+      await tester.enterText(find.byType(TextField), 'привет');
+      // Bloc живёт в настоящей зоне (создан в runAsync), поэтому сперва текст
+      // доезжает до него там, и только потом кадр возвращает композеру свежий
+      // canSend.
+      await tester.runAsync(() => _until(() => bloc.state.body == 'привет'));
+      await tester.pump();
+      // Однострочному полю перенос строки не нужен, поэтому его действие —
+      // «отправить»: и Enter на клавиатуре, и кнопка Send на экранной.
+      await tester.testTextInput.receiveAction(TextInputAction.send);
+      await tester.runAsync(
+        () => _until(() => api.operations.contains('SendChatMessage')),
+      );
+
+      final sent = api.operations.indexOf('SendChatMessage');
+      expect(sent, isNot(-1), reason: 'мутация отправки ушла на сервер');
+      expect(api.variables[sent]['body'], 'привет');
       await tester.runAsync(bloc.close);
     });
   });

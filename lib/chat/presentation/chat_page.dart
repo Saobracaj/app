@@ -995,9 +995,14 @@ class ChatComposer extends StatelessWidget {
     super.key,
     required this.state,
     this.focusComposer = false,
+    this.singleLine = false,
   });
   final ChatState state;
   final bool focusComposer;
+
+  /// Поле всегда высотой в одну строку — для обсуждения на странице вопроса,
+  /// где растущее под текст поле сдвигало бы всю переписку под собой.
+  final bool singleLine;
 
   @override
   Widget build(BuildContext context) {
@@ -1094,6 +1099,9 @@ class ChatComposer extends StatelessWidget {
                 Expanded(
                   child: _ComposerField(
                     autofocus: focusComposer,
+                    // Правка — исключение: уже написанное сообщение бывает в
+                    // несколько строк, и в однострочном поле его не увидеть.
+                    singleLine: singleLine && !state.isEditing,
                     text: state.body,
                     hintText: switch (state.thread?.entityType) {
                       ChatEntityType.question =>
@@ -1169,12 +1177,17 @@ class _ComposerField extends StatefulWidget {
     required this.onChanged,
     required this.onSend,
     this.autofocus = false,
+    this.singleLine = false,
   });
 
   final String text;
 
   /// Забрать фокус сразу после открытия экрана.
   final bool autofocus;
+
+  /// Одна строка навсегда: поле не растёт под текст, Enter (и кнопка Send на
+  /// экранной клавиатуре) отправляет — перенос строки в нём всё равно не виден.
+  final bool singleLine;
 
   /// Подсказка в пустом поле: у чата группы она своя — пишут группе, а не
   /// разработчику.
@@ -1228,9 +1241,14 @@ class _ComposerFieldState extends State<_ComposerField> {
         // Поле начинается с одной строки и растёт под текст: пустое поле в три
         // строки съедало половину переписки на веб-версии.
         minLines: 1,
-        maxLines: 8,
-        textInputAction: TextInputAction.newline,
-        keyboardType: TextInputType.multiline,
+        maxLines: widget.singleLine ? 1 : 8,
+        textInputAction: widget.singleLine
+            ? TextInputAction.send
+            : TextInputAction.newline,
+        keyboardType: widget.singleLine
+            ? TextInputType.text
+            : TextInputType.multiline,
+        onSubmitted: widget.singleLine ? (_) => widget.onSend() : null,
         decoration: InputDecoration(
           hintText: widget.hintText,
           border: const OutlineInputBorder(),
