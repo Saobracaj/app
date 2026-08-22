@@ -2,9 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:saobracaj/auth/data/graphql_client.dart';
-import 'package:saobracaj/auth/data/token_storage.dart';
-import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/models/models.dart';
@@ -20,6 +17,7 @@ import 'package:saobracaj/test/start_test.dart';
 import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 import 'package:saobracaj/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'guest_flags_without_discussion.dart';
 
 /// «Режим презентации» (задача 1217517553850753): ответы раскрыты сразу,
 /// кнопки «показать ответ» нет, вместо «завершить» — «закрыть», в статистику
@@ -63,13 +61,8 @@ Widget _screen(Question question, {required bool last}) {
         theme: buildAppTheme(ColorScheme.fromSeed(seedColor: Colors.blue)),
         home: MultiBlocProvider(
           providers: [
-            BlocProvider(
-              create: (_) => FeatureFlagsBloc(
-                FeatureFlagsRepository(
-                  GraphqlClient(TokenStorage()),
-                  TokenStorage(),
-                ),
-              ),
+            BlocProvider<FeatureFlagsBloc>(
+              create: (_) => GuestFlagsWithoutDiscussionBloc(),
             ),
             BlocProvider(
               create: (_) =>

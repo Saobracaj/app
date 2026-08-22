@@ -9,6 +9,8 @@ import 'package:saobracaj/auth/data/auth_repository.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
+import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
+import 'package:saobracaj/auth/state_management/auth/auth_state.dart';
 import 'package:saobracaj/chat/data/chat_repository.dart';
 import 'package:saobracaj/chat/models/chat_target.dart';
 import 'package:saobracaj/chat/presentation/chat_page.dart';
@@ -136,6 +138,31 @@ class _DeadSocket implements GraphqlSocket {
   }
 }
 
+/// AuthBloc с раз и навсегда заданным статусом — от него в обсуждении зависит
+/// только одно: показывать ли гостю приглашение войти вместо строки ввода.
+class _FixedAuthBloc extends AuthBloc {
+  _FixedAuthBloc(this._status)
+    : super(
+        AuthRepository(
+          GraphqlClient(TokenStorage(), dio: Dio()..httpClientAdapter = _FakeApi()),
+          TokenStorage(),
+          AnalyticsService(),
+        ),
+        GraphqlSubscriptionClient(
+          GraphqlClient(TokenStorage(), dio: Dio()..httpClientAdapter = _FakeApi()),
+          TokenStorage(),
+          connector: (_) async => _DeadSocket(),
+          endpoint: Uri.parse('ws://localhost:8080/ws'),
+          retryDelay: (_) => Duration.zero,
+        ),
+      );
+
+  final AuthStatus _status;
+
+  @override
+  AuthState get state => AuthState(status: _status);
+}
+
 ChatBloc _bloc(_FakeApi api, {int questionId = 7921}) {
   final storage = TokenStorage();
   final client = GraphqlClient(storage, dio: Dio()..httpClientAdapter = api);
@@ -162,6 +189,46 @@ Future<void> _until(bool Function() done) async {
   for (var i = 0; i < 400 && !done(); i++) {
     await Future<void>.delayed(const Duration(milliseconds: 5));
   }
+}
+
+/// Вкладка обсуждения на готовом [bloc]: локализация, AuthBloc с заданным
+/// статусом и прокрутка страницы вокруг — как на настоящем экране вопроса.
+Future<void> _pumpSection(
+  WidgetTester tester,
+  ChatBloc bloc, {
+  required AuthStatus auth,
+}) async {
+  await tester.pumpWidget(
+    EasyLocalization(
+      useOnlyLangCode: true,
+      ignorePluralRules: false,
+      supportedLocales: const [Locale('sr'), Locale('ru'), Locale('en')],
+      fallbackLocale: const Locale('ru'),
+      startLocale: const Locale('ru'),
+      saveLocale: false,
+      path: 'assets/translations',
+      assetLoader: const CodegenLoader(),
+      child: Builder(
+        builder: (context) => MaterialApp(
+          locale: context.locale,
+          localizationsDelegates: context.localizationDelegates,
+          supportedLocales: context.supportedLocales,
+          home: Scaffold(
+            body: SingleChildScrollView(
+              child: MultiBlocProvider(
+                providers: [
+                  BlocProvider<AuthBloc>(create: (_) => _FixedAuthBloc(auth)),
+                  BlocProvider.value(value: bloc),
+                ],
+                child: const QuestionChatView(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
 }
 
 void main() {
@@ -256,34 +323,7 @@ void main() {
         await _until(() => bloc.state.messages.isNotEmpty);
       });
 
-      await tester.pumpWidget(
-        EasyLocalization(
-          useOnlyLangCode: true,
-          ignorePluralRules: false,
-          supportedLocales: const [Locale('sr'), Locale('ru'), Locale('en')],
-          fallbackLocale: const Locale('ru'),
-          startLocale: const Locale('ru'),
-          saveLocale: false,
-          path: 'assets/translations',
-          assetLoader: const CodegenLoader(),
-          child: Builder(
-            builder: (context) => MaterialApp(
-              locale: context.locale,
-              localizationsDelegates: context.localizationDelegates,
-              supportedLocales: context.supportedLocales,
-              home: Scaffold(
-                body: SingleChildScrollView(
-                  child: BlocProvider.value(
-                    value: bloc,
-                    child: const QuestionChatView(),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
+      await _pumpSection(tester, bloc, auth: AuthStatus.authenticated);
 
       final composer = tester.getTopLeft(find.byType(ChatComposer)).dy;
       final newest = tester.getTopLeft(find.text('сообщение 2')).dy;
@@ -294,6 +334,32 @@ void main() {
         lessThan(oldest),
         reason: 'свежее выше, дальше вниз — в прошлое',
       );
+      await tester.runAsync(bloc.close);
+    });
+
+    testWidgets('гость читает ленту, но вместо поля ввода — приглашение войти', (
+      tester,
+    ) async {
+      final api = _FakeApi(total: 3);
+      late final ChatBloc bloc;
+      await tester.runAsync(() async {
+        bloc = _bloc(api);
+        bloc.add(ChatOpened());
+        await _until(() => bloc.state.messages.isNotEmpty);
+      });
+
+      await _pumpSection(tester, bloc, auth: AuthStatus.unauthenticated);
+
+      // Сообщения видны и без входа…
+      expect(find.text('сообщение 2'), findsOneWidget);
+      // …а писать нечем: ни поля ввода, ни кнопки отправить — только
+      // объяснение и кнопка входа.
+      expect(find.byType(TextField), findsNothing);
+      expect(
+        find.text('Войдите в аккаунт, чтобы писать в обсуждении и ставить реакции.'),
+        findsOneWidget,
+      );
+      expect(find.text('Войти'), findsOneWidget);
       await tester.runAsync(bloc.close);
     });
   });

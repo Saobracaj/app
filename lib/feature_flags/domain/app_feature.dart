@@ -42,10 +42,10 @@ enum AppFeature {
   aggregateQuestionStats('aggregate_question_stats', FeatureAccess.guest),
   // 2. Per-question features
   questionComments('question_comments', FeatureAccess.premium),
-  publicQuestionComments(
-    'public_question_comments',
-    FeatureAccess.authenticated,
-  ),
+  // Гостевой тир: обсуждение вопроса читают все, в том числе без входа;
+  // писать и ставить реакции гость всё равно не может — композер заменяется
+  // приглашением войти, а бэкенд держит записи за RequireAuth.
+  publicQuestionComments('public_question_comments', FeatureAccess.guest),
   questionAnalysis('question_analysis', FeatureAccess.premium),
   // The live AI chat is the one premium feature the free categories do *not*
   // open: it is the only function with a variable cost per message, so it has

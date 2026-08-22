@@ -307,7 +307,9 @@
     "loadError": "Could not load the discussion",
     "hint": "Write a message",
     "noName": "Your messages are signed “No name”.",
-    "setName": "Set a name"
+    "setName": "Set a name",
+    "guestPrompt": "Sign in to write in the discussion and leave reactions.",
+    "guestSignIn": "Sign in"
   },
   "questionLists": {
     "section": "Question lists",

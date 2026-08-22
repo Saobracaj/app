@@ -12,7 +12,6 @@ import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
 import 'package:saobracaj/core/presentation/app_sidebar.dart';
 import 'package:saobracaj/core/responsive.dart';
-import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/home_page.dart';
@@ -28,6 +27,7 @@ import 'package:saobracaj/test/state_management/start_test_bloc.dart';
 import 'package:saobracaj/theme/app_theme.dart';
 import 'package:saobracaj/theme/state_management/theme_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'guest_flags_without_discussion.dart';
 
 /// Тесты адаптивной вёрстки: на телефоне остаётся прежняя мобильная вёрстка,
 /// на широких экранах (планшет/web) — рельса навигации вместо нижней панели и
@@ -105,9 +105,8 @@ Widget _questApp() {
           BlocProvider<AllQuestionsBloc>(
             create: (_) => _FakeAllQuestionsBloc(data),
           ),
-          BlocProvider(
-            create: (_) =>
-                FeatureFlagsBloc(FeatureFlagsRepository(client, storage)),
+          BlocProvider<FeatureFlagsBloc>(
+            create: (_) => GuestFlagsWithoutDiscussionBloc(),
           ),
           BlocProvider(
             create: (_) => QuestionListsBloc(

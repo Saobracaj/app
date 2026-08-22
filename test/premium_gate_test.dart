@@ -65,13 +65,23 @@ void main() {
 
   test('гостю бесплатная категория не выдаёт то, что требует входа', () {
     final flags = snapshot(authenticated: false);
-    // publicQuestionComments — тир «нужен вход», а не премиум: бесплатная
-    // категория его не открывает.
-    expect(
-      flags.isEnabledForCategory(AppFeature.publicQuestionComments, '25'),
-      isFalse,
-    );
+    // groups — тир «нужен вход», а не премиум: бесплатная категория его не
+    // открывает.
+    expect(flags.isEnabledForCategory(AppFeature.groups, '25'), isFalse);
     // А списки вопросов бесплатны всем и без лимита.
     expect(flags.isEnabled(AppFeature.customQuestionLists), isTrue);
+  });
+
+  test('обсуждение вопроса гость читает в любой категории', () {
+    final flags = snapshot(authenticated: false);
+    // Тир guest: вкладка видна и без входа — писать не даст сам экран
+    // (композер заменяется приглашением войти) и RequireAuth на бэкенде.
+    for (final category in ['25', '27']) {
+      expect(
+        flags.isEnabledForCategory(AppFeature.publicQuestionComments, category),
+        isTrue,
+        reason: 'обсуждение открыто гостю в категории $category',
+      );
+    }
   });
 }
