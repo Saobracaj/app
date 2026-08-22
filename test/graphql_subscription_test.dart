@@ -161,6 +161,53 @@ void main() {
     await sub.cancel();
   });
 
+  test('подписка, созданная на уже подтверждённом сокете, стартует сразу', () async {
+    // Плашка «нет связи» в чате группы: сокет уже держала подписка ленты, и
+    // чат, подписавшийся позже, не дожидался нового connection_ack — операция
+    // не стартовала и Resumed не приходил никогда.
+    final (:client, :connector) = _client();
+    final first = client.subscribe('subscription A { a }').listen((_) {});
+    await _settle();
+    connector.last.emit({'type': 'connection_ack'});
+    await _settle();
+
+    final messages = <GraphqlSubscriptionMessage>[];
+    final second = client
+        .subscribe('subscription B { b }')
+        .listen(messages.add);
+    await _settle();
+
+    // Второй подписчик едет по тому же сокету, и его операция отправлена без
+    // нового рукопожатия.
+    expect(connector.sockets, hasLength(1));
+    final subscribes = connector.last.sent
+        .where((m) => m['type'] == 'subscribe')
+        .toList();
+    expect(subscribes, hasLength(2));
+    expect(subscribes.last['payload']['query'], contains('subscription B'));
+
+    // И он слышит Resumed — иначе экран вечно считает себя офлайн.
+    expect(messages.single, isA<GraphqlSubscriptionResumed>());
+    expect(
+      (messages.single as GraphqlSubscriptionResumed).firstConnect,
+      isTrue,
+    );
+
+    // События доходят до своего адресата.
+    connector.last.emit({
+      'id': subscribes.last['id'],
+      'type': 'next',
+      'payload': {
+        'data': {'b': 1},
+      },
+    });
+    await _settle();
+    expect((messages.last as GraphqlSubscriptionData).data, {'b': 1});
+
+    await first.cancel();
+    await second.cancel();
+  });
+
   test('reconnects, re-subscribes and says events may have been missed', () async {
     final (:client, :connector) = _client();
     final messages = <GraphqlSubscriptionMessage>[];
