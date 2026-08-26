@@ -13,6 +13,8 @@
 /// the routing rules live in one place instead of inside a platform callback.
 library;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 const _webHost = 'saobracaj.gleb.at';
 const _customScheme = 'saobracaj';
 
@@ -44,8 +46,9 @@ const _linkableRoots = {
   'chat',
   'thread',
   // Top-level screens a notification may point at: the settings hub (the
-  // test-push screen suggests `/settings`), the subscription and its tariffs,
-  // and the moderator's screens.
+  // test-push screen suggests `/settings`), the subscription and its tariffs
+  // (web only — on mobile `_isPaymentPath` sends them to the browser), and
+  // the moderator's screens.
   'settings',
   'notifications',
   'subscription',
@@ -54,7 +57,9 @@ const _linkableRoots = {
 };
 
 /// The in-app path for [uri], or `null` when the link is not ours to handle.
-String? deepLinkPathFor(Uri uri) {
+///
+/// [isWeb] exists for tests only — in the app it is always [kIsWeb].
+String? deepLinkPathFor(Uri uri, {bool isWeb = kIsWeb}) {
   // A trailing slash ('/question/10913/') is common in links pasted or built
   // by other apps; the empty segment it produces would miss every route and
   // land on "page not found", so it is dropped here.
@@ -62,9 +67,24 @@ String? deepLinkPathFor(Uri uri) {
   if (segments == null) return null;
   if (segments.isEmpty) return '/';
   if (!_linkableRoots.contains(segments.first)) return null;
+  // Money pages exist only on the web (routes.dart, App Store 3.1.3(b)):
+  // in the mobile app such a link is "not ours" — every consumer of this
+  // function then hands it to the browser (or, for an external deep link,
+  // leaves the app where it was) instead of opening an empty screen.
+  if (!isWeb && _isPaymentPath(segments)) return null;
 
   final path = '/${segments.map(Uri.encodeComponent).join('/')}';
   return uri.hasQuery ? '$path?${uri.query}' : path;
+}
+
+/// Whether [segments] point at a page about paying: the tariff storefront,
+/// the subscription screen, or the subscription section of the settings.
+bool _isPaymentPath(List<String> segments) {
+  final first = segments.first;
+  if (first == 'tariffs' || first == 'subscription') return true;
+  return first == 'settings' &&
+      segments.length > 1 &&
+      segments[1] == 'subscription';
 }
 
 /// The path segments to route by, or `null` if the link belongs elsewhere.
