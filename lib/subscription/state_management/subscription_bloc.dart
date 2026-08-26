@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../auth/data/graphql_client.dart';
+import '../../core/analytics/analytics_service.dart';
 import '../../feature_flags/data/feature_flags_repository.dart';
 import '../../feature_flags/domain/app_feature.dart';
 import '../../generated/locale_keys.g.dart';
@@ -84,6 +85,7 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     emit(state.copyWith(submitting: true, errorMessage: null));
     try {
       final order = await _repository.createOrder(event.sku);
+      analytics.logCheckoutStep(step: 'order_created', sku: event.sku);
       emit(
         state.copyWith(
           submitting: false,
@@ -102,6 +104,7 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     emit(state.copyWith(submitting: true, errorMessage: null));
     try {
       final cancelled = await _repository.cancelOrder(event.orderId);
+      analytics.logCheckoutStep(step: 'order_cancelled');
       emit(
         state.copyWith(
           submitting: false,

@@ -87,6 +87,7 @@ import '../test/quest/question_features/state_management/question_features_bloc.
 import '../test/quest/question_features/state_management/question_konspekt_bloc.dart'
     as _i192;
 import '../test/state_management/start_test_bloc.dart' as _i31;
+import 'analytics/analytics_event_sink.dart' as _i335;
 import 'analytics/analytics_service.dart' as _i811;
 import 'deep_links/deep_link_service.dart' as _i547;
 import 'di.dart' as _i913;
@@ -157,6 +158,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i966.GraphqlSubscriptionClient>(
       () => registerModule.graphqlSubscriptionClient(
+        gh<_i483.GraphqlClient>(),
+        gh<_i25.TokenStorage>(),
+      ),
+    );
+    gh.lazySingleton<_i335.AnalyticsEventSink>(
+      () => registerModule.analyticsEventSink(
         gh<_i483.GraphqlClient>(),
         gh<_i25.TokenStorage>(),
       ),
