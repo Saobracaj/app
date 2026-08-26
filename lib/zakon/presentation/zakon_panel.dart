@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:routemaster/routemaster.dart';
 
+import '../../core/analytics/analytics_service.dart';
 import '../../core/responsive.dart';
 import '../zakon.dart';
 
@@ -23,14 +24,21 @@ Future<void> openZakon(
   String path, {
   Map<String, String>? queryParameters,
 }) {
-  if (!context.isExpandedScreen) {
-    Routemaster.of(context).push(path, queryParameters: queryParameters);
-    return Future<void>.value();
-  }
   final params = {
     ...Uri.parse(path).queryParameters,
     ...?queryParameters,
   };
+  // Логируется здесь, а не на экране: на широком экране панель не роут и
+  // `screen_view` не поднимает, а сюда сходятся оба варианта открытия.
+  analytics.logZakonOpened(
+    chlan: params['chlan'],
+    paragraph: params['paragraph'],
+    chapter: params['chapter'],
+  );
+  if (!context.isExpandedScreen) {
+    Routemaster.of(context).push(path, queryParameters: queryParameters);
+    return Future<void>.value();
+  }
   return showZakonPanel(
     context,
     paragraph: params['paragraph'],

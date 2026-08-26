@@ -2,6 +2,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 
 part 'translations_bloc.freezed.dart';
 
@@ -15,7 +16,9 @@ class TranslationsBloc extends Bloc<TranslationsEvent, TranslationsState> {
 
 
   void _onToggleShowTranslation(ToggleShowTranslation event, Emitter<TranslationsState> emit) {
-    emit(state.copyWith(showTranslation: !state.showTranslation));
+    final enabled = !state.showTranslation;
+    analytics.logTranslationToggled(enabled: enabled);
+    emit(state.copyWith(showTranslation: enabled));
   }
 
   // Смена вопроса намеренно сбрасывает переключатель «РУ».

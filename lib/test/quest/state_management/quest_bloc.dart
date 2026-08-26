@@ -36,19 +36,31 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
         questionCount: questions.length,
         subcategory: subcategory,
       );
+      // The first question is on screen as soon as the run opens; the rest
+      // are reported by the index-changing handlers below.
+      if (questions.isNotEmpty) {
+        analytics.logQuestionViewed(questionId: questions.first);
+      }
     }
+  }
+
+  void _logQuestionViewed(int qid) {
+    if (presentation) return;
+    analytics.logQuestionViewed(questionId: qid);
   }
 
   void _onNextQuestion(NextQuestion event, Emitter<QuestState> emit) {
     final nextIndex = state.currentQuestionIndex + 1;
     if (nextIndex >= state.questions.length) return;
     emit(state.copyWith(currentQuestionIndex: nextIndex));
+    _logQuestionViewed(state.questions[nextIndex]);
   }
 
   void _onPrevQuestion(PrevQuestion event, Emitter<QuestState> emit) {
     final nextIndex = state.currentQuestionIndex - 1;
     if (nextIndex < 0) return;
     emit(state.copyWith(currentQuestionIndex: nextIndex));
+    _logQuestionViewed(state.questions[nextIndex]);
   }
 
   void _onAddAnswer(AddAnswer event, Emitter<QuestState> emit) {
@@ -120,7 +132,9 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
 
   void _onMoveToQuestiont(MoveToQuestion event, Emitter<QuestState> emit) {
     final ind = state.questions.indexOf(event.qid);
+    if (ind == state.currentQuestionIndex) return;
     emit(state.copyWith(currentQuestionIndex: ind));
+    _logQuestionViewed(event.qid);
   }
 
   void _onFinalizeTest(FinalizeTest event, Emitter<QuestState> emit) async {

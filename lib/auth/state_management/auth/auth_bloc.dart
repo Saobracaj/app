@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../../account_deletion/data/local_data_cleaner.dart';
+import '../../../core/analytics/analytics_service.dart';
 import '../../../core/network/network_status.dart';
 import '../../../db/dependencies.dart';
 import '../../data/auth_repository.dart';
@@ -81,6 +82,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final viewer = await repository.me();
       if (viewer != null && state.status == AuthStatus.authenticated) {
+        analytics.setUserId(viewer.id);
         emit(state.copyWith(viewer: viewer));
       }
     } catch (_) {
@@ -113,6 +115,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           // reaching this call with a live session is enough to get a viewer.
           final viewer = await repository.me();
           if (viewer != null) {
+            // Ties this device's GA events to the account, so a single user's
+            // journey can be pulled up by their backend id.
+            analytics.setUserId(viewer.id);
             emit(state.copyWith(viewer: viewer));
           } else {
             // The account behind the token is gone — drop it (re-emits
@@ -142,6 +147,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(
           state.copyWith(status: AuthStatus.unauthenticated, clearViewer: true),
         );
+        // The events that follow belong to a guest, not to the account that
+        // just signed out.
+        analytics.setUserId(null);
         // Premium features are tied to the session — drop the cached grants.
         featureFlags.onLoggedOut();
         // Same for anything listening over the websocket: the token it

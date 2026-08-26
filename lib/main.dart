@@ -84,6 +84,9 @@ void main() async {
   // the home screen reads it on its first frame.
   await getIt<NetworkStatus>().start();
   await initFirebase();
+  // Report the build as a user property: Firebase fills the app version in on
+  // its own only for the mobile platforms, not for the web build.
+  analytics.reportAppVersion();
   // Instantiate the session holder before anything issues an authenticated
   // request: it subscribes to the GraphQL client's `sessionExpired` signal, so
   // an unrenewable session signs the user out no matter which call hit it first.

@@ -84,7 +84,8 @@ class QuestionFeaturesTabs extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => getIt<QuestionFeaturesBloc>(param1: initial),
+          create: (_) =>
+              getIt<QuestionFeaturesBloc>(param1: initial, param2: questionId),
         ),
         // Значку нужен один скаляр, поэтому он читается отдельно от чата,
         // живущего внутри самой вкладки.

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/core/markdown/phrase_highlight.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/dictionary/dictionary.dart';
@@ -118,6 +119,7 @@ class QuestMarkdown extends StatelessWidget {
 Future showMarkdown(BuildContext context, String link) async {
   final o = getDictByTitle(link);
   if (o == null) return;
+  analytics.logDefinitionOpened(term: link);
   final String text = o['sr'];
   // Русский перевод определения показываем только тем, кто выбрал
   // русскоязычный контент (в стартовом вопросе или потом в настройках) —
