@@ -29,7 +29,7 @@ Future<void> openZakon(
     ...?queryParameters,
   };
   // Логируется здесь, а не на экране: на широком экране панель не роут и
-  // `screen_view` не поднимает, а сюда сходятся оба варианта открытия.
+  // события `$screen` не поднимает, а сюда сходятся оба варианта открытия.
   analytics.logZakonOpened(
     chlan: params['chlan'],
     paragraph: params['paragraph'],

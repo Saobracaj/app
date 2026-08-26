@@ -146,8 +146,12 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     emit(state.copyWith(promoChecking: true, promoError: null));
     try {
       final promo = await _repository.checkPromoCode(code);
+      analytics.logPromoCodeApplied(valid: true);
       emit(state.copyWith(promoChecking: false, promo: promo));
     } on GraphqlException catch (e) {
+      // Обрыв связи — не «неверный код»: в аналитику идут только ответы
+      // бэкенда по существу.
+      if (!isNetworkError(e)) analytics.logPromoCodeApplied(valid: false);
       emit(
         state.copyWith(promoChecking: false, promoError: describeActionError(e)),
       );
@@ -180,6 +184,7 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     RussianAddonToggled event,
     Emitter<SubscriptionState> emit,
   ) {
+    analytics.logRussianAddonToggled(enabled: event.enabled);
     emit(state.copyWith(withRussian: event.enabled));
   }
 

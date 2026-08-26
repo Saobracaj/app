@@ -38,14 +38,21 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
       );
       // The first question is on screen as soon as the run opens; the rest
       // are reported by the index-changing handlers below.
-      if (questions.isNotEmpty) {
-        analytics.logQuestionViewed(questionId: questions.first);
-      }
+      if (questions.isNotEmpty) _logQuestionViewed(questions.first);
     }
   }
 
+  /// When the run began — the run's duration in `test_finished`.
+  final DateTime _startedAt = DateTime.now();
+
+  /// When the current question appeared — «сколько думал» in
+  /// `question_answered`. Reset on every page change, including a return to an
+  /// already answered question.
+  DateTime? _questionShownAt;
+
   void _logQuestionViewed(int qid) {
     if (presentation) return;
+    _questionShownAt = DateTime.now();
     analytics.logQuestionViewed(questionId: qid);
   }
 
@@ -78,8 +85,18 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
     final correctAnswers = question.choices
         .where((element) => element.isCorrect)
         .toSet();
+    final correct = setEquals(correctAnswers, event.answer);
 
-    repository.addAnswer(event.qid, !setEquals(correctAnswers, event.answer));
+    final shownAt = _questionShownAt;
+    analytics.logQuestionAnswered(
+      questionId: event.qid,
+      correct: correct,
+      secondsSinceShown: shownAt == null
+          ? null
+          : DateTime.now().difference(shownAt).inSeconds,
+    );
+
+    repository.addAnswer(event.qid, !correct);
   }
 
   void _recalculateState(
@@ -150,6 +167,7 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
       score: state.score,
       possibleScore: state.possibleScore,
       subcategory: subcategory,
+      durationSeconds: DateTime.now().difference(_startedAt).inSeconds,
     );
 
     // Only a run of a real block leaves a subcategory record. An empty id (or

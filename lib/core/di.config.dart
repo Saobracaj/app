@@ -145,6 +145,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i31.StartTestBloc>(
       () => _i31.StartTestBloc(gh<_i442.QuizPreferencesRepository>()),
     );
+    gh.lazySingleton<_i335.AnalyticsEventSink>(
+      () => registerModule.analyticsEventSink(gh<_i25.TokenStorage>()),
+    );
     gh.factoryParam<_i986.QuestionCuesBloc, int, dynamic>(
       (questionId, _) => _i986.QuestionCuesBloc(
         gh<_i1002.QuestionAnalyticsRepository>(),
@@ -162,12 +165,6 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i966.GraphqlSubscriptionClient>(
       () => registerModule.graphqlSubscriptionClient(
-        gh<_i483.GraphqlClient>(),
-        gh<_i25.TokenStorage>(),
-      ),
-    );
-    gh.lazySingleton<_i335.AnalyticsEventSink>(
-      () => registerModule.analyticsEventSink(
         gh<_i483.GraphqlClient>(),
         gh<_i25.TokenStorage>(),
       ),

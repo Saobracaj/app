@@ -82,7 +82,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final viewer = await repository.me();
       if (viewer != null && state.status == AuthStatus.authenticated) {
-        analytics.setUserId(viewer.id);
+        analytics.setUser(id: viewer.id, email: viewer.email);
         emit(state.copyWith(viewer: viewer));
       }
     } catch (_) {
@@ -117,7 +117,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           if (viewer != null) {
             // Ties this device's GA events to the account, so a single user's
             // journey can be pulled up by their backend id.
-            analytics.setUserId(viewer.id);
+            analytics.setUser(id: viewer.id, email: viewer.email);
             emit(state.copyWith(viewer: viewer));
           } else {
             // The account behind the token is gone — drop it (re-emits
@@ -149,7 +149,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         );
         // The events that follow belong to a guest, not to the account that
         // just signed out.
-        analytics.setUserId(null);
+        analytics.setUser();
         // Premium features are tied to the session — drop the cached grants.
         featureFlags.onLoggedOut();
         // Same for anything listening over the websocket: the token it

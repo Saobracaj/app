@@ -85,12 +85,9 @@ void main() async {
   // the home screen reads it on its first frame.
   await getIt<NetworkStatus>().start();
   await initFirebase();
-  // Report the build as a user property: Firebase fills the app version in on
-  // its own only for the mobile platforms, not for the web build.
-  analytics.reportAppVersion();
-  // The second half of the analytics pipeline: the same events go to our own
-  // backend, where they can be read per user. Batched and fire-and-forget —
-  // `start()` only picks up the device id and the build number.
+  // The analytics pipeline: events go to PostHog. Batched and
+  // fire-and-forget — `start()` only picks up the device id and the build
+  // number.
   final analyticsSink = getIt<AnalyticsEventSink>();
   analytics.attachSink(analyticsSink);
   unawaited(analyticsSink.start());
