@@ -90,6 +90,8 @@ import '../test/state_management/start_test_bloc.dart' as _i31;
 import 'analytics/analytics_service.dart' as _i811;
 import 'deep_links/deep_link_service.dart' as _i547;
 import 'di.dart' as _i913;
+import 'environment/data/environment_repository.dart' as _i228;
+import 'environment/state_management/environment_bloc.dart' as _i438;
 import 'network/network_status.dart' as _i958;
 import 'network/state_management/network_status_bloc.dart' as _i819;
 
@@ -108,6 +110,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i958.NetworkStatus>(() => registerModule.networkStatus());
     gh.lazySingleton<_i389.FeatureFlagsRepository>(
       () => registerModule.featureFlagsRepository(),
+    );
+    gh.lazySingleton<_i228.EnvironmentRepository>(
+      () => _i228.EnvironmentRepository(),
     );
     gh.lazySingleton<_i426.NotificationPermissions>(
       () => const _i426.NotificationPermissions(),
@@ -311,6 +316,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factoryParam<_i794.AskAiChatBloc, _i997.AskAiChatScope, String>(
       (scope, scopeId) =>
           _i794.AskAiChatBloc(gh<_i154.AskAiChatRepository>(), scope, scopeId),
+    );
+    gh.factory<_i438.EnvironmentBloc>(
+      () => _i438.EnvironmentBloc(
+        gh<_i228.EnvironmentRepository>(),
+        gh<_i880.AuthRepository>(),
+      ),
     );
     gh.factoryParam<_i481.GroupFeedBloc, String, dynamic>(
       (groupId, _) => _i481.GroupFeedBloc(

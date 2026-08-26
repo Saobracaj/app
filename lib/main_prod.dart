@@ -1,3 +1,6 @@
+import 'package:flutter/widgets.dart';
+
+import 'core/environment/app_environment.dart';
 import 'flavor.dart';
 import 'main.dart' as app;
 
@@ -5,11 +8,20 @@ import 'main.dart' as app;
 ///
 ///   flutter run       -t lib/main_prod.dart
 ///   flutter build web -t lib/main_prod.dart
-void main() {
+///
+/// Одна и та же сборка обслуживает и прод, и dev-окружение: окружение
+/// выбирается в рантайме (веб — по домену, mobile — по сохранённому выбору из
+/// секретного диалога в «О приложении»), см. [resolveAppEnvironment].
+Future<void> main() async {
+  // Чтение shared preferences ходит в платформенный канал — биндинг нужен до
+  // первого обращения. Повторный вызов в `app.main()` безвреден.
+  WidgetsFlutterBinding.ensureInitialized();
+  final environment = await resolveAppEnvironment();
   FlavorConfig.init(
-    const FlavorConfig(
+    FlavorConfig(
       flavor: Flavor.prod,
-      apiBaseUrl: 'https://api.saobracaj.gleb.at',
+      apiBaseUrl: environment.apiBaseUrl,
+      environment: environment,
     ),
   );
   app.main();

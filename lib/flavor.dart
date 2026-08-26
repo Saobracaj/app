@@ -13,16 +13,30 @@
 /// flutter build web -t lib/main_prod.dart
 /// ```
 /// Plain `flutter run` (target `lib/main.dart`) defaults to the debug flavor.
+library;
+
+import 'core/environment/app_environment.dart';
+
 enum Flavor { debug, prod }
 
 class FlavorConfig {
-  const FlavorConfig({required this.flavor, required this.apiBaseUrl});
+  const FlavorConfig({
+    required this.flavor,
+    required this.apiBaseUrl,
+    this.environment = AppEnvironment.production,
+  });
 
   /// Which flavor this build was launched as.
   final Flavor flavor;
 
   /// Back-end base URL, without the trailing `/graphql`.
   final String apiBaseUrl;
+
+  /// Какое окружение выбрала prod-сборка на этом запуске (см.
+  /// [resolveAppEnvironment]): на вебе — по домену, на мобильных — по
+  /// сохранённому выбору из секретного диалога. Для debug-флейвора значение
+  /// номинально ([AppEnvironment.production]) — он всегда ходит на localhost.
+  final AppEnvironment environment;
 
   bool get isProd => flavor == Flavor.prod;
   bool get isDebug => flavor == Flavor.debug;
