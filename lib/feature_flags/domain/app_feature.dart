@@ -52,6 +52,7 @@ enum AppFeature {
   // no demo mode (`freeInFreeCategories: false`).
   askAi('ask_ai', FeatureAccess.premium, freeInFreeCategories: false),
   lawDefinitionsHighlight('law_definitions_highlight', FeatureAccess.guest),
+  questionFeedback('question_feedback', FeatureAccess.guest),
   // 3. Category summaries ("Конспекты")
   categorySummaries('category_summaries', FeatureAccess.premium),
   // 4. Groups
