@@ -108,6 +108,7 @@ dependencies:
   # photo_compressor.dart). Чистый Dart — работает и в wasm-вебе, где
   # image_picker игнорирует imageQuality.
   image: ^4.5.4
+  restart_app: ^1.9.1
 
 dev_dependencies:
   flutter_test:

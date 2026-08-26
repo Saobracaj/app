@@ -18,8 +18,11 @@ name: Build & Deploy
 on:
   push:
     branches: [main]
+  # PR-ы теперь идут в develop (релиз — PR develop -> main); проверки гоняются
+  # для обоих направлений. Деплой dev-веба из develop — отдельный workflow
+  # deploy-dev-web.yml.
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   workflow_dispatch:
     inputs:
       build_android:
