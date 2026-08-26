@@ -40,7 +40,22 @@ class TariffsPage extends StatelessWidget {
       create: (_) => getIt<SubscriptionBloc>(),
       child: Scaffold(
         appBar: AppBar(title: Text(LocaleKeys.subscription_tariffsTitle.tr())),
-        body: BlocBuilder<SubscriptionBloc, SubscriptionState>(
+        body: BlocConsumer<SubscriptionBloc, SubscriptionState>(
+          // Снэкбары — только про действия (заказ, промокод); ошибка загрузки
+          // рендерится инлайном ниже.
+          listenWhen: (prev, curr) =>
+              curr.tariffs.isNotEmpty &&
+              ((curr.errorMessage != null &&
+                      curr.errorMessage != prev.errorMessage) ||
+                  (curr.infoMessage != null &&
+                      curr.infoMessage != prev.infoMessage)),
+          listener: (context, state) {
+            final message = state.errorMessage ?? state.infoMessage;
+            if (message == null) return;
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(SnackBar(content: Text(message)));
+          },
           builder: (context, state) {
             if (state.inProgress && state.tariffs.isEmpty) {
               return const Center(child: CircularProgressIndicator());
@@ -75,6 +90,8 @@ class TariffsPage extends StatelessWidget {
                 _TermRow(state: state),
                 const SizedBox(height: 12),
                 _RussianAddon(state: state),
+                const SizedBox(height: 12),
+                _PromoField(state: state),
                 const SizedBox(height: 28),
                 const PlanFeaturesComparison(),
                 const SizedBox(height: 16),
@@ -248,6 +265,11 @@ class _TermCard extends StatelessWidget {
     );
     final saving = state.savingPercent(tariff);
     final savedRsd = state.savingRsd(tariff);
+    final promoPrice = state.promoPrice(tariff);
+    // Крупная цифра — цена за месяц; со скидкой она считается от новой суммы.
+    final perMonth = promoPrice == null
+        ? pricePerMonthLabel(tariff)
+        : priceLabel((promoPrice / tariff.months).round());
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
@@ -283,7 +305,7 @@ class _TermCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            pricePerMonthLabel(tariff),
+            perMonth,
             style: theme.textTheme.headlineMedium?.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -297,10 +319,29 @@ class _TermCard extends StatelessWidget {
           const SizedBox(height: 12),
           Divider(height: 1, color: theme.colorScheme.outlineVariant),
           const SizedBox(height: 10),
-          Text(
-            payTotalLabel(tariff.priceRsd),
-            style: theme.textTheme.bodyMedium,
-          ),
+          if (promoPrice == null)
+            Text(payTotalLabel(tariff.priceRsd), style: theme.textTheme.bodyMedium)
+          else
+            Wrap(
+              spacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  payTotalLabel(promoPrice),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                Text(
+                  priceLabel(tariff.priceRsd),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    decoration: TextDecoration.lineThrough,
+                  ),
+                ),
+              ],
+            ),
           const SizedBox(height: 2),
           Text(
             // У месячного «экономии» нет — вместо неё честное предупреждение,
@@ -445,6 +486,116 @@ class _RussianAddon extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Поле промокода. Код проверяется на бэкенде по нажатию «Применить»; после
+/// проверки скидка видна прямо на карточках сроков, а код уходит вместе с
+/// заказом. Гостю поле не показывается — проверка требует входа.
+class _PromoField extends StatelessWidget {
+  const _PromoField({required this.state});
+
+  final SubscriptionState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final authenticated = context.select(
+      (AuthBloc bloc) => bloc.state.isAuthenticated,
+    );
+    if (!authenticated) return const SizedBox.shrink();
+    final bloc = context.read<SubscriptionBloc>();
+    final promo = state.promo;
+
+    if (promo != null) {
+      Tariff? restrictedTo;
+      for (final t in state.tariffs) {
+        if (t.sku == promo.sku) restrictedTo = t;
+      }
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.colorScheme.primary),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.local_offer_outlined, color: theme.colorScheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    LocaleKeys.subscription_promoApplied.tr(
+                      namedArgs: {
+                        'code': promo.code,
+                        'percent': '${promo.discountPercent}',
+                      },
+                    ),
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  if (restrictedTo != null)
+                    Text(
+                      LocaleKeys.subscription_promoLimited.tr(
+                        namedArgs: {
+                          'tariff':
+                              '${tariffKindName(restrictedTo.kind)}, ${monthsLabel(restrictedTo.months)}',
+                        },
+                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: () => bloc.add(PromoCodeCleared()),
+              child: Text(LocaleKeys.subscription_promoRemove.tr()),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: TextFormField(
+            initialValue: state.promoDraft,
+            textCapitalization: TextCapitalization.characters,
+            decoration: InputDecoration(
+              labelText: LocaleKeys.subscription_promoTitle.tr(),
+              errorText: state.promoError,
+              isDense: true,
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.local_offer_outlined),
+            ),
+            onChanged: (v) => bloc.add(PromoCodeDraftChanged(v)),
+            onFieldSubmitted: (_) => bloc.add(PromoCodeApplied()),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // Та же высота, что у isDense-поля рядом, — кнопка не должна его
+        // перерастать.
+        OutlinedButton(
+          onPressed:
+              state.promoChecking || state.promoDraft.trim().isEmpty
+              ? null
+              : () => bloc.add(PromoCodeApplied()),
+          child: state.promoChecking
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Text(LocaleKeys.subscription_promoApply.tr()),
+        ),
+      ],
     );
   }
 }

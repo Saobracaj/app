@@ -68,6 +68,18 @@ class _StubSubscriptionRepository extends SubscriptionRepository {
 
   @override
   Future<List<SubscriptionPeriod>> myPeriods() async => const [];
+
+  /// Что вернёт проверка промокода; `null` — отказ «не найден».
+  PromoCodeInfo? promoInfo;
+  final calls = <String>[];
+
+  @override
+  Future<PromoCodeInfo> checkPromoCode(String code) async {
+    calls.add('check:$code');
+    final promo = promoInfo;
+    if (promo == null) throw GraphqlException('Промокод не найден');
+    return promo;
+  }
 }
 
 /// Локальный тумблер русских материалов — тот самый, по которому витрина
@@ -96,6 +108,13 @@ class _GuestAuthBloc extends AuthBloc {
   AuthState get state => const AuthState(status: AuthStatus.unauthenticated);
 }
 
+class _AuthedAuthBloc extends AuthBloc {
+  _AuthedAuthBloc(super.repository, super.subscriptions);
+
+  @override
+  AuthState get state => const AuthState(status: AuthStatus.authenticated);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   SharedPreferences.setMockInitialValues({});
@@ -106,19 +125,25 @@ void main() {
 
   tearDown(getIt.reset);
 
-  Widget wrap({required bool russianContent, Locale? locale}) {
+  Widget wrap({
+    required bool russianContent,
+    Locale? locale,
+    bool authenticated = false,
+    _StubSubscriptionRepository? repository,
+  }) {
     getIt.registerFactory<SubscriptionBloc>(
       () => SubscriptionBloc(
-        _StubSubscriptionRepository(),
+        repository ?? _StubSubscriptionRepository(),
         _StubFeatureFlagsRepository(russianContent),
       ),
     );
     final storage = TokenStorage();
     final client = GraphqlClient(storage);
-    final auth = _GuestAuthBloc(
-      AuthRepository(client, storage, AnalyticsService()),
-      GraphqlSubscriptionClient(client, storage),
-    );
+    final authRepository = AuthRepository(client, storage, AnalyticsService());
+    final subscriptions = GraphqlSubscriptionClient(client, storage);
+    final auth = authenticated
+        ? _AuthedAuthBloc(authRepository, subscriptions)
+        : _GuestAuthBloc(authRepository, subscriptions);
     return EasyLocalization(
       useOnlyLangCode: true,
       supportedLocales: const [Locale('sr'), Locale('ru'), Locale('en')],
@@ -213,6 +238,82 @@ void main() {
       expect(find.text('+1\u00A0500 RSD'), findsOneWidget);
     },
   );
+
+  testWidgets('промокод применяется и скидка видна на карточках', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final repo = _StubSubscriptionRepository()
+      ..promoInfo = PromoCodeInfo(
+        code: 'ABCD2345',
+        discountPercent: 50,
+        validUntil: DateTime(2026, 12, 31),
+      );
+    await tester.pumpWidget(
+      wrap(russianContent: false, authenticated: true, repository: repo),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Промокод'),
+      'abcd2345',
+    );
+    await tester.pump();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Применить'));
+    await tester.pumpAndSettle();
+
+    expect(repo.calls, contains('check:abcd2345'));
+    expect(find.text('Промокод ABCD2345 — скидка 50%'), findsOneWidget);
+    // Годовой: 3490 → 1745, полная цена рядом перечёркнутой подписью.
+    expect(find.text('К оплате 1 745 RSD'), findsOneWidget);
+    expect(find.text('3 490 RSD'), findsOneWidget);
+    // Крупная цифра пересчитана от новой суммы: 1745 / 12 ≈ 145.
+    expect(find.text('145 RSD'), findsOneWidget);
+
+    // «Убрать» возвращает обычные цены.
+    await tester.tap(find.text('Убрать'));
+    await tester.pumpAndSettle();
+    expect(find.text('К оплате 3 490 RSD'), findsOneWidget);
+  });
+
+  testWidgets('неизвестный промокод показывает причину под полем', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    final repo = _StubSubscriptionRepository();
+    await tester.pumpWidget(
+      wrap(russianContent: false, authenticated: true, repository: repo),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Промокод'),
+      'WRONG',
+    );
+    await tester.pump();
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Применить'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Промокод не найден'), findsOneWidget);
+    expect(find.text('К оплате 3 490 RSD'), findsOneWidget);
+  });
+
+  testWidgets('гостю поле промокода не показывается', (tester) async {
+    tester.view.physicalSize = const Size(1280, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap(russianContent: false));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Промокод'), findsNothing);
+  });
 
   testWidgets('гостю предлагают войти вместо покупки', (tester) async {
     tester.view.physicalSize = const Size(1280, 2400);

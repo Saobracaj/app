@@ -159,6 +159,8 @@ class Order {
     this.userEmail,
     this.userId,
     this.paidAt,
+    this.promoCode,
+    this.discountPercent,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) => Order(
@@ -179,13 +181,15 @@ class Order {
     paidAt: json['paidAt'] == null
         ? null
         : DateTime.parse(json['paidAt'] as String).toLocal(),
+    promoCode: json['promoCode'] as String?,
+    discountPercent: (json['discountPercent'] as num?)?.toInt(),
   );
 
   /// GraphQL-выборка полей заказа вместе с уплатницей.
   static const fields =
       '''
     id userId userEmail sku tariffKind months amountRsd status referenceDisplay
-    createdAt paymentDueAt paidAt
+    createdAt paymentDueAt paidAt promoCode discountPercent
     payment { ${PaymentSlip.fields} }
   ''';
 
@@ -209,7 +213,46 @@ class Order {
   final String? userId;
   final DateTime? paidAt;
 
+  /// Промокод, применённый при оформлении; [amountRsd] уже со скидкой.
+  final String? promoCode;
+  final int? discountPercent;
+
   bool get isPending => status == OrderStatus.pending;
+}
+
+/// Что даёт применённый промокод — ответ `checkPromoCode`. Скидка и (если
+/// код привязан к тарифу) SKU, к которому он применим.
+class PromoCodeInfo {
+  const PromoCodeInfo({
+    required this.code,
+    required this.discountPercent,
+    this.sku,
+    required this.validUntil,
+  });
+
+  factory PromoCodeInfo.fromJson(Map<String, dynamic> json) => PromoCodeInfo(
+    code: json['code'] as String,
+    discountPercent: (json['discountPercent'] as num).toInt(),
+    sku: json['sku'] as String?,
+    validUntil: DateTime.parse(json['validUntil'] as String).toLocal(),
+  );
+
+  final String code;
+  final int discountPercent;
+
+  /// Единственный тариф, на который действует код; `null` — на все.
+  final String? sku;
+  final DateTime validUntil;
+
+  bool appliesTo(Tariff tariff) => sku == null || sku == tariff.sku;
+
+  /// Цена [tariff] с применённой скидкой — то же округление, что на бэкенде
+  /// (`discounted_amount`): до ближайшего динара, но не ниже одного.
+  int discountedPrice(Tariff tariff) {
+    if (discountPercent >= 100) return 0;
+    final amount = (tariff.priceRsd * (100 - discountPercent) + 50) ~/ 100;
+    return amount < 1 ? 1 : amount;
+  }
 }
 
 /// Текущее состояние подписки пользователя.

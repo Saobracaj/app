@@ -136,3 +136,75 @@ class OrdersPage {
   final List<Order> items;
   final int total;
 }
+
+/// Судьба промокода — вычисляется на бэкенде из связанного заказа.
+enum PromoCodeStatus {
+  /// Свободен и не истёк.
+  available,
+
+  /// Зарезервирован неоплаченным заказом; освободится при его отмене.
+  locked,
+
+  /// Потрачен оплаченным заказом.
+  used,
+
+  /// Истёк, так и не будучи использованным.
+  expired;
+
+  static PromoCodeStatus parse(String? raw) => switch (raw?.toUpperCase()) {
+    'LOCKED' => PromoCodeStatus.locked,
+    'USED' => PromoCodeStatus.used,
+    'EXPIRED' => PromoCodeStatus.expired,
+    _ => PromoCodeStatus.available,
+  };
+}
+
+/// Одноразовый промокод глазами оператора.
+class AdminPromoCode {
+  const AdminPromoCode({
+    required this.code,
+    required this.discountPercent,
+    this.sku,
+    required this.validUntil,
+    this.note,
+    required this.createdAt,
+    required this.status,
+    this.usedByEmail,
+  });
+
+  factory AdminPromoCode.fromJson(Map<String, dynamic> json) => AdminPromoCode(
+    code: json['code'] as String,
+    discountPercent: (json['discountPercent'] as num).toInt(),
+    sku: json['sku'] as String?,
+    validUntil: DateTime.parse(json['validUntil'] as String).toLocal(),
+    note: json['note'] as String?,
+    createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
+    status: PromoCodeStatus.parse(json['status'] as String?),
+    usedByEmail: json['usedByEmail'] as String?,
+  );
+
+  static const fields = '''
+    code discountPercent sku validUntil note createdAt status usedByEmail
+  ''';
+
+  final String code;
+  final int discountPercent;
+
+  /// Единственный тариф, на который действует код; `null` — на все.
+  final String? sku;
+  final DateTime validUntil;
+  final String? note;
+  final DateTime createdAt;
+  final PromoCodeStatus status;
+
+  /// Кто зарезервировал/потратил код — email покупателя.
+  final String? usedByEmail;
+}
+
+/// Страница промокодов админского списка.
+class PromoCodesPage {
+  const PromoCodesPage({required this.items, required this.total});
+
+  final List<AdminPromoCode> items;
+  final int total;
+}
