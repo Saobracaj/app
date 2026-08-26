@@ -6,6 +6,8 @@ import '../auth/data/graphql_subscription_client.dart';
 import '../auth/data/token_storage.dart';
 import '../db/dependencies.dart' show featureFlags;
 import '../feature_flags/data/feature_flags_repository.dart';
+import '../feature_flags/domain/app_feature.dart';
+import 'analytics/analytics_event_sink.dart';
 import 'app_language.dart';
 import 'di.config.dart';
 import 'network/network_status.dart';
@@ -57,6 +59,17 @@ abstract class RegisterModule {
     storage,
     languageProvider: () => appLanguageCode,
   );
+
+  /// Приёмник аналитики — PostHog. Регистрируется здесь, а не аннотацией на
+  /// классе: у конструктора есть именованные параметры (интервал отправки,
+  /// размер пачки), которые injectable попытался бы разрешить как зависимости.
+  @lazySingleton
+  AnalyticsEventSink analyticsEventSink(TokenStorage storage) =>
+      AnalyticsEventSink(
+        storage,
+        russianContent: () =>
+            featureFlags.snapshot.localEnabled(AppFeature.russianContent),
+      );
 
   /// Feature availability. The repository is a global built in
   /// `lib/db/dependencies.dart` and bootstrapped in `main()` before the widget

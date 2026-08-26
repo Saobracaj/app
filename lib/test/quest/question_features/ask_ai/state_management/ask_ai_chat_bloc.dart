@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/data/ask_ai_chat_repository.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_chat.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_events.dart';
@@ -113,6 +114,7 @@ class AskAiChatBloc extends Bloc<AskAiChatEvent, AskAiChatState> {
           messages: [...state.messages, userBubble, reply],
         ),
       );
+      analytics.logAskAiQuestion(scope: scope.name, scopeId: scopeId);
       final quota = await _quietQuota();
       if (quota != null && !emit.isDone) emit(state.copyWith(quota: quota));
     } catch (e) {

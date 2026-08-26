@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../auth/data/auth_repository.dart';
+import '../../core/analytics/analytics_service.dart';
 import '../../core/network/error_messages.dart';
 import '../../notifications/data/notification_permissions.dart';
 import '../../question_lists/data/shared_lists_repository.dart';
@@ -741,10 +742,24 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           messages: _merge([message]),
         ),
       );
+      // Правка — не новое сообщение: в счётчик общения идут только отправки.
+      if (editing == null) {
+        analytics.logChatMessageSent(kind: _analyticsKind);
+      }
     } catch (e) {
       emit(state.copyWith(sending: false, errorMessage: _message(e)));
     }
   }
+
+  /// Какой это разговор — для аналитики. Идентификаторы (номер вопроса,
+  /// группа, тред) не отправляются: интересен сам факт общения и его вид.
+  String get _analyticsKind => switch (target) {
+    SupportChatTarget() => 'support',
+    QuestionChatTarget() => 'question',
+    GroupChatTarget() => 'group',
+    MessageThreadTarget() => 'thread',
+    ChatIdTarget() => 'chat',
+  };
 
   /// «Изменить»: текст и вложения отправленного сообщения переезжают в строку
   /// ввода, откуда их правят теми же кнопками, что и при обычной отправке.

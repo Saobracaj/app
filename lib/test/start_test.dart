@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/core/presentation/wide_layout.dart';
 import 'package:saobracaj/core/responsive.dart';
@@ -27,6 +28,14 @@ void openStartTest(
   String? subcategory,
 }) {
   if (questionIds.isEmpty) return;
+  // Со ссылкой на подкатегорию сюда попадают только из списка категорий —
+  // это и есть «открытие категории вопросов».
+  if (subcategory != null) {
+    analytics.logCategoryOpened(
+      subcategory: subcategory,
+      questionCount: questionIds.length,
+    );
+  }
   if (kIsWeb) {
     showDialog<void>(
       context: context,

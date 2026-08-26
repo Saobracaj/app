@@ -32,6 +32,7 @@ import 'presentation/quest_markdown.dart';
 import 'presentation/question_image_card.dart';
 import 'presentation/question_pagination.dart';
 import 'presentation/question_progress_strip.dart';
+import 'presentation/tabs_seen_reporter.dart';
 import 'question_features/presentation/question_features_tabs.dart';
 import 'question_features/state_management/question_cues_bloc.dart';
 import 'question_features/state_management/question_cues_events.dart';
@@ -663,14 +664,18 @@ class QuestionContent extends StatelessWidget {
                           // The tabs host their own inputs and gestures (chat,
                           // comments); keep them out of the selection scope.
                           SelectionContainer.disabled(
-                            child: QuestionFeaturesTabs(
+                            child: TabsSeenReporter(
+                              key: ValueKey('tabs-seen-${question.id}'),
                               questionId: question.id,
-                              categoryId: question.categoryId,
-                              initialFeature: openChat
-                                  ? AppFeature.publicQuestionComments
-                                  : null,
-                              chatMessageId: openChat ? chatMessageId : null,
-                              autoScroll: openChat,
+                              child: QuestionFeaturesTabs(
+                                questionId: question.id,
+                                categoryId: question.categoryId,
+                                initialFeature: openChat
+                                    ? AppFeature.publicQuestionComments
+                                    : null,
+                                chatMessageId: openChat ? chatMessageId : null,
+                                autoScroll: openChat,
+                              ),
                             ),
                           ),
                       ],

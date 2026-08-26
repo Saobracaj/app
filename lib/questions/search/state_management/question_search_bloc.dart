@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/models/models.dart';
 
 import 'question_search_events.dart';
@@ -18,6 +21,9 @@ import 'question_search_state.dart';
 /// injected dependency, so it is not registered with `getIt`.
 class QuestionSearchBloc extends Bloc<QuestionSearchEvent, QuestionSearchState> {
   final QuestionsData _data;
+
+  /// Таймер, откладывающий отправку события поиска (см. [_logSearch]).
+  Timer? _logDebounce;
 
   QuestionSearchBloc(this._data) : super(const QuestionSearchState()) {
     on<QueryChanged>(_onQueryChanged);
@@ -42,6 +48,27 @@ class QuestionSearchBloc extends Bloc<QuestionSearchEvent, QuestionSearchState> 
     }
 
     emit(state.copyWith(query: event.query, groups: groups));
+    _logSearch(normalized.length, groups.fold(0, (n, g) => n + g.questions.length));
+  }
+
+  /// Событие поиска отправляется, когда человек перестал печатать: обработчик
+  /// зовётся на каждый символ, и без этой паузы одна фраза дала бы десяток
+  /// одинаковых записей в журнале.
+  void _logSearch(int queryLength, int results) {
+    _logDebounce?.cancel();
+    _logDebounce = Timer(
+      const Duration(milliseconds: 900),
+      () => analytics.logQuestionSearch(
+        queryLength: queryLength,
+        results: results,
+      ),
+    );
+  }
+
+  @override
+  Future<void> close() {
+    _logDebounce?.cancel();
+    return super.close();
   }
 
   bool _matches(Question question, String normalized) {

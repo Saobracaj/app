@@ -21,6 +21,7 @@ import 'auth/data/firebase_init.dart';
 import 'auth/state_management/auth/auth_bloc.dart';
 import 'auth/state_management/auth/auth_events.dart';
 import 'auth/state_management/auth/auth_state.dart';
+import 'core/analytics/analytics_event_sink.dart';
 import 'core/analytics/analytics_service.dart';
 import 'core/app_language.dart';
 import 'core/deep_links/deep_link_path.dart';
@@ -84,6 +85,21 @@ void main() async {
   // the home screen reads it on its first frame.
   await getIt<NetworkStatus>().start();
   await initFirebase();
+  // The analytics pipeline: events go to PostHog. Batched and
+  // fire-and-forget — `start()` only picks up the device id and the build
+  // number.
+  final analyticsSink = getIt<AnalyticsEventSink>();
+  analytics.attachSink(analyticsSink);
+  unawaited(analyticsSink.start());
+  // Send whatever is still queued when the app goes to the background: on the
+  // phone that is where a session usually ends. (In the browser a closed tab
+  // gives no such warning — up to one flush interval can be lost there.)
+  // Ссылку держать не нужно: слушатель регистрируется в WidgetsBinding и
+  // живёт столько же, сколько само приложение.
+  AppLifecycleListener(
+    onPause: analyticsSink.flush,
+    onDetach: analyticsSink.flush,
+  );
   // Instantiate the session holder before anything issues an authenticated
   // request: it subscribes to the GraphQL client's `sessionExpired` signal, so
   // an unrenewable session signs the user out no matter which call hit it first.

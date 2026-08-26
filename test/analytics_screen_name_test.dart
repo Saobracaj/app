@@ -50,8 +50,27 @@ void main() {
     });
   });
 
+  group('analyticsScreenTitle', () {
+    test('известные экраны получают человекочитаемые имена', () {
+      expect(analyticsScreenTitle('/home'), 'Главная');
+      expect(analyticsScreenTitle('/question/:id'), 'Обсуждение вопроса');
+      expect(analyticsScreenTitle('/tariffs'), 'Тарифы');
+      expect(analyticsScreenTitle('/groups/:id/feed/chat'), 'Чат группы');
+    });
+
+    test('закон один для всех родительских маршрутов', () {
+      expect(analyticsScreenTitle('/zakon'), 'Закон');
+      expect(analyticsScreenTitle('/quest/q/zakon'), 'Закон');
+      expect(analyticsScreenTitle('/lists/:id/q/zakon'), 'Закон');
+    });
+
+    test('незнакомый шаблон возвращается как есть', () {
+      expect(analyticsScreenTitle('/settings/security'), '/settings/security');
+    });
+  });
+
   group('AnalyticsService', () {
-    test('без инициализированного Firebase вызовы не бросают исключений', () {
+    test('без подключённого приёмника вызовы не бросают исключений', () {
       final service = AnalyticsService();
       expect(() {
         service.logScreenView('/home');
