@@ -6,8 +6,8 @@ import '../models/billing_admin_models.dart';
 part 'billing_admin_state.freezed.dart';
 
 /// Вкладки денежного стола — те же, что были в Angular-панели, плюс реквизиты
-/// получателя.
-enum BillingTab { orders, user, audit, tariffs, payee }
+/// получателя и промокоды.
+enum BillingTab { orders, user, audit, tariffs, promos, payee }
 
 /// Черновик формы реквизитов получателя — значения полей до сохранения.
 /// Поля живут в состоянии блока, а не в контроллерах: экран stateless.
@@ -81,6 +81,23 @@ abstract class BillingAdminState with _$BillingAdminState {
     /// Цены, набранные в полях, но ещё не сохранённые (по SKU).
     @Default(<String, String>{}) Map<String, String> priceDrafts,
 
+    // --- промокоды
+    @Default(false) bool promosLoading,
+    @Default(false) bool promosLoaded,
+    @Default(<AdminPromoCode>[]) List<AdminPromoCode> promoCodes,
+
+    /// Последняя сгенерированная пачка — показывается сверху для копирования.
+    @Default(<AdminPromoCode>[]) List<AdminPromoCode> generatedPromoCodes,
+
+    // --- форма генерации промокодов
+    @Default('10') String promoCount,
+    @Default('10') String promoDiscount,
+    DateTime? promoValidUntil,
+
+    /// SKU, к которому привязываются коды; `null` — ко всем тарифам.
+    String? promoSku,
+    @Default('') String promoNote,
+
     // --- получатель
     @Default(false) bool payeeLoading,
     Payee? payee,
@@ -105,6 +122,24 @@ abstract class BillingAdminState with _$BillingAdminState {
   }
 
   bool get hasNextPage => ordersOffset + orders.length < ordersTotal;
+
+  /// Сколько кодов генерировать, если в поле разумное число (1–200).
+  int? get promoCountValue {
+    final n = int.tryParse(promoCount.trim());
+    return n == null || n < 1 || n > 200 ? null : n;
+  }
+
+  /// Скидка генерируемых кодов, если в поле разумное число (1–100).
+  int? get promoDiscountValue {
+    final n = int.tryParse(promoDiscount.trim());
+    return n == null || n < 1 || n > 100 ? null : n;
+  }
+
+  /// Форма генерации заполнена корректно.
+  bool get canGeneratePromos =>
+      promoCountValue != null &&
+      promoDiscountValue != null &&
+      promoValidUntil != null;
 
   /// Реквизиты не введены — заказы уходят без уплатницы; стол показывает
   /// предупреждение поверх списка.

@@ -34,3 +34,16 @@ class RemindersToggled extends SubscriptionEvent {
 
   final bool enabled;
 }
+
+/// Набор текста в поле промокода (сама проверка — [PromoCodeApplied]).
+class PromoCodeDraftChanged extends SubscriptionEvent {
+  PromoCodeDraftChanged(this.text);
+
+  final String text;
+}
+
+/// Проверить набранный промокод и применить скидку к витрине.
+class PromoCodeApplied extends SubscriptionEvent {}
+
+/// Убрать применённый промокод.
+class PromoCodeCleared extends SubscriptionEvent {}
