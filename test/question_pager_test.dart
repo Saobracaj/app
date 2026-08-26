@@ -211,6 +211,66 @@ class _PagerHarnessState extends State<_PagerHarness> {
   }
 }
 
+/// Номер вопроса ходит через настоящий [Bloc] — как в тренажёре
+/// (`MoveToQuestion`): доклад листалки доезжает до неё обратно новым `index`
+/// асинхронно, на кадр позже самого доклада. Именно эта задержка и роняла
+/// дальний программный переход (см. тест ниже).
+class _IndexBloc extends Bloc<int, int> {
+  _IndexBloc() : super(0) {
+    on<int>((event, emit) => emit(event));
+  }
+}
+
+/// Пятнадцать страниц и кнопка «в конец» — прыжок с первой на последнюю,
+/// как клик по номеру 15 в пагинации веб-версии.
+class _JumpHarness extends StatelessWidget {
+  const _JumpHarness({required this.log});
+
+  final List<String> log;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: BlocProvider(
+        create: (_) => _IndexBloc(),
+        child: BlocBuilder<_IndexBloc, int>(
+          builder: (context, index) {
+            final bloc = context.read<_IndexBloc>();
+            return Scaffold(
+              body: Column(
+                children: [
+                  TextButton(
+                    onPressed: () => bloc.add(14),
+                    child: const Text('в конец'),
+                  ),
+                  Expanded(
+                    child: QuestionPager(
+                      index: index,
+                      itemCount: 15,
+                      onIndexChanged: (value) {
+                        log.add('index:$value');
+                        // Кадр задержки — как на вебе, где тяжёлые кадры не
+                        // поспевают за анимацией: доклад возвращается новым
+                        // `index`, когда страница уже уехала дальше.
+                        Future<void>.delayed(
+                          const Duration(milliseconds: 8),
+                          () => bloc.add(value),
+                        );
+                      },
+                      itemBuilder: (context, i) =>
+                          Center(child: Text('Страница ${i + 1}')),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 void main() {
   setUpAll(() async {
     SharedPreferences.setMockInitialValues({});
@@ -307,6 +367,28 @@ void main() {
       expect(find.text('Питање број 2'), findsOneWidget);
       // Ответ на оставленном вопросе записывает сама кнопка — листалке
       // повторять это нельзя.
+      expect(log, isEmpty);
+    });
+
+    testWidgets('дальний программный переход доезжает до цели', (tester) async {
+      // Клик по номеру 15 в пагинации веб-версии: блок ставит индекс 14,
+      // листалка едет анимацией через все промежуточные страницы. Раньше она
+      // докладывала блоку каждую промежуточную (onPageChanged), блок принимал
+      // доклад за новую цель и разворачивал анимацию назад — прогон оседал на
+      // втором вопросе (задача 1217860519131227).
+      await tester.pumpWidget(_JumpHarness(log: log));
+      await tester.pump();
+
+      await tester.tap(find.text('в конец'));
+      // Кадры по 16 мс, как в живой анимации; pumpAndSettle не годится —
+      // важно застать и пережить сами промежуточные кадры.
+      for (var i = 0; i < 80; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+
+      expect(find.text('Страница 15'), findsOneWidget);
+      // Промежуточные страницы программного перехода — не переходы прогона:
+      // о них не докладывают (иначе блок вернёт листалку назад).
       expect(log, isEmpty);
     });
 
