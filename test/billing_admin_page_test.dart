@@ -136,6 +136,61 @@ class _FakeRepo implements BillingAdminRepository {
     );
   }
 
+  final promos = <AdminPromoCode>[
+    AdminPromoCode(
+      code: 'ABCD2345',
+      discountPercent: 25,
+      sku: null,
+      validUntil: DateTime(2026, 12, 31),
+      createdAt: DateTime(2026, 8, 16),
+      status: PromoCodeStatus.available,
+    ),
+    AdminPromoCode(
+      code: 'USED2345',
+      discountPercent: 100,
+      sku: 'basic_1m',
+      validUntil: DateTime(2026, 12, 31),
+      createdAt: DateTime(2026, 8, 15),
+      status: PromoCodeStatus.used,
+      usedByEmail: 'buyer@example.com',
+    ),
+  ];
+
+  @override
+  Future<PromoCodesPage> promoCodes({int limit = 100, int offset = 0}) async {
+    calls.add('promos');
+    return PromoCodesPage(items: promos, total: promos.length);
+  }
+
+  @override
+  Future<List<AdminPromoCode>> generatePromoCodes({
+    required int count,
+    required int discountPercent,
+    required DateTime validUntil,
+    String? sku,
+    String? note,
+  }) async {
+    calls.add('generate:$count:$discountPercent:$sku:$note');
+    return [
+      for (var i = 0; i < count; i++)
+        AdminPromoCode(
+          code: 'NEW${i}CODE',
+          discountPercent: discountPercent,
+          sku: sku,
+          validUntil: validUntil,
+          note: note,
+          createdAt: DateTime(2026, 8, 26),
+          status: PromoCodeStatus.available,
+        ),
+    ];
+  }
+
+  @override
+  Future<bool> deletePromoCode(String code) async {
+    calls.add('deletePromo:$code');
+    return code == 'ABCD2345';
+  }
+
   @override
   Future<Payee> updatePayee({
     required String accountNumber,
@@ -250,6 +305,50 @@ void main() {
     await tester.pumpAndSettle();
     expect(repo.calls, contains('payee:265-1234567-89:Test PR'));
     expect(find.textContaining('Реквизиты заполнены'), findsOneWidget);
+  });
+
+  testWidgets('вкладка промокодов: список, генерация и удаление', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final repo = await _pump(tester);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Промокоды'));
+    await tester.pumpAndSettle();
+    expect(repo.calls, contains('promos'));
+    expect(find.text('ABCD2345'), findsOneWidget);
+    expect(find.text('USED2345'), findsOneWidget);
+    // У использованного кода нет кнопки удаления, у свободного — есть.
+    expect(find.byIcon(Icons.delete_outline), findsOneWidget);
+
+    // Кнопка генерации выключена, пока не выбрана дата окончания.
+    final generate = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Сгенерировать'),
+    );
+    expect(generate.onPressed, isNull);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Действует до…'));
+    await tester.pumpAndSettle();
+    // Кнопка подтверждения даты — через локализацию, а не литерал «OK».
+    final localizations = MaterialLocalizations.of(
+      tester.element(find.byType(BillingAdminPage)),
+    );
+    await tester.tap(find.text(localizations.okButtonLabel));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Сгенерировать'));
+    await tester.pumpAndSettle();
+    expect(
+      repo.calls.where((c) => c.startsWith('generate:10:10:null')),
+      hasLength(1),
+    );
+    // Пачка новых кодов показана для копирования.
+    expect(find.text('Новые коды'), findsOneWidget);
+    expect(find.textContaining('NEW0CODE'), findsWidgets);
+
+    await tester.tap(find.byIcon(Icons.delete_outline).first);
+    await tester.pumpAndSettle();
+    expect(repo.calls, contains('deletePromo:ABCD2345'));
   });
 
   testWidgets('на телефоне заказы и реквизиты не переполняются', (

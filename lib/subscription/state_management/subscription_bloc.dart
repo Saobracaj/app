@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../auth/data/graphql_client.dart';
 import '../../core/analytics/analytics_service.dart';
+import '../../core/network/error_messages.dart';
 import '../../feature_flags/data/feature_flags_repository.dart';
 import '../../feature_flags/domain/app_feature.dart';
 import '../../generated/locale_keys.g.dart';
@@ -36,6 +37,15 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     on<OrderCancelled>(_onOrderCancelled);
     on<RussianAddonToggled>(_onRussianAddonToggled);
     on<RemindersToggled>(_onRemindersToggled);
+    on<PromoCodeDraftChanged>(
+      (e, emit) => emit(state.copyWith(promoDraft: e.text, promoError: null)),
+    );
+    on<PromoCodeApplied>(_onPromoCodeApplied);
+    on<PromoCodeCleared>(
+      (e, emit) => emit(
+        state.copyWith(promo: null, promoDraft: '', promoError: null),
+      ),
+    );
     add(SubscriptionRequested());
   }
 
@@ -82,10 +92,38 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     OrderRequested event,
     Emitter<SubscriptionState> emit,
   ) async {
-    emit(state.copyWith(submitting: true, errorMessage: null));
+    emit(
+      state.copyWith(submitting: true, errorMessage: null, infoMessage: null),
+    );
+    // Промокод уходит в заказ только если действует на выбранный тариф —
+    // иначе бэкенд отказал бы всему заказу из-за нерелевантного кода.
+    Tariff? tariff;
+    for (final t in state.tariffs) {
+      if (t.sku == event.sku) tariff = t;
+    }
+    final promoCode = tariff == null ? null : state.promoCodeFor(tariff);
     try {
-      final order = await _repository.createOrder(event.sku);
+      final order = await _repository.createOrder(
+        event.sku,
+        promoCode: promoCode,
+      );
       analytics.logCheckoutStep(step: 'order_created', sku: event.sku);
+      // Стопроцентный промокод: заказ уже оплачен, подписка стартовала —
+      // открываем фичи и перечитываем состояние, а не ждём оператора.
+      if (order.status == OrderStatus.paid) {
+        await _repository.refreshGrants();
+        emit(
+          state.copyWith(
+            submitting: false,
+            promo: null,
+            promoDraft: '',
+            orders: [order, ...state.orders.where((o) => o.id != order.id)],
+            infoMessage: LocaleKeys.subscription_promoActivated.tr(),
+          ),
+        );
+        add(SubscriptionRequested());
+        return;
+      }
       emit(
         state.copyWith(
           submitting: false,
@@ -93,7 +131,26 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
         ),
       );
     } on GraphqlException catch (e) {
-      emit(state.copyWith(submitting: false, errorMessage: e.message));
+      emit(
+        state.copyWith(submitting: false, errorMessage: describeActionError(e)),
+      );
+    }
+  }
+
+  Future<void> _onPromoCodeApplied(
+    PromoCodeApplied event,
+    Emitter<SubscriptionState> emit,
+  ) async {
+    final code = state.promoDraft.trim();
+    if (code.isEmpty || state.promoChecking) return;
+    emit(state.copyWith(promoChecking: true, promoError: null));
+    try {
+      final promo = await _repository.checkPromoCode(code);
+      emit(state.copyWith(promoChecking: false, promo: promo));
+    } on GraphqlException catch (e) {
+      emit(
+        state.copyWith(promoChecking: false, promoError: describeActionError(e)),
+      );
     }
   }
 

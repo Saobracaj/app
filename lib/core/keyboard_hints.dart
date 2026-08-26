@@ -1,6 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 
 /// Ненавязчивая подсказка по клавиатурному управлению вопросами: рисованные
@@ -10,7 +11,9 @@ import 'package:saobracaj/generated/locale_keys.g.dart';
 /// Показывается только на вебе — там пользователь сидит за клавиатурой, но не
 /// догадывается, что стрелки листают вопросы, а пробел раскрывает ответ. На
 /// телефоне и планшете клавиатуры нет, и подсказка не рисуется вовсе (пустой
-/// виджет), так что вызывающий код может ставить её безусловно.
+/// виджет), так что вызывающий код может ставить её безусловно. Узкий экран
+/// веба — это тоже телефон, только в браузере: клавиатуры под ним нет, а
+/// место дорого, поэтому там подсказка тоже пуста.
 ///
 /// Стоит рядом со строкой навигации внизу экрана — в тренажёре под пагинацией,
 /// в симуляции экзамена возле кнопок «Претходно/Следеће» — и намеренно
@@ -43,7 +46,7 @@ class KeyboardHints extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!visible || (!navigation && !showAnswer)) {
+    if (!visible || (!navigation && !showAnswer) || !context.isMediumScreen) {
       return const SizedBox.shrink();
     }
     final scheme = Theme.of(context).colorScheme;

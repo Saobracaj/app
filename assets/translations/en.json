@@ -249,6 +249,20 @@
     "analysisSummary": "Correct in {} of {} attempts",
     "konspekt": "Summary"
   },
+  "questionFeedback": {
+    "report": "Report a problem",
+    "title": "Report a problem",
+    "whatIsWrong": "What is wrong?",
+    "hint": "Describe what is wrong here",
+    "send": "Send",
+    "cancel": "Cancel",
+    "notify": "Notify me about the reply",
+    "notifyHint": "Notifications apply to the whole chat with the developer",
+    "notifyBlocked": "Notifications are blocked in the system settings",
+    "signInRequired": "Sign in to send a message",
+    "signIn": "Sign in",
+    "sent": "Sent to the developer"
+  },
   "commentAdmin": {
     "draft": "Draft",
     "moderation": "In moderation",
@@ -905,7 +919,13 @@
     "copied": "Copied: {}",
     "copyAll": "Copy all details",
     "allCopied": "Payment details copied",
-    "openQrImage": "Open the QR as an image"
+    "openQrImage": "Open the QR as an image",
+    "promoTitle": "Promo code",
+    "promoApply": "Apply",
+    "promoApplied": "Promo code {code} — {percent}% off",
+    "promoLimited": "Valid only for the “{tariff}” tariff",
+    "promoRemove": "Remove",
+    "promoActivated": "Promo code applied — the subscription is active, no payment needed"
   },
   "billingAdmin": {
     "title": "Payments and subscriptions",
@@ -981,7 +1001,31 @@
     "purposeField": "Purpose (prefix — the reference is appended)",
     "save": "Save",
     "payeeSaved": "Payee saved",
-    "requestFailed": "The request failed"
+    "requestFailed": "The request failed",
+    "tabPromos": "Promo codes",
+    "promosHint": "One-time discount codes. A code is reserved by a pending order and released if that order is cancelled or expires; a 100% code starts the subscription immediately, without payment.",
+    "promoGenerateTitle": "Generate promo codes",
+    "promoCountField": "How many codes",
+    "promoCountInvalid": "1 to 200",
+    "promoDiscountField": "Discount, %",
+    "promoDiscountInvalid": "1 to 100",
+    "promoValidUntilField": "Valid until…",
+    "promoTariffField": "Tariff",
+    "promoTariffAny": "All tariffs",
+    "generateCodes": "Generate",
+    "promosGenerated": "Promo codes created",
+    "generatedTitle": "New codes",
+    "promoCopyAll": "Copy all",
+    "promoCopied": "Copied",
+    "noPromos": "No promo codes.",
+    "promoStatusAvailable": "available",
+    "promoStatusLocked": "reserved",
+    "promoStatusUsed": "used",
+    "promoStatusExpired": "expired",
+    "promoDelete": "Delete",
+    "promoDeleted": "Promo code deleted",
+    "promoDeleteFailed": "The code is already tied to an order — cannot delete",
+    "promoLabel": "promo code {code} (−{percent}%)"
   },
   "accountDeletion": {
     "title": "Delete account",

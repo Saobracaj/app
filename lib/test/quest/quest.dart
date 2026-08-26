@@ -64,6 +64,11 @@ class Quest extends StatelessWidget {
   final bool revealAnswers;
   final Set<Choice>? answers;
 
+  /// Принудительно собирать экран по-вебовски вне веба — для виджет-тестов,
+  /// где `kIsWeb` всегда `false` (ср. [KeyboardHints.debugForceVisible]).
+  @visibleForTesting
+  static bool debugForceWeb = false;
+
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AllQuestionsBloc, AllQuestionsBlocState>(
@@ -283,6 +288,14 @@ class _QuestRunState extends State<_QuestRun> {
             child: Builder(
               builder: (context) {
                 final wide = context.isExpandedScreen;
+                // Раскрытая пагинация и подсказка клавиш — обстановка веба
+                // с мышью и клавиатурой, то есть просторного окна браузера.
+                // Узкое окно — это телефонный браузер: там палец, и экран
+                // собирается ровно как в мобильной версии (полоса прогресса
+                // под шапкой, внизу одна панель действий) — трёхэтажный низ
+                // съедал у вопроса половину высоты.
+                final webChrome =
+                    (kIsWeb || Quest.debugForceWeb) && context.isMediumScreen;
                 final first = state.currentQuestionIndex == 0;
                 final last =
                     state.currentQuestionIndex == state.questions.length - 1;
@@ -318,13 +331,13 @@ class _QuestRunState extends State<_QuestRun> {
                       questBloc.add(MoveToQuestion(picked)),
                 );
                 // Низ экрана: панель действий (на узком экране),
-                // на вебе — пагинация и под ней мелкая подсказка,
+                // в просторном вебе — пагинация и под ней мелкая подсказка,
                 // что теми же путями ходят ← / → и пробел. Если
                 // собирать нечего (широкий экран вне веба) —
                 // панели нет вовсе.
                 final bottomChildren = <Widget>[
                   ?bottomBar,
-                  if (kIsWeb) pagination,
+                  if (webChrome) pagination,
                   if (KeyboardHints.visible)
                     KeyboardHints(navigation: state.questions.length > 1),
                 ];
@@ -344,10 +357,10 @@ class _QuestRunState extends State<_QuestRun> {
                     // управляют жесты тела: потяг вниз у самого верха
                     // раскрывает навигатор, прокрутка вверх — сворачивает.
                     // Прокрутка вопроса приходит к ней через листалку, то
-                    // есть на уровень глубже (scrollDepth). На вебе полосы
-                    // нет: там мышь, и вместо жеста внизу страницы стоит
-                    // раскрытая пагинация (см. ниже).
-                    body: kIsWeb
+                    // есть на уровень глубже (scrollDepth). В просторном
+                    // вебе полосы нет: там мышь, и вместо жеста внизу
+                    // страницы стоит раскрытая пагинация (см. ниже).
+                    body: webChrome
                         ? body
                         : QuestionProgressHeader(
                             entries: entries,

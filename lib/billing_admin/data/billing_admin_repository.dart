@@ -196,6 +196,71 @@ class BillingAdminRepository {
     return AdminTariff.fromJson(data['updateTariff'] as Map<String, dynamic>);
   }
 
+  /// Промокоды, новые сверху.
+  Future<PromoCodesPage> promoCodes({int limit = 100, int offset = 0}) async {
+    final data = await _client.run(
+      '''
+        query BillingPromoCodes(\$limit: Int!, \$offset: Int!) {
+          billingPromoCodes(limit: \$limit, offset: \$offset) {
+            total
+            items { ${AdminPromoCode.fields} }
+          }
+        }
+      ''',
+      variables: {'limit': limit, 'offset': offset},
+      authenticated: true,
+    );
+    final page = data['billingPromoCodes'] as Map<String, dynamic>;
+    return PromoCodesPage(
+      items: [
+        for (final raw in page['items'] as List? ?? const [])
+          AdminPromoCode.fromJson(raw as Map<String, dynamic>),
+      ],
+      total: (page['total'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  /// Сгенерировать пачку одноразовых промокодов; возвращает созданные коды.
+  Future<List<AdminPromoCode>> generatePromoCodes({
+    required int count,
+    required int discountPercent,
+    required DateTime validUntil,
+    String? sku,
+    String? note,
+  }) async {
+    final data = await _client.run(
+      '''
+        mutation GeneratePromoCodes(\$count: Int!, \$discountPercent: Int!, \$validUntil: DateTime!, \$sku: String, \$note: String) {
+          generatePromoCodes(count: \$count, discountPercent: \$discountPercent, validUntil: \$validUntil, sku: \$sku, note: \$note) {
+            ${AdminPromoCode.fields}
+          }
+        }
+      ''',
+      variables: {
+        'count': count,
+        'discountPercent': discountPercent,
+        'validUntil': validUntil.toUtc().toIso8601String(),
+        'sku': sku,
+        'note': note,
+      },
+      authenticated: true,
+    );
+    return [
+      for (final raw in data['generatePromoCodes'] as List? ?? const [])
+        AdminPromoCode.fromJson(raw as Map<String, dynamic>),
+    ];
+  }
+
+  /// Удалить неиспользованный промокод; `false`, если код уже занят заказом.
+  Future<bool> deletePromoCode(String code) async {
+    final data = await _client.run(
+      r'mutation DeletePromoCode($code: String!) { deletePromoCode(code: $code) }',
+      variables: {'code': code},
+      authenticated: true,
+    );
+    return data['deletePromoCode'] as bool? ?? false;
+  }
+
   Future<Payee> updatePayee({
     required String accountNumber,
     required String name,

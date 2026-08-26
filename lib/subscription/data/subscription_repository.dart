@@ -77,15 +77,35 @@ class SubscriptionRepository {
     ];
   }
 
-  /// Оформить заказ на [sku]. Повторный вызов, пока заказ ещё оплачиваем,
-  /// возвращает тот же заказ — второй позив на број не выпускается.
-  Future<Order> createOrder(String sku) async {
+  /// Оформить заказ на [sku], опционально с промокодом. Повторный вызов с тем
+  /// же кодом, пока заказ ещё оплачиваем, возвращает тот же заказ — второй
+  /// позив на број не выпускается; смена кода заменяет неоплаченный заказ.
+  /// При стопроцентном промокоде заказ возвращается уже оплаченным.
+  Future<Order> createOrder(String sku, {String? promoCode}) async {
     final data = await _client.run(
-      'mutation CreateOrder(\$sku: String!) { createOrder(sku: \$sku) { $_orderFields } }',
-      variables: {'sku': sku},
+      'mutation CreateOrder(\$sku: String!, \$promoCode: String) '
+      '{ createOrder(sku: \$sku, promoCode: \$promoCode) { $_orderFields } }',
+      variables: {'sku': sku, 'promoCode': promoCode},
       authenticated: true,
     );
     return Order.fromJson(data['createOrder'] as Map<String, dynamic>);
+  }
+
+  /// Проверить промокод: скидка и тариф, к которому он привязан. Неизвестный,
+  /// использованный или истёкший код — [GraphqlException] с точной причиной.
+  Future<PromoCodeInfo> checkPromoCode(String code) async {
+    final data = await _client.run(
+      r'''
+        query CheckPromoCode($code: String!) {
+          checkPromoCode(code: $code) { code discountPercent sku validUntil }
+        }
+      ''',
+      variables: {'code': code},
+      authenticated: true,
+    );
+    return PromoCodeInfo.fromJson(
+      data['checkPromoCode'] as Map<String, dynamic>,
+    );
   }
 
   /// Отменить свой неоплаченный заказ.

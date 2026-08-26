@@ -119,6 +119,39 @@ class TariffActiveToggled extends BillingAdminEvent {
   final bool active;
 }
 
+/// Перечитать список промокодов.
+class PromosRefreshed extends BillingAdminEvent {}
+
+/// Изменение формы генерации промокодов; `null` — поле не трогали.
+class PromoFormChanged extends BillingAdminEvent {
+  PromoFormChanged({
+    this.count,
+    this.discount,
+    this.validUntil,
+    this.sku,
+    this.clearSku = false,
+    this.note,
+  });
+
+  final String? count;
+  final String? discount;
+  final DateTime? validUntil;
+  final String? sku;
+
+  /// `sku == null` — «не менять»; чтобы вернуть «все тарифы», ставится флаг.
+  final bool clearSku;
+  final String? note;
+}
+
+/// Сгенерировать пачку промокодов из формы.
+class PromoCodesGenerated extends BillingAdminEvent {}
+
+/// Удалить неиспользованный промокод.
+class PromoCodeDeleted extends BillingAdminEvent {
+  PromoCodeDeleted(this.code);
+  final String code;
+}
+
 /// Изменение формы реквизитов; `null` — поле не трогали.
 class PayeeDraftChanged extends BillingAdminEvent {
   PayeeDraftChanged({

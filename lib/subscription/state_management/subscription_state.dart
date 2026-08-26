@@ -18,6 +18,21 @@ abstract class SubscriptionState with _$SubscriptionState {
     @Default(<SubscriptionPeriod>[]) List<SubscriptionPeriod> periods,
     @Default(false) bool withRussian,
     String? errorMessage,
+
+    /// Одноразовое сообщение об успехе (снэкбар) — например, подписка
+    /// активирована стопроцентным промокодом без оплаты.
+    String? infoMessage,
+
+    // --- промокод на витрине
+    /// Текст в поле промокода до нажатия «Применить».
+    @Default('') String promoDraft,
+
+    /// Проверенный и применённый промокод; скидка видна на карточках сроков.
+    PromoCodeInfo? promo,
+    @Default(false) bool promoChecking,
+
+    /// Причина отказа проверки кода — показывается под полем.
+    String? promoError,
   }) = _SubscriptionState;
 
   const SubscriptionState._();
@@ -78,6 +93,20 @@ abstract class SubscriptionState with _$SubscriptionState {
       return null;
     }
     return russian.priceRsd - basic.priceRsd;
+  }
+
+  /// Цена [tariff] с применённым промокодом; `null`, когда кода нет или он
+  /// не действует на этот тариф.
+  int? promoPrice(Tariff tariff) {
+    final promo = this.promo;
+    if (promo == null || !promo.appliesTo(tariff)) return null;
+    return promo.discountedPrice(tariff);
+  }
+
+  /// Промокод, который надо передать в заказ на [tariff].
+  String? promoCodeFor(Tariff tariff) {
+    final promo = this.promo;
+    return promo != null && promo.appliesTo(tariff) ? promo.code : null;
   }
 
   /// Заказ, который ждёт оплаты, — по нему человек возвращается доплатить,
