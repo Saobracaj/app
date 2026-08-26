@@ -16,6 +16,9 @@ import 'package:saobracaj/konspekt/presentation/konspekt_markdown.dart';
 import 'package:saobracaj/konspekt/state_management/konspekt_bloc.dart';
 import 'package:saobracaj/konspekt/state_management/konspekt_events.dart';
 import 'package:saobracaj/konspekt/state_management/konspekt_state.dart';
+import 'package:saobracaj/question_feedback/domain/question_feedback_source.dart';
+import 'package:saobracaj/question_feedback/domain/question_feedback_target.dart';
+import 'package:saobracaj/question_feedback/presentation/report_problem_button.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 /// Viewer for a category konspekt (study notes). Each section is rendered as
@@ -68,6 +71,22 @@ class _KonspektPageState extends State<KonspektPage> {
             },
           ),
           actions: [
+            // Конспект длинный, кнопка в его хвосте невидима — поэтому жалоба
+            // живёт в шапке и доступна с любого места текста.
+            FeatureGate(
+              feature: AppFeature.questionFeedback,
+              child: Builder(
+                builder: (context) => IconButton(
+                  tooltip: LocaleKeys.questionFeedback_report.tr(),
+                  icon: const Icon(Icons.flag_outlined),
+                  onPressed: () => showQuestionFeedbackDialog(
+                    context,
+                    target: QuestionFeedbackTarget.konspekt(widget.categoryId),
+                    source: QuestionFeedbackSource.konspekt,
+                  ),
+                ),
+              ),
+            ),
             FeatureGate(
               feature: AppFeature.russianContent,
               categoryId: widget.categoryId,
