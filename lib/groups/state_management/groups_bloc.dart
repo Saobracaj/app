@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../auth/state_management/auth/auth_state.dart';
+import '../../core/analytics/analytics_service.dart';
 import '../../core/network/error_messages.dart';
 import '../../core/network/network_status.dart';
 import '../../feature_flags/data/feature_flags_repository.dart';
@@ -190,20 +191,20 @@ class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
   Future<void> _onCreationRequested(
     GroupCreationRequested event,
     Emitter<GroupsState> emit,
-  ) => _write(
-    emit,
-    event.displayNameToSet,
-    () async => (await _groups.create(event.name)).id,
-  );
+  ) => _write(emit, event.displayNameToSet, () async {
+    final id = (await _groups.create(event.name)).id;
+    analytics.logGroupCreated();
+    return id;
+  });
 
   Future<void> _onJoinRequested(
     GroupJoinRequested event,
     Emitter<GroupsState> emit,
-  ) => _write(
-    emit,
-    event.displayNameToSet,
-    () async => (await _groups.joinByInvite(event.token)).id,
-  );
+  ) => _write(emit, event.displayNameToSet, () async {
+    final id = (await _groups.joinByInvite(event.token)).id;
+    analytics.logGroupJoined();
+    return id;
+  });
 
   Future<void> _onLeaveRequested(
     GroupLeaveRequested event,

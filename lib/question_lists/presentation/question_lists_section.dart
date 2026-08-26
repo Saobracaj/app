@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
+import '../../core/analytics/analytics_service.dart';
 import '../../core/presentation/wide_layout.dart';
 import '../../feature_flags/domain/app_feature.dart';
 import '../../feature_flags/state_management/feature_flags_bloc.dart';
@@ -78,9 +79,14 @@ class QuestionListsSection extends StatelessWidget {
                     QuestionListChip(
                       list: list,
                       expand: true,
-                      onTap: () => Routemaster.of(
-                        context,
-                      ).push('/lists/${Uri.encodeComponent(list.id)}'),
+                      onTap: () {
+                        analytics.logQuestionListOpened(
+                          questionCount: list.questionIds.length,
+                        );
+                        Routemaster.of(
+                          context,
+                        ).push('/lists/${Uri.encodeComponent(list.id)}');
+                      },
                     ),
                 ],
               ),
@@ -113,9 +119,14 @@ class QuestionListsSection extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: QuestionListChip(
                           list: list,
-                          onTap: () => Routemaster.of(
-                            context,
-                          ).push('/lists/${Uri.encodeComponent(list.id)}'),
+                          onTap: () {
+                            analytics.logQuestionListOpened(
+                              questionCount: list.questionIds.length,
+                            );
+                            Routemaster.of(
+                              context,
+                            ).push('/lists/${Uri.encodeComponent(list.id)}');
+                          },
                         ),
                       ),
                     if (customEnabled)

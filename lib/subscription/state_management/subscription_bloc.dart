@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
 import '../../auth/data/graphql_client.dart';
+import '../../core/analytics/analytics_service.dart';
 import '../../core/network/error_messages.dart';
 import '../../feature_flags/data/feature_flags_repository.dart';
 import '../../feature_flags/domain/app_feature.dart';
@@ -106,6 +107,7 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
         event.sku,
         promoCode: promoCode,
       );
+      analytics.logCheckoutStep(step: 'order_created', sku: event.sku);
       // Стопроцентный промокод: заказ уже оплачен, подписка стартовала —
       // открываем фичи и перечитываем состояние, а не ждём оператора.
       if (order.status == OrderStatus.paid) {
@@ -144,8 +146,12 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     emit(state.copyWith(promoChecking: true, promoError: null));
     try {
       final promo = await _repository.checkPromoCode(code);
+      analytics.logPromoCodeApplied(valid: true);
       emit(state.copyWith(promoChecking: false, promo: promo));
     } on GraphqlException catch (e) {
+      // Обрыв связи — не «неверный код»: в аналитику идут только ответы
+      // бэкенда по существу.
+      if (!isNetworkError(e)) analytics.logPromoCodeApplied(valid: false);
       emit(
         state.copyWith(promoChecking: false, promoError: describeActionError(e)),
       );
@@ -159,6 +165,7 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     emit(state.copyWith(submitting: true, errorMessage: null));
     try {
       final cancelled = await _repository.cancelOrder(event.orderId);
+      analytics.logCheckoutStep(step: 'order_cancelled');
       emit(
         state.copyWith(
           submitting: false,
@@ -177,6 +184,7 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     RussianAddonToggled event,
     Emitter<SubscriptionState> emit,
   ) {
+    analytics.logRussianAddonToggled(enabled: event.enabled);
     emit(state.copyWith(withRussian: event.enabled));
   }
 

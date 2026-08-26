@@ -91,6 +91,7 @@ import '../test/quest/question_features/state_management/question_features_bloc.
 import '../test/quest/question_features/state_management/question_konspekt_bloc.dart'
     as _i192;
 import '../test/state_management/start_test_bloc.dart' as _i31;
+import 'analytics/analytics_event_sink.dart' as _i335;
 import 'analytics/analytics_service.dart' as _i811;
 import 'deep_links/deep_link_service.dart' as _i547;
 import 'di.dart' as _i913;
@@ -131,11 +132,21 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i1002.QuestionAnalyticsRepository>(
       () => _i1002.QuestionAnalyticsRepository(),
     );
+    gh.factoryParam<_i269.QuestionFeaturesBloc, _i392.AppFeature?, int?>(
+      (initial, questionId) => _i269.QuestionFeaturesBloc(
+        gh<_i442.QuizPreferencesRepository>(),
+        initial,
+        questionId,
+      ),
+    );
     gh.factory<_i790.PracticePageBloc>(
       () => _i790.PracticePageBloc(gh<_i442.QuizPreferencesRepository>()),
     );
     gh.factory<_i31.StartTestBloc>(
       () => _i31.StartTestBloc(gh<_i442.QuizPreferencesRepository>()),
+    );
+    gh.lazySingleton<_i335.AnalyticsEventSink>(
+      () => registerModule.analyticsEventSink(gh<_i25.TokenStorage>()),
     );
     gh.factoryParam<_i986.QuestionCuesBloc, int, dynamic>(
       (questionId, _) => _i986.QuestionCuesBloc(
@@ -150,12 +161,6 @@ extension GetItInjectableX on _i174.GetIt {
       () => registerModule.graphqlClient(
         gh<_i25.TokenStorage>(),
         gh<_i958.NetworkStatus>(),
-      ),
-    );
-    gh.factoryParam<_i269.QuestionFeaturesBloc, _i392.AppFeature?, dynamic>(
-      (initial, _) => _i269.QuestionFeaturesBloc(
-        gh<_i442.QuizPreferencesRepository>(),
-        initial,
       ),
     );
     gh.lazySingleton<_i966.GraphqlSubscriptionClient>(
