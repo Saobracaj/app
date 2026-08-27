@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="745" height="655" id="svg2" version="1.1">
+  <defs id="defs4">
+    </defs>
+  <g id="layer1" transform="translate(325.35006,-102.24117)">
+    <g id="g10331" transform="matrix(-1,0,0,1,94.29988,0)">
+      <polygon transform="translate(-327.85006,99.741167)" style="fill:none;stroke:#000000;stroke-width:95;stroke-linejoin:round" points="700,610 375,50 50,610 " id="polygon2823" />
+      <polygon transform="translate(-327.85006,99.741167)" style="fill:none;stroke:#ffffff;stroke-width:90;stroke-linejoin:round" points="700,610 375,50 50,610 " id="polygon2825" />
+      <polygon transform="translate(-327.85006,99.741167)" style="fill:#ffffff;stroke:#cc0000;stroke-width:70;stroke-linejoin:round" points="700,610 375,50 50,610 " id="polygon2827" />
+    </g>
+    <path d="m 41.0461,406.56197 0,80.51452 38.2276,-20.3461 c 8.83554,-3.32398 16.61089,-3.20453 24.70803,-0.43055 10.01831,3.09435 17.47631,9.01037 22.37696,17.74898 2.25146,5.69889 3.33795,11.18204 3.26315,16.44806 l 0,128.56389 -28.0123,-24.99503 -27.92934,24.12932 0,-105.18825 -36.82858,18.18042 C 26.48856,545.64634 16.06403,545.2121 6.17941,541.00686 -7.01243,535.18068 -14.38377,525.1583 -14.89554,510.45278 l 0,-103.88877 29.37021,-26.83895 26.57143,26.83895 z" style="fill:#000000;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:0.27000001;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:2.61312604;stroke-opacity:1;stroke-dasharray:none" id="path8193" />
+  </g>
+</svg>

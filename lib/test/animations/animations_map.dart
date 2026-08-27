@@ -17,7 +17,9 @@ import 'package:saobracaj/test/animations/propustanje.dart';
 import 'package:saobracaj/test/animations/propustanje_vozila_s_prvenstvom.dart';
 import 'package:saobracaj/test/animations/pruzni_prelaz.dart';
 import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 import 'package:saobracaj/test/animations/skala_alkohola.dart';
+import 'package:saobracaj/test/animations/sta_sme_kategorija_b.dart';
 import 'package:saobracaj/test/animations/trake_pred_prugom.dart';
 import 'package:saobracaj/test/animations/vozac_vs_vozilo.dart';
 import 'package:saobracaj/test/animations/znak_naselje.dart';
@@ -116,6 +118,7 @@ final _animations = {
   'prikolica-b-vs-be': PrikolicaBvsBe(),
   'katadiopteri-na-prikolici': KatadiopteriNaPrikolici(),
   'raskinuta-veza-prikolice': RaskinutaVezaPrikolice(),
+  'sta-sme-kategorija-b': StaSmeKategorijaB(),
   'probna-ogranicenja': ProbnaOgranicenja(),
   'probna-brzine': ProbnaBrzine(),
   'vozac-vs-vozilo': VozacVsVozilo(),
@@ -136,5 +139,10 @@ final _animations = {
 };
 
 Widget getAnimation(String animationName) {
+  // `sign-<номер>` — официальный SVG знака из assets/signs/ (см.
+  // road_sign.dart); конспекты вставляют их маркером `anim/sign-ii-2`.
+  if (animationName.startsWith('sign-')) {
+    return RoadSignSvg(animationName.substring('sign-'.length), height: 48);
+  }
   return _animations[animationName] ?? Text('Animation not found');
 }

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" id="svg7167" viewBox="0 0 744.99297 654.99532" height="654.9953" width="744.99298">
+  <defs id="defs7169">
+    </defs>
+  <g transform="translate(731.58586,104.83664)" id="layer1">
+    <g transform="matrix(7.9678987,0,0,-7.9684639,988.8009,566.47646)" id="g9853" />
+    <g id="layer1-5" transform="translate(169.22867,354.10551)">
+      </g>
+    <g id="layer2">
+      <g id="layer1-4" transform="translate(-406.23936,-207.08255)">
+        <g id="g10331-6">
+          <polygon id="polygon2823-6" style="fill:none;stroke:#000000;stroke-width:95;stroke-linejoin:round" transform="translate(-327.85,99.7412)" points="700,610 375,50 50,610 " />
+          <polygon id="polygon2825-0" style="fill:none;stroke:#ffffff;stroke-width:90;stroke-linejoin:round" transform="translate(-327.85,99.7412)" points="700,610 375,50 50,610 " />
+          <polygon id="polygon2827-3" style="fill:#ffffff;stroke:#cc0000;stroke-width:70;stroke-linejoin:round" transform="translate(-327.85,99.7412)" points="700,610 375,50 50,610 " />
+        </g>
+        <g transform="matrix(8.6426636,0,0,-8.6426636,-25.884852,474.72155)" id="g12546">
+          <path id="path12548" style="fill:#201b16;fill-opacity:1;fill-rule:evenodd;stroke:none" d="m 0,0 -3.3,1.92 2.28,4.02 5.64,0 3.36,2.04 10.32,-5.94 0,-5.16 5.82,-4.32 -2.7,-4.8 -3.12,1.92 c -0.9,-1.32 -2.52,-1.8 -3.84,-1.02 -1.32,0.72 -1.8,2.46 -1.08,3.72 L 4.8,-2.64 C 4.02,-4.02 2.34,-4.5 1.08,-3.72 -0.24,-2.94 -0.72,-1.32 0,0" />
+        </g>
+        <g transform="matrix(8.6426636,0,0,-8.6426636,13.007129,430.12541)" id="g12550">
+          <path id="path12552" style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none" d="m 0,0 3.48,2.04 9.24,-5.28 0,-3.9" />
+        </g>
+        <g transform="matrix(8.6426636,0,0,-8.6426636,-5.1425374,639.62364)" id="g12554">
+          <path id="path12556" style="fill:#201b16;fill-opacity:1;fill-rule:evenodd;stroke:none" d="m 0,0 c -0.96,0.36 -1.68,0.66 -2.64,0.72 l 0,-2.34 -16.2,0 8.7,15 7.5,0 0,-8.22 c 1.62,-0.12 2.94,-0.6 4.5,-1.14 2.76,-1.38 5.64,-1.38 8.46,0 4.02,1.8 8.16,1.8 12.18,0 1.8,-0.9 3.6,-1.2 5.64,-0.9 L 28.86,1.8 C 26.4,1.32 24.18,1.62 21.9,2.64 c -3.6,1.62 -7.38,1.62 -10.98,0 -3.18,-1.5 -6.48,-1.5 -9.78,0 -1.2,0.6 -2.46,0.9 -3.78,1.08 l 0,-1.44 C -1.5,2.1 -0.54,1.8 0.6,1.32 c 3.6,-1.62 7.38,-1.62 10.86,0 3.3,1.44 6.6,1.44 9.78,0 C 24,0.06 26.7,-0.24 29.64,0.48 L 30.42,-0.9 C 27,-1.74 23.82,-1.44 20.64,0 17.88,1.32 14.94,1.32 12.18,0 8.16,-1.86 4.02,-1.86 0,0" />
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

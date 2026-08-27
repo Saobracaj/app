@@ -61,4 +61,26 @@ void main() {
           reason: 'нет assets/signs/$sign.svg, на который ссылается код');
     }
   });
+
+  test('каждый маркер anim/sign-* в конспектах имеет ассет', () {
+    final marker = RegExp(r'anim/sign-([a-z0-9.\-]+)\)');
+    final referenced = <String>{};
+    for (final file in Directory('konspekt_content')
+        .listSync()
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.json'))) {
+      for (final m in marker.allMatches(file.readAsStringSync())) {
+        referenced.add(m.group(1)!);
+      }
+    }
+    final available = Directory('assets/signs')
+        .listSync()
+        .whereType<File>()
+        .map((f) => f.uri.pathSegments.last.replaceAll('.svg', ''))
+        .toSet();
+    for (final sign in referenced) {
+      expect(available, contains(sign),
+          reason: 'нет assets/signs/$sign.svg, на который ссылается конспект');
+    }
+  });
 }
