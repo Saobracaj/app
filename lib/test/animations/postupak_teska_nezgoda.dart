@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
+import 'package:saobracaj/test/animations/interactive_animation.dart';
 import 'package:saobracaj/test/animations/dve_vrste_nezgode.dart'
     show kAsphalt, kMarking, kCarBlue, kSignalRed;
 import 'package:saobracaj/test/animations/painters.dart'
@@ -18,35 +19,18 @@ import 'package:saobracaj/test/animations/painters.dart'
 /// помоћ → остани на месту*.
 ///
 /// Кадры сменяются сами, но каждый читается и как стоп-кадр: наверху крупный
-/// номер шага и сербская формулировка, внизу — сколько шагов всего и на каком
-/// мы сейчас. То, что уже сделано, со сцены не исчезает (аварийка горит с
-/// третьего шага, треугольник стоит с четвёртого): порядок действий виден
-/// накоплением, а не мельканием.
+/// номер шага и сербская формулировка, под холстом — пауза и номера кадров
+/// (`InteractiveAnimation`), чтобы читать шаги в своём темпе. То, что уже
+/// сделано, со сцены не исчезает (аварийка горит с третьего шага, треугольник
+/// стоит с четвёртого): порядок действий виден накоплением, а не мельканием.
 ///
 /// Слаг в `animations_map.dart`: `postupak-teska-nezgoda`.
-class PostupakTeskaNezgoda extends StatefulWidget {
+class PostupakTeskaNezgoda extends StatelessWidget {
   const PostupakTeskaNezgoda({super.key});
 
-  @override
-  State<PostupakTeskaNezgoda> createState() => _PostupakTeskaNezgodaState();
-}
-
-class _PostupakTeskaNezgodaState extends State<PostupakTeskaNezgoda>
-    with SingleTickerProviderStateMixin {
   /// Шесть шагов по 1,25 с: быстрее — не успеть прочитать сербскую
   /// формулировку, медленнее — не дождаться второго круга.
   static const Duration _cycle = Duration(milliseconds: 7500);
-
-  late final AnimationController _controller = AnimationController(
-    duration: _cycle,
-    vsync: this,
-  )..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,19 +39,23 @@ class _PostupakTeskaNezgodaState extends State<PostupakTeskaNezgoda>
 
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: 400,
-          height: 290,
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) => CustomPaint(
-              painter: _PostupakPainter(
-                colorScheme,
-                labels,
-                _controller.value,
-                _cycle.inMilliseconds,
+      child: InteractiveAnimation(
+        cycle: _cycle,
+        stepStarts: [for (var i = 0; i < 6; i++) i / 6],
+        builder: (context, animation) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: 400,
+            height: 260,
+            child: AnimatedBuilder(
+              animation: animation,
+              builder: (context, _) => CustomPaint(
+                painter: _PostupakPainter(
+                  colorScheme,
+                  labels,
+                  animation.value,
+                  _cycle.inMilliseconds,
+                ),
               ),
             ),
           ),
@@ -178,8 +166,6 @@ class _PostupakPainter extends IllustrationPainter {
     canvas.clipRect(_road);
     _scene(canvas, step);
     canvas.restore();
-
-    _pips(canvas, step);
   }
 
   @override
@@ -461,35 +447,11 @@ class _PostupakPainter extends IllustrationPainter {
     );
   }
 
-  // ==================== ШАПКА И ШКАЛА ====================
+  // ==================== ШАПКА ====================
 
   void _stepBadge(Canvas canvas, Offset center, int number) {
     canvas.drawCircle(center, 20, Paint()..color = colorScheme.primary);
     text(canvas, '$number', center, colorScheme.onPrimary,
         maxWidth: 40, fontSize: 20, isBold: true);
-  }
-
-  /// Шкала шагов: видно, сколько всего действий и на каком мы сейчас — иначе
-  /// анимация читается как одно бесконечное «что-то происходит».
-  void _pips(Canvas canvas, int step) {
-    const y = 268.0;
-    for (var i = 0; i < _serbian.length; i++) {
-      final x = 130.0 + i * 28;
-      final current = i == step;
-      canvas.drawCircle(
-        Offset(x, y),
-        current ? 10 : 7,
-        Paint()
-          ..color = current
-              ? colorScheme.primary
-              : (i < step
-                  ? colorScheme.primary.withValues(alpha: 0.35)
-                  : colorScheme.outlineVariant),
-      );
-      if (current) {
-        text(canvas, '${i + 1}', Offset(x, y), colorScheme.onPrimary,
-            maxWidth: 20, fontSize: 11, isBold: true);
-      }
-    }
   }
 }

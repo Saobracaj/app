@@ -1080,5 +1080,10 @@
   },
   "zakon": {
     "contents": "Contents"
+  },
+  "interactiveAnimation": {
+    "pause": "Pause animation",
+    "play": "Resume animation",
+    "step": "Frame {}"
   }
 }

@@ -9,6 +9,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:saobracaj/test/animations/autoput_road.dart';
+import 'package:saobracaj/test/animations/interactive_animation.dart';
 import 'package:saobracaj/test/animations/painters.dart';
 
 /// Ширина холста: всё рисуется в этих координатах и целиком масштабируется.
@@ -18,50 +19,32 @@ const double _h = 262;
 const double _carLength = 42;
 const double _carWidth = 20;
 
-class AutoputTrake extends StatefulWidget {
+class AutoputTrake extends StatelessWidget {
   const AutoputTrake({super.key});
-
-  @override
-  State<AutoputTrake> createState() => _AutoputTrakeState();
-}
-
-class _AutoputTrakeState extends State<AutoputTrake>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    // 8 секунд на четыре фазы плюс пауза в конце: быстрее не успеть прочитать
-    // подпись, медленнее — не дождаться второго круга.
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 8),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: _w,
-          height: _h,
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (_, _) => CustomPaint(
-              painter: _AutoputTrakePainter(
-                scheme: scheme,
-                progress: _controller.value,
+      // 8 секунд на четыре фазы плюс пауза в конце: быстрее не успеть прочитать
+      // подпись, медленнее — не дождаться второго круга.
+      child: InteractiveAnimation(
+        cycle: const Duration(seconds: 8),
+        // Границы фаз — из _AutoputTrakePainter._phase.
+        stepStarts: const [0, _tMergeEnd, _tRightEnd, _tReturnEnd],
+        builder: (context, animation) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: _w,
+            height: _h,
+            child: AnimatedBuilder(
+              animation: animation,
+              builder: (_, _) => CustomPaint(
+                painter: _AutoputTrakePainter(
+                  scheme: scheme,
+                  progress: animation.value,
+                ),
               ),
             ),
           ),
