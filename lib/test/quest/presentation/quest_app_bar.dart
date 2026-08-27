@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/core/deep_links.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/core/presentation/translation_chip.dart';
@@ -83,6 +84,7 @@ class QuestAppBar extends StatelessWidget implements PreferredSizeWidget {
           // Stopgap until share_plus lands: the deep link goes to the
           // clipboard instead of a system share sheet.
           onPressed: () {
+            analytics.logQuestionShared(questionId: questionId);
             final link = appLink('/question/$questionId').toString();
             Clipboard.setData(ClipboardData(text: link)).then((_) {
               if (!context.mounted) return;

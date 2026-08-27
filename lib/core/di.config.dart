@@ -54,6 +54,10 @@ import '../profile/data/profile_repository.dart' as _i311;
 import '../profile/state_management/display_name_bloc.dart' as _i957;
 import '../push_test/data/push_test_repository.dart' as _i548;
 import '../push_test/state_management/test_push_bloc.dart' as _i246;
+import '../question_feedback/domain/question_feedback_source.dart' as _i7;
+import '../question_feedback/domain/question_feedback_target.dart' as _i916;
+import '../question_feedback/state_management/question_feedback_bloc.dart'
+    as _i751;
 import '../question_lists/data/question_lists_repository.dart' as _i206;
 import '../question_lists/data/shared_lists_repository.dart' as _i742;
 import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
@@ -87,9 +91,12 @@ import '../test/quest/question_features/state_management/question_features_bloc.
 import '../test/quest/question_features/state_management/question_konspekt_bloc.dart'
     as _i192;
 import '../test/state_management/start_test_bloc.dart' as _i31;
+import 'analytics/analytics_event_sink.dart' as _i335;
 import 'analytics/analytics_service.dart' as _i811;
 import 'deep_links/deep_link_service.dart' as _i547;
 import 'di.dart' as _i913;
+import 'environment/data/environment_repository.dart' as _i228;
+import 'environment/state_management/environment_bloc.dart' as _i438;
 import 'network/network_status.dart' as _i958;
 import 'network/state_management/network_status_bloc.dart' as _i819;
 
@@ -109,6 +116,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i389.FeatureFlagsRepository>(
       () => registerModule.featureFlagsRepository(),
     );
+    gh.lazySingleton<_i228.EnvironmentRepository>(
+      () => _i228.EnvironmentRepository(),
+    );
     gh.lazySingleton<_i426.NotificationPermissions>(
       () => const _i426.NotificationPermissions(),
     );
@@ -122,11 +132,21 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i1002.QuestionAnalyticsRepository>(
       () => _i1002.QuestionAnalyticsRepository(),
     );
+    gh.factoryParam<_i269.QuestionFeaturesBloc, _i392.AppFeature?, int?>(
+      (initial, questionId) => _i269.QuestionFeaturesBloc(
+        gh<_i442.QuizPreferencesRepository>(),
+        initial,
+        questionId,
+      ),
+    );
     gh.factory<_i790.PracticePageBloc>(
       () => _i790.PracticePageBloc(gh<_i442.QuizPreferencesRepository>()),
     );
     gh.factory<_i31.StartTestBloc>(
       () => _i31.StartTestBloc(gh<_i442.QuizPreferencesRepository>()),
+    );
+    gh.lazySingleton<_i335.AnalyticsEventSink>(
+      () => registerModule.analyticsEventSink(gh<_i25.TokenStorage>()),
     );
     gh.factoryParam<_i986.QuestionCuesBloc, int, dynamic>(
       (questionId, _) => _i986.QuestionCuesBloc(
@@ -141,12 +161,6 @@ extension GetItInjectableX on _i174.GetIt {
       () => registerModule.graphqlClient(
         gh<_i25.TokenStorage>(),
         gh<_i958.NetworkStatus>(),
-      ),
-    );
-    gh.factoryParam<_i269.QuestionFeaturesBloc, _i392.AppFeature?, dynamic>(
-      (initial, _) => _i269.QuestionFeaturesBloc(
-        gh<_i442.QuizPreferencesRepository>(),
-        initial,
       ),
     );
     gh.lazySingleton<_i966.GraphqlSubscriptionClient>(
@@ -312,6 +326,12 @@ extension GetItInjectableX on _i174.GetIt {
       (scope, scopeId) =>
           _i794.AskAiChatBloc(gh<_i154.AskAiChatRepository>(), scope, scopeId),
     );
+    gh.factory<_i438.EnvironmentBloc>(
+      () => _i438.EnvironmentBloc(
+        gh<_i228.EnvironmentRepository>(),
+        gh<_i880.AuthRepository>(),
+      ),
+    );
     gh.factoryParam<_i481.GroupFeedBloc, String, dynamic>(
       (groupId, _) => _i481.GroupFeedBloc(
         gh<_i685.GroupsRepository>(),
@@ -353,6 +373,20 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i246.TestPushBloc(
         gh<_i548.PushTestRepository>(),
         gh<_i388.AuthBloc>(),
+      ),
+    );
+    gh.factoryParam<
+      _i751.QuestionFeedbackBloc,
+      _i916.QuestionFeedbackTarget,
+      _i7.QuestionFeedbackSource
+    >(
+      (target, source) => _i751.QuestionFeedbackBloc(
+        gh<_i299.ChatRepository>(),
+        gh<_i426.NotificationPermissions>(),
+        gh<_i880.AuthRepository>(),
+        gh<_i388.AuthBloc>(),
+        target,
+        source,
       ),
     );
     gh.factoryParam<_i1064.GroupBloc, String, dynamic>(

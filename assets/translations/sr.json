@@ -253,6 +253,20 @@
     "analysisSummary": "Тачно у {} од {} покушаја",
     "konspekt": "Конспект"
   },
+  "questionFeedback": {
+    "report": "Пријави грешку",
+    "title": "Пријави грешку",
+    "whatIsWrong": "Шта није у реду?",
+    "hint": "Опишите шта овде није у реду",
+    "send": "Пошаљи",
+    "cancel": "Откажи",
+    "notify": "Обавести ме о одговору",
+    "notifyHint": "Обавештења важе за цео чет са програмером",
+    "notifyBlocked": "Обавештења су забрањена у подешавањима система",
+    "signInRequired": "Да бисте послали поруку, пријавите се",
+    "signIn": "Пријави се",
+    "sent": "Порука је послата програмеру"
+  },
   "commentAdmin": {
     "draft": "Нацрт",
     "moderation": "На модерацији",
@@ -795,7 +809,7 @@
     "danger": "upozorava: ispred je opasnost",
     "order": "naređuje: zabranjeno ili mora",
     "info": "obaveštava: mesto ili blizina",
-    "note": "Simbol je isti — odgovor nije. Odlučuju oblik i ivica: trougao — približavanje, krug — zabrana ili obaveza, plavi kvadrat — mesto."
+    "note": "Na svakom znaku je pešak — odgovor nije isti. Odlučuju oblik i ivica: trougao — približavanje, krug — zabrana ili obaveza, plavi kvadrat — mesto."
   },
   "uzduzneLinije": {
     "edge": "ivica kolovoza",
@@ -926,7 +940,13 @@
     "copied": "Kopirano: {}",
     "copyAll": "Kopiraj sve podatke",
     "allCopied": "Podaci za uplatu su kopirani",
-    "openQrImage": "Otvori QR kao sliku"
+    "openQrImage": "Otvori QR kao sliku",
+    "promoTitle": "Promo-kod",
+    "promoApply": "Primeni",
+    "promoApplied": "Promo-kod {code} — popust {percent}%",
+    "promoLimited": "Važi samo za tarifu „{tariff}“",
+    "promoRemove": "Ukloni",
+    "promoActivated": "Promo-kod je primenjen — pretplata je aktivirana, plaćanje nije potrebno"
   },
   "billingAdmin": {
     "title": "Uplate i pretplate",
@@ -1002,7 +1022,31 @@
     "purposeField": "Svrha uplate (prefiks — poziv na broj se dodaje sam)",
     "save": "Sačuvaj",
     "payeeSaved": "Podaci primaoca su sačuvani",
-    "requestFailed": "Zahtev nije uspeo"
+    "requestFailed": "Zahtev nije uspeo",
+    "tabPromos": "Promo-kodovi",
+    "promosHint": "Jednokratni kodovi za popust. Kod rezerviše neplaćena porudžbina i oslobađa se ako je porudžbina otkazana ili istekla; sa kodom od 100% pretplata počinje odmah, bez plaćanja.",
+    "promoGenerateTitle": "Generiši promo-kodove",
+    "promoCountField": "Broj kodova",
+    "promoCountInvalid": "Od 1 do 200",
+    "promoDiscountField": "Popust, %",
+    "promoDiscountInvalid": "Od 1 do 100",
+    "promoValidUntilField": "Važi do…",
+    "promoTariffField": "Tarifa",
+    "promoTariffAny": "Sve tarife",
+    "generateCodes": "Generiši",
+    "promosGenerated": "Promo-kodovi su napravljeni",
+    "generatedTitle": "Novi kodovi",
+    "promoCopyAll": "Kopiraj sve",
+    "promoCopied": "Kopirano",
+    "noPromos": "Nema promo-kodova.",
+    "promoStatusAvailable": "slobodan",
+    "promoStatusLocked": "rezervisan",
+    "promoStatusUsed": "iskorišćen",
+    "promoStatusExpired": "istekao",
+    "promoDelete": "Obriši",
+    "promoDeleted": "Promo-kod je obrisan",
+    "promoDeleteFailed": "Kod je već vezan za porudžbinu — brisanje nije moguće",
+    "promoLabel": "promo-kod {code} (−{percent}%)"
   },
   "accountDeletion": {
     "title": "Брисање налога",

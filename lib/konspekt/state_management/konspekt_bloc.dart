@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/core/network/error_messages.dart';
 import 'package:saobracaj/core/network/network_status.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
@@ -78,6 +79,7 @@ class KonspektBloc extends Bloc<KonspektEvent, KonspektState> {
       return;
     }
     emit(state.copyWith(inProgress: false, konspekt: konspekt));
+    analytics.logKonspektOpened(categoryId: categoryId);
     final section = initialSection;
     if (section != null) {
       add(KonspektSectionRequested(section));

@@ -4,12 +4,13 @@ import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/animations/painters.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 
 /// Три вида знаков рядом: треугольник опасности, круги изричите наредбе и
 /// синий квадрат обавештења.
 ///
-/// Схема снимает главную путаницу категории 32: одна и та же пиктограмма
-/// (пешеход на зебре) стоит во всех трёх оболочках, и правильный ответ
+/// Схема снимает главную путаницу категории 32: пешеход нарисован во всех
+/// трёх оболочках (I-14, II-17/II-41, III-6), и правильный ответ
 /// определяется **формой и каймой**, а не картинкой внутри. Поэтому под каждым
 /// знаком стоит не только его вид, но и слова, с которых начинается верный
 /// вариант: *приближавање/наилазак*, *забрањено/мора*, *место/близина*.
@@ -20,15 +21,19 @@ class TriVrsteZnakova extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: 400,
-          height: 322,
-          child: CustomPaint(
-            painter: _TriVrsteZnakovaPainter(
-              Theme.of(context).colorScheme,
-              _SignLabels.of(context),
+      child: RoadSignScope(
+        signs: const ['I-14', 'II-17', 'II-41', 'III-6'],
+        builder: (context, signs) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: 400,
+            height: 322,
+            child: CustomPaint(
+              painter: _TriVrsteZnakovaPainter(
+                Theme.of(context).colorScheme,
+                _SignLabels.of(context),
+                signs,
+              ),
             ),
           ),
         ),
@@ -72,17 +77,11 @@ class _SignLabels {
   int get hashCode => Object.hash(danger, order, info, note);
 }
 
-/// Цвета знаков — литеральные: красная кайма и синий фон это и есть
-/// содержание, в тёмной теме знак остаётся таким же, как на дороге.
-const _signRed = Color(0xFFD32F2F);
-const _signBlue = Color(0xFF1565C0);
-const _signWhite = Color(0xFFF5F5F5);
-const _signInk = Color(0xFF1B1B1B);
-
 class _TriVrsteZnakovaPainter extends IllustrationPainter {
-  _TriVrsteZnakovaPainter(super.colorScheme, this.labels);
+  _TriVrsteZnakovaPainter(super.colorScheme, this.labels, this.signs);
 
   final _SignLabels labels;
+  final RoadSigns signs;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -115,7 +114,12 @@ class _TriVrsteZnakovaPainter extends IllustrationPainter {
   // --- Колонки ---
 
   void _drawDangerColumn(Canvas canvas, double cx) {
-    _triangleSign(canvas, Offset(cx, 58), 92);
+    // I-14 «наилазак на место на коме је обележен пешачки прелаз».
+    signs.paint(
+      canvas,
+      'I-14',
+      Rect.fromCenter(center: Offset(cx, 58), width: 96, height: 88),
+    );
     _column(
       canvas,
       cx,
@@ -129,10 +133,13 @@ class _TriVrsteZnakovaPainter extends IllustrationPainter {
   }
 
   void _drawOrderColumn(Canvas canvas, double cx) {
-    // Два круга рядом: красный запрещает, синий приказывает. Оба — «изричита
+    // Два круга рядом: красный запрещает (II-17 «забрана саобраћаја за
+    // пешаке»), синий приказывает (II-41 «пешачка стаза»). Оба — «изричита
     // наредба», поэтому стоят в одной колонке.
-    _prohibitionSign(canvas, Offset(cx - 30, 58), 27);
-    _mandatorySign(canvas, Offset(cx + 30, 58), 27);
+    signs.paint(canvas,
+        'II-17', Rect.fromCircle(center: Offset(cx - 30, 58), radius: 27));
+    signs.paint(canvas,
+        'II-41', Rect.fromCircle(center: Offset(cx + 30, 58), radius: 27));
     _column(
       canvas,
       cx,
@@ -146,7 +153,12 @@ class _TriVrsteZnakovaPainter extends IllustrationPainter {
   }
 
   void _drawInfoColumn(Canvas canvas, double cx) {
-    _informationSign(canvas, Offset(cx, 58), 78);
+    // III-6 «обележени пешачки прелаз».
+    signs.paint(
+      canvas,
+      'III-6',
+      Rect.fromCenter(center: Offset(cx, 58), width: 78, height: 78),
+    );
     _column(
       canvas,
       cx,
@@ -208,129 +220,9 @@ class _TriVrsteZnakovaPainter extends IllustrationPainter {
     );
   }
 
-  // --- Сами знаки ---
-
-  /// Треугольник опасности: красная кайма, белое поле, пиктограмма внутри.
-  void _triangleSign(Canvas canvas, Offset center, double side) {
-    final height = side * 0.866;
-    Path triangle(double scale) {
-      final s = side * scale;
-      final h = height * scale;
-      return Path()
-        ..moveTo(center.dx, center.dy - h * 0.62)
-        ..lineTo(center.dx + s / 2, center.dy + h * 0.38)
-        ..lineTo(center.dx - s / 2, center.dy + h * 0.38)
-        ..close();
-    }
-
-    canvas.drawPath(triangle(1), Paint()..color = _signRed);
-    canvas.drawPath(triangle(0.74), Paint()..color = _signWhite);
-    _crossingPictogram(
-      canvas,
-      Rect.fromCenter(center: center + const Offset(0, 8), width: 44, height: 34),
-      _signInk,
-    );
-  }
-
-  /// Круг с красной каймой и красной чертой — забрана.
-  void _prohibitionSign(Canvas canvas, Offset center, double r) {
-    canvas.drawCircle(center, r, Paint()..color = _signRed);
-    canvas.drawCircle(center, r * 0.76, Paint()..color = _signWhite);
-    _pedestrian(canvas, center + Offset(0, r * 0.5), r * 1.05, _signInk);
-    canvas.drawLine(
-      center + Offset(-r * 0.62, -r * 0.62),
-      center + Offset(r * 0.62, r * 0.62),
-      Paint()
-        ..color = _signRed
-        ..strokeWidth = 6
-        ..strokeCap = StrokeCap.round,
-    );
-  }
-
-  /// Сплошной синий круг — наредба «мора» (пешачка стаза).
-  void _mandatorySign(Canvas canvas, Offset center, double r) {
-    canvas.drawCircle(center, r, Paint()..color = _signBlue);
-    canvas.drawCircle(
-      center,
-      r,
-      Paint()
-        ..color = _signWhite
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
-    _pedestrian(canvas, center + Offset(0, r * 0.5), r * 1.05, _signWhite);
-  }
-
-  /// Синий квадрат — обавештење.
-  void _informationSign(Canvas canvas, Offset center, double side) {
-    final rect = Rect.fromCenter(center: center, width: side, height: side);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(6)),
-      Paint()..color = _signBlue,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(6)),
-      Paint()
-        ..color = _signWhite
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
-    _crossingPictogram(
-      canvas,
-      Rect.fromCenter(center: center, width: 50, height: 40),
-      _signWhite,
-    );
-  }
-
-  /// Пешеход, идущий по зебре: полосы снизу, силуэт сверху. Одна и та же
-  /// пиктограмма во всех трёх знаках — в этом весь смысл схемы.
-  void _crossingPictogram(Canvas canvas, Rect area, Color color) {
-    final stripeTop = area.bottom - 9;
-    final paint = Paint()..color = color;
-    for (var i = 0; i < 4; i++) {
-      final left = area.left + i * (area.width / 4);
-      canvas.drawRect(
-        Rect.fromLTWH(left, stripeTop, area.width / 4 * 0.55, 9),
-        paint,
-      );
-    }
-    _pedestrian(canvas, Offset(area.center.dx, stripeTop - 1),
-        area.height * 0.78, color);
-  }
-
-  /// Идущий человек: [person] из painters.dart даёт силуэт «голова + туловище»,
-  /// а на знаке пешеход должен читаться именно как **идущий** — иначе в
-  /// маленьком круге он выглядит замочной скважиной.
-  void _pedestrian(Canvas canvas, Offset feet, double h, Color color) {
-    final limb = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = h * 0.11
-      ..strokeCap = StrokeCap.round;
-    final torso = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = h * 0.17
-      ..strokeCap = StrokeCap.round;
-
-    final hip = Offset(feet.dx, feet.dy - h * 0.4);
-    final shoulder = Offset(feet.dx, feet.dy - h * 0.68);
-    // Ноги в шаге и рука вперёд: по ним фигура читается как движение.
-    canvas.drawLine(hip, Offset(feet.dx - h * 0.19, feet.dy), limb);
-    canvas.drawLine(hip, Offset(feet.dx + h * 0.21, feet.dy), limb);
-    canvas.drawLine(hip, shoulder, torso);
-    canvas.drawLine(shoulder, Offset(feet.dx + h * 0.17, feet.dy - h * 0.46),
-        limb);
-    canvas.drawLine(shoulder, Offset(feet.dx - h * 0.15, feet.dy - h * 0.42),
-        limb);
-    canvas.drawCircle(
-      Offset(feet.dx, feet.dy - h * 0.83),
-      h * 0.13,
-      Paint()..color = color,
-    );
-  }
-
   @override
   bool shouldRepaint(covariant _TriVrsteZnakovaPainter oldDelegate) =>
-      oldDelegate.colorScheme != colorScheme || oldDelegate.labels != labels;
+      oldDelegate.colorScheme != colorScheme ||
+      oldDelegate.labels != labels ||
+      oldDelegate.signs != signs;
 }

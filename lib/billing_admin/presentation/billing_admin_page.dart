@@ -1,5 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../core/di.dart';
@@ -7,6 +8,7 @@ import '../../generated/locale_keys.g.dart';
 import '../../subscription/models/subscription_models.dart';
 import '../../subscription/presentation/payment_slip_view.dart';
 import '../../subscription/presentation/tariff_formatting.dart';
+import '../models/billing_admin_models.dart';
 import '../state_management/billing_admin_bloc.dart';
 import '../state_management/billing_admin_events.dart';
 import '../state_management/billing_admin_state.dart';
@@ -74,6 +76,7 @@ class _BillingView extends StatelessWidget {
                 BillingTab.user => _UserTab(state: state),
                 BillingTab.audit => _AuditTab(state: state),
                 BillingTab.tariffs => _TariffsTab(state: state),
+                BillingTab.promos => _PromosTab(state: state),
                 BillingTab.payee => _PayeeTab(state: state),
               },
             ),
@@ -96,6 +99,7 @@ class _TabStrip extends StatelessWidget {
     BillingTab.user => LocaleKeys.billingAdmin_tabUser.tr(),
     BillingTab.audit => LocaleKeys.billingAdmin_tabAudit.tr(),
     BillingTab.tariffs => LocaleKeys.billingAdmin_tabTariffs.tr(),
+    BillingTab.promos => LocaleKeys.billingAdmin_tabPromos.tr(),
     BillingTab.payee => LocaleKeys.billingAdmin_tabPayee.tr(),
   };
 
@@ -305,7 +309,11 @@ class _OrderTile extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           '${tariffKindName(order.kind)}, ${monthsLabel(order.months)} · '
-          '${priceLabel(order.amountRsd)}',
+          '${priceLabel(order.amountRsd)}'
+          '${order.promoCode == null ? '' : ' · ${LocaleKeys.billingAdmin_promoLabel.tr(namedArgs: {
+                'code': order.promoCode!,
+                'percent': '${order.discountPercent ?? 0}',
+              })}'}',
         ),
         Text(
           '${LocaleKeys.subscription_reference.tr()}: ${order.referenceDisplay}',
@@ -897,6 +905,361 @@ class _TariffsTab extends StatelessWidget {
       ],
     );
   }
+}
+
+// =========================================================================
+// Промокоды
+// =========================================================================
+
+class _PromosTab extends StatelessWidget {
+  const _PromosTab({required this.state});
+
+  final BillingAdminState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bloc = context.read<BillingAdminBloc>();
+    if (state.promosLoading && !state.promosLoaded) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                LocaleKeys.billingAdmin_promosHint.tr(),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            IconButton(
+              tooltip: LocaleKeys.billingAdmin_refresh.tr(),
+              icon: const Icon(Icons.refresh),
+              onPressed: () => bloc.add(PromosRefreshed()),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _PromoGenerateCard(state: state),
+        if (state.generatedPromoCodes.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _GeneratedPromosCard(codes: state.generatedPromoCodes),
+        ],
+        const SizedBox(height: 12),
+        if (state.promoCodes.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(LocaleKeys.billingAdmin_noPromos.tr()),
+          )
+        else
+          for (final promo in state.promoCodes)
+            _PromoTile(promo: promo, submitting: state.submitting),
+      ],
+    );
+  }
+}
+
+/// Форма генерации: количество, скидка, срок, привязка к тарифу, комментарий.
+class _PromoGenerateCard extends StatelessWidget {
+  const _PromoGenerateCard({required this.state});
+
+  final BillingAdminState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bloc = context.read<BillingAdminBloc>();
+    final validUntil = state.promoValidUntil;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              LocaleKeys.billingAdmin_promoGenerateTitle.tr(),
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                SizedBox(
+                  width: 130,
+                  child: TextFormField(
+                    initialValue: state.promoCount,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: LocaleKeys.billingAdmin_promoCountField.tr(),
+                      errorText:
+                          state.promoCount.trim().isNotEmpty &&
+                              state.promoCountValue == null
+                          ? LocaleKeys.billingAdmin_promoCountInvalid.tr()
+                          : null,
+                      border: const OutlineInputBorder(),
+                    ),
+                    onChanged: (v) => bloc.add(PromoFormChanged(count: v)),
+                  ),
+                ),
+                SizedBox(
+                  width: 130,
+                  child: TextFormField(
+                    initialValue: state.promoDiscount,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: LocaleKeys.billingAdmin_promoDiscountField
+                          .tr(),
+                      errorText:
+                          state.promoDiscount.trim().isNotEmpty &&
+                              state.promoDiscountValue == null
+                          ? LocaleKeys.billingAdmin_promoDiscountInvalid.tr()
+                          : null,
+                      border: const OutlineInputBorder(),
+                    ),
+                    onChanged: (v) => bloc.add(PromoFormChanged(discount: v)),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.event, size: 18),
+                  label: Text(
+                    validUntil == null
+                        ? LocaleKeys.billingAdmin_promoValidUntilField.tr()
+                        : LocaleKeys.billingAdmin_dueUntil.tr(
+                            args: [formatDate(validUntil)],
+                          ),
+                  ),
+                  onPressed: () => _pickDate(context),
+                ),
+                DropdownMenu<String?>(
+                  initialSelection: state.promoSku,
+                  width: 260,
+                  label: Text(LocaleKeys.billingAdmin_promoTariffField.tr()),
+                  dropdownMenuEntries: [
+                    DropdownMenuEntry(
+                      value: null,
+                      label: LocaleKeys.billingAdmin_promoTariffAny.tr(),
+                    ),
+                    for (final t in state.tariffs)
+                      DropdownMenuEntry(
+                        value: t.sku,
+                        label:
+                            '${tariffKindName(t.kind)}, ${monthsLabel(t.months)}',
+                      ),
+                  ],
+                  onSelected: (sku) => bloc.add(
+                    PromoFormChanged(sku: sku, clearSku: sku == null),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              initialValue: state.promoNote,
+              decoration: InputDecoration(
+                labelText: LocaleKeys.billingAdmin_noteHint.tr(),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (v) => bloc.add(PromoFormChanged(note: v)),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: state.canGeneratePromos && !state.submitting
+                  ? () => bloc.add(PromoCodesGenerated())
+                  : null,
+              icon: state.submitting
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome),
+              label: Text(LocaleKeys.billingAdmin_generateCodes.tr()),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickDate(BuildContext context) async {
+    final bloc = context.read<BillingAdminBloc>();
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: state.promoValidUntil ?? now.add(const Duration(days: 30)),
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365 * 3)),
+    );
+    if (picked != null) bloc.add(PromoFormChanged(validUntil: picked));
+  }
+}
+
+/// Только что сгенерированные коды — одним блоком, чтобы скопировать и
+/// отправить. После ухода со стола пачка не восстанавливается, но коды всегда
+/// видны в общем списке ниже.
+class _GeneratedPromosCard extends StatelessWidget {
+  const _GeneratedPromosCard({required this.codes});
+
+  final List<AdminPromoCode> codes;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final text = codes.map((c) => c.code).join('\n');
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    LocaleKeys.billingAdmin_generatedTitle.tr(),
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.copy, size: 18),
+                  label: Text(LocaleKeys.billingAdmin_promoCopyAll.tr()),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: text));
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            LocaleKeys.billingAdmin_promoCopied.tr(),
+                          ),
+                        ),
+                      );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SelectableText(
+              text,
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontFamily: 'monospace',
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PromoTile extends StatelessWidget {
+  const _PromoTile({required this.promo, required this.submitting});
+
+  final AdminPromoCode promo;
+  final bool submitting;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bloc = context.read<BillingAdminBloc>();
+    final scheme = theme.colorScheme;
+    final (bg, fg) = switch (promo.status) {
+      PromoCodeStatus.available => (
+        scheme.primaryContainer,
+        scheme.onPrimaryContainer,
+      ),
+      PromoCodeStatus.locked => (
+        scheme.tertiaryContainer,
+        scheme.onTertiaryContainer,
+      ),
+      PromoCodeStatus.used || PromoCodeStatus.expired => (
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+      ),
+    };
+    final details = [
+      '−${promo.discountPercent}%',
+      LocaleKeys.billingAdmin_dueUntil.tr(args: [formatDate(promo.validUntil)]),
+      promo.sku ?? LocaleKeys.billingAdmin_promoTariffAny.tr(),
+      if (promo.usedByEmail != null) promo.usedByEmail!,
+      if (promo.note != null && promo.note!.isNotEmpty) promo.note!,
+    ].join(' · ');
+    // Удалять можно только код, не занятый заказом, — сервер откажет
+    // остальным; кнопку им не показываем.
+    final deletable =
+        promo.status == PromoCodeStatus.available ||
+        promo.status == PromoCodeStatus.expired;
+    return ListTile(
+      dense: true,
+      title: Row(
+        children: [
+          Text(
+            promo.code,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: bg,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              _statusLabel(promo.status),
+              style: theme.textTheme.labelSmall?.copyWith(color: fg),
+            ),
+          ),
+        ],
+      ),
+      subtitle: Text(details),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: LocaleKeys.subscription_copyValue.tr(),
+            icon: const Icon(Icons.copy, size: 18),
+            onPressed: () {
+              Clipboard.setData(ClipboardData(text: promo.code));
+              ScaffoldMessenger.of(context)
+                ..hideCurrentSnackBar()
+                ..showSnackBar(
+                  SnackBar(
+                    content: Text(LocaleKeys.billingAdmin_promoCopied.tr()),
+                  ),
+                );
+            },
+          ),
+          if (deletable)
+            IconButton(
+              tooltip: LocaleKeys.billingAdmin_promoDelete.tr(),
+              icon: const Icon(Icons.delete_outline, size: 18),
+              onPressed: submitting
+                  ? null
+                  : () => bloc.add(PromoCodeDeleted(promo.code)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static String _statusLabel(PromoCodeStatus status) => switch (status) {
+    PromoCodeStatus.available => LocaleKeys.billingAdmin_promoStatusAvailable
+        .tr(),
+    PromoCodeStatus.locked => LocaleKeys.billingAdmin_promoStatusLocked.tr(),
+    PromoCodeStatus.used => LocaleKeys.billingAdmin_promoStatusUsed.tr(),
+    PromoCodeStatus.expired => LocaleKeys.billingAdmin_promoStatusExpired.tr(),
+  };
 }
 
 // =========================================================================

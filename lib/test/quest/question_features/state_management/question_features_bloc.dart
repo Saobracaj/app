@@ -1,6 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
+import '../../../../core/analytics/analytics_service.dart';
 import '../../../../feature_flags/domain/app_feature.dart';
 import '../../../data/quiz_preferences_repository.dart';
 import 'question_features_events.dart';
@@ -19,15 +20,23 @@ class QuestionFeaturesBloc
     extends Bloc<QuestionFeaturesEvent, QuestionFeaturesState> {
   QuestionFeaturesBloc(
     this._preferences,
-    @factoryParam AppFeature? initial,
-  ) : super(
+    @factoryParam AppFeature? initial, [
+    @factoryParam this.questionId,
+  ]) : super(
         QuestionFeaturesState(selected: initial ?? _preferences.questionTab),
       ) {
     on<TabSelected>((event, emit) {
       _preferences.setQuestionTab(event.feature);
+      analytics.logQuestionTabOpened(
+        tab: event.feature.key,
+        questionId: questionId,
+      );
       emit(QuestionFeaturesState(selected: event.feature));
     });
   }
 
   final QuizPreferencesRepository _preferences;
+
+  /// The question whose tabs these are — analytics context only.
+  final int? questionId;
 }

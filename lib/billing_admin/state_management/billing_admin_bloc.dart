@@ -50,6 +50,20 @@ class BillingAdminBloc extends Bloc<BillingAdminEvent, BillingAdminState> {
     );
     on<TariffPriceCommitted>(_onTariffPriceCommitted);
     on<TariffActiveToggled>(_onTariffActiveToggled);
+    on<PromosRefreshed>((e, emit) => _loadPromos(emit));
+    on<PromoFormChanged>(
+      (e, emit) => emit(
+        state.copyWith(
+          promoCount: e.count ?? state.promoCount,
+          promoDiscount: e.discount ?? state.promoDiscount,
+          promoValidUntil: e.validUntil ?? state.promoValidUntil,
+          promoSku: e.clearSku ? null : (e.sku ?? state.promoSku),
+          promoNote: e.note ?? state.promoNote,
+        ),
+      ),
+    );
+    on<PromoCodesGenerated>(_onPromoCodesGenerated);
+    on<PromoCodeDeleted>(_onPromoCodeDeleted);
     on<PayeeDraftChanged>(
       (e, emit) => emit(
         state.copyWith(
@@ -91,6 +105,10 @@ class BillingAdminBloc extends Bloc<BillingAdminEvent, BillingAdminState> {
         if (!state.auditLoaded) await _loadAudit(emit);
       case BillingTab.tariffs:
         if (!state.tariffsLoaded) await _loadTariffs(emit);
+      case BillingTab.promos:
+        // Тарифы нужны выпадашке «привязать к тарифу» в форме генерации.
+        if (!state.tariffsLoaded) await _loadTariffs(emit);
+        if (!state.promosLoaded) await _loadPromos(emit);
       case BillingTab.payee:
         if (state.payee == null) await _loadPayee(emit);
     }
@@ -375,6 +393,93 @@ class BillingAdminBloc extends Bloc<BillingAdminEvent, BillingAdminState> {
       info: LocaleKeys.billingAdmin_tariffSaved.tr(),
     );
     await _loadTariffs(emit);
+  }
+
+  // ------------------------------------------------------------- промокоды
+
+  Future<void> _loadPromos(Emitter<BillingAdminState> emit) async {
+    emit(state.copyWith(promosLoading: true, errorMessage: null));
+    try {
+      final page = await _repository.promoCodes();
+      emit(
+        state.copyWith(
+          promosLoading: false,
+          promosLoaded: true,
+          promoCodes: page.items,
+        ),
+      );
+    } catch (e) {
+      emit(state.copyWith(promosLoading: false, errorMessage: _message(e)));
+    }
+  }
+
+  Future<void> _onPromoCodesGenerated(
+    PromoCodesGenerated event,
+    Emitter<BillingAdminState> emit,
+  ) async {
+    final count = state.promoCountValue;
+    final discount = state.promoDiscountValue;
+    final validUntil = state.promoValidUntil;
+    if (count == null || discount == null || validUntil == null) return;
+    emit(_clean().copyWith(submitting: true));
+    try {
+      final note = state.promoNote.trim();
+      final created = await _repository.generatePromoCodes(
+        count: count,
+        discountPercent: discount,
+        // До конца выбранного дня: оператор выбирает дату, а не момент.
+        validUntil: DateTime(
+          validUntil.year,
+          validUntil.month,
+          validUntil.day,
+          23,
+          59,
+          59,
+        ),
+        sku: state.promoSku,
+        note: note.isEmpty ? null : note,
+      );
+      emit(
+        state.copyWith(
+          submitting: false,
+          generatedPromoCodes: created,
+          auditLoaded: false,
+          infoMessage: LocaleKeys.billingAdmin_promosGenerated.tr(),
+        ),
+      );
+      await _loadPromos(emit);
+    } catch (e) {
+      emit(state.copyWith(submitting: false, errorMessage: _message(e)));
+    }
+  }
+
+  Future<void> _onPromoCodeDeleted(
+    PromoCodeDeleted event,
+    Emitter<BillingAdminState> emit,
+  ) async {
+    emit(_clean().copyWith(submitting: true));
+    try {
+      final deleted = await _repository.deletePromoCode(event.code);
+      emit(
+        state.copyWith(
+          submitting: false,
+          auditLoaded: !deleted && state.auditLoaded,
+          generatedPromoCodes: [
+            for (final c in state.generatedPromoCodes)
+              if (c.code != event.code) c,
+          ],
+          infoMessage: deleted
+              ? LocaleKeys.billingAdmin_promoDeleted.tr()
+              : null,
+          errorMessage: deleted
+              ? null
+              : LocaleKeys.billingAdmin_promoDeleteFailed.tr(),
+        ),
+      );
+      await _loadPromos(emit);
+    } catch (e) {
+      emit(state.copyWith(submitting: false, errorMessage: _message(e)));
+    }
   }
 
   // ------------------------------------------------------------ получатель

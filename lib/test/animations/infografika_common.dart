@@ -4,6 +4,7 @@ import 'dart:math' as math;
 // одноимённый тип из dart:ui, которым пользуется TextPainter.
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 import 'package:saobracaj/theme/app_theme.dart';
 
 /// Общая основа для схем-инфографик: карточка, плашка, подпись, стрелка,
@@ -338,36 +339,32 @@ abstract class InfoScenePainter extends CustomPainter {
     );
   }
 
-  /// Круглый знак ограничения скорости: белое поле, красный обод, число.
-  /// Цвета литеральные — у дорожного знака цвет и есть содержание.
+  /// Круглый знак ограничения скорости (II-30): официальный диск без числа
+  /// (`assets/signs/ii-30-blank.svg`), число рисуется поверх — в сценах
+  /// нужны разные лимиты. Не забудь перечислить `II-30-blank` в
+  /// [RoadSignScope] сцены.
   void speedSign(
     Canvas canvas,
+    RoadSigns signs,
     Offset center,
     double radius,
     String value, {
     double opacity = 1,
     bool crossedOut = false,
   }) {
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()..color = kSignFace.withValues(alpha: opacity),
-    );
-    canvas.drawCircle(
-      center,
-      radius - radius * 0.11,
-      Paint()
-        ..color = kBanRed.withValues(alpha: opacity)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = radius * 0.22,
+    signs.paint(
+      canvas,
+      'II-30-blank',
+      Rect.fromCircle(center: center, radius: radius),
+      opacity: opacity,
     );
     text(
       canvas,
       value,
       center,
       kSignInk.withValues(alpha: opacity),
-      maxWidth: radius * 1.7,
-      fontSize: radius * 0.78,
+      maxWidth: radius * 1.35,
+      fontSize: radius * 0.72,
       isBold: true,
     );
     if (crossedOut) {

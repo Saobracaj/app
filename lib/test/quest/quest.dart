@@ -32,6 +32,7 @@ import 'presentation/quest_markdown.dart';
 import 'presentation/question_image_card.dart';
 import 'presentation/question_pagination.dart';
 import 'presentation/question_progress_strip.dart';
+import 'presentation/tabs_seen_reporter.dart';
 import 'question_features/presentation/question_features_tabs.dart';
 import 'question_features/state_management/question_cues_bloc.dart';
 import 'question_features/state_management/question_cues_events.dart';
@@ -63,6 +64,11 @@ class Quest extends StatelessWidget {
   /// answered in over to the full screen.
   final bool revealAnswers;
   final Set<Choice>? answers;
+
+  /// Принудительно собирать экран по-вебовски вне веба — для виджет-тестов,
+  /// где `kIsWeb` всегда `false` (ср. [KeyboardHints.debugForceVisible]).
+  @visibleForTesting
+  static bool debugForceWeb = false;
 
   @override
   Widget build(BuildContext context) {
@@ -283,6 +289,14 @@ class _QuestRunState extends State<_QuestRun> {
             child: Builder(
               builder: (context) {
                 final wide = context.isExpandedScreen;
+                // Раскрытая пагинация и подсказка клавиш — обстановка веба
+                // с мышью и клавиатурой, то есть просторного окна браузера.
+                // Узкое окно — это телефонный браузер: там палец, и экран
+                // собирается ровно как в мобильной версии (полоса прогресса
+                // под шапкой, внизу одна панель действий) — трёхэтажный низ
+                // съедал у вопроса половину высоты.
+                final webChrome =
+                    (kIsWeb || Quest.debugForceWeb) && context.isMediumScreen;
                 final first = state.currentQuestionIndex == 0;
                 final last =
                     state.currentQuestionIndex == state.questions.length - 1;
@@ -318,13 +332,13 @@ class _QuestRunState extends State<_QuestRun> {
                       questBloc.add(MoveToQuestion(picked)),
                 );
                 // Низ экрана: панель действий (на узком экране),
-                // на вебе — пагинация и под ней мелкая подсказка,
+                // в просторном вебе — пагинация и под ней мелкая подсказка,
                 // что теми же путями ходят ← / → и пробел. Если
                 // собирать нечего (широкий экран вне веба) —
                 // панели нет вовсе.
                 final bottomChildren = <Widget>[
                   ?bottomBar,
-                  if (kIsWeb) pagination,
+                  if (webChrome) pagination,
                   if (KeyboardHints.visible)
                     KeyboardHints(navigation: state.questions.length > 1),
                 ];
@@ -344,10 +358,10 @@ class _QuestRunState extends State<_QuestRun> {
                     // управляют жесты тела: потяг вниз у самого верха
                     // раскрывает навигатор, прокрутка вверх — сворачивает.
                     // Прокрутка вопроса приходит к ней через листалку, то
-                    // есть на уровень глубже (scrollDepth). На вебе полосы
-                    // нет: там мышь, и вместо жеста внизу страницы стоит
-                    // раскрытая пагинация (см. ниже).
-                    body: kIsWeb
+                    // есть на уровень глубже (scrollDepth). В просторном
+                    // вебе полосы нет: там мышь, и вместо жеста внизу
+                    // страницы стоит раскрытая пагинация (см. ниже).
+                    body: webChrome
                         ? body
                         : QuestionProgressHeader(
                             entries: entries,
@@ -650,14 +664,18 @@ class QuestionContent extends StatelessWidget {
                           // The tabs host their own inputs and gestures (chat,
                           // comments); keep them out of the selection scope.
                           SelectionContainer.disabled(
-                            child: QuestionFeaturesTabs(
+                            child: TabsSeenReporter(
+                              key: ValueKey('tabs-seen-${question.id}'),
                               questionId: question.id,
-                              categoryId: question.categoryId,
-                              initialFeature: openChat
-                                  ? AppFeature.publicQuestionComments
-                                  : null,
-                              chatMessageId: openChat ? chatMessageId : null,
-                              autoScroll: openChat,
+                              child: QuestionFeaturesTabs(
+                                questionId: question.id,
+                                categoryId: question.categoryId,
+                                initialFeature: openChat
+                                    ? AppFeature.publicQuestionComments
+                                    : null,
+                                chatMessageId: openChat ? chatMessageId : null,
+                                autoScroll: openChat,
+                              ),
                             ),
                           ),
                       ],

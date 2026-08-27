@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/db/answer_table.dart' show genRecordId;
 import 'package:saobracaj/db/db.dart';
 import 'package:saobracaj/db/dependencies.dart';
@@ -106,6 +107,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     _recalculateState(state.answers, emit);
     _navigateToIndex(0, emit);
     _startTime = DateTime.now();
+    analytics.logSimulationStarted();
   }
 
   void _onMoveToQuestiont(MoveToQuestion event, Emitter<PracticeState> emit) {
@@ -140,6 +142,12 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     // screen knows the attempt's sync id — the Ask-AI chat about this exam is
     // keyed by it on the backend.
     final attemptUuid = genRecordId();
+
+    analytics.logSimulationFinished(
+      durationSeconds: elapsed,
+      points: pointsSummary,
+      mistakes: wrongAnswers.length,
+    );
 
     // The result screen renders from these — the same numbers that go into
     // the practice record below.

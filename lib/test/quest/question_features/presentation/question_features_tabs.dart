@@ -10,6 +10,9 @@ import '../../../../chat/presentation/question_chat_section.dart';
 import '../../../../chat/state_management/question_chat_count_bloc.dart';
 import '../../../../chat/state_management/question_chat_count_events.dart';
 import '../../../../chat/state_management/question_chat_count_state.dart';
+import '../../../../question_feedback/domain/question_feedback_source.dart';
+import '../../../../question_feedback/domain/question_feedback_target.dart';
+import '../../../../question_feedback/presentation/report_problem_button.dart';
 import '../../comment/comment_widget/comment_widget.dart';
 import '../ask_ai/presentation/ask_ai_chat_section.dart';
 import '../state_management/question_features_bloc.dart';
@@ -84,7 +87,8 @@ class QuestionFeaturesTabs extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => getIt<QuestionFeaturesBloc>(param1: initial),
+          create: (_) =>
+              getIt<QuestionFeaturesBloc>(param1: initial, param2: questionId),
         ),
         // Значку нужен один скаляр, поэтому он читается отдельно от чата,
         // живущего внутри самой вкладки.
@@ -327,10 +331,22 @@ class _TabContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     switch (feature) {
+      // Объяснение и конспект — вкладки с редакторским контентом, в котором
+      // пользователю есть на что пожаловаться, поэтому кнопка «Сообщить об
+      // ошибке» живёт под ними. Обсуждению она не нужна: на сообщение чата
+      // жалуются из его собственного меню.
       case AppFeature.questionComments:
-        return CommentWidget(questionId: questionId);
+        return _WithReportButton(
+          questionId: questionId,
+          source: QuestionFeedbackSource.explanation,
+          child: CommentWidget(questionId: questionId),
+        );
       case AppFeature.categorySummaries:
-        return QuestionKonspektTab(categoryId: categoryId);
+        return _WithReportButton(
+          questionId: questionId,
+          source: QuestionFeedbackSource.summary,
+          child: QuestionKonspektTab(categoryId: categoryId),
+        );
       // Обсуждение вопроса — обычный чат приложения, только перевёрнутый:
       // поле ввода сверху, под ним свежее сообщение, дальше в прошлое.
       case AppFeature.publicQuestionComments:
@@ -347,6 +363,33 @@ class _TabContent extends StatelessWidget {
       default:
         return _ComingSoon(feature: feature);
     }
+  }
+}
+
+/// Содержимое вкладки с кнопкой «Сообщить об ошибке» под ним.
+class _WithReportButton extends StatelessWidget {
+  const _WithReportButton({
+    required this.questionId,
+    required this.source,
+    required this.child,
+  });
+
+  final int questionId;
+  final QuestionFeedbackSource source;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        child,
+        ReportProblemButton(
+          target: QuestionFeedbackTarget.question(questionId),
+          source: source,
+        ),
+      ],
+    );
   }
 }
 
