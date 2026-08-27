@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/animations/painters.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 
 /// Четыре зоны и разрешённая в каждой скорость.
 ///
@@ -23,15 +24,19 @@ class ZoneUporedno extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: 400,
-          height: 404,
-          child: CustomPaint(
-            painter: _ZonesPainter(
-              Theme.of(context).colorScheme,
-              context.tr(LocaleKeys.zoneUporedno_trap),
+      child: RoadSignScope(
+        signs: const ['III-26', 'III-29', 'III-27', 'III-28'],
+        builder: (context, signs) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: 400,
+            height: 404,
+            child: CustomPaint(
+              painter: _ZonesPainter(
+                Theme.of(context).colorScheme,
+                context.tr(LocaleKeys.zoneUporedno_trap),
+                signs,
+              ),
             ),
           ),
         ),
@@ -41,7 +46,7 @@ class ZoneUporedno extends StatelessWidget {
 }
 
 class _ZonesPainter extends CustomPainter {
-  _ZonesPainter(this.scheme, this.trap);
+  _ZonesPainter(this.scheme, this.trap, this.signs);
 
   final ColorScheme scheme;
 
@@ -49,13 +54,7 @@ class _ZonesPainter extends CustomPainter {
   /// скоростей — сербские термины из вопросов, они не переводятся.
   final String trap;
 
-  // Цвета знаков — их содержание, поэтому литеральные и одинаковые в обеих
-  // темах.
-  static const _signBlue = Color(0xFF0D5AA7);
-  static const _signWhite = Color(0xFFFAFAFA);
-  static const _signInk = Color(0xFF1B1B1B);
-  static const _signRed = Color(0xFFD32F2F);
-  static const _signYellow = Color(0xFFC6D935);
+  final RoadSigns signs;
 
   static const _cardLeft = 10.0;
   static const _cardRight = 390.0;
@@ -66,7 +65,6 @@ class _ZonesPainter extends CustomPainter {
   static const _firstCardTop = 62.0;
 
   static const _signCenterX = 48.0;
-  static const _signSize = 52.0;
   static const _textLeft = 86.0;
   static const _speedCenterX = 326.0;
 
@@ -204,95 +202,29 @@ class _ZonesPainter extends CustomPainter {
 
   // === Знаки ===
 
-  /// Синий квадрат с белым пешеходом: *пешачка зона*.
+  /// Табличка «ЗОНА» с пиктограммой пешеходов: III-26 *пешачка зона*.
   void _paintPedestrianZoneSign(Canvas canvas, Offset center) {
-    _paintSignPlate(canvas, center, _signBlue);
-    _paintPerson(canvas, center.translate(-7, 1), 32, _signWhite);
-    _paintPerson(canvas, center.translate(11, 5), 22, _signWhite);
+    signs.paint(canvas, 'III-26',
+        Rect.fromCenter(center: center, width: 44, height: 66));
   }
 
-  /// Синий квадрат с домом, машиной и ребёнком: *зона успореног саобраћаја*.
+  /// Синий знак с домом, машиной и ребёнком: III-29 *зона успореног
+  /// саобраћаја*.
   void _paintCalmZoneSign(Canvas canvas, Offset center) {
-    _paintSignPlate(canvas, center, _signBlue);
-    final origin = center.translate(-_signSize / 2, -_signSize / 2);
-    final ink = Paint()..color = _signWhite;
-
-    // Дом слева сверху.
-    canvas.drawPath(
-      Path()
-        ..moveTo(origin.dx + 6, origin.dy + 20)
-        ..lineTo(origin.dx + 18, origin.dy + 9)
-        ..lineTo(origin.dx + 30, origin.dy + 20)
-        ..close(),
-      ink,
-    );
-    canvas.drawRect(
-      Rect.fromLTRB(
-          origin.dx + 10, origin.dy + 20, origin.dx + 26, origin.dy + 30),
-      ink,
-    );
-
-    // Машина справа снизу, вид сбоку.
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTRB(
-            origin.dx + 26, origin.dy + 33, origin.dx + 47, origin.dy + 41),
-        const Radius.circular(2),
-      ),
-      ink,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTRB(
-            origin.dx + 31, origin.dy + 27, origin.dx + 42, origin.dy + 34),
-        const Radius.circular(2),
-      ),
-      ink,
-    );
-    canvas.drawCircle(Offset(origin.dx + 31, origin.dy + 42), 3, ink);
-    canvas.drawCircle(Offset(origin.dx + 42, origin.dy + 42), 3, ink);
-
-    // Играющий ребёнок слева снизу.
-    _paintPerson(
-        canvas, Offset(origin.dx + 14, origin.dy + 41), 16, _signWhite,
-        striding: true);
+    signs.paint(canvas, 'III-29',
+        Rect.fromCenter(center: center, width: 66, height: 44));
   }
 
-  /// Белый квадрат с красным кругом «30»: *зона „30”*.
+  /// Табличка «ЗОНА» с красным кругом «30»: III-27 *зона „30”*.
   void _paintZone30Sign(Canvas canvas, Offset center) {
-    _paintSignPlate(canvas, center, _signWhite);
-    drawCanvasText(canvas, 'ЗОНА', center.translate(0, -19), _signInk,
-        maxWidth: 48, fontSize: 9, fontWeight: FontWeight.bold);
-    final circleCenter = center.translate(0, 6);
-    canvas.drawCircle(circleCenter, 14, Paint()..color = _signRed);
-    canvas.drawCircle(circleCenter, 9.5, Paint()..color = _signWhite);
-    drawCanvasText(canvas, '30', circleCenter, _signInk,
-        maxWidth: 30, fontSize: 13, fontWeight: FontWeight.bold);
+    signs.paint(canvas, 'III-27',
+        Rect.fromCenter(center: center, width: 44, height: 66));
   }
 
-  /// Жёлто-зелёный квадрат с детьми: *зона школе*.
+  /// Табличка «ЗОНА ШКОЛЕ» с жёлто-зелёной пиктограммой детей: III-28.
   void _paintSchoolZoneSign(Canvas canvas, Offset center) {
-    _paintSignPlate(canvas, center, _signYellow);
-    _paintPerson(canvas, center.translate(-9, -4), 26, _signInk,
-        striding: true);
-    _paintPerson(canvas, center.translate(8, -1), 21, _signInk);
-    drawCanvasText(canvas, 'ШКОЛА', center.translate(0, 20), _signInk,
-        maxWidth: 50, fontSize: 9, fontWeight: FontWeight.bold);
-  }
-
-  void _paintSignPlate(Canvas canvas, Offset center, Color fill) {
-    final rect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: center, width: _signSize, height: _signSize),
-      const Radius.circular(5),
-    );
-    canvas.drawRRect(rect, Paint()..color = fill);
-    canvas.drawRRect(
-      rect,
-      Paint()
-        ..color = _signInk
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
-    );
+    signs.paint(canvas, 'III-28',
+        Rect.fromCenter(center: center, width: 44, height: 66));
   }
 
   /// Пиктограмма человека: голова, корпус, руки и ноги. [striding] разводит
@@ -328,5 +260,7 @@ class _ZonesPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ZonesPainter oldDelegate) =>
-      oldDelegate.scheme != scheme || oldDelegate.trap != trap;
+      oldDelegate.scheme != scheme ||
+      oldDelegate.trap != trap ||
+      oldDelegate.signs != signs;
 }

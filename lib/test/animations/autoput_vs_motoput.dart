@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:saobracaj/test/animations/painters.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 
 const double _w = 400;
 const double _h = 478;
@@ -43,13 +44,17 @@ class AutoputVsMotoput extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: _w,
-          height: _h,
-          child: CustomPaint(
-            painter: _AutoputVsMotoputPainter(Theme.of(context).colorScheme),
+      child: RoadSignScope(
+        signs: const ['III-68', 'III-21'],
+        builder: (context, signs) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: _w,
+            height: _h,
+            child: CustomPaint(
+              painter: _AutoputVsMotoputPainter(
+                  Theme.of(context).colorScheme, signs),
+            ),
           ),
         ),
       ),
@@ -58,9 +63,10 @@ class AutoputVsMotoput extends StatelessWidget {
 }
 
 class _AutoputVsMotoputPainter extends CustomPainter {
-  _AutoputVsMotoputPainter(this.scheme);
+  _AutoputVsMotoputPainter(this.scheme, this.signs);
 
   final ColorScheme scheme;
+  final RoadSigns signs;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -93,10 +99,12 @@ class _AutoputVsMotoputPainter extends CustomPainter {
     );
 
     // Знак — единственный признак, общий для обоих: поэтому номер ① стоит
-    // у обеих табличек.
-    _drawMotorwaySign(canvas, const Offset(88, 50));
+    // у обеих табличек. Аутопут — зелёный III-68, мотопут — синий III-21.
+    signs.paint(canvas, 'III-68',
+        Rect.fromCenter(center: const Offset(88, 52), width: 32, height: 46));
     _drawBadge(canvas, const Offset(118, 38), '1');
-    _drawExpresswaySign(canvas, const Offset(300, 50));
+    signs.paint(canvas, 'III-21',
+        Rect.fromCenter(center: const Offset(300, 52), width: 32, height: 46));
     _drawBadge(canvas, const Offset(330, 38), '1');
   }
 
@@ -415,64 +423,7 @@ class _AutoputVsMotoputPainter extends CustomPainter {
     canvas.restore();
   }
 
-  /// Знак «аутопут»: синий щит, на нём — дорога с путепроводом.
-  void _drawMotorwaySign(Canvas canvas, Offset center) {
-    final rect = Rect.fromCenter(center: center, width: 38, height: 28);
-    _drawSignPlate(canvas, rect);
-    final white = Paint()..color = kLineWhite;
-    // Полотно дороги, уходящее вдаль, и мостик над ним.
-    final road = Path()
-      ..moveTo(center.dx - 9, center.dy + 10)
-      ..lineTo(center.dx - 3, center.dy - 8)
-      ..lineTo(center.dx + 3, center.dy - 8)
-      ..lineTo(center.dx + 9, center.dy + 10)
-      ..close();
-    canvas.drawPath(road, white);
-    canvas.drawRect(
-      Rect.fromLTWH(center.dx - 13, center.dy - 6, 26, 4),
-      white,
-    );
-  }
-
-  /// Знак «мотопут» (пут резервисан за саобраћај моторних возила): синий щит
-  /// с легковым автомобилем.
-  void _drawExpresswaySign(Canvas canvas, Offset center) {
-    final rect = Rect.fromCenter(center: center, width: 38, height: 28);
-    _drawSignPlate(canvas, rect);
-    final white = Paint()..color = kLineWhite;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(center: center.translate(0, 3), width: 26, height: 8),
-        const Radius.circular(2),
-      ),
-      white,
-    );
-    final cabin = Path()
-      ..moveTo(center.dx - 8, center.dy - 1)
-      ..lineTo(center.dx - 5, center.dy - 7)
-      ..lineTo(center.dx + 4, center.dy - 7)
-      ..lineTo(center.dx + 8, center.dy - 1)
-      ..close();
-    canvas.drawPath(cabin, white);
-    canvas.drawCircle(center.translate(-7, 8), 2.6, white);
-    canvas.drawCircle(center.translate(7, 8), 2.6, white);
-  }
-
-  void _drawSignPlate(Canvas canvas, Rect rect) {
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(3)),
-      Paint()..color = const Color(0xFF1B5FAC),
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(3)),
-      Paint()
-        ..color = kLineWhite
-        ..strokeWidth = 2
-        ..style = PaintingStyle.stroke,
-    );
-  }
-
   @override
   bool shouldRepaint(covariant _AutoputVsMotoputPainter old) =>
-      old.scheme != scheme;
+      old.scheme != scheme || old.signs != signs;
 }

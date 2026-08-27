@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" id="svg9307" viewBox="0 0 132.89896 62.055749" height="62.055756" width="132.89896">
+  <defs id="defs9309" />
+  <g transform="translate(-28.969348,-519.46139)" id="layer1">
+    <g style="stroke:#000000;stroke-width:0.46069339;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" transform="matrix(-1.803674,-0.00145522,-0.00133465,1.6718513,36.246671,519.84649)" id="g12632">
+      <path id="path12634" style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:0.46069339;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" d="m 0,0 -65.82,0 c -2.04,0 -3.6,1.68 -3.6,3.66 l 0,29.28 c 0,2.1 1.56,3.66 3.6,3.66 L 0,36.6 c 2.1,0 3.78,-1.56 3.78,-3.66 l 0,-29.28 C 3.78,1.68 2.1,0 0,0 Z" />
+    </g>
+    <g style="fill:#0000cc;fill-opacity:1" transform="matrix(-1.803674,-0.00145522,-0.00133465,1.6718513,36.245077,521.85272)" id="g12636">
+      <path id="path12638" style="fill:#0000cc;fill-opacity:1;fill-rule:evenodd;stroke:none" d="m 0,0 -65.82,0 c -1.38,0 -2.46,1.08 -2.46,2.46 l 0,29.28 c 0,1.38 1.08,2.46 2.46,2.46 L 0,34.2 c 1.38,0 2.46,-1.08 2.46,-2.46 l 0,-29.28 C 2.46,1.08 1.38,0 0,0" />
+    </g>
+    <g transform="matrix(1.1744142,0,0,-1.1744142,35.590775,567.22671)" id="g54761">
+      <path id="path54763" style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none" d="m 0,0 51,0 0,2.82 51,0 0,-2.82 -48.18,0 0,-2.82 -53.82,0" />
+    </g>
+    <g transform="matrix(1.1744142,0,0,-1.1744142,138.04668,544.32563)" id="g54765">
+      <path id="path54767" style="fill:#ffffff;fill-opacity:1;fill-rule:evenodd;stroke:none" d="m 0,0 14.76,-2.58 0,-8.4 -6.78,0 c 0,-3.12 -2.52,-5.7 -5.7,-5.7 -3.12,0 -5.58,2.58 -5.58,5.7 l -15.96,0 c 0,-3.12 -2.46,-5.7 -5.7,-5.7 -3.06,0 -5.58,2.58 -5.58,5.7 l -7.08,0 0,6.96 6.6,3.54 4.2,8.4 22.62,0" />
+    </g>
+    <g style="fill:#0000cc;fill-opacity:1" transform="matrix(1.1744142,0,0,-1.1744142,132.12762,536.71544)" id="g54769">
+      <path id="path54771" style="fill:#0000cc;fill-opacity:1;fill-rule:evenodd;stroke:none" d="m 0,0 -20.88,0 -3.12,-6.18 27.24,0" />
+    </g>
+  </g>
+</svg>

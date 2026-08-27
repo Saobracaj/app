@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/animations/painters.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 
 /// Знаки начала и конца *насеља*.
 ///
@@ -18,15 +19,19 @@ class ZnakNaselje extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: 400,
-          height: 306,
-          child: CustomPaint(
-            painter: _NaseljePainter(
-              Theme.of(context).colorScheme,
-              _naseljeLabels(context),
+      child: RoadSignScope(
+        signs: const ['III-23.1', 'III-24.1'],
+        builder: (context, signs) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: 400,
+            height: 306,
+            child: CustomPaint(
+              painter: _NaseljePainter(
+                Theme.of(context).colorScheme,
+                _naseljeLabels(context),
+                signs,
+              ),
             ),
           ),
         ),
@@ -52,16 +57,16 @@ _NaseljeLabels _naseljeLabels(BuildContext context) => (
     );
 
 class _NaseljePainter extends CustomPainter {
-  _NaseljePainter(this.scheme, this.labels);
+  _NaseljePainter(this.scheme, this.labels, this.signs);
 
   final ColorScheme scheme;
   final _NaseljeLabels labels;
+  final RoadSigns signs;
 
-  // Цвета знака — это его содержание: белое поле, чёрный силуэт, красная
-  // диагональ. Одинаковые в обеих темах.
+  // Цвета таблички-приманки — как у настоящего знака: белое поле, чёрная
+  // рамка. Одинаковые в обеих темах.
   static const _plateFill = Color(0xFFFAFAFA);
   static const _plateInk = Color(0xFF1B1B1B);
-  static const _crossRed = Color(0xFFD32F2F);
 
   static const _signSize = Size(150, 96);
   static const _leftSign = Offset(30, 22);
@@ -79,70 +84,12 @@ class _NaseljePainter extends CustomPainter {
     _paintDecoyPlate(canvas);
   }
 
-  /// Знак *насеље*: белая табличка с чёрным силуэтом города. С [crossed] —
-  /// та же табличка, перечёркнутая красной диагональю: конец *насеља*.
+  /// Знак *насеље* (III-23.1). С [crossed] — знак *завршетак насеља*
+  /// (III-24.1): та же табличка, перечёркнутая красной диагональю.
   void _paintSign(Canvas canvas, Offset topLeft, {required bool crossed}) {
     final rect = Rect.fromLTWH(
         topLeft.dx, topLeft.dy, _signSize.width, _signSize.height);
-    canvas.drawRect(rect, Paint()..color = _plateFill);
-    canvas.drawRect(rect, _stroke(_plateInk, 2.5));
-
-    canvas.save();
-    canvas.clipRect(rect);
-    canvas.translate(topLeft.dx, topLeft.dy);
-    _paintSkyline(canvas);
-    canvas.restore();
-
-    if (crossed) {
-      canvas.drawLine(
-        rect.topLeft + const Offset(4, 4),
-        rect.bottomRight + const Offset(-4, -4),
-        _stroke(_crossRed, 9),
-      );
-    }
-  }
-
-  /// Силуэт города в локальных координатах таблички (150×96): высотки и дома
-  /// на общей линии земли.
-  void _paintSkyline(Canvas canvas) {
-    const groundY = 82.0;
-    // (левый край, правый край, высота крыши)
-    const buildings = [
-      (16.0, 40.0, 54.0),
-      (42.0, 62.0, 36.0),
-      (64.0, 92.0, 24.0),
-      (94.0, 116.0, 44.0),
-      (118.0, 136.0, 62.0),
-    ];
-    final ink = Paint()..color = _plateInk;
-    for (final (left, right, top) in buildings) {
-      canvas.drawRect(Rect.fromLTRB(left, top, right, groundY), ink);
-    }
-    // Скатная крыша у крайнего левого дома — чтобы силуэт читался как «город
-    // с домами», а не как столбиковая диаграмма.
-    canvas.drawPath(
-      Path()
-        ..moveTo(14, 54)
-        ..lineTo(28, 42)
-        ..lineTo(42, 54)
-        ..close(),
-      ink,
-    );
-    canvas.drawRect(const Rect.fromLTRB(14, groundY, 138, 86), ink);
-
-    // Окна вырезаем цветом таблички: сплошной чёрный блок читается хуже.
-    final window = Paint()..color = _plateFill;
-    for (final (left, top) in const [
-      (68.0, 32.0),
-      (80.0, 32.0),
-      (68.0, 46.0),
-      (80.0, 46.0),
-      (98.0, 52.0),
-      (108.0, 52.0),
-      (122.0, 70.0),
-    ]) {
-      canvas.drawRect(Rect.fromLTWH(left, top, 6, 8), window);
-    }
+    signs.paint(canvas, crossed ? 'III-24.1' : 'III-23.1', rect);
   }
 
   void _paintCaption(Canvas canvas, double centerX, String term, String hint) {
@@ -208,5 +155,7 @@ class _NaseljePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _NaseljePainter oldDelegate) =>
-      oldDelegate.scheme != scheme || oldDelegate.labels != labels;
+      oldDelegate.scheme != scheme ||
+      oldDelegate.labels != labels ||
+      oldDelegate.signs != signs;
 }

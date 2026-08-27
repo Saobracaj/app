@@ -9,6 +9,7 @@
 import 'package:flutter/material.dart';
 import 'package:saobracaj/test/animations/autoput_road.dart';
 import 'package:saobracaj/test/animations/painters.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 
 const double _w = kAutoputRoadWidth;
 const double _h = 404;
@@ -24,13 +25,17 @@ class PosebneTrakeAutoput extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: _w,
-          height: _h,
-          child: CustomPaint(
-            painter: _PosebneTrakePainter(Theme.of(context).colorScheme),
+      child: RoadSignScope(
+        signs: const ['III-71'],
+        builder: (context, signs) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: _w,
+            height: _h,
+            child: CustomPaint(
+              painter:
+                  _PosebneTrakePainter(Theme.of(context).colorScheme, signs),
+            ),
           ),
         ),
       ),
@@ -39,9 +44,10 @@ class PosebneTrakeAutoput extends StatelessWidget {
 }
 
 class _PosebneTrakePainter extends CustomPainter {
-  _PosebneTrakePainter(this.scheme);
+  _PosebneTrakePainter(this.scheme, this.signs);
 
   final ColorScheme scheme;
+  final RoadSigns signs;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -234,7 +240,9 @@ class _PosebneTrakePainter extends CustomPainter {
       kCarGreen,
     );
 
-    _drawSpeedSign(canvas, const Offset(26, 378), '30');
+    // III-71 «трака за спора возила» — официальный знак этой полосы.
+    signs.paint(canvas, 'III-71',
+        Rect.fromCenter(center: const Offset(27, 372), width: 32, height: 46));
     drawSchemeText(
       canvas,
       'додатна трака, обично\nна узбрдици',
@@ -302,32 +310,7 @@ class _PosebneTrakePainter extends CustomPainter {
     );
   }
 
-  /// Синий квадратный знак с цифрой — им обозначают полосу для медленных ТС.
-  void _drawSpeedSign(Canvas canvas, Offset center, String text) {
-    final rect = Rect.fromCenter(center: center, width: 26, height: 26);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(3)),
-      Paint()..color = const Color(0xFF1B5FAC),
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(3)),
-      Paint()
-        ..color = kLineWhite
-        ..strokeWidth = 2
-        ..style = PaintingStyle.stroke,
-    );
-    drawSchemeText(
-      canvas,
-      text,
-      center,
-      kLineWhite,
-      fontSize: 13,
-      bold: true,
-      maxWidth: 26,
-    );
-  }
-
   @override
   bool shouldRepaint(covariant _PosebneTrakePainter old) =>
-      old.scheme != scheme;
+      old.scheme != scheme || old.signs != signs;
 }

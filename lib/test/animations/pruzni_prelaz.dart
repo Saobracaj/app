@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:saobracaj/test/animations/painters.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 
 /// Прелаз пута преко железничке пруге: приближение, опускающийся полубраник,
 /// остановка перед ним — и отдельная памятка на случай, когда машина встала
@@ -47,10 +48,14 @@ class _PruzniPrelazState extends State<PruzniPrelaz>
               SizedBox(
                 width: 400,
                 height: 250,
-                child: AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, _) => CustomPaint(
-                    painter: _CrossingPainter(scheme, _controller.value),
+                child: RoadSignScope(
+                  signs: const ['I-34'],
+                  builder: (context, signs) => AnimatedBuilder(
+                    animation: _controller,
+                    builder: (context, _) => CustomPaint(
+                      painter:
+                          _CrossingPainter(scheme, _controller.value, signs),
+                    ),
                   ),
                 ),
               ),
@@ -88,10 +93,12 @@ const _railLeft = 300.0;
 const _railRight = 322.0;
 
 class _CrossingPainter extends IllustrationPainter {
-  _CrossingPainter(super.colorScheme, this.t);
+  _CrossingPainter(super.colorScheme, this.t, this.signs);
 
   /// Позиция в цикле, 0..1.
   final double t;
+
+  final RoadSigns signs;
 
   /// Насколько опущен полубраник: 0 — поднят, 1 — лежит поперёк пути.
   double get _lowered {
@@ -209,33 +216,16 @@ class _CrossingPainter extends IllustrationPainter {
     );
   }
 
-  /// Андреевский крест у самой пруге: без него сцена читается как обычный
-  /// шлагбаум на въезде во двор.
+  /// Андреевский крест (I-34) у самой пруге: без него сцена читается как
+  /// обычный шлагбаум на въезде во двор.
   void _drawCrossSign(Canvas canvas) {
     const base = Offset(358, _roadY);
     canvas.drawRect(
-      Rect.fromLTRB(base.dx - 2.5, 142, base.dx + 2.5, base.dy),
+      Rect.fromLTRB(base.dx - 2.5, 138, base.dx + 2.5, base.dy),
       Paint()..color = _railSteel,
     );
-    const center = Offset(358, 128);
-    const arm = 16.0;
-    for (final paint in [
-      Paint()
-        ..color = _barrierRed
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 11
-        ..strokeCap = StrokeCap.round,
-      Paint()
-        ..color = _barrierWhite
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 5
-        ..strokeCap = StrokeCap.round,
-    ]) {
-      canvas.drawLine(center + const Offset(-arm, -arm),
-          center + const Offset(arm, arm), paint);
-      canvas.drawLine(center + const Offset(arm, -arm),
-          center + const Offset(-arm, arm), paint);
-    }
+    signs.paint(canvas, 'I-34',
+        Rect.fromCenter(center: const Offset(358, 128), width: 56, height: 24));
   }
 
   void _drawBarrier(Canvas canvas) {
@@ -298,7 +288,7 @@ class _CrossingPainter extends IllustrationPainter {
 
   @override
   bool shouldRepaint(covariant _CrossingPainter old) =>
-      old.t != t || old.colorScheme != colorScheme;
+      old.t != t || old.colorScheme != colorScheme || old.signs != signs;
 }
 
 /// Памятка: что делать, если возило заглохло на путях. Статичная — это текст

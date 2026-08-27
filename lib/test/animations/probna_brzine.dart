@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:saobracaj/test/animations/infografika_common.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 
 /// Скоростные лимиты пробной возачке дозволе: 110 / 90 / 90 %.
 ///
@@ -19,12 +20,16 @@ class ProbnaBrzine extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: 400,
-          height: 336,
-          child: CustomPaint(painter: _ScenePainter(scheme, Gloss.of(context))),
+      child: RoadSignScope(
+        signs: const ['II-30-blank'],
+        builder: (context, signs) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: 400,
+            height: 336,
+            child: CustomPaint(
+                painter: _ScenePainter(scheme, Gloss.of(context), signs)),
+          ),
         ),
       ),
     );
@@ -32,9 +37,10 @@ class ProbnaBrzine extends StatelessWidget {
 }
 
 class _ScenePainter extends InfoScenePainter {
-  _ScenePainter(super.colorScheme, this.gloss);
+  _ScenePainter(super.colorScheme, this.gloss, this.signs);
 
   final Gloss gloss;
+  final RoadSigns signs;
 
   static const _left = Rect.fromLTRB(2, 38, 130, 272);
   static const _middle = Rect.fromLTRB(136, 38, 264, 272);
@@ -91,7 +97,7 @@ class _ScenePainter extends InfoScenePainter {
       fontSize: 13,
     );
 
-    speedSign(canvas, Offset(rect.center.dx, 116), 34, probna);
+    speedSign(canvas, signs, Offset(rect.center.dx, 116), 34, probna);
     chip(
       canvas,
       'пробна',
@@ -107,6 +113,7 @@ class _ScenePainter extends InfoScenePainter {
 
     speedSign(
       canvas,
+      signs,
       Offset(rect.center.dx, 212),
       23,
       obicno,
@@ -138,7 +145,7 @@ class _ScenePainter extends InfoScenePainter {
       fontSize: 13,
     );
 
-    speedSign(canvas, Offset(rect.center.dx, 116), 34, '50');
+    speedSign(canvas, signs, Offset(rect.center.dx, 116), 34, '50');
     text(
       canvas,
       'колико пише на знаку',
@@ -166,5 +173,7 @@ class _ScenePainter extends InfoScenePainter {
 
   @override
   bool shouldRepaint(covariant _ScenePainter oldDelegate) =>
-      oldDelegate.colorScheme != colorScheme || oldDelegate.gloss != gloss;
+      oldDelegate.colorScheme != colorScheme ||
+      oldDelegate.gloss != gloss ||
+      oldDelegate.signs != signs;
 }

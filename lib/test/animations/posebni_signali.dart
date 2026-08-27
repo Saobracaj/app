@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 import 'package:saobracaj/test/animations/vehicle_painting.dart';
 
 /// Статичная схема «посебни сигнали»: три вида проблесковых сигналов и что
@@ -16,12 +17,15 @@ class PosebniSignali extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: 400,
-          height: 492,
-          child: CustomPaint(painter: _PosebniSignaliPainter(scheme)),
+      child: RoadSignScope(
+        signs: const ['III-2.1'],
+        builder: (context, signs) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: 400,
+            height: 492,
+            child: CustomPaint(painter: _PosebniSignaliPainter(scheme, signs)),
+          ),
         ),
       ),
     );
@@ -35,9 +39,10 @@ const _red = Color(0xFFD32F2F);
 const _amber = Color(0xFFFFB300);
 
 class _PosebniSignaliPainter extends CustomPainter {
-  _PosebniSignaliPainter(this.scheme);
+  _PosebniSignaliPainter(this.scheme, this.signs);
 
   final ColorScheme scheme;
+  final RoadSigns signs;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -242,24 +247,13 @@ class _PosebniSignaliPainter extends CustomPainter {
     }
   }
 
-  /// Знак «једносмерни пут»: синий прямоугольник с белой стрелкой.
+  /// Знак «једносмерни пут» (III-2.1): синий прямоугольник с белой стрелкой.
   void _directionSign(Canvas canvas, Offset center) {
-    final rect = Rect.fromCenter(center: center, width: 40, height: 26);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(3)),
-      Paint()..color = _blue,
-    );
-    paintArrow(
-      canvas,
-      Offset(rect.left + 8, center.dy),
-      Offset(rect.right - 8, center.dy),
-      color: Colors.white,
-      strokeWidth: 3,
-      headSize: 8,
-    );
+    signs.paint(canvas, 'III-2.1',
+        Rect.fromCenter(center: center, width: 46, height: 26));
   }
 
   @override
   bool shouldRepaint(covariant _PosebniSignaliPainter oldDelegate) =>
-      oldDelegate.scheme != scheme;
+      oldDelegate.scheme != scheme || oldDelegate.signs != signs;
 }

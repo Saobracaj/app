@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:saobracaj/test/animations/car_top_view.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 import 'package:saobracaj/theme/app_theme.dart';
 
 /// Разъезд на узкой дороге с уклоном: кто сдаёт назад.
@@ -75,10 +76,13 @@ class _MimoilazenjeNagibState extends State<MimoilazenjeNagib>
             SizedBox(
               width: 400,
               height: 240,
-              child: AnimatedBuilder(
-                animation: _controller,
-                builder: (context, _) => CustomPaint(
-                  painter: _NagibPainter(scheme, _controller.value),
+              child: RoadSignScope(
+                signs: const ['I-4'],
+                builder: (context, signs) => AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, _) => CustomPaint(
+                    painter: _NagibPainter(scheme, _controller.value, signs),
+                  ),
                 ),
               ),
             ),
@@ -173,7 +177,9 @@ class _NagibPainter extends CustomPainter {
   final ColorScheme scheme;
   final double t;
 
-  _NagibPainter(this.scheme, this.t);
+  _NagibPainter(this.scheme, this.t, this.signs);
+
+  final RoadSigns signs;
 
   /// Точка дорожной системы координат (s — вдоль дороги, y — поперёк,
   /// отрицательное y — в сторону проширења) в координатах холста.
@@ -300,29 +306,9 @@ class _NagibPainter extends CustomPainter {
   /// дороге для него нет свободного места, а у обочины он налез бы на
   /// подписи участников.
   void _drawSignBadge(Canvas canvas) {
-    const center = Offset(34, 28);
-    const half = 17.0;
-    final triangle = Path()
-      ..moveTo(center.dx, center.dy - half)
-      ..lineTo(center.dx + half, center.dy + half * 0.85)
-      ..lineTo(center.dx - half, center.dy + half * 0.85)
-      ..close();
-    canvas.drawPath(triangle, Paint()..color = Colors.white);
-    canvas.drawPath(
-      triangle,
-      Paint()
-        ..color = const Color(0xFFD32F2F)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.5,
-    );
-    // Символ спуска: линия, уходящая вниз-вправо.
-    canvas.drawLine(
-      Offset(center.dx - 8, center.dy + 1),
-      Offset(center.dx + 8, center.dy + 9),
-      Paint()
-        ..color = Colors.black
-        ..strokeWidth = 2,
-    );
+    // I-4 «опасна низбрдица».
+    signs.paint(canvas, 'I-4',
+        Rect.fromCenter(center: const Offset(34, 28), width: 40, height: 36));
     _text(
       canvas,
       'опасна\nнизбрдица',
@@ -467,7 +453,7 @@ class _NagibPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _NagibPainter old) =>
-      old.t != t || old.scheme != scheme;
+      old.t != t || old.scheme != scheme || old.signs != signs;
 }
 
 /// Второй кадр: два одинаковых легковых. Здесь иерархия не помогает, поэтому

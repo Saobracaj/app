@@ -139,6 +139,13 @@ found») и слаг, зарегистрированный, но нигде не
 ## Границы
 
 - Никаких новых зависимостей, Lottie, GIF, SVG и PNG — только код.
+  **Исключение — дорожные знаки:** их не рисуем вручную, а берём официальные
+  SVG из `assets/signs/` через `lib/test/animations/road_sign.dart`
+  (`RoadSignScope` + `RoadSigns.paint` в painter'е, `RoadSignSvg` как виджет).
+  Нет нужного знака — скачай с Wikimedia Commons
+  (`Category:SVG road signs in Serbia`), очисти от Adobe-мусора XML-парсером
+  (образец — история `road-sign-svg-assets` в памяти) и добавь в
+  `assets/signs/<номер>.svg`; `test/road_sign_assets_test.dart` проверит.
 - Не трогать `assets/md_img/` — папка для картинок, снятых извне; наши
   иллюстрации туда не кладутся.
 - Фотореалистичность не нужна и не достигается: люди и техника рисуются

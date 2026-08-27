@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/animations/painters.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 import 'package:saobracaj/test/animations/police_officer.dart';
 
 /// Пирамида старшинства сигнализации: пять ступеней от жестов уполномоченного
@@ -20,15 +21,19 @@ class HijerarhijaPiramida extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: 400,
-          height: 440,
-          child: CustomPaint(
-            painter: _PiramidaPainter(
-              Theme.of(context).colorScheme,
-              _PiramidaLabels.of(context),
+      child: RoadSignScope(
+        signs: const ['I-25'],
+        builder: (context, signs) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: 400,
+            height: 440,
+            child: CustomPaint(
+              painter: _PiramidaPainter(
+                Theme.of(context).colorScheme,
+                _PiramidaLabels.of(context),
+                signs,
+              ),
             ),
           ),
         ),
@@ -78,13 +83,12 @@ const _lightAmber = Color(0xFFFDD835);
 const _lightGreen = Color(0xFF43A047);
 const _asphalt = Color(0xFF4E545B);
 const _markingWhite = Color(0xFFF2F2F2);
-const _signRed = Color(0xFFD32F2F);
-const _signWhite = Color(0xFFF5F5F5);
 
 class _PiramidaPainter extends IllustrationPainter {
-  _PiramidaPainter(super.colorScheme, this.labels);
+  _PiramidaPainter(super.colorScheme, this.labels, this.signs);
 
   final _PiramidaLabels labels;
+  final RoadSigns signs;
 
   /// Ступени сверху вниз. Ширина растёт к низу — форма пирамиды сама говорит,
   /// что сверху «уже и главнее».
@@ -244,20 +248,12 @@ class _PiramidaPainter extends IllustrationPainter {
         ..color = colorScheme.outline
         ..strokeWidth = 3,
     );
-    // Треугольник опасности: самая узнаваемая форма знака на столбе.
-    final path = Path()
-      ..moveTo(center.dx, center.dy - 24)
-      ..lineTo(center.dx + 22, center.dy + 6)
-      ..lineTo(center.dx - 22, center.dy + 6)
-      ..close();
-    canvas.drawPath(path, Paint()..color = _signWhite);
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = _signRed
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 5
-        ..strokeJoin = StrokeJoin.round,
+    // I-25 «опасност на путу»: самый общий знак на столбе.
+    signs.paint(
+      canvas,
+      'I-25',
+      Rect.fromCenter(
+          center: center.translate(0, -8), width: 44, height: 39),
     );
   }
 
@@ -310,5 +306,7 @@ class _PiramidaPainter extends IllustrationPainter {
 
   @override
   bool shouldRepaint(covariant _PiramidaPainter oldDelegate) =>
-      oldDelegate.colorScheme != colorScheme || oldDelegate.labels != labels;
+      oldDelegate.colorScheme != colorScheme ||
+      oldDelegate.labels != labels ||
+      oldDelegate.signs != signs;
 }

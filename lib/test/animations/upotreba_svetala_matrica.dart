@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:saobracaj/test/animations/infografika_common.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 
 /// Какие огни включены в какой ситуации — одна таблица вместо пяти статей.
 ///
@@ -25,12 +26,16 @@ class UpotrebaSvetalaMatrica extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: 400,
-          height: 452,
-          child: CustomPaint(painter: _ScenePainter(scheme, Gloss.of(context))),
+      child: RoadSignScope(
+        signs: const ['III-30'],
+        builder: (context, signs) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: 400,
+            height: 452,
+            child: CustomPaint(
+                painter: _ScenePainter(scheme, Gloss.of(context), signs)),
+          ),
         ),
       ),
     );
@@ -69,9 +74,10 @@ const _kMustGreenLight = Color(0xFF2E7D32);
 const _kMustGreenDark = Color(0xFF66BB6A);
 
 class _ScenePainter extends InfoScenePainter {
-  _ScenePainter(super.colorScheme, this.gloss);
+  _ScenePainter(super.colorScheme, this.gloss, this.signs);
 
   final Gloss gloss;
+  final RoadSigns signs;
 
   static const double _left = 6;
   static const double _split = 140;
@@ -315,15 +321,9 @@ class _ScenePainter extends InfoScenePainter {
           );
         }
       case _Icon.parking:
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromCenter(center: center, width: 22, height: 22),
-            const Radius.circular(4),
-          ),
-          Paint()..color = const Color(0xFF1565C0),
-        );
-        text(canvas, 'P', center, Colors.white,
-            maxWidth: 20, fontSize: 15, isBold: true);
+        // Знак «паркиралиште» (III-30) вместо рукописной пиктограммы.
+        signs.paint(canvas, 'III-30',
+            Rect.fromCenter(center: center, width: 22, height: 22));
     }
   }
 
@@ -347,5 +347,7 @@ class _ScenePainter extends InfoScenePainter {
 
   @override
   bool shouldRepaint(covariant _ScenePainter oldDelegate) =>
-      oldDelegate.colorScheme != colorScheme || oldDelegate.gloss != gloss;
+      oldDelegate.colorScheme != colorScheme ||
+      oldDelegate.gloss != gloss ||
+      oldDelegate.signs != signs;
 }

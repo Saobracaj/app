@@ -139,6 +139,10 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
      - assets/img/
+     # Официальные SVG сербских дорожных знаков (Wikimedia Commons,
+     # Category:SVG road signs in Serbia) — используются иллюстрациями
+     # через lib/test/animations/road_sign.dart.
+     - assets/signs/
      - assets/allQuestions.json
      - assets/allQuestions_ru.json
      - assets/categories.json
