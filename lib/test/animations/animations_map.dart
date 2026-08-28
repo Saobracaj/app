@@ -147,7 +147,14 @@ Widget getAnimation(String animationName) {
   // `sign-<номер>` — официальный SVG знака из assets/signs/ (см.
   // road_sign.dart); конспекты вставляют их маркером `anim/sign-ii-2`.
   if (animationName.startsWith('sign-')) {
-    return RoadSignSvg(animationName.substring('sign-'.length), height: 48);
+    final sign = animationName.substring('sign-'.length);
+    // Дополнительные таблички (группа IV) масштабируются по ширине: их SVG —
+    // либо широкая табличка, либо высокая композиция «знак + табличка», и при
+    // общей высоте 48 сама табличка выходит нечитаемо мелкой.
+    if (sign.startsWith('iv-')) {
+      return RoadSignSvg(sign, width: 110);
+    }
+    return RoadSignSvg(sign, height: 48);
   }
   return _animations[animationName] ?? Text('Animation not found');
 }
