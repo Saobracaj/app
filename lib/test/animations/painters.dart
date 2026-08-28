@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:saobracaj/test/animations/auto.dart';
 import 'package:saobracaj/theme/app_theme.dart';
 
 /// Общие рисовалки для иллюстраций из `lib/test/animations/`.
@@ -720,11 +721,11 @@ void drawCarTopView(
   }
 
   final scheme = p.colorScheme;
-  final ink = outline ?? scheme.outline;
   final l = rect.width;
   final h = rect.height;
 
-  // Кузов уже габарита: колёса выступают за него сверху и снизу.
+  // Кузов чуть уже габарита — зазор остался от старой рисовалки с колёсами,
+  // и позиции машин в сценах подогнаны под него.
   final carBody = Rect.fromLTRB(
     rect.left,
     rect.top + h * 0.1,
@@ -732,89 +733,18 @@ void drawCarTopView(
     rect.bottom - h * 0.1,
   );
 
-  // Покрышки всегда тёмные: машины в этих сценах стоят на асфальте, цвет
-  // которого от темы не зависит, и светлые колёса на нём выглядят вывернутыми.
-  final tirePaint = Paint()..color = const Color(0xFF23272B);
-  final wheelLen = l * 0.15;
-  final wheelThick = h * 0.13;
-  for (final cx in [rect.left + l * 0.2, rect.right - l * 0.24]) {
-    for (final cy in [carBody.top, carBody.bottom]) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(cx, cy),
-            width: wheelLen,
-            height: wheelThick * 2,
-          ),
-          Radius.circular(wheelThick * 0.5),
-        ),
-        tirePaint,
-      );
-    }
-  }
+  // Кузов — общая машинка из auto.dart (та же, что в «Мимоилажење» и
+  // «Претицање»); признаки сцены (маячок, крест, аварийка, повреждения)
+  // рисуются поверх неё.
+  paintAutoTopView(canvas, carBody, color: body);
 
-  final shell = RRect.fromRectAndCorners(
-    carBody,
-    topLeft: Radius.circular(h * 0.18),
-    bottomLeft: Radius.circular(h * 0.18),
-    topRight: Radius.circular(h * 0.3),
-    bottomRight: Radius.circular(h * 0.3),
-  );
-  canvas.drawRRect(shell, Paint()..color = body);
-  canvas.drawRRect(
-    shell,
-    Paint()
-      ..color = ink
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4,
-  );
-
-  // Стёкла и крыша: без них силуэт сверху читается как прямоугольник.
-  final glass = Paint()..color = scheme.surface.withValues(alpha: 0.85);
+  // Крыша (между стёклами) — опора для маячка и креста скорой.
   final roof = Rect.fromLTRB(
     rect.left + l * 0.34,
     carBody.top + h * 0.12,
     rect.left + l * 0.62,
     carBody.bottom - h * 0.12,
   );
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(roof, Radius.circular(h * 0.1)),
-    Paint()..color = Color.alphaBlend(Colors.black.withValues(alpha: 0.12), body),
-  );
-  canvas.drawPath(
-    Path()
-      ..moveTo(roof.right, roof.top)
-      ..lineTo(rect.left + l * 0.74, carBody.top + h * 0.18)
-      ..lineTo(rect.left + l * 0.74, carBody.bottom - h * 0.18)
-      ..lineTo(roof.right, roof.bottom)
-      ..close(),
-    glass,
-  );
-  canvas.drawPath(
-    Path()
-      ..moveTo(roof.left, roof.top)
-      ..lineTo(rect.left + l * 0.22, carBody.top + h * 0.18)
-      ..lineTo(rect.left + l * 0.22, carBody.bottom - h * 0.18)
-      ..lineTo(roof.left, roof.bottom)
-      ..close(),
-    glass,
-  );
-
-  // Фары — по ним видно, где у машины нос.
-  final lamp = Paint()..color = const Color(0xFFFFF3C4);
-  for (final cy in [carBody.top + h * 0.16, carBody.bottom - h * 0.16]) {
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(rect.right - l * 0.03, cy),
-          width: l * 0.05,
-          height: h * 0.14,
-        ),
-        const Radius.circular(2),
-      ),
-      lamp,
-    );
-  }
 
   if (beacon) {
     // Синий маячок поперёк крыши — цвет здесь и есть содержание.
@@ -1148,58 +1078,10 @@ void drawSchematicCarTopView(
   bool hazardOn = false,
   bool blinkOn = true,
 }) {
-  final radius = Radius.circular(rect.height * 0.32);
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(rect, radius),
-    Paint()..color = body,
-  );
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(rect, radius),
-    Paint()
-      ..color = Colors.black.withValues(alpha: 0.35)
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke,
-  );
-
-  final glass = Paint()..color = Colors.black.withValues(alpha: 0.42);
-  // Лобовое — ближе к носу (правому краю), заднее — к корме.
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        rect.left + rect.width * 0.62,
-        rect.top + rect.height * 0.18,
-        rect.width * 0.16,
-        rect.height * 0.64,
-      ),
-      const Radius.circular(2),
-    ),
-    glass,
-  );
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        rect.left + rect.width * 0.18,
-        rect.top + rect.height * 0.2,
-        rect.width * 0.12,
-        rect.height * 0.6,
-      ),
-      const Radius.circular(2),
-    ),
-    glass,
-  );
-  // Крыша — светлый блик, чтобы силуэт не выглядел плоским пятном.
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        rect.left + rect.width * 0.33,
-        rect.top + rect.height * 0.16,
-        rect.width * 0.26,
-        rect.height * 0.68,
-      ),
-      const Radius.circular(2),
-    ),
-    Paint()..color = Colors.white.withValues(alpha: 0.16),
-  );
+  // Кузов — общая машинка из auto.dart (та же, что в «Мимоилажење» и
+  // «Претицање»). Лампы аварийки схемы рисуем поверх сами — им нужна
+  // фаза мигания [blinkOn].
+  paintAutoTopView(canvas, rect, color: body);
 
   if (hazardOn && blinkOn) {
     final lamp = Paint()..color = kHazardOn;
