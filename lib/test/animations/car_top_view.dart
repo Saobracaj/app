@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:saobracaj/test/animations/auto.dart';
 
 /// Какие лампы горят у машины на схеме.
 ///
@@ -46,100 +47,10 @@ void paintCarTopView(
   final w = rect.width; // длина машины вдоль дороги
   final h = rect.height; // ширина машины поперёк дороги
 
-  final body = RRect.fromRectAndCorners(
-    rect,
-    topLeft: Radius.circular(h * 0.18),
-    bottomLeft: Radius.circular(h * 0.18),
-    topRight: Radius.circular(h * 0.34),
-    bottomRight: Radius.circular(h * 0.34),
-  );
-  canvas.drawRRect(body, Paint()..color = color);
-  canvas.drawRRect(
-    body,
-    Paint()
-      ..color = Colors.black.withValues(alpha: 0.35)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = h * 0.04,
-  );
-
-  final glass = Paint()..color = Colors.black.withValues(alpha: 0.45);
-
-  // Лобовое стекло — ближе к носу, заднее — к корме.
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        rect.left + w * 0.62,
-        rect.top + h * 0.14,
-        w * 0.16,
-        h * 0.72,
-      ),
-      Radius.circular(h * 0.12),
-    ),
-    glass,
-  );
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        rect.left + w * 0.16,
-        rect.top + h * 0.18,
-        w * 0.12,
-        h * 0.64,
-      ),
-      Radius.circular(h * 0.12),
-    ),
-    glass,
-  );
-  // Крыша между стёклами — светлее кузова, чтобы машина читалась объёмной.
-  canvas.drawRect(
-    Rect.fromLTWH(rect.left + w * 0.30, rect.top + h * 0.16, w * 0.30, h * 0.68),
-    Paint()..color = Colors.white.withValues(alpha: 0.12),
-  );
-
-  // Зеркала.
-  final mirror = Paint()..color = color;
-  canvas.drawRect(
-    Rect.fromLTWH(rect.left + w * 0.56, rect.top - h * 0.09, w * 0.08, h * 0.10),
-    mirror,
-  );
-  canvas.drawRect(
-    Rect.fromLTWH(
-      rect.left + w * 0.56,
-      rect.bottom - h * 0.01,
-      w * 0.08,
-      h * 0.10,
-    ),
-    mirror,
-  );
-
-  // Фары и задние фонари: по ним видно, куда машина смотрит.
-  final headlight = Paint()..color = const Color(0xFFFFF3B0);
-  final taillight = Paint()..color = const Color(0xFFD32F2F);
-  for (final dy in [0.18, 0.66]) {
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          rect.right - w * 0.05,
-          rect.top + h * dy,
-          w * 0.035,
-          h * 0.16,
-        ),
-        Radius.circular(h * 0.05),
-      ),
-      headlight,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          rect.left + w * 0.015,
-          rect.top + h * dy,
-          w * 0.035,
-          h * 0.16,
-        ),
-        Radius.circular(h * 0.05),
-      ),
-      taillight,
-    );
-  }
+  // Кузов — общая машинка из auto.dart (та же, что в «Мимоилажење» и
+  // «Претицање»). Канвас уже зеркалирован выше, поэтому носом вправо;
+  // лампы поворотников схемы рисуем сами — у них своя логика сторон.
+  paintAutoTopView(canvas, rect, color: color);
 
   if (lamps != CarLamps.none) {
     final up = lamps == CarLamps.hazard || lamps == CarLamps.turnUp;

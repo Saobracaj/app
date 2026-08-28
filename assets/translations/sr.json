@@ -1101,5 +1101,10 @@
   },
   "zakon": {
     "contents": "Sadržaj"
+  },
+  "interactiveAnimation": {
+    "pause": "Паузирај анимацију",
+    "play": "Настави анимацију",
+    "step": "Кадар {}"
   }
 }
