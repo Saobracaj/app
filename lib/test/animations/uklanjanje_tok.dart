@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
+import 'package:saobracaj/test/animations/interactive_animation.dart';
 import 'package:saobracaj/test/animations/dve_vrste_nezgode.dart'
     show kAsphalt, kMarking, kCarBlue, kSignalRed;
 import 'package:saobracaj/test/animations/painters.dart'
@@ -26,29 +27,12 @@ import 'package:saobracaj/test/animations/painters.dart'
 /// на любом кадре.
 ///
 /// Слаг в `animations_map.dart`: `uklanjanje-tok`.
-class UklanjanjeTok extends StatefulWidget {
+class UklanjanjeTok extends StatelessWidget {
   const UklanjanjeTok({super.key});
 
-  @override
-  State<UklanjanjeTok> createState() => _UklanjanjeTokState();
-}
-
-class _UklanjanjeTokState extends State<UklanjanjeTok>
-    with SingleTickerProviderStateMixin {
   /// Четыре шага по 1,7 с: на кадре есть что прочитать, но круг всё ещё
   /// укладывается в семь секунд.
   static const Duration _cycle = Duration(milliseconds: 6800);
-
-  late final AnimationController _controller = AnimationController(
-    duration: _cycle,
-    vsync: this,
-  )..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,15 +41,19 @@ class _UklanjanjeTokState extends State<UklanjanjeTok>
 
     return Padding(
       padding: const EdgeInsets.all(8.0),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: 400,
-          height: 500,
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) => CustomPaint(
-              painter: _UklanjanjePainter(colorScheme, labels, _controller.value),
+      child: InteractiveAnimation(
+        cycle: _cycle,
+        stepStarts: [for (var i = 0; i < 4; i++) i / 4],
+        builder: (context, animation) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: 400,
+            height: 482,
+            child: AnimatedBuilder(
+              animation: animation,
+              builder: (context, _) => CustomPaint(
+                painter: _UklanjanjePainter(colorScheme, labels, animation.value),
+              ),
             ),
           ),
         ),
@@ -177,8 +165,7 @@ class _UklanjanjePainter extends IllustrationPainter {
     canvas.restore();
     panelFrame(canvas, _story);
 
-    _pips(canvas, step);
-    _abandonedCard(canvas, const Rect.fromLTRB(6, 404, 394, 494));
+    _abandonedCard(canvas, const Rect.fromLTRB(6, 386, 394, 476));
   }
 
   @override
@@ -654,27 +641,6 @@ class _UklanjanjePainter extends IllustrationPainter {
         maxWidth: 36, fontSize: 18, isBold: true);
   }
 
-  void _pips(Canvas canvas, int step) {
-    const y = 386.0;
-    for (var i = 0; i < _serbian.length; i++) {
-      final x = 158.0 + i * 28;
-      final current = i == step;
-      canvas.drawCircle(
-        Offset(x, y),
-        current ? 10 : 7,
-        Paint()
-          ..color = current
-              ? colorScheme.primary
-              : (i < step
-                  ? colorScheme.primary.withValues(alpha: 0.35)
-                  : colorScheme.outlineVariant),
-      );
-      if (current) {
-        text(canvas, '${i + 1}', Offset(x, y), colorScheme.onPrimary,
-            maxWidth: 20, fontSize: 11, isBold: true);
-      }
-    }
-  }
 
   /// Отдельное основание для эвакуации: машина стоит правильно, но брошена и
   /// без номеров. В анимации не участвует — иначе её примут за очередной шаг.

@@ -82,11 +82,17 @@ final scheme = Theme.of(context).colorScheme;
 
 ## 4. Анимация
 
-- `AnimationController` + `SingleTickerProviderStateMixin`, обязательный
-  `dispose()`. Это единственный разрешённый в приложении `StatefulWidget`
-  без Bloc (см. `app/CLAUDE.md`).
-- Цикл 4–8 секунд, `..repeat()`. Быстрее — не успеть прочитать, длиннее —
-  пользователь не дождётся второго круга.
+- Контроллер анимации **не заводить самому**: новая анимация строится через
+  `InteractiveAnimation` (`interactive_animation.dart`) — обёртка владеет
+  `AnimationController`, даёт паузу по тапу на сцену и кнопку ▶/⏸ под холстом,
+  а для пошаговых сцен (`stepStarts:` — начала кадров в долях цикла) ещё и
+  переключение кадров по номерам. Виджет сцены при этом `StatelessWidget`,
+  сцена строится в `builder:` от выданной `Animation<double>` — образцы:
+  `postupak_teska_nezgoda.dart` (кадры), `klinc_raskrsnica.dart` (кадры по
+  границам фаз painter'а). Старые составные сцены со своими контроллерами
+  обёрнуты в `InteractiveAnimation.pauseOnly` прямо в `animations_map.dart`.
+- Цикл 4–8 секунд. Быстрее — не успеть прочитать, длиннее — пользователь не
+  дождётся второго круга.
 - В конце цикла **пауза**: без неё сцена выглядит как дёрганая петля.
 
   ```dart

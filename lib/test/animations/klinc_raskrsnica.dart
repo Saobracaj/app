@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:saobracaj/test/animations/interactive_animation.dart';
 import 'package:saobracaj/test/animations/raskrsnica_common.dart';
 
 /// «Клинч» на нерегулируемом перекрёстке: четыре машины, и у каждой кто-то
@@ -13,40 +14,34 @@ import 'package:saobracaj/test/animations/raskrsnica_common.dart';
 /// клинч, а его разрешение: один водитель отказывается от своего первенства и
 /// знаком руки пропускает того, кто иначе ждал бы его. Кольцо разрывается, и
 /// дальше все едут по обычному правилу правой руки.
-class KlincRaskrsnica extends StatefulWidget {
+class KlincRaskrsnica extends StatelessWidget {
   const KlincRaskrsnica({super.key});
-
-  @override
-  State<KlincRaskrsnica> createState() => _KlincRaskrsnicaState();
-}
-
-class _KlincRaskrsnicaState extends State<KlincRaskrsnica>
-    with SingleTickerProviderStateMixin {
-  late final _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 8000),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: 400,
-          height: 420,
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) => CustomPaint(
-              painter: _ScenePainter(scheme, _controller.value),
+      child: InteractiveAnimation(
+        cycle: const Duration(milliseconds: 8000),
+        // Границы фаз — из _ScenePainter._phase.
+        stepStarts: const [
+          0,
+          _ScenePainter._approach,
+          _ScenePainter._deadlock,
+          _ScenePainter._handSign,
+          _ScenePainter._queue,
+        ],
+        builder: (context, animation) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: 400,
+            height: 420,
+            child: AnimatedBuilder(
+              animation: animation,
+              builder: (context, _) => CustomPaint(
+                painter: _ScenePainter(scheme, animation.value),
+              ),
             ),
           ),
         ),
