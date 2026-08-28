@@ -17,10 +17,12 @@ name: Build & Deploy
 
 on:
   push:
-    branches: [main]
+    # main — релиз (все цели + деплои); develop — сборки Android/iOS без
+    # деплоев, чтобы каждое влитое изменение сразу проверялось стором-сборкой.
+    # Веб из develop здесь не собирается — его катит deploy-dev-web.yml.
+    branches: [main, develop]
   # PR-ы теперь идут в develop (релиз — PR develop -> main); проверки гоняются
-  # для обоих направлений. Деплой dev-веба из develop — отдельный workflow
-  # deploy-dev-web.yml.
+  # для обоих направлений.
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
@@ -528,7 +530,9 @@ jobs:
   build-web:
     name: Build web image
     needs: [preflight, checks]
-    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.build_web) }}
+    # На push в develop веб не собираем: dev-домен обслуживает deploy-dev-web.yml,
+    # а прод-образ отсюда всё равно никуда не выкатился бы.
+    if: ${{ github.event_name != 'pull_request' && !(github.event_name == 'push' && github.ref == 'refs/heads/develop') && (github.event_name != 'workflow_dispatch' || inputs.build_web) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
