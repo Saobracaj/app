@@ -86,18 +86,17 @@ class _ZakonState extends State<Zakon> {
           actions: [
             // Та же кнопка «РУ», что и на экране вопроса (вместо прежней
             // безликой иконки translate); isSr — сербский, т.е. перевод выкл.
-            if (widget.document.hasTranslation)
-              FeatureGate(
-                feature: AppFeature.russianContent,
-                child: BlocBuilder<ZakonBloc, ZakonState>(
-                  builder: (context, state) {
-                    return TranslationChip(
-                      on: !state.isSr,
-                      onTap: () => context.read<ZakonBloc>().add(ToggleLang()),
-                    );
-                  },
-                ),
+            FeatureGate(
+              feature: AppFeature.russianContent,
+              child: BlocBuilder<ZakonBloc, ZakonState>(
+                builder: (context, state) {
+                  return TranslationChip(
+                    on: !state.isSr,
+                    onTap: () => context.read<ZakonBloc>().add(ToggleLang()),
+                  );
+                },
               ),
+            ),
             const SizedBox(width: 8),
           ],
         ),
@@ -208,7 +207,9 @@ class _Paragraph extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Text(
-            text.split('<sup>').join('').split('</sup>').join(''),
+            // Заголовок и так набран жирным: звёздочки markdown в обычном
+            // Text остались бы видны (шапка правилника «**ПРАВИЛНИК**»).
+            _plain(text).replaceAll('**', ''),
             textAlign: TextAlign.center,
             style: Theme.of(
               context,
@@ -224,7 +225,7 @@ class _Paragraph extends StatelessWidget {
       text = '## $text';
     }
     final body = Markdown(
-      data: text.split('<sup>').join('').split('</sup>').join(''),
+      data: _plain(text),
       shrinkWrap: true,
       selectable: false,
       physics: NeverScrollableScrollPhysics(),
@@ -243,6 +244,10 @@ class _Paragraph extends StatelessWidget {
             ),
     );
   }
+
+  /// Текст без служебных `<sup>`-обёрток исходного документа.
+  static String _plain(String text) =>
+      text.split('<sup>').join('').split('</sup>').join('');
 
   void _onTap(BuildContext context) {
     final queryParameters = <String, String?>{};

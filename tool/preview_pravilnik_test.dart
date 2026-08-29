@@ -22,13 +22,15 @@ import 'package:saobracaj/zakon/zakon.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _StubFeatureFlagsRepository extends FeatureFlagsRepository {
-  _StubFeatureFlagsRepository()
+  _StubFeatureFlagsRepository({this.russianContent = false})
     : super(GraphqlClient(TokenStorage()), TokenStorage());
+
+  final bool russianContent;
 
   @override
   FeatureFlagsSnapshot get snapshot => FeatureFlagsSnapshot.resolve(
-    localOverrides: const {'russian_content': false},
-    grants: const {},
+    localOverrides: {'russian_content': russianContent},
+    grants: russianContent ? const {'russian_content'} : const {},
     authenticated: true,
   );
 
@@ -56,7 +58,13 @@ void main() {
     Directory('build/pravilnik_preview').createSync(recursive: true);
   });
 
-  for (final (name, chlan) in [('chlan104', '104'), ('chlan48', '48')]) {
+  for (final (name, chlan, ru) in [
+    ('chlan104', '104', false),
+    ('chlan48', '48', false),
+    ('chlan13_ru', '13', true),
+    ('chlan26_ru', '26', true),
+    ('chlan104_ru', '104', true),
+  ]) {
     testWidgets('превью правилника $name', (tester) async {
       await tester.binding.setSurfaceSize(const Size(420, 900));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -65,7 +73,9 @@ void main() {
       // больших файлов не возвращается в fake async тестовой среды.
       await tester.runAsync(() => pravilnikDataSource.paragraphs);
 
-      final flags = FeatureFlagsBloc(_StubFeatureFlagsRepository());
+      final flags = FeatureFlagsBloc(
+        _StubFeatureFlagsRepository(russianContent: ru),
+      );
       await tester.pumpWidget(
         EasyLocalization(
           useOnlyLangCode: true,
@@ -100,6 +110,15 @@ void main() {
       for (var i = 0; i < 20; i++) {
         await tester.runAsync(() => Future.delayed(const Duration(milliseconds: 50)));
         await tester.pump(const Duration(milliseconds: 100));
+      }
+      if (ru) {
+        await tester.tap(find.text('РУ'));
+        for (var i = 0; i < 20; i++) {
+          await tester.runAsync(
+            () => Future.delayed(const Duration(milliseconds: 50)),
+          );
+          await tester.pump(const Duration(milliseconds: 100));
+        }
       }
 
       final boundary = tester.renderObject<RenderRepaintBoundary>(

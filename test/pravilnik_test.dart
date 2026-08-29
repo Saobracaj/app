@@ -18,13 +18,17 @@ import 'package:saobracaj/zakon/zakon.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _StubFeatureFlagsRepository extends FeatureFlagsRepository {
-  _StubFeatureFlagsRepository()
+  _StubFeatureFlagsRepository({required this.russianContent})
     : super(GraphqlClient(TokenStorage()), TokenStorage());
+
+  final bool russianContent;
 
   @override
   FeatureFlagsSnapshot get snapshot => FeatureFlagsSnapshot.resolve(
-    localOverrides: const {'russian_content': false},
-    grants: const {},
+    localOverrides: {'russian_content': russianContent},
+    // russian_content — премиальная фича: без гранта локальный тумблер
+    // ничего не включает.
+    grants: russianContent ? const {'russian_content'} : const {},
     authenticated: true,
   );
 
@@ -36,6 +40,20 @@ class _StubFeatureFlagsRepository extends FeatureFlagsRepository {
 /// целостность собранного: схему строк, адреса членов и сами файлы знаков.
 /// JSON читается с диска, а не через rootBundle: большие строки в тестовой
 /// среде не возвращаются из `loadString` (см. zakon_page_test.dart).
+/// Коды знаков (I-1, II-43.2, …) — одинаковы в обоих языках.
+final _signCodeRe = RegExp(r'\b[IVX]{1,3}-\d+(?:\.\d+)*\b');
+
+List<String> _signCodes(String s) =>
+    _signCodeRe.allMatches(s).map((m) => m[0]!).toList()..sort();
+
+/// Числа вне кодов знаков: размеры, расстояния, номера статей и пунктов.
+List<String> _numbers(String s) =>
+    RegExp(r'\d+(?:[.,]\d+)?')
+        .allMatches(s.replaceAll(_signCodeRe, ' '))
+        .map((m) => m[0]!)
+        .toList()
+      ..sort();
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   SharedPreferences.setMockInitialValues({});
@@ -92,6 +110,30 @@ void main() {
       expect(onDisk, images);
     });
 
+    test('у каждой строки есть русский перевод с той же разметкой', () {
+      // Перевод собран tool/pravilnik_ru/merge_ru.py; пустой или потерявший
+      // жирность ru ломает режим «РУ» — стережём весь файл.
+      for (final r in rows) {
+        final sr = r.sr ?? '';
+        final ru = r.ru ?? '';
+        // Строки-контейнеры для картинок текста не несут ни на одном языке.
+        if (sr.trim().isEmpty) {
+          expect(ru.trim(), isEmpty);
+          continue;
+        }
+        expect(ru.trim(), isNotEmpty, reason: sr);
+        expect(
+          '**'.allMatches(ru).length,
+          '**'.allMatches(sr).length,
+          reason: sr,
+        );
+        // Коды знаков и числа (размеры, расстояния, номера статей) перевод
+        // обязан донести один в один — это ссылки на сам документ.
+        expect(_signCodes(ru), _signCodes(sr), reason: sr);
+        expect(_numbers(ru), _numbers(sr), reason: sr);
+      }
+    });
+
     test('знаки в главе о знаках опасности действительно с изображениями', () {
       // Члан 13 перечисляет знаки опасности — у него обязаны быть векторные
       // изображения (первые знаки правилника, I-1 и далее).
@@ -124,10 +166,15 @@ void main() {
   group('экран правилника', () {
     setUpAll(() async {
       await EasyLocalization.ensureInitialized();
+      // Прогреваем источник данных: внутри widget-теста ассет из rootBundle
+      // не дочитывается (фейковый event loop), и список остаётся пустым.
+      await pravilnikDataSource.paragraphs;
     });
 
-    Widget wrap(Widget child) {
-      final flags = FeatureFlagsBloc(_StubFeatureFlagsRepository());
+    Widget wrap(Widget child, {bool russianContent = false}) {
+      final flags = FeatureFlagsBloc(
+        _StubFeatureFlagsRepository(russianContent: russianContent),
+      );
       return EasyLocalization(
         useOnlyLangCode: true,
         ignorePluralRules: false,
@@ -148,7 +195,7 @@ void main() {
       );
     }
 
-    testWidgets('открывается с заголовком правилника и без кнопки «РУ»', (
+    testWidgets('без russian_content открывается по-сербски и без «РУ»', (
       tester,
     ) async {
       tester.view.devicePixelRatio = 1.0;
@@ -161,8 +208,47 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('ПРАВИЛНИК о саобраћајној сигнализацији'), findsOneWidget);
-      // У правилника нет русского перевода — переключателя быть не должно.
+      // Шапка документа — обычный Text: markdown-звёздочки в ней не должны
+      // просачиваться на экран.
+      expect(find.text('ПРАВИЛНИК'), findsOneWidget);
+      // Кнопка «РУ» стоит за фича-флагом russian_content — без него её нет.
       expect(find.text('РУ'), findsNothing);
+    });
+
+    testWidgets('с russian_content кнопка «РУ» переключает на перевод', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(400, 800);
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        wrap(
+          const Zakon(document: LawDocument.pravilnik),
+          russianContent: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('РУ'), findsOneWidget);
+      // До переключения — сербский текст вводной строки.
+      expect(
+        find.textContaining('На основу члана', findRichText: true),
+        findsWidgets,
+      );
+
+      await tester.tap(find.text('РУ'));
+      await tester.pumpAndSettle();
+
+      // После переключения та же строка показана по-русски.
+      expect(
+        find.textContaining('На основании статьи', findRichText: true),
+        findsWidgets,
+      );
+      expect(
+        find.textContaining('На основу члана', findRichText: true),
+        findsNothing,
+      );
     });
   });
 }

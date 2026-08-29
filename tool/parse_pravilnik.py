@@ -467,10 +467,25 @@ def main():
     parser = Parser(doc_root, media, Numbering(numbering_xml))
     rows = parser.run()
 
+    # Русский перевод живёт только в собранном JSON (собран
+    # tool/pravilnik_ru/merge_ru.py) — переносим его на новые строки по
+    # сербскому тексту, чтобы пересборка из docx его не стирала.
+    if os.path.exists(OUT_JSON):
+        with open(OUT_JSON, encoding='utf-8') as f:
+            old = {r['sr']: r.get('ru') for r in json.load(f)}
+        kept = 0
+        for r in rows:
+            ru = old.get(r['sr'])
+            if ru is not None:
+                r['ru'] = ru
+                kept += 1
+        print(f'перенесено переводов: {kept} из {len(rows)}')
+
     tmp = tempfile.NamedTemporaryFile(
         'w', dir=os.path.dirname(OUT_JSON), delete=False, encoding='utf-8')
     with tmp:
         json.dump(rows, tmp, ensure_ascii=False, indent=1)
+        tmp.write('\n')
     os.replace(tmp.name, OUT_JSON)
 
     n_svg = sum(1 for v in parser.assets.values() if v.endswith('.svg'))
