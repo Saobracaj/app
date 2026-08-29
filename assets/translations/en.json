@@ -1081,6 +1081,9 @@
   "zakon": {
     "contents": "Contents"
   },
+  "roadSign": {
+    "openInPravilnik": "Open in the rulebook"
+  },
   "interactiveAnimation": {
     "pause": "Pause animation",
     "play": "Resume animation",

@@ -97,9 +97,19 @@ void main() {
     test('каждая ссылка на изображение указывает на существующий ассет', () {
       final images = rows.expand((r) => r.images).toSet();
       expect(images, isNotEmpty);
-      for (final path in images) {
-        expect(path, startsWith('assets/pravilnik/'));
-        expect(File(path).existsSync(), isTrue, reason: path);
+      for (final image in images) {
+        // Официальные знаки — из общего с конспектами assets/signs/ (их
+        // подставляет дедупликация в tool/parse_pravilnik.py), остальное —
+        // извлечённое из docx.
+        expect(
+          image.src,
+          anyOf(startsWith('assets/pravilnik/'), startsWith('assets/signs/')),
+        );
+        expect(File(image.src).existsSync(), isTrue, reason: image.src);
+        // Размер страницы docx обязателен: официальные SVG в собственных
+        // координатах огромны и без него раздули бы колонку.
+        expect(image.w, greaterThan(0), reason: image.src);
+        expect(image.h, greaterThan(0), reason: image.src);
       }
       // И обратно: в assets/pravilnik нет файлов, на которые никто не ссылается.
       final onDisk = Directory('assets/pravilnik')
@@ -107,7 +117,21 @@ void main() {
           .whereType<File>()
           .map((f) => f.path)
           .toSet();
-      expect(onDisk, images);
+      expect(
+        onDisk,
+        images
+            .map((i) => i.src)
+            .where((s) => s.startsWith('assets/pravilnik/'))
+            .toSet(),
+      );
+    });
+
+    test('знак с официальным SVG показывается из assets/signs', () {
+      // Дедупликация: у знака один файл на всё приложение — извлечённой из
+      // docx копии I-1 (первого знака правилника) быть не должно.
+      final srcs = rows.expand((r) => r.images).map((i) => i.src).toSet();
+      expect(srcs, contains('assets/signs/i-1.svg'));
+      expect(srcs, contains('assets/signs/ii-2.svg'));
     });
 
     test('у каждой строки есть русский перевод с той же разметкой', () {
@@ -141,7 +165,7 @@ void main() {
           .where((r) => r.chlan == '13' && r.images.isNotEmpty)
           .toList();
       expect(withImages, isNotEmpty);
-      expect(withImages.first.images.first, endsWith('.svg'));
+      expect(withImages.first.images.first.src, endsWith('.svg'));
     });
   });
 

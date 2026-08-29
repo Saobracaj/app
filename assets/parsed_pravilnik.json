@@ -719,8 +719,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_001.svg",
-   "assets/pravilnik/img_002.svg"
+   {
+    "src": "assets/signs/i-1.svg",
+    "w": 127.7,
+    "h": 112.5
+   },
+   {
+    "src": "assets/signs/i-1.1.svg",
+    "w": 127.8,
+    "h": 112.5
+   }
   ]
  },
  {
@@ -755,8 +763,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_003.svg",
-   "assets/pravilnik/img_004.svg"
+   {
+    "src": "assets/signs/i-2.svg",
+    "w": 127.7,
+    "h": 112.5
+   },
+   {
+    "src": "assets/signs/i-2.1.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -791,7 +807,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_005.svg"
+   {
+    "src": "assets/pravilnik/img_005.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -818,8 +838,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_006.svg",
-   "assets/pravilnik/img_007.svg"
+   {
+    "src": "assets/signs/i-3.svg",
+    "w": 127.7,
+    "h": 112.4
+   },
+   {
+    "src": "assets/signs/i-4.svg",
+    "w": 128.1,
+    "h": 112.1
+   }
   ]
  },
  {
@@ -854,9 +882,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_008.svg",
-   "assets/pravilnik/img_009.svg",
-   "assets/pravilnik/img_010.svg"
+   {
+    "src": "assets/pravilnik/img_008.svg",
+    "w": 127.8,
+    "h": 112.4
+   },
+   {
+    "src": "assets/signs/i-5.1.svg",
+    "w": 127.5,
+    "h": 112.1
+   },
+   {
+    "src": "assets/signs/i-5.2.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -899,7 +939,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_011.svg"
+   {
+    "src": "assets/pravilnik/img_011.svg",
+    "w": 127.9,
+    "h": 112.7
+   }
   ]
  },
  {
@@ -926,7 +970,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_012.svg"
+   {
+    "src": "assets/signs/i-7.svg",
+    "w": 127.9,
+    "h": 112.7
+   }
   ]
  },
  {
@@ -953,9 +1001,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_013.svg",
-   "assets/pravilnik/img_014.svg",
-   "assets/pravilnik/img_015.svg"
+   {
+    "src": "assets/signs/i-8.svg",
+    "w": 127.8,
+    "h": 112.4
+   },
+   {
+    "src": "assets/signs/i-9.svg",
+    "w": 127.8,
+    "h": 112.4
+   },
+   {
+    "src": "assets/signs/i-10.svg",
+    "w": 128.4,
+    "h": 113
+   }
   ]
  },
  {
@@ -998,7 +1058,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_016.svg"
+   {
+    "src": "assets/signs/i-11.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1025,7 +1089,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_017.svg"
+   {
+    "src": "assets/signs/i-12.svg",
+    "w": 127.8,
+    "h": 112.5
+   }
   ]
  },
  {
@@ -1052,8 +1120,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_018.svg",
-   "assets/pravilnik/img_019.svg"
+   {
+    "src": "assets/signs/i-13.svg",
+    "w": 127.7,
+    "h": 112.4
+   },
+   {
+    "src": "assets/signs/i-13.1.svg",
+    "w": 127.8,
+    "h": 112.5
+   }
   ]
  },
  {
@@ -1088,7 +1164,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_020.svg"
+   {
+    "src": "assets/signs/i-14.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1115,7 +1195,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_021.svg"
+   {
+    "src": "assets/signs/i-15.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1142,7 +1226,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_022.svg"
+   {
+    "src": "assets/signs/i-16.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1169,7 +1257,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_023.svg"
+   {
+    "src": "assets/signs/i-17.svg",
+    "w": 127.8,
+    "h": 112.5
+   }
   ]
  },
  {
@@ -1196,7 +1288,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_024.svg"
+   {
+    "src": "assets/signs/i-18.svg",
+    "w": 127.9,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1223,7 +1319,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_025.svg"
+   {
+    "src": "assets/signs/i-19.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1250,8 +1350,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_026.svg",
-   "assets/pravilnik/img_027.svg"
+   {
+    "src": "assets/pravilnik/img_026.svg",
+    "w": 127.7,
+    "h": 112.4
+   },
+   {
+    "src": "assets/pravilnik/img_027.svg",
+    "w": 127.7,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1286,7 +1394,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_028.svg"
+   {
+    "src": "assets/pravilnik/img_028.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1313,8 +1425,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_029.svg",
-   "assets/pravilnik/img_030.svg"
+   {
+    "src": "assets/signs/i-22.svg",
+    "w": 127.7,
+    "h": 112.4
+   },
+   {
+    "src": "assets/pravilnik/img_030.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1349,7 +1469,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_031.svg"
+   {
+    "src": "assets/signs/i-23.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1376,7 +1500,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_032.svg"
+   {
+    "src": "assets/signs/i-24.svg",
+    "w": 127.5,
+    "h": 112.1
+   }
   ]
  },
  {
@@ -1403,7 +1531,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_033.svg"
+   {
+    "src": "assets/signs/i-25.svg",
+    "w": 127.8,
+    "h": 112.5
+   }
   ]
  },
  {
@@ -1430,7 +1562,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_034.svg"
+   {
+    "src": "assets/signs/i-26.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1457,9 +1593,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_035.svg",
-   "assets/pravilnik/img_036.svg",
-   "assets/pravilnik/img_037.svg"
+   {
+    "src": "assets/signs/i-27.svg",
+    "w": 127.8,
+    "h": 112.4
+   },
+   {
+    "src": "assets/signs/i-28.svg",
+    "w": 127.8,
+    "h": 112.4
+   },
+   {
+    "src": "assets/signs/i-28.1.svg",
+    "w": 127.7,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1494,8 +1642,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_038.svg",
-   "assets/pravilnik/img_039.svg"
+   {
+    "src": "assets/signs/i-29.svg",
+    "w": 127.7,
+    "h": 112.4
+   },
+   {
+    "src": "assets/signs/i-29.1.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1538,7 +1694,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_040.svg"
+   {
+    "src": "assets/signs/i-30.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1565,7 +1725,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_041.svg"
+   {
+    "src": "assets/signs/i-31.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1592,7 +1756,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_042.svg"
+   {
+    "src": "assets/signs/i-32.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1619,7 +1787,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_043.svg"
+   {
+    "src": "assets/signs/i-33.svg",
+    "w": 127.8,
+    "h": 112.4
+   }
   ]
  },
  {
@@ -1646,8 +1818,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_044.svg",
-   "assets/pravilnik/img_045.svg"
+   {
+    "src": "assets/signs/i-34.svg",
+    "w": 192,
+    "h": 91.6
+   },
+   {
+    "src": "assets/signs/i-34.1.svg",
+    "w": 179.1,
+    "h": 112.9
+   }
   ]
  },
  {
@@ -1682,9 +1862,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_046.svg",
-   "assets/pravilnik/img_047.svg",
-   "assets/pravilnik/img_048.svg"
+   {
+    "src": "assets/pravilnik/img_046.svg",
+    "w": 27.9,
+    "h": 92.7
+   },
+   {
+    "src": "assets/pravilnik/img_047.svg",
+    "w": 27.9,
+    "h": 92.7
+   },
+   {
+    "src": "assets/pravilnik/img_048.svg",
+    "w": 85.8,
+    "h": 172.6
+   }
   ]
  },
  {
@@ -1711,9 +1903,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_049.svg",
-   "assets/pravilnik/img_050.svg",
-   "assets/pravilnik/img_051.svg"
+   {
+    "src": "assets/pravilnik/img_049.svg",
+    "w": 29.1,
+    "h": 95.9
+   },
+   {
+    "src": "assets/pravilnik/img_050.svg",
+    "w": 29.1,
+    "h": 95.9
+   },
+   {
+    "src": "assets/pravilnik/img_051.svg",
+    "w": 89.6,
+    "h": 178.8
+   }
   ]
  },
  {
@@ -1740,7 +1944,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_052.svg"
+   {
+    "src": "assets/signs/i-37.svg",
+    "w": 162.1,
+    "h": 142.5
+   }
   ]
  },
  {
@@ -1767,7 +1975,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_053.svg"
+   {
+    "src": "assets/signs/i-38.svg",
+    "w": 156.9,
+    "h": 139.3
+   }
   ]
  },
  {
@@ -2018,7 +2230,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_054.svg"
+   {
+    "src": "assets/signs/ii-1.svg",
+    "w": 128.1,
+    "h": 112.7
+   }
   ]
  },
  {
@@ -2045,7 +2261,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_055.svg"
+   {
+    "src": "assets/signs/ii-2.svg",
+    "w": 113.9,
+    "h": 113.7
+   }
   ]
  },
  {
@@ -2072,7 +2292,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_056.svg"
+   {
+    "src": "assets/signs/ii-3.svg",
+    "w": 113.9,
+    "h": 113.9
+   }
   ]
  },
  {
@@ -2099,7 +2323,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_057.svg"
+   {
+    "src": "assets/signs/ii-4.svg",
+    "w": 113.9,
+    "h": 113.9
+   }
   ]
  },
  {
@@ -2126,7 +2354,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_058.svg"
+   {
+    "src": "assets/signs/ii-5.svg",
+    "w": 113.1,
+    "h": 113.1
+   }
   ]
  },
  {
@@ -2153,7 +2385,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_059.svg"
+   {
+    "src": "assets/signs/ii-6.svg",
+    "w": 113.9,
+    "h": 113.9
+   }
   ]
  },
  {
@@ -2180,7 +2416,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_060.svg"
+   {
+    "src": "assets/signs/ii-7.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -2215,7 +2455,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_061.svg"
+   {
+    "src": "assets/signs/ii-8.svg",
+    "w": 113.5,
+    "h": 113.4
+   }
   ]
  },
  {
@@ -2242,8 +2486,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_062.svg",
-   "assets/pravilnik/img_063.svg"
+   {
+    "src": "assets/signs/ii-9.svg",
+    "w": 113.4,
+    "h": 113.3
+   },
+   {
+    "src": "assets/signs/ii-9.1.svg",
+    "w": 113.4,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -2286,8 +2538,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_064.svg",
-   "assets/pravilnik/img_065.svg"
+   {
+    "src": "assets/signs/ii-10.svg",
+    "w": 113.4,
+    "h": 113.3
+   },
+   {
+    "src": "assets/pravilnik/img_065.svg",
+    "w": 113.4,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -2330,7 +2590,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_066.svg"
+   {
+    "src": "assets/signs/ii-11.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -2357,7 +2621,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_067.svg"
+   {
+    "src": "assets/signs/ii-12.svg",
+    "w": 113.5,
+    "h": 113.2
+   }
   ]
  },
  {
@@ -2384,7 +2652,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_068.svg"
+   {
+    "src": "assets/signs/ii-13.svg",
+    "w": 113.5,
+    "h": 113.5
+   }
   ]
  },
  {
@@ -2411,7 +2683,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_069.svg"
+   {
+    "src": "assets/signs/ii-14.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -2438,7 +2714,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_070.svg"
+   {
+    "src": "assets/signs/ii-15.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -2465,7 +2745,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_071.svg"
+   {
+    "src": "assets/signs/ii-16.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -2492,7 +2776,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_072.svg"
+   {
+    "src": "assets/signs/ii-17.svg",
+    "w": 113.5,
+    "h": 113.4
+   }
   ]
  },
  {
@@ -2519,7 +2807,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_073.svg"
+   {
+    "src": "assets/signs/ii-18.svg",
+    "w": 113.5,
+    "h": 113.4
+   }
   ]
  },
  {
@@ -2546,8 +2838,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_074.svg",
-   "assets/pravilnik/img_075.png"
+   {
+    "src": "assets/signs/ii-19.svg",
+    "w": 113.4,
+    "h": 113.3
+   },
+   {
+    "src": "assets/pravilnik/img_075.png",
+    "w": 114.8,
+    "h": 114
+   }
   ]
  },
  {
@@ -2590,7 +2890,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_076.svg"
+   {
+    "src": "assets/signs/ii-20.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -2617,7 +2921,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_077.svg"
+   {
+    "src": "assets/signs/ii-21.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -2644,7 +2952,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_078.svg"
+   {
+    "src": "assets/signs/ii-22.svg",
+    "w": 113.1,
+    "h": 113.1
+   }
   ]
  },
  {
@@ -2671,7 +2983,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_079.svg"
+   {
+    "src": "assets/signs/ii-23.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -2698,7 +3014,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_080.svg"
+   {
+    "src": "assets/signs/ii-24.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -2725,7 +3045,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_081.png"
+   {
+    "src": "assets/signs/ii-25.svg",
+    "w": 113.7,
+    "h": 113.5
+   }
   ]
  },
  {
@@ -2752,8 +3076,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_082.svg",
-   "assets/pravilnik/img_083.svg"
+   {
+    "src": "assets/signs/ii-26.svg",
+    "w": 113.4,
+    "h": 113.4
+   },
+   {
+    "src": "assets/signs/ii-26.1.svg",
+    "w": 113.4,
+    "h": 113.2
+   }
   ]
  },
  {
@@ -2796,7 +3128,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_084.svg"
+   {
+    "src": "assets/signs/ii-27.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -2823,7 +3159,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_085.svg"
+   {
+    "src": "assets/signs/ii-28.svg",
+    "w": 113.9,
+    "h": 113.9
+   }
   ]
  },
  {
@@ -2850,7 +3190,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_086.svg"
+   {
+    "src": "assets/signs/ii-29.svg",
+    "w": 113.9,
+    "h": 113.9
+   }
   ]
  },
  {
@@ -2885,7 +3229,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_087.svg"
+   {
+    "src": "assets/pravilnik/img_087.svg",
+    "w": 113.9,
+    "h": 113.9
+   }
   ]
  },
  {
@@ -2920,7 +3268,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_088.svg"
+   {
+    "src": "assets/signs/ii-31.svg",
+    "w": 113.5,
+    "h": 113.4
+   }
   ]
  },
  {
@@ -2947,9 +3299,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_089.png",
-   "assets/pravilnik/img_090.png",
-   "assets/pravilnik/img_091.svg"
+   {
+    "src": "assets/signs/ii-32.svg",
+    "w": 114.1,
+    "h": 114
+   },
+   {
+    "src": "assets/signs/ii-32.1.svg",
+    "w": 113.6,
+    "h": 113.5
+   },
+   {
+    "src": "assets/signs/ii-32.2.svg",
+    "w": 114.2,
+    "h": 113.9
+   }
   ]
  },
  {
@@ -2992,7 +3356,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_092.svg"
+   {
+    "src": "assets/signs/ii-33.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -3019,7 +3387,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_093.svg"
+   {
+    "src": "assets/signs/ii-34.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -3046,7 +3418,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_094.svg"
+   {
+    "src": "assets/signs/ii-35.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -3081,7 +3457,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_095.svg"
+   {
+    "src": "assets/signs/ii-36.svg",
+    "w": 113.5,
+    "h": 113.4
+   }
   ]
  },
  {
@@ -3108,7 +3488,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_096.svg"
+   {
+    "src": "assets/signs/ii-37.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -3151,7 +3535,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_097.svg"
+   {
+    "src": "assets/pravilnik/img_097.svg",
+    "w": 113.5,
+    "h": 113.2
+   }
   ]
  },
  {
@@ -3178,7 +3566,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_098.png"
+   {
+    "src": "assets/signs/ii-39.svg",
+    "w": 113.2,
+    "h": 113
+   }
   ]
  },
  {
@@ -3205,7 +3597,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_099.svg"
+   {
+    "src": "assets/signs/ii-40.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -3232,8 +3628,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_100.svg",
-   "assets/pravilnik/img_101.png"
+   {
+    "src": "assets/signs/ii-41.svg",
+    "w": 113.4,
+    "h": 113.5
+   },
+   {
+    "src": "assets/pravilnik/img_101.png",
+    "w": 114.2,
+    "h": 114
+   }
   ]
  },
  {
@@ -3276,7 +3680,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_102.svg"
+   {
+    "src": "assets/signs/ii-42.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -3303,9 +3711,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_103.svg",
-   "assets/pravilnik/img_104.svg",
-   "assets/pravilnik/img_105.svg"
+   {
+    "src": "assets/signs/ii-43.svg",
+    "w": 113.4,
+    "h": 113.3
+   },
+   {
+    "src": "assets/pravilnik/img_104.svg",
+    "w": 113.4,
+    "h": 113.3
+   },
+   {
+    "src": "assets/pravilnik/img_105.svg",
+    "w": 113.4,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -3340,8 +3760,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_106.svg",
-   "assets/pravilnik/img_107.svg"
+   {
+    "src": "assets/signs/ii-43.3.svg",
+    "w": 113.4,
+    "h": 113.3
+   },
+   {
+    "src": "assets/pravilnik/img_107.svg",
+    "w": 113.4,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -3376,9 +3804,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_108.svg",
-   "assets/pravilnik/img_109.svg",
-   "assets/pravilnik/img_110.svg"
+   {
+    "src": "assets/pravilnik/img_108.svg",
+    "w": 113.4,
+    "h": 113.2
+   },
+   {
+    "src": "assets/signs/ii-44.1.svg",
+    "w": 113.4,
+    "h": 113.2
+   },
+   {
+    "src": "assets/signs/ii-44.2.svg",
+    "w": 113.4,
+    "h": 113.2
+   }
   ]
  },
  {
@@ -3421,10 +3861,26 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_111.svg",
-   "assets/pravilnik/img_112.svg",
-   "assets/pravilnik/img_113.svg",
-   "assets/pravilnik/img_114.svg"
+   {
+    "src": "assets/signs/ii-45.svg",
+    "w": 113.4,
+    "h": 113.3
+   },
+   {
+    "src": "assets/signs/ii-45.1.svg",
+    "w": 113.5,
+    "h": 113.3
+   },
+   {
+    "src": "assets/pravilnik/img_113.svg",
+    "w": 113.1,
+    "h": 113.1
+   },
+   {
+    "src": "assets/signs/ii-45.3.svg",
+    "w": 114.1,
+    "h": 113.9
+   }
   ]
  },
  {
@@ -3771,7 +4227,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_115.svg"
+   {
+    "src": "assets/signs/iii-1.svg",
+    "w": 114,
+    "h": 114.1
+   }
   ]
  },
  {
@@ -3798,8 +4258,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_116.svg",
-   "assets/pravilnik/img_117.svg"
+   {
+    "src": "assets/signs/iii-2.svg",
+    "w": 113.4,
+    "h": 113.4
+   },
+   {
+    "src": "assets/signs/iii-2.1.svg",
+    "w": 228.3,
+    "h": 57.1
+   }
   ]
  },
  {
@@ -3834,7 +4302,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_118.svg"
+   {
+    "src": "assets/signs/iii-3.svg",
+    "w": 112.6,
+    "h": 112.5
+   }
   ]
  },
  {
@@ -3861,7 +4333,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_119.svg"
+   {
+    "src": "assets/signs/iii-4.svg",
+    "w": 112.6,
+    "h": 112.5
+   }
   ]
  },
  {
@@ -3888,7 +4364,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_120.svg"
+   {
+    "src": "assets/signs/iii-6.svg",
+    "w": 113.5,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -3915,7 +4395,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_121.svg"
+   {
+    "src": "assets/signs/iii-7.svg",
+    "w": 106.5,
+    "h": 159.7
+   }
   ]
  },
  {
@@ -3942,7 +4426,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_122.svg"
+   {
+    "src": "assets/signs/iii-9.svg",
+    "w": 113.3,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -3977,7 +4465,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_123.svg"
+   {
+    "src": "assets/signs/iii-10.svg",
+    "w": 169.9,
+    "h": 113.3
+   }
   ]
  },
  {
@@ -4004,7 +4496,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_124.svg"
+   {
+    "src": "assets/pravilnik/img_124.svg",
+    "w": 154.1,
+    "h": 154.1
+   }
   ]
  },
  {
@@ -4039,9 +4535,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_125.svg",
-   "assets/pravilnik/img_126.svg",
-   "assets/pravilnik/img_127.svg"
+   {
+    "src": "assets/signs/iii-17.svg",
+    "w": 105.1,
+    "h": 75.1
+   },
+   {
+    "src": "assets/pravilnik/img_126.svg",
+    "w": 142.1,
+    "h": 75.7
+   },
+   {
+    "src": "assets/signs/iii-17.2.svg",
+    "w": 170.4,
+    "h": 113.7
+   }
   ]
  },
  {
@@ -4084,7 +4592,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_128.svg"
+   {
+    "src": "assets/signs/iii-18.svg",
+    "w": 239.5,
+    "h": 99.8
+   }
   ]
  },
  {
@@ -4111,7 +4623,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_129.svg"
+   {
+    "src": "assets/pravilnik/img_129.svg",
+    "w": 112.1,
+    "h": 167.9
+   }
   ]
  },
  {
@@ -4138,7 +4654,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_130.svg"
+   {
+    "src": "assets/pravilnik/img_130.svg",
+    "w": 107.1,
+    "h": 160
+   }
   ]
  },
  {
@@ -4165,7 +4685,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_131.svg"
+   {
+    "src": "assets/signs/iii-21.svg",
+    "w": 87.7,
+    "h": 131.3
+   }
   ]
  },
  {
@@ -4192,7 +4716,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_132.svg"
+   {
+    "src": "assets/signs/iii-22.svg",
+    "w": 96.9,
+    "h": 142.3
+   }
   ]
  },
  {
@@ -4219,7 +4747,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_133.png"
+   {
+    "src": "assets/pravilnik/img_133.png",
+    "w": 182.5,
+    "h": 114
+   }
   ]
  },
  {
@@ -4246,7 +4778,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_134.svg"
+   {
+    "src": "assets/signs/iii-23.1.svg",
+    "w": 183.8,
+    "h": 122.5
+   }
   ]
  },
  {
@@ -4273,7 +4809,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_135.png"
+   {
+    "src": "assets/pravilnik/img_135.png",
+    "w": 181.6,
+    "h": 113.5
+   }
   ]
  },
  {
@@ -4300,7 +4840,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_136.svg"
+   {
+    "src": "assets/signs/iii-24.1.svg",
+    "w": 187.2,
+    "h": 123.7
+   }
   ]
  },
  {
@@ -4327,7 +4871,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_137.svg"
+   {
+    "src": "assets/signs/iii-25.svg",
+    "w": 114,
+    "h": 114
+   }
   ]
  },
  {
@@ -4354,7 +4902,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_138.svg"
+   {
+    "src": "assets/signs/iii-26.svg",
+    "w": 114,
+    "h": 114.1
+   }
   ]
  },
  {
@@ -4381,8 +4933,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_139.svg",
-   "assets/pravilnik/img_140.svg"
+   {
+    "src": "assets/signs/iii-27.svg",
+    "w": 114.1,
+    "h": 114.1
+   },
+   {
+    "src": "assets/pravilnik/img_140.svg",
+    "w": 123.2,
+    "h": 121.7
+   }
   ]
  },
  {
@@ -4417,7 +4977,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_141.svg"
+   {
+    "src": "assets/signs/iii-28.svg",
+    "w": 114,
+    "h": 114.1
+   }
   ]
  },
  {
@@ -4444,9 +5008,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_142.svg",
-   "assets/pravilnik/img_143.png",
-   "assets/pravilnik/img_144.svg"
+   {
+    "src": "assets/signs/iii-29.svg",
+    "w": 114.1,
+    "h": 114.1
+   },
+   {
+    "src": "assets/pravilnik/img_143.png",
+    "w": 127,
+    "h": 127
+   },
+   {
+    "src": "assets/pravilnik/img_144.svg",
+    "w": 123.2,
+    "h": 121.7
+   }
   ]
  },
  {
@@ -4481,9 +5057,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_145.svg",
-   "assets/pravilnik/img_146.svg",
-   "assets/pravilnik/img_147.svg"
+   {
+    "src": "assets/pravilnik/img_145.svg",
+    "w": 112.3,
+    "h": 112.2
+   },
+   {
+    "src": "assets/pravilnik/img_146.svg",
+    "w": 123.2,
+    "h": 124.5
+   },
+   {
+    "src": "assets/pravilnik/img_147.svg",
+    "w": 114.1,
+    "h": 113.9
+   }
   ]
  },
  {
@@ -4526,7 +5114,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_148.svg"
+   {
+    "src": "assets/signs/iii-30.svg",
+    "w": 114,
+    "h": 114.1
+   }
   ]
  },
  {
@@ -4561,7 +5153,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_149.svg"
+   {
+    "src": "assets/pravilnik/img_149.svg",
+    "w": 114,
+    "h": 114.1
+   }
   ]
  },
  {
@@ -4588,8 +5184,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_150.svg",
-   "assets/pravilnik/img_151.svg"
+   {
+    "src": "assets/pravilnik/img_150.svg",
+    "w": 114.1,
+    "h": 114.1
+   },
+   {
+    "src": "assets/pravilnik/img_151.svg",
+    "w": 114.1,
+    "h": 114.1
+   }
   ]
  },
  {
@@ -4640,7 +5244,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_152.svg"
+   {
+    "src": "assets/pravilnik/img_152.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -4667,7 +5275,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_153.svg"
+   {
+    "src": "assets/signs/iii-33.1.svg",
+    "w": 98.8,
+    "h": 147.7
+   }
   ]
  },
  {
@@ -4694,7 +5306,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_154.svg"
+   {
+    "src": "assets/signs/iii-34.svg",
+    "w": 95.5,
+    "h": 144.3
+   }
   ]
  },
  {
@@ -4721,7 +5337,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_155.svg"
+   {
+    "src": "assets/signs/iii-35.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -4748,7 +5368,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_156.svg"
+   {
+    "src": "assets/pravilnik/img_156.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -4783,7 +5407,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_157.svg"
+   {
+    "src": "assets/signs/iii-37.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -4818,7 +5446,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_158.svg"
+   {
+    "src": "assets/signs/iii-38.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -4853,7 +5485,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_159.svg"
+   {
+    "src": "assets/signs/iii-39.svg",
+    "w": 108.2,
+    "h": 162.3
+   }
   ]
  },
  {
@@ -4896,7 +5532,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_160.svg"
+   {
+    "src": "assets/signs/iii-40.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -4931,7 +5571,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_161.svg"
+   {
+    "src": "assets/signs/iii-41.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -4966,7 +5610,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_162.svg"
+   {
+    "src": "assets/signs/iii-42.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -5001,7 +5649,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_163.svg"
+   {
+    "src": "assets/signs/iii-43.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -5036,7 +5688,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_164.svg"
+   {
+    "src": "assets/signs/iii-44.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -5071,7 +5727,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_165.svg"
+   {
+    "src": "assets/signs/iii-45.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -5106,7 +5766,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_166.svg"
+   {
+    "src": "assets/pravilnik/img_166.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -5141,7 +5805,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_167.svg"
+   {
+    "src": "assets/signs/iii-47.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -5176,7 +5844,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_168.svg"
+   {
+    "src": "assets/signs/iii-48.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -5211,7 +5883,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_169.svg"
+   {
+    "src": "assets/signs/iii-49.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -5238,7 +5914,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_170.svg"
+   {
+    "src": "assets/signs/iii-50.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -5265,7 +5945,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_171.svg"
+   {
+    "src": "assets/signs/iii-51.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -5300,7 +5984,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_172.svg"
+   {
+    "src": "assets/signs/iii-52.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -5335,7 +6023,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_173.svg"
+   {
+    "src": "assets/pravilnik/img_173.svg",
+    "w": 101.1,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -5370,7 +6062,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_174.png"
+   {
+    "src": "assets/signs/iii-54.svg",
+    "w": 125.9,
+    "h": 188.5
+   }
   ]
  },
  {
@@ -5437,7 +6133,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_175.png"
+   {
+    "src": "assets/signs/iii-55.svg",
+    "w": 113.5,
+    "h": 113.5
+   }
   ]
  },
  {
@@ -5464,7 +6164,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_176.png"
+   {
+    "src": "assets/pravilnik/img_176.png",
+    "w": 126.2,
+    "h": 113.5
+   }
   ]
  },
  {
@@ -5491,7 +6195,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_177.png"
+   {
+    "src": "assets/signs/iii-57.svg",
+    "w": 101.3,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -5518,7 +6226,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_178.svg"
+   {
+    "src": "assets/pravilnik/img_178.svg",
+    "w": 325.4,
+    "h": 113.2
+   }
   ]
  },
  {
@@ -5545,7 +6257,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_179.svg"
+   {
+    "src": "assets/pravilnik/img_179.svg",
+    "w": 282.5,
+    "h": 113.6
+   }
   ]
  },
  {
@@ -5572,7 +6288,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_180.svg"
+   {
+    "src": "assets/pravilnik/img_180.svg",
+    "w": 122.8,
+    "h": 122.7
+   }
   ]
  },
  {
@@ -5599,7 +6319,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_181.svg"
+   {
+    "src": "assets/signs/iii-62.svg",
+    "w": 287.5,
+    "h": 90.5
+   }
   ]
  },
  {
@@ -5626,8 +6350,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_182.svg",
-   "assets/pravilnik/img_183.svg"
+   {
+    "src": "assets/pravilnik/img_182.svg",
+    "w": 95.7,
+    "h": 95.7
+   },
+   {
+    "src": "assets/pravilnik/img_183.svg",
+    "w": 291.7,
+    "h": 97.3
+   }
   ]
  },
  {
@@ -5654,7 +6386,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_184.svg"
+   {
+    "src": "assets/signs/iii-63.2.svg",
+    "w": 290.6,
+    "h": 98.1
+   }
   ]
  },
  {
@@ -5681,7 +6417,11 @@
   "ru": "59) знак «табличка для направления» (III-63), (III-63.1), (III-63.2) и (III-63.3), который обозначает место, где встречается крутой поворот;",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_185.svg"
+   {
+    "src": "assets/pravilnik/img_185.svg",
+    "w": 98,
+    "h": 98
+   }
   ]
  },
  {
@@ -5692,7 +6432,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_186.svg"
+   {
+    "src": "assets/pravilnik/img_186.svg",
+    "w": 119.4,
+    "h": 140.7
+   }
   ]
  },
  {
@@ -5719,7 +6463,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_187.svg"
+   {
+    "src": "assets/signs/iii-68.svg",
+    "w": 113.4,
+    "h": 113.1
+   }
   ]
  },
  {
@@ -5746,7 +6494,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_188.svg"
+   {
+    "src": "assets/signs/iii-69.svg",
+    "w": 159.9,
+    "h": 107.5
+   }
   ]
  },
  {
@@ -5773,7 +6525,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_189.svg"
+   {
+    "src": "assets/signs/iii-69.1.svg",
+    "w": 159.9,
+    "h": 107.5
+   }
   ]
  },
  {
@@ -5800,7 +6556,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_190.png"
+   {
+    "src": "assets/pravilnik/img_190.png",
+    "w": 101.7,
+    "h": 202.5
+   }
   ]
  },
  {
@@ -5827,7 +6587,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_191.svg"
+   {
+    "src": "assets/signs/iii-71.svg",
+    "w": 94.8,
+    "h": 144.7
+   }
   ]
  },
  {
@@ -5854,7 +6618,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_192.svg"
+   {
+    "src": "assets/pravilnik/img_192.svg",
+    "w": 93.9,
+    "h": 142.1
+   }
   ]
  },
  {
@@ -5881,7 +6649,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_193.jpeg"
+   {
+    "src": "assets/pravilnik/img_193.jpeg",
+    "w": 309.3,
+    "h": 157.5
+   }
   ]
  },
  {
@@ -5908,7 +6680,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_194.jpeg"
+   {
+    "src": "assets/pravilnik/img_194.jpeg",
+    "w": 305.6,
+    "h": 98
+   }
   ]
  },
  {
@@ -5935,7 +6711,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_195.svg"
+   {
+    "src": "assets/pravilnik/img_195.svg",
+    "w": 138.3,
+    "h": 138.1
+   }
   ]
  },
  {
@@ -5962,7 +6742,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_196.png"
+   {
+    "src": "assets/pravilnik/img_196.png",
+    "w": 152.2,
+    "h": 152
+   }
   ]
  },
  {
@@ -5989,7 +6773,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_197.svg"
+   {
+    "src": "assets/pravilnik/img_197.svg",
+    "w": 152,
+    "h": 151.9
+   }
   ]
  },
  {
@@ -6016,7 +6804,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_198.png"
+   {
+    "src": "assets/pravilnik/img_198.png",
+    "w": 152.2,
+    "h": 152
+   }
   ]
  },
  {
@@ -6043,7 +6835,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_199.svg"
+   {
+    "src": "assets/signs/iii-79.svg",
+    "w": 151.5,
+    "h": 151.5
+   }
   ]
  },
  {
@@ -6070,7 +6866,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_200.png"
+   {
+    "src": "assets/pravilnik/img_200.png",
+    "w": 121.2,
+    "h": 183.4
+   }
   ]
  },
  {
@@ -6113,7 +6913,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_201.jpeg"
+   {
+    "src": "assets/pravilnik/img_201.jpeg",
+    "w": 183.4,
+    "h": 123.8
+   }
   ]
  },
  {
@@ -6140,7 +6944,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_202.jpeg"
+   {
+    "src": "assets/pravilnik/img_202.jpeg",
+    "w": 180.6,
+    "h": 122.4
+   }
   ]
  },
  {
@@ -6167,7 +6975,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_203.png"
+   {
+    "src": "assets/pravilnik/img_203.png",
+    "w": 86,
+    "h": 130
+   }
   ]
  },
  {
@@ -6194,7 +7006,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_204.png"
+   {
+    "src": "assets/pravilnik/img_204.png",
+    "w": 101.6,
+    "h": 152
+   }
   ]
  },
  {
@@ -6221,7 +7037,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_205.svg"
+   {
+    "src": "assets/signs/iii-83.svg",
+    "w": 170.5,
+    "h": 113.6
+   }
   ]
  },
  {
@@ -6256,7 +7076,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_206.svg"
+   {
+    "src": "assets/signs/iii-84.svg",
+    "w": 100.5,
+    "h": 151.9
+   }
   ]
  },
  {
@@ -6283,8 +7107,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_207.svg",
-   "assets/pravilnik/img_208.svg"
+   {
+    "src": "assets/signs/iii-85.svg",
+    "w": 113.9,
+    "h": 113.9
+   },
+   {
+    "src": "assets/pravilnik/img_208.svg",
+    "w": 113.9,
+    "h": 113.9
+   }
   ]
  },
  {
@@ -6319,8 +7151,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_209.svg",
-   "assets/pravilnik/img_210.svg"
+   {
+    "src": "assets/signs/iii-86.svg",
+    "w": 190.1,
+    "h": 75
+   },
+   {
+    "src": "assets/pravilnik/img_210.svg",
+    "w": 190.1,
+    "h": 75.5
+   }
   ]
  },
  {
@@ -6355,7 +7195,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_211.png"
+   {
+    "src": "assets/signs/iii-92.svg",
+    "w": 221.5,
+    "h": 146.5
+   }
   ]
  },
  {
@@ -6678,8 +7522,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_212.svg",
-   "assets/pravilnik/img_213.png"
+   {
+    "src": "assets/signs/iii-8.svg",
+    "w": 216,
+    "h": 194.9
+   },
+   {
+    "src": "assets/signs/iii-8.1.svg",
+    "w": 234.4,
+    "h": 170.5
+   }
   ]
  },
  {
@@ -6722,7 +7574,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_214.svg"
+   {
+    "src": "assets/signs/iii-11.1.svg",
+    "w": 255,
+    "h": 188.7
+   }
   ]
  },
  {
@@ -6757,7 +7613,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_215.svg"
+   {
+    "src": "assets/signs/iii-12.svg",
+    "w": 277.1,
+    "h": 112.5
+   }
   ]
  },
  {
@@ -6792,7 +7652,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_216.jpeg"
+   {
+    "src": "assets/signs/iii-13.svg",
+    "w": 263.1,
+    "h": 162.7
+   }
   ]
  },
  {
@@ -6835,7 +7699,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_217.png"
+   {
+    "src": "assets/pravilnik/img_217.png",
+    "w": 187.6,
+    "h": 227
+   }
   ]
  },
  {
@@ -6878,7 +7746,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_218.png"
+   {
+    "src": "assets/pravilnik/img_218.png",
+    "w": 155.6,
+    "h": 188.5
+   }
   ]
  },
  {
@@ -6905,8 +7777,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_219.png",
-   "assets/pravilnik/img_220.png"
+   {
+    "src": "assets/pravilnik/img_219.png",
+    "w": 239.9,
+    "h": 113.5
+   },
+   {
+    "src": "assets/signs/iii-65.1.svg",
+    "w": 262.6,
+    "h": 113.5
+   }
   ]
  },
  {
@@ -6925,7 +7805,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_221.svg"
+   {
+    "src": "assets/pravilnik/img_221.svg",
+    "w": 219.2,
+    "h": 109.7
+   }
   ]
  },
  {
@@ -6960,9 +7844,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_222.svg",
-   "assets/pravilnik/img_223.png",
-   "assets/pravilnik/img_224.png"
+   {
+    "src": "assets/pravilnik/img_222.svg",
+    "w": 133.8,
+    "h": 141.7
+   },
+   {
+    "src": "assets/pravilnik/img_223.png",
+    "w": 126.5,
+    "h": 139
+   },
+   {
+    "src": "assets/pravilnik/img_224.png",
+    "w": 122.9,
+    "h": 135
+   }
   ]
  },
  {
@@ -7005,7 +7901,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_225.png"
+   {
+    "src": "assets/pravilnik/img_225.png",
+    "w": 199.4,
+    "h": 173
+   }
   ]
  },
  {
@@ -7032,8 +7932,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_226.png",
-   "assets/pravilnik/img_227.png"
+   {
+    "src": "assets/signs/iii-76.svg",
+    "w": 170.6,
+    "h": 140.5
+   },
+   {
+    "src": "assets/pravilnik/img_227.png",
+    "w": 120.6,
+    "h": 136.5
+   }
   ]
  },
  {
@@ -7084,7 +7992,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_228.jpeg"
+   {
+    "src": "assets/signs/iii-85.svg",
+    "w": 136.7,
+    "h": 189.1
+   }
   ]
  },
  {
@@ -7119,7 +8031,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_229.svg"
+   {
+    "src": "assets/pravilnik/img_229.svg",
+    "w": 226.3,
+    "h": 113.5
+   }
   ]
  },
  {
@@ -7138,8 +8054,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_230.svg",
-   "assets/pravilnik/img_231.svg"
+   {
+    "src": "assets/pravilnik/img_230.svg",
+    "w": 94.3,
+    "h": 113.1
+   },
+   {
+    "src": "assets/pravilnik/img_231.svg",
+    "w": 88.2,
+    "h": 132.1
+   }
   ]
  },
  {
@@ -7174,8 +8098,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_232.svg",
-   "assets/pravilnik/img_233.svg"
+   {
+    "src": "assets/pravilnik/img_232.svg",
+    "w": 94.3,
+    "h": 113.1
+   },
+   {
+    "src": "assets/pravilnik/img_233.svg",
+    "w": 94.2,
+    "h": 113.1
+   }
   ]
  },
  {
@@ -7210,8 +8142,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_234.svg",
-   "assets/pravilnik/img_235.svg"
+   {
+    "src": "assets/pravilnik/img_234.svg",
+    "w": 88.1,
+    "h": 132.1
+   },
+   {
+    "src": "assets/pravilnik/img_235.svg",
+    "w": 88.1,
+    "h": 132.1
+   }
   ]
  },
  {
@@ -7246,8 +8186,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_236.png",
-   "assets/pravilnik/img_237.png"
+   {
+    "src": "assets/pravilnik/img_236.png",
+    "w": 88.4,
+    "h": 132
+   },
+   {
+    "src": "assets/pravilnik/img_237.png",
+    "w": 88.4,
+    "h": 132
+   }
   ]
  },
  {
@@ -7290,8 +8238,16 @@
   "ru": "6) знаки «предварительный знак перенаправления движения на дороге с физически разделенными проезжими частями» означают режим движения и способ перенаправления движения.",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_238.png",
-   "assets/pravilnik/img_239.png"
+   {
+    "src": "assets/pravilnik/img_238.png",
+    "w": 88,
+    "h": 132
+   },
+   {
+    "src": "assets/pravilnik/img_239.png",
+    "w": 88.1,
+    "h": 132
+   }
   ]
  },
  {
@@ -7318,7 +8274,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_240.svg"
+   {
+    "src": "assets/signs/iii-90.svg",
+    "w": 88.1,
+    "h": 132.1
+   }
   ]
  },
  {
@@ -7345,7 +8305,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_241.svg"
+   {
+    "src": "assets/pravilnik/img_241.svg",
+    "w": 170.5,
+    "h": 113.6
+   }
   ]
  },
  {
@@ -7460,7 +8424,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_242.svg"
+   {
+    "src": "assets/pravilnik/img_242.svg",
+    "w": 265.9,
+    "h": 151.2
+   }
   ]
  },
  {
@@ -7871,8 +8839,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_243.png",
-   "assets/pravilnik/img_244.svg"
+   {
+    "src": "assets/pravilnik/img_243.png",
+    "w": 96.6,
+    "h": 95.5
+   },
+   {
+    "src": "assets/pravilnik/img_244.svg",
+    "w": 96.8,
+    "h": 24.1
+   }
   ]
  },
  {
@@ -7899,7 +8875,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_245.png"
+   {
+    "src": "assets/signs/iv-2.svg",
+    "w": 105.9,
+    "h": 137.5
+   }
   ]
  },
  {
@@ -7926,7 +8906,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_246.png"
+   {
+    "src": "assets/pravilnik/img_246.png",
+    "w": 97.5,
+    "h": 151
+   }
   ]
  },
  {
@@ -7953,7 +8937,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_247.png"
+   {
+    "src": "assets/signs/iv-4.svg",
+    "w": 104.9,
+    "h": 137.5
+   }
   ]
  },
  {
@@ -7980,7 +8968,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_248.png"
+   {
+    "src": "assets/pravilnik/img_248.png",
+    "w": 114.6,
+    "h": 147
+   }
   ]
  },
  {
@@ -8007,7 +8999,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_249.png"
+   {
+    "src": "assets/signs/iv-6.svg",
+    "w": 97.5,
+    "h": 152
+   }
   ]
  },
  {
@@ -8034,7 +9030,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_250.svg"
+   {
+    "src": "assets/pravilnik/img_250.svg",
+    "w": 110.1,
+    "h": 151.7
+   }
   ]
  },
  {
@@ -8053,7 +9053,11 @@
   "ru": "7) дополнительная табличка IV-7, которая обозначает близость участка дороги или места, на котором существует опасность скользкой проезжей части из-за образования гололедицы или снега;",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_251.png"
+   {
+    "src": "assets/pravilnik/img_251.png",
+    "w": 88.4,
+    "h": 181.5
+   }
   ]
  },
  {
@@ -8064,9 +9068,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_252.png",
-   "assets/pravilnik/img_253.svg",
-   "assets/pravilnik/img_254.svg"
+   {
+    "src": "assets/pravilnik/img_252.png",
+    "w": 92.9,
+    "h": 143
+   },
+   {
+    "src": "assets/pravilnik/img_253.svg",
+    "w": 112.7,
+    "h": 57.1
+   },
+   {
+    "src": "assets/pravilnik/img_254.svg",
+    "w": 114.1,
+    "h": 57.1
+   }
   ]
  },
  {
@@ -8085,7 +9101,11 @@
   "ru": "**IV-8.1**",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_255.svg"
+   {
+    "src": "assets/pravilnik/img_255.svg",
+    "w": 51,
+    "h": 100.6
+   }
   ]
  },
  {
@@ -8096,7 +9116,11 @@
   "ru": "**IV-8.2**",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_256.svg"
+   {
+    "src": "assets/pravilnik/img_256.svg",
+    "w": 51,
+    "h": 100.6
+   }
   ]
  },
  {
@@ -8139,7 +9163,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_257.svg"
+   {
+    "src": "assets/pravilnik/img_257.svg",
+    "w": 165,
+    "h": 67.7
+   }
   ]
  },
  {
@@ -8166,9 +9194,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_258.svg",
-   "assets/pravilnik/img_259.svg",
-   "assets/pravilnik/img_260.svg"
+   {
+    "src": "assets/signs/iv-10.svg",
+    "w": 143.5,
+    "h": 71.8
+   },
+   {
+    "src": "assets/signs/iv-11.svg",
+    "w": 144.8,
+    "h": 73.1
+   },
+   {
+    "src": "assets/signs/iv-12.svg",
+    "w": 151.5,
+    "h": 75.9
+   }
   ]
  },
  {
@@ -8179,8 +9219,16 @@
   "ru": "**IV-10**",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_261.svg",
-   "assets/pravilnik/img_262.svg"
+   {
+    "src": "assets/signs/iv-11.svg",
+    "w": 151.5,
+    "h": 75.9
+   },
+   {
+    "src": "assets/signs/iv-12.svg",
+    "w": 69.6,
+    "h": 34.1
+   }
   ]
  },
  {
@@ -8191,8 +9239,16 @@
   "ru": "**IV-11**",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_263.svg",
-   "assets/pravilnik/img_264.svg"
+   {
+    "src": "assets/signs/iv-12.svg",
+    "w": 151.5,
+    "h": 75.9
+   },
+   {
+    "src": "assets/signs/iv-13.svg",
+    "w": 25.7,
+    "h": 11.4
+   }
   ]
  },
  {
@@ -8203,8 +9259,16 @@
   "ru": "**IV-12**",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_265.svg",
-   "assets/pravilnik/img_266.svg"
+   {
+    "src": "assets/signs/iv-13.svg",
+    "w": 151.5,
+    "h": 75.9
+   },
+   {
+    "src": "assets/signs/iv-14.svg",
+    "w": 70.6,
+    "h": 35.5
+   }
   ]
  },
  {
@@ -8215,8 +9279,16 @@
   "ru": "**IV-13**",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_267.svg",
-   "assets/pravilnik/img_268.svg"
+   {
+    "src": "assets/signs/iv-14.svg",
+    "w": 151.5,
+    "h": 75.9
+   },
+   {
+    "src": "assets/signs/iv-15.svg",
+    "w": 68.9,
+    "h": 32.9
+   }
   ]
  },
  {
@@ -8227,7 +9299,11 @@
   "ru": "**IV-14**",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_269.svg"
+   {
+    "src": "assets/signs/iv-15.svg",
+    "w": 151.5,
+    "h": 75.9
+   }
   ]
  },
  {
@@ -8238,8 +9314,16 @@
   "ru": "**IV-15**",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_270.svg",
-   "assets/pravilnik/img_271.svg"
+   {
+    "src": "assets/signs/iv-16.svg",
+    "w": 151.5,
+    "h": 75.9
+   },
+   {
+    "src": "assets/signs/iv-17.svg",
+    "w": 69.9,
+    "h": 32.9
+   }
   ]
  },
  {
@@ -8298,7 +9382,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_272.svg"
+   {
+    "src": "assets/pravilnik/img_272.svg",
+    "w": 141.1,
+    "h": 70.7
+   }
   ]
  },
  {
@@ -8325,8 +9413,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_273.png",
-   "assets/pravilnik/img_274.png"
+   {
+    "src": "assets/pravilnik/img_273.png",
+    "w": 123.9,
+    "h": 188.5
+   },
+   {
+    "src": "assets/pravilnik/img_274.png",
+    "w": 150.9,
+    "h": 75.5
+   }
   ]
  },
  {
@@ -8361,7 +9457,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_275.svg"
+   {
+    "src": "assets/signs/iv-21.svg",
+    "w": 132.8,
+    "h": 66.3
+   }
   ]
  },
  {
@@ -8388,8 +9488,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_276.png",
-   "assets/pravilnik/img_277.svg"
+   {
+    "src": "assets/pravilnik/img_276.png",
+    "w": 86.2,
+    "h": 86
+   },
+   {
+    "src": "assets/pravilnik/img_277.svg",
+    "w": 85.7,
+    "h": 42.7
+   }
   ]
  },
  {
@@ -8416,7 +9524,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_278.svg"
+   {
+    "src": "assets/signs/iv-23.svg",
+    "w": 112.3,
+    "h": 112.3
+   }
   ]
  },
  {
@@ -9003,7 +10115,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_279.png"
+   {
+    "src": "assets/pravilnik/img_279.png",
+    "w": 419.2,
+    "h": 119
+   }
   ]
  },
  {
@@ -9046,7 +10162,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_280.jpeg"
+   {
+    "src": "assets/pravilnik/img_280.jpeg",
+    "w": 478.1,
+    "h": 121
+   }
   ]
  },
  {
@@ -9121,7 +10241,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_281.png"
+   {
+    "src": "assets/pravilnik/img_281.png",
+    "w": 401,
+    "h": 105
+   }
   ]
  },
  {
@@ -9148,7 +10272,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_282.png"
+   {
+    "src": "assets/pravilnik/img_282.png",
+    "w": 349.2,
+    "h": 193
+   }
   ]
  },
  {
@@ -9167,7 +10295,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_283.png"
+   {
+    "src": "assets/pravilnik/img_283.png",
+    "w": 339,
+    "h": 148
+   }
   ]
  },
  {
@@ -9234,7 +10366,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_284.jpeg"
+   {
+    "src": "assets/pravilnik/img_284.jpeg",
+    "w": 542.4,
+    "h": 108
+   }
   ]
  },
  {
@@ -9261,7 +10397,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_285.png"
+   {
+    "src": "assets/pravilnik/img_285.png",
+    "w": 492,
+    "h": 104
+   }
   ]
  },
  {
@@ -9296,7 +10436,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_286.jpeg"
+   {
+    "src": "assets/pravilnik/img_286.jpeg",
+    "w": 467.2,
+    "h": 118.7
+   }
   ]
  },
  {
@@ -9331,7 +10475,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_287.png"
+   {
+    "src": "assets/pravilnik/img_287.png",
+    "w": 335.9,
+    "h": 139
+   }
   ]
  },
  {
@@ -9350,7 +10498,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_288.jpeg"
+   {
+    "src": "assets/pravilnik/img_288.jpeg",
+    "w": 464.1,
+    "h": 72
+   }
   ]
  },
  {
@@ -9377,7 +10529,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_289.png"
+   {
+    "src": "assets/pravilnik/img_289.png",
+    "w": 448.6,
+    "h": 75.4
+   }
   ]
  },
  {
@@ -9572,8 +10728,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_290.jpeg",
-   "assets/pravilnik/img_291.png"
+   {
+    "src": "assets/pravilnik/img_290.jpeg",
+    "w": 167.5,
+    "h": 143.2
+   },
+   {
+    "src": "assets/pravilnik/img_291.png",
+    "w": 166.8,
+    "h": 138.6
+   }
   ]
  },
  {
@@ -9592,7 +10756,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_292.png"
+   {
+    "src": "assets/pravilnik/img_292.png",
+    "w": 161.5,
+    "h": 131.7
+   }
   ]
  },
  {
@@ -9651,7 +10819,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_293.png"
+   {
+    "src": "assets/pravilnik/img_293.png",
+    "w": 324.5,
+    "h": 31
+   }
   ]
  },
  {
@@ -9670,7 +10842,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_294.png"
+   {
+    "src": "assets/pravilnik/img_294.png",
+    "w": 336.1,
+    "h": 33
+   }
   ]
  },
  {
@@ -9689,7 +10865,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_295.png"
+   {
+    "src": "assets/pravilnik/img_295.png",
+    "w": 293.9,
+    "h": 92
+   }
   ]
  },
  {
@@ -9724,7 +10904,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_296.png"
+   {
+    "src": "assets/pravilnik/img_296.png",
+    "w": 488.7,
+    "h": 94
+   }
   ]
  },
  {
@@ -9783,7 +10967,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_297.png"
+   {
+    "src": "assets/pravilnik/img_297.png",
+    "w": 221.1,
+    "h": 231
+   }
   ]
  },
  {
@@ -9818,7 +11006,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_298.png"
+   {
+    "src": "assets/pravilnik/img_298.png",
+    "w": 215.2,
+    "h": 235
+   }
   ]
  },
  {
@@ -9933,9 +11125,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_299.png",
-   "assets/pravilnik/img_300.png",
-   "assets/pravilnik/img_301.png"
+   {
+    "src": "assets/pravilnik/img_299.png",
+    "w": 105,
+    "h": 187
+   },
+   {
+    "src": "assets/pravilnik/img_300.png",
+    "w": 161,
+    "h": 199
+   },
+   {
+    "src": "assets/pravilnik/img_301.png",
+    "w": 96.1,
+    "h": 175
+   }
   ]
  },
  {
@@ -9954,8 +11158,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_302.png",
-   "assets/pravilnik/img_303.png"
+   {
+    "src": "assets/pravilnik/img_302.png",
+    "w": 94,
+    "h": 47
+   },
+   {
+    "src": "assets/pravilnik/img_303.png",
+    "w": 233.8,
+    "h": 64
+   }
   ]
  },
  {
@@ -9982,7 +11194,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_304.png"
+   {
+    "src": "assets/pravilnik/img_304.png",
+    "w": 230.3,
+    "h": 37
+   }
   ]
  },
  {
@@ -10033,7 +11249,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_305.jpeg"
+   {
+    "src": "assets/pravilnik/img_305.jpeg",
+    "w": 212,
+    "h": 140.1
+   }
   ]
  },
  {
@@ -10052,7 +11272,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_306.jpeg"
+   {
+    "src": "assets/pravilnik/img_306.jpeg",
+    "w": 227.6,
+    "h": 146.1
+   }
   ]
  },
  {
@@ -10071,7 +11295,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_307.jpeg"
+   {
+    "src": "assets/pravilnik/img_307.jpeg",
+    "w": 409.3,
+    "h": 164.6
+   }
   ]
  },
  {
@@ -10090,7 +11318,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_308.jpeg"
+   {
+    "src": "assets/pravilnik/img_308.jpeg",
+    "w": 271.9,
+    "h": 171
+   }
   ]
  },
  {
@@ -10101,7 +11333,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_309.jpeg"
+   {
+    "src": "assets/pravilnik/img_309.jpeg",
+    "w": 247.9,
+    "h": 133
+   }
   ]
  },
  {
@@ -10128,7 +11364,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_310.jpeg"
+   {
+    "src": "assets/pravilnik/img_310.jpeg",
+    "w": 310.1,
+    "h": 77
+   }
   ]
  },
  {
@@ -10147,7 +11387,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_311.jpeg"
+   {
+    "src": "assets/pravilnik/img_311.jpeg",
+    "w": 335,
+    "h": 82
+   }
   ]
  },
  {
@@ -10182,7 +11426,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_312.png"
+   {
+    "src": "assets/pravilnik/img_312.png",
+    "w": 427,
+    "h": 80
+   }
   ]
  },
  {
@@ -10201,7 +11449,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_313.png"
+   {
+    "src": "assets/pravilnik/img_313.png",
+    "w": 427,
+    "h": 68
+   }
   ]
  },
  {
@@ -10220,7 +11472,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_314.png"
+   {
+    "src": "assets/pravilnik/img_314.png",
+    "w": 453,
+    "h": 103
+   }
   ]
  },
  {
@@ -10263,7 +11519,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_315.png"
+   {
+    "src": "assets/pravilnik/img_315.png",
+    "w": 88,
+    "h": 111
+   }
   ]
  },
  {
@@ -10274,7 +11534,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_316.jpeg"
+   {
+    "src": "assets/pravilnik/img_316.jpeg",
+    "w": 129.1,
+    "h": 112
+   }
   ]
  },
  {
@@ -10285,7 +11549,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_317.jpeg"
+   {
+    "src": "assets/pravilnik/img_317.jpeg",
+    "w": 110.3,
+    "h": 125.6
+   }
   ]
  },
  {
@@ -10296,7 +11564,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_318.jpeg"
+   {
+    "src": "assets/pravilnik/img_318.jpeg",
+    "w": 67,
+    "h": 117
+   }
   ]
  },
  {
@@ -10307,7 +11579,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_319.png"
+   {
+    "src": "assets/pravilnik/img_319.png",
+    "w": 77.1,
+    "h": 69
+   }
   ]
  },
  {
@@ -10350,7 +11626,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_320.jpeg"
+   {
+    "src": "assets/pravilnik/img_320.jpeg",
+    "w": 222,
+    "h": 179
+   }
   ]
  },
  {
@@ -10369,7 +11649,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_321.jpeg"
+   {
+    "src": "assets/pravilnik/img_321.jpeg",
+    "w": 126.1,
+    "h": 136.3
+   }
   ]
  },
  {
@@ -10380,7 +11664,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_322.jpeg"
+   {
+    "src": "assets/pravilnik/img_322.jpeg",
+    "w": 72.7,
+    "h": 95.8
+   }
   ]
  },
  {
@@ -10463,7 +11751,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_323.jpeg"
+   {
+    "src": "assets/pravilnik/img_323.jpeg",
+    "w": 280.1,
+    "h": 32.7
+   }
   ]
  },
  {
@@ -10474,7 +11766,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_324.png"
+   {
+    "src": "assets/pravilnik/img_324.png",
+    "w": 257.8,
+    "h": 68.5
+   }
   ]
  },
  {
@@ -10501,7 +11797,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_325.png"
+   {
+    "src": "assets/pravilnik/img_325.png",
+    "w": 463.1,
+    "h": 39
+   }
   ]
  },
  {
@@ -10520,7 +11820,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_326.png"
+   {
+    "src": "assets/pravilnik/img_326.png",
+    "w": 373.4,
+    "h": 53
+   }
   ]
  },
  {
@@ -10539,7 +11843,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_327.png"
+   {
+    "src": "assets/pravilnik/img_327.png",
+    "w": 426,
+    "h": 100
+   }
   ]
  },
  {
@@ -10574,7 +11882,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_328.png"
+   {
+    "src": "assets/pravilnik/img_328.png",
+    "w": 194.7,
+    "h": 33.5
+   }
   ]
  },
  {
@@ -10585,7 +11897,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_329.jpeg"
+   {
+    "src": "assets/pravilnik/img_329.jpeg",
+    "w": 163.8,
+    "h": 67.2
+   }
   ]
  },
  {
@@ -10596,7 +11912,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_330.png"
+   {
+    "src": "assets/pravilnik/img_330.png",
+    "w": 150.5,
+    "h": 74.8
+   }
   ]
  },
  {
@@ -10647,7 +11967,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_331.jpeg"
+   {
+    "src": "assets/pravilnik/img_331.jpeg",
+    "w": 376.8,
+    "h": 129.1
+   }
   ]
  },
  {
@@ -10946,8 +12270,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_332.jpeg",
-   "assets/pravilnik/img_333.jpeg"
+   {
+    "src": "assets/pravilnik/img_332.jpeg",
+    "w": 40,
+    "h": 136
+   },
+   {
+    "src": "assets/pravilnik/img_333.jpeg",
+    "w": 136.9,
+    "h": 41
+   }
   ]
  },
  {
@@ -10990,7 +12322,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_334.jpeg"
+   {
+    "src": "assets/pravilnik/img_334.jpeg",
+    "w": 444.8,
+    "h": 148.3
+   }
   ]
  },
  {
@@ -11041,7 +12377,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_335.jpeg"
+   {
+    "src": "assets/pravilnik/img_335.jpeg",
+    "w": 485.9,
+    "h": 140
+   }
   ]
  },
  {
@@ -11092,8 +12432,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_336.jpeg",
-   "assets/pravilnik/img_337.jpeg"
+   {
+    "src": "assets/pravilnik/img_336.jpeg",
+    "w": 75,
+    "h": 75
+   },
+   {
+    "src": "assets/pravilnik/img_337.jpeg",
+    "w": 79,
+    "h": 79
+   }
   ]
  },
  {
@@ -11144,7 +12492,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_338.jpeg"
+   {
+    "src": "assets/pravilnik/img_338.jpeg",
+    "w": 76.1,
+    "h": 79.2
+   }
   ]
  },
  {
@@ -11203,7 +12555,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_339.jpeg"
+   {
+    "src": "assets/pravilnik/img_339.jpeg",
+    "w": 40,
+    "h": 135
+   }
   ]
  },
  {
@@ -11270,7 +12626,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_340.jpeg"
+   {
+    "src": "assets/pravilnik/img_340.jpeg",
+    "w": 50,
+    "h": 120.2
+   }
   ]
  },
  {
@@ -11329,7 +12689,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_341.jpeg"
+   {
+    "src": "assets/pravilnik/img_341.jpeg",
+    "w": 538.4,
+    "h": 101
+   }
   ]
  },
  {
@@ -11348,7 +12712,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_342.jpeg"
+   {
+    "src": "assets/pravilnik/img_342.jpeg",
+    "w": 261.1,
+    "h": 100
+   }
   ]
  },
  {
@@ -11367,7 +12735,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_343.jpeg"
+   {
+    "src": "assets/pravilnik/img_343.jpeg",
+    "w": 296.7,
+    "h": 165.3
+   }
   ]
  },
  {
@@ -11418,7 +12790,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_344.jpeg"
+   {
+    "src": "assets/pravilnik/img_344.jpeg",
+    "w": 81,
+    "h": 78.8
+   }
   ]
  },
  {
@@ -11485,7 +12861,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_345.svg"
+   {
+    "src": "assets/pravilnik/img_345.svg",
+    "w": 127.8,
+    "h": 112.7
+   }
   ]
  },
  {
@@ -11536,8 +12916,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_346.jpeg",
-   "assets/pravilnik/img_347.jpeg"
+   {
+    "src": "assets/pravilnik/img_346.jpeg",
+    "w": 41,
+    "h": 103
+   },
+   {
+    "src": "assets/pravilnik/img_347.jpeg",
+    "w": 103.1,
+    "h": 45
+   }
   ]
  },
  {
@@ -11596,7 +12984,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_348.jpeg"
+   {
+    "src": "assets/pravilnik/img_348.jpeg",
+    "w": 203.9,
+    "h": 144.5
+   }
   ]
  },
  {
@@ -11623,7 +13015,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_349.jpeg"
+   {
+    "src": "assets/pravilnik/img_349.jpeg",
+    "w": 115.8,
+    "h": 168.9
+   }
   ]
  },
  {
@@ -11650,7 +13046,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_350.jpeg"
+   {
+    "src": "assets/pravilnik/img_350.jpeg",
+    "w": 48,
+    "h": 151.7
+   }
   ]
  },
  {
@@ -11781,8 +13181,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_351.svg",
-   "assets/pravilnik/img_352.svg"
+   {
+    "src": "assets/pravilnik/img_351.svg",
+    "w": 228.9,
+    "h": 151.7
+   },
+   {
+    "src": "assets/pravilnik/img_352.svg",
+    "w": 224.7,
+    "h": 151.7
+   }
   ]
  },
  {
@@ -11817,8 +13225,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_353.svg",
-   "assets/pravilnik/img_354.svg"
+   {
+    "src": "assets/pravilnik/img_353.svg",
+    "w": 226.1,
+    "h": 151.7
+   },
+   {
+    "src": "assets/pravilnik/img_354.svg",
+    "w": 226.1,
+    "h": 151.7
+   }
   ]
  },
  {
@@ -11901,8 +13317,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_355.svg",
-   "assets/pravilnik/img_356.svg"
+   {
+    "src": "assets/pravilnik/img_355.svg",
+    "w": 250.3,
+    "h": 151.6
+   },
+   {
+    "src": "assets/pravilnik/img_356.svg",
+    "w": 249.4,
+    "h": 151.3
+   }
   ]
  },
  {
@@ -11937,7 +13361,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_357.jpeg"
+   {
+    "src": "assets/pravilnik/img_357.jpeg",
+    "w": 81,
+    "h": 151.2
+   }
   ]
  },
  {
@@ -11948,7 +13376,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_358.jpeg"
+   {
+    "src": "assets/pravilnik/img_358.jpeg",
+    "w": 81,
+    "h": 151.2
+   }
   ]
  },
  {
@@ -12015,7 +13447,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_359.svg"
+   {
+    "src": "assets/pravilnik/img_359.svg",
+    "w": 390.3,
+    "h": 22.3
+   }
   ]
  },
  {
@@ -12042,7 +13478,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_360.svg"
+   {
+    "src": "assets/pravilnik/img_360.svg",
+    "w": 253.7,
+    "h": 75.7
+   }
   ]
  },
  {
@@ -12077,7 +13517,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_361.svg"
+   {
+    "src": "assets/pravilnik/img_361.svg",
+    "w": 91.3,
+    "h": 151.7
+   }
   ]
  },
  {
@@ -12112,7 +13556,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_362.svg"
+   {
+    "src": "assets/pravilnik/img_362.svg",
+    "w": 238.1,
+    "h": 75.9
+   }
   ]
  },
  {
@@ -12139,7 +13587,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_363.svg"
+   {
+    "src": "assets/pravilnik/img_363.svg",
+    "w": 329.2,
+    "h": 151.1
+   }
   ]
  },
  {
@@ -12166,8 +13618,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_364.svg",
-   "assets/pravilnik/img_365.svg"
+   {
+    "src": "assets/pravilnik/img_364.svg",
+    "w": 56.1,
+    "h": 106.7
+   },
+   {
+    "src": "assets/pravilnik/img_365.svg",
+    "w": 56.1,
+    "h": 106.7
+   }
   ]
  },
  {
@@ -12194,7 +13654,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_366.svg"
+   {
+    "src": "assets/pravilnik/img_366.svg",
+    "w": 253.5,
+    "h": 174.9
+   }
   ]
  },
  {
@@ -12237,7 +13701,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_367.svg"
+   {
+    "src": "assets/pravilnik/img_367.svg",
+    "w": 152.5,
+    "h": 217.6
+   }
   ]
  },
  {
@@ -12280,7 +13748,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_368.png"
+   {
+    "src": "assets/pravilnik/img_368.png",
+    "w": 217.2,
+    "h": 59
+   }
   ]
  },
  {
@@ -12475,7 +13947,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_369.svg"
+   {
+    "src": "assets/pravilnik/img_369.svg",
+    "w": 382.7,
+    "h": 267.9
+   }
   ]
  },
  {
@@ -12590,10 +14066,26 @@
   "ru": "Расстояние между краем проезжей части и наиболее выступающим краем дорожных знаков, устанавливаемых на пешеходных зонах, составляет от 0,30м до 1,5м.",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_370.svg",
-   "assets/pravilnik/img_371.svg",
-   "assets/pravilnik/img_372.svg",
-   "assets/pravilnik/img_373.svg"
+   {
+    "src": "assets/pravilnik/img_370.svg",
+    "w": 0.1,
+    "h": 53.6
+   },
+   {
+    "src": "assets/pravilnik/img_371.svg",
+    "w": 248.1,
+    "h": 304.7
+   },
+   {
+    "src": "assets/pravilnik/img_372.svg",
+    "w": 20.1,
+    "h": 80.4
+   },
+   {
+    "src": "assets/pravilnik/img_373.svg",
+    "w": 20.7,
+    "h": 79.2
+   }
   ]
  },
  {
@@ -12604,10 +14096,26 @@
   "ru": "1. На открытой дороге, и на перекрестках в населенных пунктах вне пешеходных зон",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_374.svg",
-   "assets/pravilnik/img_375.svg",
-   "assets/pravilnik/img_376.svg",
-   "assets/pravilnik/img_377.svg"
+   {
+    "src": "assets/pravilnik/img_374.svg",
+    "w": 291.7,
+    "h": 284.5
+   },
+   {
+    "src": "assets/pravilnik/img_375.svg",
+    "w": 11.7,
+    "h": 11.3
+   },
+   {
+    "src": "assets/pravilnik/img_376.svg",
+    "w": 11.7,
+    "h": 62.1
+   },
+   {
+    "src": "assets/pravilnik/img_377.svg",
+    "w": 17.9,
+    "h": 16.1
+   }
   ]
  },
  {
@@ -12914,7 +14422,11 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_378.jpeg"
+   {
+    "src": "assets/pravilnik/img_378.jpeg",
+    "w": 181.5,
+    "h": 196.3
+   }
   ]
  },
  {
@@ -13245,9 +14757,21 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_379.svg",
-   "assets/pravilnik/img_380.svg",
-   "assets/pravilnik/img_381.svg"
+   {
+    "src": "assets/pravilnik/img_379.svg",
+    "w": 13.4,
+    "h": 38.5
+   },
+   {
+    "src": "assets/pravilnik/img_380.svg",
+    "w": 13,
+    "h": 34.1
+   },
+   {
+    "src": "assets/pravilnik/img_381.svg",
+    "w": 13,
+    "h": 37.9
+   }
   ]
  },
  {
@@ -13322,8 +14846,16 @@
   "ru": "Если светофоры устанавливаются над проезжей частью (консоль, портал), нижний край светофора не должен находиться на высоте менее 4,5 м над проезжей частью.",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_382.svg",
-   "assets/pravilnik/img_383.svg"
+   {
+    "src": "assets/pravilnik/img_382.svg",
+    "w": 214.3,
+    "h": 298.7
+   },
+   {
+    "src": "assets/pravilnik/img_383.svg",
+    "w": 207.3,
+    "h": 293.3
+   }
   ]
  },
  {
@@ -13334,8 +14866,16 @@
   "ru": "",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_384.svg",
-   "assets/pravilnik/img_385.svg"
+   {
+    "src": "assets/pravilnik/img_384.svg",
+    "w": 381.3,
+    "h": 243.3
+   },
+   {
+    "src": "assets/pravilnik/img_385.svg",
+    "w": 24.9,
+    "h": 51.7
+   }
   ]
  },
  {
@@ -13346,9 +14886,21 @@
   "ru": "Столб светофора устанавливается на расстоянии не менее 3 м от линии остановки.",
   "isTitle": false,
   "images": [
-   "assets/pravilnik/img_386.svg",
-   "assets/pravilnik/img_387.svg",
-   "assets/pravilnik/img_388.svg"
+   {
+    "src": "assets/pravilnik/img_386.svg",
+    "w": 378.1,
+    "h": 242
+   },
+   {
+    "src": "assets/pravilnik/img_387.svg",
+    "w": 11.3,
+    "h": 28.7
+   },
+   {
+    "src": "assets/pravilnik/img_388.svg",
+    "w": 11.3,
+    "h": 31.3
+   }
   ]
  },
  {

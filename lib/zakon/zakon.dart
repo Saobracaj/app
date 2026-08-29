@@ -11,6 +11,7 @@ import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:saobracaj/data/zakon_o_bezbednosti_data_source.dart';
 import 'package:saobracaj/zakon/domain/law_document.dart';
+import 'package:saobracaj/zakon/presentation/road_sign_viewer.dart';
 import 'package:saobracaj/zakon/domain/zakon_contents.dart';
 import 'package:saobracaj/zakon/state_management/zakon_bloc.dart';
 import 'package:flutter/services.dart';
@@ -281,7 +282,7 @@ class _Paragraph extends StatelessWidget {
 class _ParagraphImages extends StatelessWidget {
   const _ParagraphImages({required this.images});
 
-  final List<String> images;
+  final List<ParagraphImage> images;
 
   @override
   Widget build(BuildContext context) {
@@ -295,17 +296,37 @@ class _ParagraphImages extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              for (final (i, path) in images.indexed) ...[
+              for (final (i, image) in images.indexed) ...[
                 if (i > 0) const SizedBox(width: 16),
-                path.endsWith('.svg')
-                    ? SvgPicture.asset(path)
-                    : Image.asset(path),
+                _paragraphImage(image),
               ],
             ],
           ),
         ),
       ),
     );
+  }
+
+  /// Официальный знак (общий файл с конспектами, assets/signs/<код>.svg)
+  /// открывается по нажатию крупно; извлечённые из docx рисунки — просто
+  /// картинки. Размер — всегда как на странице документа.
+  static Widget _paragraphImage(ParagraphImage image) {
+    final src = image.src;
+    const signsPrefix = 'assets/signs/';
+    if (src.startsWith(signsPrefix)) {
+      final code = src.substring(signsPrefix.length).replaceAll('.svg', '');
+      return TappableRoadSign(
+        code,
+        width: image.w,
+        height: image.h,
+        // Ссылка «Открыть в правилнике» отсюда вела бы на уже открытый
+        // документ.
+        showPravilnikLink: false,
+      );
+    }
+    return src.endsWith('.svg')
+        ? SvgPicture.asset(src, width: image.w, height: image.h)
+        : Image.asset(src, width: image.w, height: image.h);
   }
 }
 
