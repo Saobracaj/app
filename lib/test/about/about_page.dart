@@ -50,6 +50,12 @@ class AboutContent extends StatelessWidget {
             Routemaster.of(context).push('/zakon');
           },
         ),
+        ListTile(
+          title: const Text('ПРАВИЛНИК О САОБРАЋАЈНОЈ СИГНАЛИЗАЦИЈИ'),
+          onTap: () {
+            Routemaster.of(context).push('/pravilnik');
+          },
+        ),
       ],
     );
   }

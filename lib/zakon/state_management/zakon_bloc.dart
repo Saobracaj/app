@@ -10,8 +10,15 @@ class ZakonBloc extends Bloc<ZakonEvent, ZakonState> {
   final String? paragraph;
   final String? chlan;
   final String? chapter;
+  final ZakonDataSource dataSource;
 
-  ZakonBloc(this.paragraph, this.chlan, this.chapter) : super(ZakonState()) {
+  ZakonBloc(
+    this.paragraph,
+    this.chlan,
+    this.chapter, {
+    ZakonDataSource? dataSource,
+  }) : dataSource = dataSource ?? zakonOBezbednostiDataSource,
+       super(ZakonState()) {
     on<Load>(_onLoad);
     on<ToggleLang>(_onToggleLang);
     on<ScrollTo>(_onScrollTo);
@@ -19,7 +26,7 @@ class ZakonBloc extends Bloc<ZakonEvent, ZakonState> {
   }
 
   void _onLoad(Load event, Emitter<ZakonState> emit) async {
-    final paragraphs = await zakonOBezbednostiDataSource.paragraphs;
+    final paragraphs = await dataSource.paragraphs;
     emit(state.copyWith(zakon: paragraphs));
     if (paragraph != null || chlan != null || chapter != null) {
       add(ScrollTo(paragraph, chlan, chapter));
