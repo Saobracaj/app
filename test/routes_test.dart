@@ -35,6 +35,8 @@ const _externalLinks = [
   'https://saobracaj.gleb.at/groups/g1/feed',
   'https://saobracaj.gleb.at/konspekt?category=25',
   'https://saobracaj.gleb.at/zakon',
+  'https://saobracaj.gleb.at/pravilnik',
+  'https://saobracaj.gleb.at/pravilnik?chapter=II&chlan=13&paragraph=5',
   'https://saobracaj.gleb.at/lists/my-list',
   'https://saobracaj.gleb.at/statistics',
   'https://saobracaj.gleb.at/about',

@@ -153,6 +153,10 @@ flutter:
      - assets/translations/
      - assets/dict/
      - assets/parsed_zakon.json
+     # Правилник о саобраћајној сигнализацији: JSON и векторные знаки собраны
+     # из docx скриптом tool/parse_pravilnik.py — перегенерировать, не править.
+     - assets/parsed_pravilnik.json
+     - assets/pravilnik/
      - assets/md_img/
 
   # Inter, bundled rather than fetched at runtime: the quiz works offline, so

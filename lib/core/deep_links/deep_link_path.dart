@@ -32,6 +32,9 @@ const _linkableRoots = {
   'groups',
   'konspekt',
   'zakon',
+  // «Правилник о саобраћајној сигнализацији» — ссылки того же вида, что и на
+  // закон: /pravilnik?chapter=…&chlan=…&paragraph=….
+  'pravilnik',
   'lists',
   'questions',
   'statistics',

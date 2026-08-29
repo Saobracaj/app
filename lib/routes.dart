@@ -42,6 +42,7 @@ import 'package:saobracaj/core/presentation/not_found_page.dart';
 import 'package:saobracaj/core/presentation/panel_page.dart';
 import 'package:saobracaj/test/quest/quest.dart';
 import 'package:saobracaj/test/start_test.dart';
+import 'package:saobracaj/zakon/domain/law_document.dart';
 import 'package:saobracaj/zakon/zakon.dart';
 
 /// The screens a question can be opened on: every one of them hosts the same
@@ -189,6 +190,9 @@ final routes = RouteMap(
     ),
     '/about': (_) => MaterialPage(child: AboutPage()),
     '/zakon': zakonPage,
+    // «Правилник о саобраћајној сигнализацији» — тот же просмотрщик, что и у
+    // закона, со ссылками вида /pravilnik?chlan=…&paragraph=….
+    '/pravilnik': pravilnikPage,
     // Deep link to a category konspekt, optionally straight to one section:
     // /konspekt?category=25&section=manevri
     '/konspekt': konspektPage,
@@ -376,6 +380,15 @@ MaterialPage commentEditPage(dynamic data) => MaterialPage(
 
 MaterialPage zakonPage(dynamic params) => MaterialPage(
   child: Zakon(
+    paragraph: params.queryParameters['paragraph'],
+    chapter: params.queryParameters['chapter'],
+    chlan: params.queryParameters['chlan'],
+  ),
+);
+
+MaterialPage pravilnikPage(dynamic params) => MaterialPage(
+  child: Zakon(
+    document: LawDocument.pravilnik,
     paragraph: params.queryParameters['paragraph'],
     chapter: params.queryParameters['chapter'],
     chlan: params.queryParameters['chlan'],

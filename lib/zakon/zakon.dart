@@ -8,7 +8,9 @@ import 'package:saobracaj/core/presentation/translation_chip.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:saobracaj/data/zakon_o_bezbednosti_data_source.dart';
+import 'package:saobracaj/zakon/domain/law_document.dart';
 import 'package:saobracaj/zakon/domain/zakon_contents.dart';
 import 'package:saobracaj/zakon/state_management/zakon_bloc.dart';
 import 'package:flutter/services.dart';
@@ -22,11 +24,16 @@ class Zakon extends StatefulWidget {
     this.chlan,
     this.chapter,
     this.asPanel = false,
+    this.document = LawDocument.zakonOBezbednosti,
   });
 
   final String? paragraph;
   final String? chlan;
   final String? chapter;
+
+  /// Какой документ показан: закон (по умолчанию) или правилник — тот же
+  /// виджет, оглавление и ссылки, различаются только данные и заголовок.
+  final LawDocument document;
 
   /// Закон показан выдвижной боковой панелью (см. `openZakon`), а не
   /// страницей: шапку закрывает крестик, а не стрелка «назад», и заголовок
@@ -54,8 +61,12 @@ class _ZakonState extends State<Zakon> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          ZakonBloc(widget.paragraph, widget.chlan, widget.chapter),
+      create: (context) => ZakonBloc(
+        widget.paragraph,
+        widget.chlan,
+        widget.chapter,
+        dataSource: widget.document.dataSource,
+      ),
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: !widget.asPanel,
@@ -67,7 +78,7 @@ class _ZakonState extends State<Zakon> {
                 )
               : null,
           title: Text(
-            'ЗАКОН о безбедности саобраћаја на путевима',
+            widget.document.title,
             style: widget.asPanel
                 ? Theme.of(context).textTheme.titleSmall
                 : null,
@@ -75,17 +86,18 @@ class _ZakonState extends State<Zakon> {
           actions: [
             // Та же кнопка «РУ», что и на экране вопроса (вместо прежней
             // безликой иконки translate); isSr — сербский, т.е. перевод выкл.
-            FeatureGate(
-              feature: AppFeature.russianContent,
-              child: BlocBuilder<ZakonBloc, ZakonState>(
-                builder: (context, state) {
-                  return TranslationChip(
-                    on: !state.isSr,
-                    onTap: () => context.read<ZakonBloc>().add(ToggleLang()),
-                  );
-                },
+            if (widget.document.hasTranslation)
+              FeatureGate(
+                feature: AppFeature.russianContent,
+                child: BlocBuilder<ZakonBloc, ZakonState>(
+                  builder: (context, state) {
+                    return TranslationChip(
+                      on: !state.isSr,
+                      onTap: () => context.read<ZakonBloc>().add(ToggleLang()),
+                    );
+                  },
+                ),
               ),
-            ),
             const SizedBox(width: 8),
           ],
         ),
@@ -143,6 +155,7 @@ class _ZakonState extends State<Zakon> {
                 return _Paragraph(
                   paragraph: state.zakon[index],
                   isSerbian: state.isSr,
+                  linkPath: widget.document.linkPath,
                 );
               },
             );
@@ -171,10 +184,17 @@ class _ZakonState extends State<Zakon> {
 }
 
 class _Paragraph extends StatelessWidget {
-  const _Paragraph({required this.paragraph, required this.isSerbian});
+  const _Paragraph({
+    required this.paragraph,
+    required this.isSerbian,
+    required this.linkPath,
+  });
 
   final BezbParagraph paragraph;
   final bool isSerbian;
+
+  /// Путь документа для копируемой ссылки ('/zakon' или '/pravilnik').
+  final String linkPath;
 
   @override
   Widget build(BuildContext context) {
@@ -203,15 +223,24 @@ class _Paragraph extends StatelessWidget {
     } else if (paragraph.isChlan) {
       text = '## $text';
     }
+    final body = Markdown(
+      data: text.split('<sup>').join('').split('</sup>').join(''),
+      shrinkWrap: true,
+      selectable: false,
+      physics: NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    );
     return InkWell(
       onTap: () => _onTap(context),
-      child: Markdown(
-        data: text.split('<sup>').join('').split('</sup>').join(''),
-        shrinkWrap: true,
-        selectable: false,
-        physics: NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      ),
+      child: paragraph.images.isEmpty
+          ? body
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (text.trim().isNotEmpty) body,
+                _ParagraphImages(images: paragraph.images),
+              ],
+            ),
     );
   }
 
@@ -230,7 +259,7 @@ class _Paragraph extends StatelessWidget {
       queryParameters['paragraph'] = paragraph.paragraph;
     }
 
-    final uri = appLink('/zakon', queryParameters);
+    final uri = appLink(linkPath, queryParameters);
 
     Clipboard.setData(ClipboardData(text: uri.toString())).then((_) {
       if (!context.mounted) return;
@@ -238,6 +267,40 @@ class _Paragraph extends StatelessWidget {
         context,
       ).showSnackBar(SnackBar(content: Text('Link is copied to clipboard')));
     });
+  }
+}
+
+/// Изображения строки правилника (дорожные знаки, рисунки): в один ряд, в
+/// натуральную величину из документа, а если ряд шире колонки — ужимаются,
+/// чтобы ничего не обрезалось.
+class _ParagraphImages extends StatelessWidget {
+  const _ParagraphImages({required this.images});
+
+  final List<String> images;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              for (final (i, path) in images.indexed) ...[
+                if (i > 0) const SizedBox(width: 16),
+                path.endsWith('.svg')
+                    ? SvgPicture.asset(path)
+                    : Image.asset(path),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
