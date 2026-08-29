@@ -9,9 +9,17 @@
 (фотографии, разметка) копируются как есть из word/media.
 
 JSON повторяет схему assets/parsed_zakon.json (chapter/chlan/paragraph/sr/ru/
-isTitle) и добавляет опциональное поле images — список ассетов, показываемых
-под текстом строки. Адресация строк (chapter+chlan+paragraph) даёт те же
-ссылки, что и в законе: /pravilnik?chapter=…&chlan=…&paragraph=…
+isTitle) и добавляет опциональное поле images — список изображений строки
+({src, w, h}; w/h — размер из docx в px, чтобы приложение показывало рисунок
+в натуральную величину документа). Адресация строк (chapter+chlan+paragraph)
+даёт те же ссылки, что и в законе: /pravilnik?chapter=…&chlan=…&paragraph=…
+
+Знак, у которого уже есть официальный SVG в assets/signs/ (см.
+lib/test/animations/road_sign.dart), показывается из этого файла и здесь:
+после разбора пары «картинка ↔ код знака» восстанавливаются по строкам-
+подписям «**I-1**», src заменяется на assets/signs/<код>.svg, а оставшийся
+без ссылок извлечённый файл не сохраняется. Так у знака один файл на всё
+приложение — и в конспектах, и в правилнике.
 
 Запуск из корня app/:  python3 tool/parse_pravilnik.py
 """
@@ -32,6 +40,7 @@ A = '{http://schemas.openxmlformats.org/drawingml/2006/main}'
 PIC = '{http://schemas.openxmlformats.org/drawingml/2006/picture}'
 WPG = '{http://schemas.microsoft.com/office/word/2010/wordprocessingGroup}'
 WPS = '{http://schemas.microsoft.com/office/word/2010/wordprocessingShape}'
+WP = '{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}'
 R = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -427,7 +436,18 @@ class Parser:
                     continue
                 data, ext = self.media[payload]
                 name = self._store(data, ext)
-            images.append(f'assets/pravilnik/{name}')
+            img = {'src': f'assets/pravilnik/{name}'}
+            # Размер рисунка на странице docx: приложение показывает картинку
+            # в этих px, а не в собственных размерах файла (официальные SVG
+            # знаков огромные и без w/h раздули бы колонку).
+            extent = drawing.find('.//' + WP + 'extent')
+            if extent is not None:
+                w = round(emu(extent.get('cx')) / EMU_PER_PX, 1)
+                h = round(emu(extent.get('cy')) / EMU_PER_PX, 1)
+                if w and h:
+                    img['w'] = int(w) if float(w).is_integer() else w
+                    img['h'] = int(h) if float(h).is_integer() else h
+            images.append(img)
         return images
 
     def _store(self, data, ext):
@@ -440,6 +460,63 @@ class Parser:
             f.write(data)
         self.assets[digest] = name
         return name
+
+
+# Строка-подпись под знаками: только коды, выделенные жирным. Обычно код
+# один («**I-1**»), но бывают и слипшиеся («**III-65III-65.1**»), и с лишним
+# пробелом внутри («**III -24.1**»).
+SIGN_CAPTION_RE = re.compile(r'^\*\*(?:[IVX]{1,3}\s*-\s*\d+(?:\.\d+)*\s*)+\*\*$')
+SIGN_CODE_IN_CAPTION_RE = re.compile(r'[IVX]{1,3}\s*-\s*\d+(?:\.\d+)*')
+
+
+def caption_codes(sr):
+    """Коды строки-подписи (без пробелов внутри кода); пусто — не подпись."""
+    text = (sr or '').strip()
+    if not SIGN_CAPTION_RE.match(text):
+        return []
+    return [re.sub(r'\s', '', m) for m in SIGN_CODE_IN_CAPTION_RE.findall(text)]
+
+
+def dedupe_signs(rows):
+    """Заменяет извлечённые из docx знаки официальными SVG из assets/signs/.
+
+    Пары «картинка ↔ код» читаются из самого документа: за строкой с
+    картинками идут строки-подписи «**I-1**», по одной на картинку и в том же
+    порядке (пары берутся только при точном совпадении количества). Замена
+    применяется по имени файла ко всем строкам: одинаковые рисунки docx уже
+    слиты в один файл по хэшу, так что это тот же знак.
+    """
+    mapping = {}  # 'assets/pravilnik/img_NNN.svg' -> 'assets/signs/<код>.svg'
+    for i, row in enumerate(rows):
+        imgs = row.get('images')
+        if not imgs:
+            continue
+        codes = []
+        j = i + 1
+        while j < len(rows) and len(codes) < len(imgs):
+            row_codes = caption_codes(rows[j]['sr'])
+            if not row_codes:
+                break
+            codes.extend(row_codes)
+            j += 1
+        if len(codes) != len(imgs):
+            continue
+        for img, code in zip(imgs, codes):
+            official = f'assets/signs/{code.lower()}.svg'
+            if not os.path.exists(os.path.join(ROOT, official)):
+                continue
+            # Один и тот же файл (рисунки слиты по хэшу) обязан выходить на
+            # один и тот же код — противоречие значит сбитую привязку.
+            assert mapping.get(img['src'], official) == official, \
+                f"{img['src']}: {mapping[img['src']]} vs {official}"
+            mapping[img['src']] = official
+    replaced = 0
+    for row in rows:
+        for img in row.get('images', []):
+            if img['src'] in mapping:
+                img['src'] = mapping[img['src']]
+                replaced += 1
+    return len(mapping), replaced
 
 
 def main():
@@ -466,6 +543,17 @@ def main():
 
     parser = Parser(doc_root, media, Numbering(numbering_xml))
     rows = parser.run()
+
+    n_official, n_replaced = dedupe_signs(rows)
+    # Файлы, оставшиеся без ссылок после замены на официальные SVG.
+    referenced = {img['src'] for r in rows for img in r.get('images', [])}
+    pruned = 0
+    for name in os.listdir(OUT_DIR):
+        if f'assets/pravilnik/{name}' not in referenced:
+            os.remove(os.path.join(OUT_DIR, name))
+            pruned += 1
+    print(f'официальных знаков: {n_official} (ссылок заменено: {n_replaced}, '
+          f'файлов удалено: {pruned})')
 
     # Русский перевод живёт только в собранном JSON (собран
     # tool/pravilnik_ru/merge_ru.py) — переносим его на новые строки по

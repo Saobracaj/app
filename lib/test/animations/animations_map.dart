@@ -18,7 +18,7 @@ import 'package:saobracaj/test/animations/propustanje.dart';
 import 'package:saobracaj/test/animations/propustanje_vozila_s_prvenstvom.dart';
 import 'package:saobracaj/test/animations/pruzni_prelaz.dart';
 import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
-import 'package:saobracaj/test/animations/road_sign.dart';
+import 'package:saobracaj/zakon/presentation/road_sign_viewer.dart';
 import 'package:saobracaj/test/animations/skala_alkohola.dart';
 import 'package:saobracaj/test/animations/sta_sme_kategorija_b.dart';
 import 'package:saobracaj/test/animations/trake_pred_prugom.dart';
@@ -146,15 +146,16 @@ final _animations = {
 Widget getAnimation(String animationName) {
   // `sign-<номер>` — официальный SVG знака из assets/signs/ (см.
   // road_sign.dart); конспекты вставляют их маркером `anim/sign-ii-2`.
+  // Нажатие открывает знак крупно, с описанием из правилника.
   if (animationName.startsWith('sign-')) {
     final sign = animationName.substring('sign-'.length);
     // Дополнительные таблички (группа IV) масштабируются по ширине: их SVG —
     // либо широкая табличка, либо высокая композиция «знак + табличка», и при
     // общей высоте 48 сама табличка выходит нечитаемо мелкой.
     if (sign.startsWith('iv-')) {
-      return RoadSignSvg(sign, width: 110);
+      return TappableRoadSign(sign, width: 110);
     }
-    return RoadSignSvg(sign, height: 48);
+    return TappableRoadSign(sign, height: 48);
   }
   return _animations[animationName] ?? Text('Animation not found');
 }

@@ -1102,6 +1102,9 @@
   "zakon": {
     "contents": "Sadržaj"
   },
+  "roadSign": {
+    "openInPravilnik": "Otvori u pravilniku"
+  },
   "interactiveAnimation": {
     "pause": "Паузирај анимацију",
     "play": "Настави анимацију",

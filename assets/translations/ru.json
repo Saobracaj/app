@@ -1115,6 +1115,9 @@
   "zakon": {
     "contents": "Содержание"
   },
+  "roadSign": {
+    "openInPravilnik": "Открыть в правилнике"
+  },
   "interactiveAnimation": {
     "pause": "Приостановить анимацию",
     "play": "Продолжить анимацию",

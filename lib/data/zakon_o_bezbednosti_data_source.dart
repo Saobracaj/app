@@ -47,9 +47,24 @@ abstract class BezbParagraph with _$BezbParagraph {
     String? sr,
     String? ru,
     @Default(false) isTitle,
-    // Ассеты, показываемые под текстом строки (знаки и рисунки правилника).
-    @Default(<String>[]) List<String> images,
+    // Изображения, показываемые под текстом строки (знаки и рисунки
+    // правилника).
+    @Default(<ParagraphImage>[]) List<ParagraphImage> images,
   }) = _BezbParagraph;
 
   factory BezbParagraph.fromJson(Map<String, dynamic> json) => _$BezbParagraphFromJson(json);
+}
+
+/// Изображение строки правилника. [w]×[h] — размер рисунка на странице docx
+/// (px): официальные SVG знаков из assets/signs/ огромны в собственных
+/// координатах, и без размера документа раздули бы колонку.
+@freezed
+abstract class ParagraphImage with _$ParagraphImage {
+  const factory ParagraphImage({
+    required String src,
+    double? w,
+    double? h,
+  }) = _ParagraphImage;
+
+  factory ParagraphImage.fromJson(Map<String, dynamic> json) => _$ParagraphImageFromJson(json);
 }
