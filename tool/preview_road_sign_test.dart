@@ -58,6 +58,7 @@ void main() {
     Directory('build/road_sign_preview').createSync(recursive: true);
   });
 
+  // ignore: invalid_use_of_visible_for_testing_member
   setUp(RoadSignIndex.reset);
 
   for (final (name, sign, ru) in [
