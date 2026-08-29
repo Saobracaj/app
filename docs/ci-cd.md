@@ -8,8 +8,8 @@
 |---|---|---|
 | `preflight` | считает версию, проверяет наличие секретов | всегда |
 | `checks` | `flutter analyze`, `flutter test`, `cargo test` в `web_server`, проверка патчера подписи iOS | всегда (в т.ч. на PR) |
-| `build-android` | подписанные APK + AAB → артефакты; загрузка в Google Play (**выключена**) | push в `main`, ручной запуск |
-| `build-ios` | подписанный IPA → артефакт, валидация в App Store Connect, заливка в TestFlight | push в `main`, ручной запуск |
+| `build-android` | подписанные APK + AAB → артефакты; загрузка в Google Play (внутренний трек) | push в `main`/`develop`, ручной запуск |
+| `build-ios` | подписанный IPA → артефакт, валидация в App Store Connect, заливка в TestFlight | push в `main`/`develop`, ручной запуск |
 | `distribute-testflight` | ждёт обработки сборки в App Store Connect и добавляет её во внутреннюю группу TestFlight | вместе с заливкой в TestFlight |
 | `build-web` | `flutter build web --wasm` → Docker-образ Rust-сервера → GHCR | push в `main`, ручной запуск |
 | `deploy-web` | раскатка образа на OVH VPS → https://saobracaj.gleb.at | push в `main`, ручной запуск с `deploy_web` |
@@ -43,8 +43,10 @@ Actions → **Build & Deploy** → Run workflow. Галочки:
 | `deploy_android` | ❌ | залить AAB в Google Play (нужен ещё и `PLAY_UPLOAD_ENABLED`) |
 | `deploy_web` | ❌ | раскатать веб на VPS |
 
-При push в `main` заливка в TestFlight и раскатка веба происходят автоматически;
-Google Play — нет (см. ниже).
+При push в `main` и `develop` заливка в TestFlight и в Google Play (внутренний
+трек) происходит автоматически; раскатка прод-веба — только при push в `main`
+(dev-веб катит отдельный `deploy-dev-web.yml`). Заливку в Google Play можно
+экстренно выключить, сбросив переменную `PLAY_UPLOAD_ENABLED` (см. ниже).
 
 ---
 
@@ -90,10 +92,12 @@ SHA256: 13:D8:5D:68:33:39:A8:3D:6E:D3:28:6D:E2:5B:58:A3:C4:D3:E5:6F:2E:6F:5C:AB:
 debug-ключом (Gradle пишет предупреждение) — так `flutter run --release`
 продолжает работать на любой машине. Файл и `*.jks` в `.gitignore`.
 
-### Google Play — выключено ⛔
+### Google Play — включено ✅
 
-Заливка написана (`r0adkll/upload-google-play`, трек `internal`), но не
-работает, пока не решён вопрос со старым сертификатом подписи. Что нужно сделать:
+Заливка работает (`r0adkll/upload-google-play`, трек `internal`): исторический
+upload-ключ найден и возвращён в бой 2026-08-22, `PLAY_UPLOAD_ENABLED` = `true`,
+`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` залит. Ниже — шаги, которые понадобятся
+заново, если ключ или сервисный аккаунт придётся пересоздавать:
 
 1. **Сбросить ключ загрузки в Google Play.** Play Console → нужное приложение →
    *Test and release → Setup → App signing* → «Request upload key reset».
@@ -112,10 +116,8 @@ debug-ключом (Gradle пишет предупреждение) — так `
    Service Accounts → Keys → Add key → JSON. Содержимое JSON целиком положить в
    секрет `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`.
 3. **Включить тумблер:** переменная (не секрет!) `PLAY_UPLOAD_ENABLED` = `true`.
-   Сейчас она стоит в `false` — именно она держит заливку выключенной.
-
-Пока тумблер выключен, AAB и APK просто лежат артефактами сборки, их можно
-скачать со страницы запуска и залить руками.
+   Это аварийный выключатель: любое другое значение оставляет AAB и APK просто
+   артефактами сборки — их можно скачать со страницы запуска и залить руками.
 
 ### iOS — уже настроено ✅
 
