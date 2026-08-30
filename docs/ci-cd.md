@@ -43,11 +43,11 @@ Actions → **Build & Deploy** → Run workflow. Галочки:
 | `deploy_android` | ❌ | залить AAB в Google Play (нужен ещё и `PLAY_UPLOAD_ENABLED`) |
 | `deploy_web` | ❌ | раскатать веб на VPS |
 
-При push в `main` заливка в TestFlight и в Google Play (внутренний трек)
-происходит автоматически; раскатка прод-веба — тоже только при push в `main`.
-Push в `develop` мобильные сборки не запускает — с develop автоматически
-катится только dev-веб (отдельный `deploy-dev-web.yml`). Заливку в Google Play
-можно экстренно выключить, сбросив переменную `PLAY_UPLOAD_ENABLED` (см. ниже).
+При push в `main` и в `develop` заливка в TestFlight и в Google Play
+(внутренний трек) происходит автоматически; раскатка прод-веба — только при
+push в `main`. Веб из `develop` этот пайплайн не собирает — dev-веб катится
+отдельным `deploy-dev-web.yml`. Заливку в Google Play можно экстренно
+выключить, сбросив переменную `PLAY_UPLOAD_ENABLED` (см. ниже).
 
 ---
 
