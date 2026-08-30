@@ -883,7 +883,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/pravilnik/img_008.svg",
+    "src": "assets/signs/i-5.svg",
     "w": 127.8,
     "h": 112.4
    },
@@ -940,7 +940,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/pravilnik/img_011.svg",
+    "src": "assets/signs/i-6.svg",
     "w": 127.9,
     "h": 112.7
    }
@@ -1351,12 +1351,12 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/pravilnik/img_026.svg",
+    "src": "assets/signs/i-20.svg",
     "w": 127.7,
     "h": 112.4
    },
    {
-    "src": "assets/pravilnik/img_027.svg",
+    "src": "assets/signs/i-20.1.svg",
     "w": 127.7,
     "h": 112.4
    }
@@ -1395,7 +1395,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/pravilnik/img_028.svg",
+    "src": "assets/signs/i-21.svg",
     "w": 127.8,
     "h": 112.4
    }
@@ -5369,7 +5369,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/pravilnik/img_156.svg",
+    "src": "assets/signs/iii-36.svg",
     "w": 101.1,
     "h": 151.5
    }
@@ -5767,7 +5767,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/pravilnik/img_166.svg",
+    "src": "assets/signs/iii-46.svg",
     "w": 101.1,
     "h": 151.5
    }
