@@ -346,6 +346,60 @@ void main() {
       findsWidgets,
     );
   });
+
+  testWidgets('знак из иллюстрации летит в просмотрщик hero-копией', (
+    tester,
+  ) async {
+    final painter = _OneSignPainter.probe();
+    await tester.pumpWidget(
+      wrap(
+        RoadSignScope(
+          signs: const ['I-1'],
+          builder: (context, signs) => TappableSigns(
+            signs: signs,
+            child: CustomPaint(
+              size: const Size(200, 200),
+              painter: painter..signs = signs,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(painter.hiddenInLastFrame, isFalse);
+    final origin = tester.getTopLeft(find.byType(TappableSigns));
+
+    await tester.tapAt(origin + const Offset(50, 50));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Пока знак летит, холст его не рисует (статичная сцена перерисована
+    // принудительно), а его место занимает Hero-копия ровно в его
+    // прямоугольнике — с тем же тегом, что у знака в просмотрщике.
+    expect(painter.hiddenInLastFrame, isTrue);
+    final viewer = tester.widget<RoadSignViewer>(find.byType(RoadSignViewer));
+    expect(viewer.heroTag, isNotNull);
+    final copy = find.byWidgetPredicate(
+      (w) => w is Hero && w.tag == viewer.heroTag,
+      description: 'hero-копия знака над холстом',
+    );
+    expect(copy, findsNWidgets(2));
+    expect(
+      tester.getRect(
+        find.ancestor(of: copy.first, matching: find.byType(Positioned)),
+      ),
+      Rect.fromLTWH(origin.dx + 10, origin.dy + 10, 80, 80),
+    );
+    await tester.pumpAndSettle();
+
+    // После закрытия и обратного перелёта копия снимается, знак снова рисует
+    // сам холст.
+    Navigator.of(tester.element(find.byType(RoadSignViewer))).pop();
+    await tester.pumpAndSettle();
+    expect(find.byType(RoadSignViewer), findsNothing);
+    expect(find.byType(Hero), findsNothing);
+    expect(painter.hiddenInLastFrame, isFalse);
+  });
 }
 
 /// Сцена с одним знаком в левом верхнем углу — ровно чтобы проверить слой
@@ -353,11 +407,19 @@ void main() {
 class _OneSignPainter extends CustomPainter {
   _OneSignPainter(this.signs);
 
-  final RoadSigns signs;
+  /// Painter, переживающий перестройки: [signs] подменяется в builder'е, а
+  /// [hiddenInLastFrame] показывает, что видел холст в последнем кадре.
+  _OneSignPainter.probe() : signs = null;
+
+  RoadSigns? signs;
+  bool hiddenInLastFrame = false;
 
   @override
-  void paint(Canvas canvas, Size size) =>
-      signs.paint(canvas, 'I-1', const Rect.fromLTWH(10, 10, 80, 80));
+  void paint(Canvas canvas, Size size) {
+    final signs = this.signs!;
+    hiddenInLastFrame = signs.isHidden('I-1');
+    signs.paint(canvas, 'I-1', const Rect.fromLTWH(10, 10, 80, 80));
+  }
 
   @override
   bool shouldRepaint(_OneSignPainter oldDelegate) => oldDelegate.signs != signs;

@@ -27,6 +27,10 @@ const double _dismissVelocity = 700;
 /// закрывается, и только потом адрес открывается от экрана-хозяина ([context]).
 /// Иначе документ оказался бы ПОД просмотром знака, а «назад» — на «страница
 /// не найдена» (относительный адрес разрешался бы от чужого пути).
+///
+/// Возвращённый future завершается не в момент закрытия, а когда обратный
+/// перелёт знака закончен: знак-источник (hero-копия над холстом
+/// иллюстрации) должен стоять на месте, пока знак в него летит.
 Future<void> showRoadSignViewer(
   BuildContext context, {
   required String sign,
@@ -37,37 +41,37 @@ Future<void> showRoadSignViewer(
   // Как просмотр фотографий чата: маршрут прозрачный, пока летит hero, под
   // знаком просвечивает конспект, и фон набирает плотность к концу перехода.
   final navigator = Navigator.of(context, rootNavigator: true);
-  return navigator.push(
-    PageRouteBuilder<void>(
-      fullscreenDialog: true,
-      opaque: false,
-      barrierColor: Colors.transparent,
-      transitionDuration: const Duration(milliseconds: 250),
-      reverseTransitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (_, _, _) => RoadSignViewer(
-        sign: sign,
-        documentCode: documentCode,
-        heroTag: heroTag,
-        onOpenPravilnik: !showPravilnikLink
-            ? null
-            : (info) {
-                navigator.pop();
-                if (!context.mounted) return;
-                openZakon(
-                  context,
-                  'pravilnik',
-                  queryParameters: {
-                    if (info.chapter != null) 'chapter': info.chapter!,
-                    if (info.chlan != null) 'chlan': info.chlan!,
-                    if (info.paragraph != null) 'paragraph': info.paragraph!,
-                  },
-                );
-              },
-      ),
-      transitionsBuilder: (_, animation, _, child) =>
-          FadeTransition(opacity: animation, child: child),
+  final route = PageRouteBuilder<void>(
+    fullscreenDialog: true,
+    opaque: false,
+    barrierColor: Colors.transparent,
+    transitionDuration: const Duration(milliseconds: 250),
+    reverseTransitionDuration: const Duration(milliseconds: 200),
+    pageBuilder: (_, _, _) => RoadSignViewer(
+      sign: sign,
+      documentCode: documentCode,
+      heroTag: heroTag,
+      onOpenPravilnik: !showPravilnikLink
+          ? null
+          : (info) {
+              navigator.pop();
+              if (!context.mounted) return;
+              openZakon(
+                context,
+                'pravilnik',
+                queryParameters: {
+                  if (info.chapter != null) 'chapter': info.chapter!,
+                  if (info.chlan != null) 'chlan': info.chlan!,
+                  if (info.paragraph != null) 'paragraph': info.paragraph!,
+                },
+              );
+            },
     ),
+    transitionsBuilder: (_, animation, _, child) =>
+        FadeTransition(opacity: animation, child: child),
   );
+  navigator.push(route);
+  return route.completed;
 }
 
 /// Экран одного знака. Stateful ради переключателя языка и смахивания —
