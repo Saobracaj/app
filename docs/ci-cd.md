@@ -8,8 +8,8 @@
 |---|---|---|
 | `preflight` | считает версию, проверяет наличие секретов | всегда |
 | `checks` | `flutter analyze`, `flutter test`, `cargo test` в `web_server`, проверка патчера подписи iOS | всегда (в т.ч. на PR) |
-| `build-android` | подписанные APK + AAB → артефакты; загрузка в Google Play (внутренний трек) | push в `main`/`develop`, ручной запуск |
-| `build-ios` | подписанный IPA → артефакт, валидация в App Store Connect, заливка в TestFlight | push в `main`/`develop`, ручной запуск |
+| `build-android` | подписанные APK + AAB → артефакты; загрузка в Google Play (внутренний трек) | push в `main`, ручной запуск |
+| `build-ios` | подписанный IPA → артефакт, валидация в App Store Connect, заливка в TestFlight | push в `main`, ручной запуск |
 | `distribute-testflight` | ждёт обработки сборки в App Store Connect и добавляет её во внутреннюю группу TestFlight | вместе с заливкой в TestFlight |
 | `build-web` | `flutter build web --wasm` → Docker-образ Rust-сервера → GHCR | push в `main`, ручной запуск |
 | `deploy-web` | раскатка образа на OVH VPS → https://saobracaj.gleb.at | push в `main`, ручной запуск с `deploy_web` |
@@ -43,10 +43,11 @@ Actions → **Build & Deploy** → Run workflow. Галочки:
 | `deploy_android` | ❌ | залить AAB в Google Play (нужен ещё и `PLAY_UPLOAD_ENABLED`) |
 | `deploy_web` | ❌ | раскатать веб на VPS |
 
-При push в `main` и `develop` заливка в TestFlight и в Google Play (внутренний
-трек) происходит автоматически; раскатка прод-веба — только при push в `main`
-(dev-веб катит отдельный `deploy-dev-web.yml`). Заливку в Google Play можно
-экстренно выключить, сбросив переменную `PLAY_UPLOAD_ENABLED` (см. ниже).
+При push в `main` заливка в TestFlight и в Google Play (внутренний трек)
+происходит автоматически; раскатка прод-веба — тоже только при push в `main`.
+Push в `develop` мобильные сборки не запускает — с develop автоматически
+катится только dev-веб (отдельный `deploy-dev-web.yml`). Заливку в Google Play
+можно экстренно выключить, сбросив переменную `PLAY_UPLOAD_ENABLED` (см. ниже).
 
 ---
 
