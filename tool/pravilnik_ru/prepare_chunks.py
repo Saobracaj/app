@@ -14,8 +14,10 @@ ROOT = Path(__file__).resolve().parents[2]
 ASSET = ROOT / 'assets' / 'parsed_pravilnik.json'
 OUT = Path(__file__).resolve().parent / 'chunks'
 
-CODE_RE = re.compile(r'^\*\*[IVX]+ ?-[\d.а-шђјљњћџa-z ()]+\*\*$')
-CHLAN_RE = re.compile(r'^Члан (\d+)\.$')
+# Строка-подпись под рядом знаков: один код («**I-1**») или несколько через
+# пробел («**I-27 I-28 I-29**») — в переводе они те же.
+CODE_RE = re.compile(r'^\*\*(?:[IVX]{1,3} ?-[\d.а-шђјљњћџa-z()]+ ?)+\*\*$')
+CHLAN_RE = re.compile(r'^Члан (\d+[а-шђјљњћџ]?)\.$')
 
 
 def mechanical_ru(sr: str):
@@ -40,7 +42,9 @@ def main():
         if sr in seen:
             continue
         seen.add(sr)
-        if mechanical_ru(sr) is None:
+        # Строка, уже переведённая в собранном JSON (текст не менялся между
+        # редакциями правилника), заново не переводится.
+        if mechanical_ru(sr) is None and not (e.get('ru') or '').strip():
             uniq.append(sr)
     total = sum(len(s) for s in uniq)
     print(f'to translate: {len(uniq)} strings, {total} chars')

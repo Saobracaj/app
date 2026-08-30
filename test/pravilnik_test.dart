@@ -65,16 +65,21 @@ void main() {
           .toList();
 
   group('parsed_pravilnik.json', () {
-    test('строки разбираются в модель закона и содержат все 121 член', () {
+    test('строки разбираются в модель закона и содержат все 98 членов', () {
       expect(rows, isNotEmpty);
       final chlans = rows
           .where((r) => r.paragraph == '0')
           .map((r) => r.chlan)
           .toList();
-      expect(chlans.length, 121);
-      // Члены идут подряд с 1 по 121 — потерянный заголовок «Члан N.» ломает
-      // и оглавление, и ссылки на членов.
-      expect(chlans, List.generate(121, (i) => '${i + 1}'));
+      expect(chlans.length, 98);
+      // Члены идут подряд с 1 по 97 — потерянный заголовок «Члан N.» ломает
+      // и оглавление, и ссылки на членов. Между 53 и 54 стоит «Члан 53а»,
+      // добавленный изменениями 2026 года.
+      expect(chlans, [
+        ...List.generate(53, (i) => '${i + 1}'),
+        '53а',
+        ...List.generate(44, (i) => '${i + 54}'),
+      ]);
     });
 
     test('у каждого члана абзацы нумеруются подряд с 1', () {
@@ -159,21 +164,26 @@ void main() {
     });
 
     test('знаки в главе о знаках опасности действительно с изображениями', () {
-      // Члан 13 перечисляет знаки опасности — у него обязаны быть векторные
+      // Члан 18 перечисляет знаки опасности — у него обязаны быть векторные
       // изображения (первые знаки правилника, I-1 и далее).
       final withImages = rows
-          .where((r) => r.chlan == '13' && r.images.isNotEmpty)
+          .where((r) => r.chlan == '18' && r.images.isNotEmpty)
           .toList();
       expect(withImages, isNotEmpty);
       expect(withImages.first.images.first.src, endsWith('.svg'));
     });
   });
 
-  test('каждый SVG правилника разбирается flutter_svg без ошибок', () async {
-    final svgs = Directory('assets/pravilnik')
-        .listSync()
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.svg'))
+  test('каждый SVG знака правилника разбирается flutter_svg без ошибок',
+      () async {
+    // Официальные знаки из assets/signs — единственные векторные картинки
+    // документа: сам docx 2017 года рисует знаки растром.
+    final svgs = rows
+        .expand((r) => r.images)
+        .map((i) => i.src)
+        .where((s) => s.endsWith('.svg'))
+        .toSet()
+        .map(File.new)
         .toList();
     expect(svgs, isNotEmpty);
     for (final f in svgs) {
@@ -246,11 +256,11 @@ void main() {
       tester.view.physicalSize = const Size(500, 1200);
       addTearDown(tester.view.reset);
 
-      // Члан 13, абзац 2 — первая строка со знаками (I-1 и I-1.1).
+      // Члан 18, абзац 2 — первая строка со знаками (I-1 и I-1.1).
       await tester.pumpWidget(
         wrap(const Zakon(
           document: LawDocument.pravilnik,
-          chlan: '13',
+          chlan: '18',
           paragraph: '2',
         )),
       );

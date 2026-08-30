@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Собирает assets/parsed_pravilnik.json и assets/pravilnik/* из docx правилника.
 
-Источник — tool/data/pravilnik_o_saobracajnoj_signalizaciji.docx («Правилник о
-саобраћајној сигнализацији», вложение задачи 1217968287062170). Знаки в нём
-нарисованы векторно (DrawingML: группы фигур из custGeom-путей moveTo/lnTo),
-поэтому каждая группа конвертируется в самостоятельный SVG; растровые вставки
-внутри групп встраиваются в SVG как data-URI, а отдельные растровые рисунки
-(фотографии, разметка) копируются как есть из word/media.
+Источник — tool/data/pravilnik_o_saobracajnoj_signalizaciji.docx: редакционно
+очищенный текст «Правилника о саобраћајној сигнализацији» («Службени гласник
+РС», бр. 85/2017, 14/2021, 21/2024, 76/2026) с сайта pravno-informacioni-
+sistem.rs. В нём нет ни стилей абзацев, ни таблиц: структура читается из
+самого текста (главы «I. ОСНОВНЕ ОДРЕДБЕ», подзаголовки по центру, «Члан N.»),
+а знаки — растровые картинки, по одной на строку перечисления.
 
 JSON повторяет схему assets/parsed_zakon.json (chapter/chlan/paragraph/sr/ru/
 isTitle) и добавляет опциональное поле images — список изображений строки
@@ -14,17 +14,19 @@ isTitle) и добавляет опциональное поле images — сп
 в натуральную величину документа). Адресация строк (chapter+chlan+paragraph)
 даёт те же ссылки, что и в законе: /pravilnik?chapter=…&chlan=…&paragraph=…
 
-Знак, у которого уже есть официальный SVG в assets/signs/ (см.
-lib/test/animations/road_sign.dart), показывается из этого файла и здесь:
-после разбора пары «картинка ↔ код знака» восстанавливаются по строкам-
-подписям «**I-1**», src заменяется на assets/signs/<код>.svg, а оставшийся
-без ссылок извлечённый файл не сохраняется. Так у знака один файл на всё
-приложение — и в конспектах, и в правилнике.
+Знаки. В docx один рисунок содержит все знаки пункта разом (и их коды,
+впечатанные под каждым знаком). Коды берутся из текста пункта — «знак
+„кривина налево” (I-1) и знак „кривина надесно” (I-1.1)», — и если для КАЖДОГО
+кода в assets/signs/ есть официальный SVG (файлы названы по нумерации
+правилника 2017 года — той же, что в этом документе), рисунок docx не
+сохраняется вовсе: строка получает по картинке на код, а под ней встаёт
+строка-подпись «**I-1 I-1.1**», из которой экран строит подписи под знаками.
+Иначе (новые знаки 2017 года, разметка, семафоры, схемы) в assets/pravilnik/
+кладётся сам растр из docx: коды на нём уже впечатаны, подпись не нужна.
 
 Запуск из корня app/:  python3 tool/parse_pravilnik.py
 """
 
-import base64
 import hashlib
 import json
 import os
@@ -37,9 +39,6 @@ import zipfile
 
 W = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
 A = '{http://schemas.openxmlformats.org/drawingml/2006/main}'
-PIC = '{http://schemas.openxmlformats.org/drawingml/2006/picture}'
-WPG = '{http://schemas.microsoft.com/office/word/2010/wordprocessingGroup}'
-WPS = '{http://schemas.microsoft.com/office/word/2010/wordprocessingShape}'
 WP = '{http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing}'
 R = '{http://schemas.openxmlformats.org/officeDocument/2006/relationships}'
 
@@ -47,305 +46,96 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCX = os.path.join(ROOT, 'tool', 'data', 'pravilnik_o_saobracajnoj_signalizaciji.docx')
 OUT_JSON = os.path.join(ROOT, 'assets', 'parsed_pravilnik.json')
 OUT_DIR = os.path.join(ROOT, 'assets', 'pravilnik')
-# Куда --audit кладёт пары «рисунок docx → официальный SVG» для сверки.
-AUDIT_JSON = os.path.join('build', 'sign_audit.json')
+SIGNS_DIR = os.path.join(ROOT, 'assets', 'signs')
 
 EMU_PER_PX = 9525  # 96 dpi
-EMU_PER_PT = 12700
 
-ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X']
+# Размер картинки по умолчанию: в нескольких местах docx потерял wp:extent и
+# отдаёт квадрат 524.9×524.9 px — знак в натуральную величину примерно такой.
+BROKEN_EXTENT = 524.9
+DEFAULT_SIGN_W = 128.0
+DEFAULT_SIGN_H = 142.7
 
-# Код знака/ознаке («I-1», «II-30.1», «III-84a», «IV-5»…) — такие строки в
-# таблицах-подписях выделяются жирным, как и заголовки Heading4.
-SIGN_CODE_RE = re.compile(r'^[IVX]+-[0-9]+(\.[0-9]+)*[а-шa-z]?$')
+# Строка «Преузето са …» и пометка редакции — служебные строки выгрузки.
+SKIP_LINES = {
+    'Преузето са https://pravno-informacioni-sistem.rs',
+    'Редакцијски пречишћен текст',
+}
 
+# Заголовок главы: «I. ОСНОВНЕ ОДРЕДБЕ».
+CHAPTER_RE = re.compile(r'^([IVX]+)\.\s+(.+)$')
+# Заголовок члена: «Члан 7.», «Члан 53а.»; звёздочки — пометки об изменениях.
+CHLAN_RE = re.compile(r'^Члан\s+(\d+[а-шђјљњћџ]?)\.?\**\s*$')
+# Приложение к пречишћеном тексту: дальше идут члены самих законов об
+# изменениях, их номера повторяют основные — адреса им не выдаём.
+APPENDIX_RE = re.compile(r'^ОДРЕДБЕ КОЈЕ НИСУ УНЕТЕ')
 
-def emu(v):
-    return int(v) if v is not None else 0
+# Код знака в тексте пункта: «(I-1)», «знакови II-43.2 и III-84».
+CODE_RE = re.compile(r'[IVX]{1,3}-\d+(?:\.\d+)*')
+# Код в формате определения — сразу за открывающей скобкой. Пункт называет
+# нарисованные знаки именно так («допунске табле (IV-10), (IV-11) и (IV-12)»),
+# а прочие упоминания («које се регулише знаком III-30») к рисунку не
+# относятся, поэтому скобочные коды имеют приоритет.
+CODE_PAREN_RE = re.compile(r'\(\s*([IVX]{1,3}-\d+(?:\.\d+)*)')
 
-
-def fmt(v):
-    """Число для SVG: без хвоста «.0», чтобы файлы были компактнее."""
-    if isinstance(v, float) and v.is_integer():
-        v = int(v)
-    if isinstance(v, float):
-        return f'{v:.1f}'
-    return str(v)
-
-
-class Numbering:
-    """Синтез номеров списков: в docx «1)», «2)»… не текст, а w:numPr."""
-
-    def __init__(self, numbering_xml):
-        self.counters = {}
-        self.levels = {}  # (numId, ilvl) -> (lvlText, start)
-        if numbering_xml is None:
-            return
-        root = ET.fromstring(numbering_xml)
-        abstract = {}
-        for an in root.iter(W + 'abstractNum'):
-            aid = an.get(W + 'abstractNumId')
-            for lvl in an.findall(W + 'lvl'):
-                ilvl = lvl.get(W + 'ilvl')
-                num_fmt = lvl.find(W + 'numFmt')
-                txt = lvl.find(W + 'lvlText')
-                start = lvl.find(W + 'start')
-                abstract[(aid, ilvl)] = (
-                    num_fmt.get(W + 'val') if num_fmt is not None else 'decimal',
-                    txt.get(W + 'val') if txt is not None else '%1',
-                    int(start.get(W + 'val')) if start is not None else 1,
-                )
-        for num in root.iter(W + 'num'):
-            num_id = num.get(W + 'numId')
-            aid = num.find(W + 'abstractNumId').get(W + 'val')
-            for (a_id, ilvl), spec in abstract.items():
-                if a_id == aid:
-                    self.levels[(num_id, ilvl)] = spec
-
-    def label(self, p):
-        num_pr = p.find(W + 'pPr/' + W + 'numPr')
-        if num_pr is None:
-            return None
-        num_id_el = num_pr.find(W + 'numId')
-        ilvl_el = num_pr.find(W + 'ilvl')
-        if num_id_el is None:
-            return None
-        num_id = num_id_el.get(W + 'val')
-        ilvl = ilvl_el.get(W + 'val') if ilvl_el is not None else '0'
-        spec = self.levels.get((num_id, ilvl))
-        if spec is None:
-            return None
-        num_fmt, lvl_text, start = spec
-        if num_fmt == 'bullet':
-            return '–'
-        key = (num_id, ilvl)
-        self.counters[key] = self.counters.get(key, start - 1) + 1
-        return lvl_text.replace('%1', str(self.counters[key])).replace(
-            '%2', str(self.counters[key]))
-
-
-class SvgBuilder:
-    """DrawingML-группа → SVG. Координаты остаются в EMU (через viewBox)."""
-
-    def __init__(self, media):
-        self.media = media  # rel id -> (bytes, ext)
-
-    def convert(self, drawing):
-        """Возвращает (kind, payload): ('svg', str) | ('raster', rel_id) | None."""
-        group = drawing.find('.//' + WPG + 'wgp')
-        if group is not None:
-            return 'svg', self._group_svg(group)
-        wsp = drawing.find('.//' + WPS + 'wsp')
-        if wsp is not None:
-            return 'svg', self._single_shape_svg(wsp)
-        pic = drawing.find('.//' + PIC + 'pic')
-        if pic is not None:
-            blip = pic.find('.//' + A + 'blip')
-            if blip is not None:
-                return 'raster', blip.get(R + 'embed')
-        return None
-
-    def _group_svg(self, group):
-        xfrm = group.find(WPG + 'grpSpPr/' + A + 'xfrm')
-        off = xfrm.find(A + 'off')
-        ext = xfrm.find(A + 'ext')
-        ch_off = xfrm.find(A + 'chOff')
-        ch_ext = xfrm.find(A + 'chExt')
-        # Без chOff/chExt детская система координат совпадает с ext.
-        if ch_off is not None and ch_ext is not None:
-            vb = (emu(ch_off.get('x')), emu(ch_off.get('y')),
-                  emu(ch_ext.get('cx')), emu(ch_ext.get('cy')))
-        else:
-            vb = (0, 0, emu(ext.get('cx')), emu(ext.get('cy')))
-        w_px = emu(ext.get('cx')) / EMU_PER_PX
-        h_px = emu(ext.get('cy')) / EMU_PER_PX
-        del off
-        body = []
-        for child in group:
-            tag = child.tag
-            if tag == WPS + 'wsp':
-                body.append(self._shape(child))
-            elif tag == PIC + 'pic':
-                body.append(self._picture(child))
-        return self._svg(vb, w_px, h_px, body)
-
-    def _single_shape_svg(self, wsp):
-        sp_pr = wsp.find(WPS + 'spPr')
-        xfrm = sp_pr.find(A + 'xfrm')
-        off = xfrm.find(A + 'off')
-        ext = xfrm.find(A + 'ext')
-        vb = (emu(off.get('x')), emu(off.get('y')),
-              emu(ext.get('cx')), emu(ext.get('cy')))
-        return self._svg(vb, emu(ext.get('cx')) / EMU_PER_PX,
-                         emu(ext.get('cy')) / EMU_PER_PX, [self._shape(wsp)])
-
-    def _svg(self, vb, w_px, h_px, body):
-        # Рисунок без видимого содержимого (например, текстбокс с пустой
-        # таблицей размеров) не стоит и файла.
-        if not any(p for p in body if p):
-            return None
-        parts = [
-            f'<svg xmlns="http://www.w3.org/2000/svg" '
-            f'xmlns:xlink="http://www.w3.org/1999/xlink" '
-            f'width="{fmt(round(w_px, 1))}" height="{fmt(round(h_px, 1))}" '
-            f'viewBox="{vb[0]} {vb[1]} {vb[2]} {vb[3]}">'
-        ]
-        parts.extend(p for p in body if p)
-        parts.append('</svg>')
-        return '\n'.join(parts)
-
-    def _shape(self, wsp):
-        sp_pr = wsp.find(WPS + 'spPr')
-        xfrm = sp_pr.find(A + 'xfrm')
-        off = xfrm.find(A + 'off')
-        ext = xfrm.find(A + 'ext')
-        ox, oy = emu(off.get('x')), emu(off.get('y'))
-        cx, cy = emu(ext.get('cx')), emu(ext.get('cy'))
-
-        fill = self._fill_color(sp_pr)
-        stroke, stroke_w = self._stroke(sp_pr)
-
-        out = []
-        cust = sp_pr.find(A + 'custGeom')
-        if cust is not None:
-            d_parts = []
-            for path in cust.findall(A + 'pathLst/' + A + 'path'):
-                pw = emu(path.get('w')) or cx
-                ph = emu(path.get('h')) or cy
-                sx = cx / pw if pw else 1
-                sy = cy / ph if ph else 1
-                for cmd in path:
-                    tag = cmd.tag
-                    if tag in (A + 'moveTo', A + 'lnTo'):
-                        pt = cmd.find(A + 'pt')
-                        x = ox + emu(pt.get('x')) * sx
-                        y = oy + emu(pt.get('y')) * sy
-                        letter = 'M' if tag == A + 'moveTo' else 'L'
-                        d_parts.append(f'{letter}{fmt(round(x, 1))} {fmt(round(y, 1))}')
-                    elif tag == A + 'close':
-                        d_parts.append('Z')
-            if d_parts:
-                attrs = f'fill="{fill}" fill-rule="evenodd"'
-                if stroke:
-                    attrs += f' stroke="{stroke}" stroke-width="{stroke_w}"'
-                out.append(f'<path d="{" ".join(d_parts)}" {attrs}/>')
-        elif sp_pr.find(A + 'prstGeom') is not None:
-            # В документе встречается только prst="rect" (плашки под текст).
-            if fill != 'none' or stroke:
-                attrs = f'fill="{fill}"'
-                if stroke:
-                    attrs += f' stroke="{stroke}" stroke-width="{stroke_w}"'
-                out.append(f'<rect x="{ox}" y="{oy}" width="{cx}" height="{cy}" {attrs}/>')
-
-        txbx = wsp.find(WPS + 'txbx')
-        if txbx is not None:
-            out.append(self._textbox(txbx, ox, oy, cx, cy))
-        return '\n'.join(p for p in out if p)
-
-    def _fill_color(self, sp_pr):
-        solid = sp_pr.find(A + 'solidFill/' + A + 'srgbClr')
-        if solid is not None:
-            return '#' + solid.get('val')
-        if sp_pr.find(A + 'noFill') is not None:
-            return 'none'
-        return 'none'
-
-    def _stroke(self, sp_pr):
-        ln = sp_pr.find(A + 'ln')
-        if ln is None:
-            return None, 0
-        clr = ln.find(A + 'solidFill/' + A + 'srgbClr')
-        if clr is None:
-            return None, 0
-        return '#' + clr.get('val'), emu(ln.get('w')) or EMU_PER_PX
-
-    def _picture(self, pic):
-        blip = pic.find('.//' + A + 'blip')
-        xfrm = pic.find(PIC + 'spPr/' + A + 'xfrm')
-        if blip is None or xfrm is None:
-            return ''
-        rid = blip.get(R + 'embed')
-        if rid not in self.media:
-            return ''
-        data, ext = self.media[rid]
-        mime = 'image/jpeg' if ext in ('jpg', 'jpeg') else 'image/png'
-        off = xfrm.find(A + 'off')
-        extent = xfrm.find(A + 'ext')
-        b64 = base64.b64encode(data).decode('ascii')
-        return (f'<image x="{emu(off.get("x"))}" y="{emu(off.get("y"))}" '
-                f'width="{emu(extent.get("cx"))}" height="{emu(extent.get("cy"))}" '
-                f'preserveAspectRatio="none" '
-                f'xlink:href="data:{mime};base64,{b64}"/>')
-
-    def _textbox(self, txbx, ox, oy, cx, cy):
-        """Подписи на технических рисунках: строки текста сверху вниз."""
-        out = []
-        y = oy
-        for p in txbx.iter(W + 'p'):
-            runs = p.findall(W + 'r')
-            text = ''.join(
-                t.text or '' for r in runs for t in r.findall(W + 't'))
-            if not text.strip():
-                continue
-            sz_el = p.find('.//' + W + 'sz')  # в полупунктах
-            size_pt = (int(sz_el.get(W + 'val')) / 2) if sz_el is not None else 7
-            size = size_pt * EMU_PER_PT
-            color_el = p.find('.//' + W + 'color')
-            color = '#' + color_el.get(W + 'val') if color_el is not None else '#000000'
-            line_h = size * 1.25
-            y += line_h
-            out.append(
-                f'<text x="{ox}" y="{fmt(round(y, 1))}" font-family="sans-serif" '
-                f'font-size="{fmt(round(size, 1))}" fill="{color}">'
-                f'{escape_xml(text)}</text>')
-        return '\n'.join(out)
-
-
-def escape_xml(s):
-    return s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+# Варианты имён файла в assets/signs/ для кода правилника. Первый совпавший и
+# берётся: «-2017» — знак образца 2017 года там, где базовое имя занято
+# знаком из правилника 2010 года; «-40»/«-70» — знак с конкретным числом
+# (ограничение брзине), «c» — вариант рисунка.
+SIGN_SUFFIXES = ('-2017', '', '-40', '-70', 'c')
 
 
 def para_text(p):
-    """Текст абзаца без подписей внутри рисунков.
+    """Текст абзаца одной строкой (мягкие переносы docx схлопываются)."""
+    return re.sub(
+        r'\s+', ' ', ''.join(t.text or '' for t in p.iter(W + 't'))).strip()
 
-    w:t внутри w:drawing (надписи на техрисунках) и внутри w:pict (их
-    VML-фолбэк — тот же текст второй раз) — не текст абзаца.
+
+def md_escape(text):
+    """Экранирует звёздочки-сноски: «је* саобраћајна», «четвороцикле**».
+
+    Документ помечает ими изменённые места, а Markdown принял бы их за
+    выделение и съел кусок текста.
     """
-    parts = []
+    return text.replace('*', r'\*')
 
-    def walk(el):
-        for ch in el:
-            if ch.tag in (W + 'drawing', W + 'pict'):
-                continue
-            if ch.tag == W + 't':
-                parts.append(ch.text or '')
-            walk(ch)
 
-    walk(p)
-    return ''.join(parts)
+class SignFiles:
+    """Официальные SVG знаков: код правилника → assets/signs/<файл>.svg."""
+
+    def __init__(self):
+        self.names = {f[:-4] for f in os.listdir(SIGNS_DIR)
+                      if f.endswith('.svg')}
+
+    def resolve(self, code):
+        base = code.lower()
+        for suffix in SIGN_SUFFIXES:
+            if base + suffix in self.names:
+                return f'assets/signs/{base}{suffix}.svg'
+        return None
 
 
 class Parser:
-    def __init__(self, doc_root, media, numbering):
-        self.media = media
-        self.numbering = numbering
-        self.svg = SvgBuilder(media)
+    def __init__(self, doc_root, media, signs):
+        self.media = media  # rel id -> (bytes, ext)
+        self.signs = signs
         self.rows = []
         self.chapter = None
-        self.chapter_idx = 0
         self.chlan = None
         self.par_no = 0
+        self.appendix = False
         self.assets = {}  # content hash -> asset file name
         self.asset_seq = 0
         self.doc_root = doc_root
+        self.raster_slots = 0
+        self.sign_slots = 0
 
     def run(self):
         body = self.doc_root.find(W + 'body')
-        for el in body:
-            if el.tag == W + 'p':
-                self._paragraph(el)
-            elif el.tag == W + 'tbl':
-                self._table(el)
+        paras = list(body.iter(W + 'p'))
+        texts = [para_text(p) for p in paras]
+        for i, p in enumerate(paras):
+            self._paragraph(p, texts, i)
         return self.rows
 
     # --- строки -----------------------------------------------------------
@@ -369,88 +159,118 @@ class Parser:
             row['images'] = images
         self.rows.append(row)
 
-    def _paragraph(self, p, in_table=False):
-        style_el = p.find(W + 'pPr/' + W + 'pStyle')
-        style = style_el.get(W + 'val') if style_el is not None else None
-        text = para_text(p).strip()
-        images = self._images(p)
+    def _centered(self, p):
+        jc = p.find(W + 'pPr/' + W + 'jc')
+        return jc is not None and jc.get(W + 'val') == 'center'
 
-        if style == 'Title':
+    def _paragraph(self, p, texts, i):
+        text = texts[i]
+        drawings = list(p.iter(W + 'drawing'))
+        if drawings:
+            self._images(drawings, texts, i)
+            return
+        if not text or text in SKIP_LINES:
+            return
+
+        if text == 'ПРАВИЛНИК' or text == 'о саобраћајној сигнализацији':
             self._emit(f'**{text}**', is_title=True)
             return
-        if style == 'Heading1':
-            self.chapter_idx += 1
-            self.chapter = ROMAN[self.chapter_idx - 1]
+
+        if APPENDIX_RE.match(text):
+            self.appendix = True
+            self.chapter = None
             self.chlan = None
             self.par_no = 0
-            self._emit(f'{self.chapter}. {text}',
-                       addr={'chapter': self.chapter})
-            return
-        if style == 'Heading2':
-            self._emit(f'### {text}')
-            return
-        # Заголовок члена: чаще стиль Heading3, но ~30 из них — абзацы без
-        # стиля, поэтому распознаём по самому тексту «Члан N.».
-        m = re.match(r'Члан\s+(\S+?)\.?$', text)
-        if m and not images:
-            self.chlan = m.group(1)
-            self.par_no = 0
-            self._emit(text, addr={'chapter': self.chapter,
-                                   'chlan': self.chlan, 'paragraph': '0'})
-            return
-        if style == 'Heading3':
-            # Heading3 используется и для подзаголовков разделов
-            # («Знакови опасности»), не только для «Члан N.». У подзаголовка
-            # «Постављање семафора» рисунки прямо в абзаце — им своя строка.
-            self._emit(f'### {text}')
-            if images:
-                self._emit('', images=images, addr=self._addr())
-            return
-        if not text and not images:
+            self._emit(f'### {md_escape(text)}')
             return
 
-        label = self.numbering.label(p)
-        if label:
-            text = f'{label} {text}'
-        if style == 'Heading4' or (in_table and SIGN_CODE_RE.match(text)):
-            text = f'**{text}**'
-        self._emit(text, images=images, addr=self._addr())
+        if not self.appendix:
+            m = CHAPTER_RE.match(text)
+            if m and self._centered(p) and text == text.upper():
+                self.chapter = m.group(1)
+                self.chlan = None
+                self.par_no = 0
+                self._emit(text, addr={'chapter': self.chapter})
+                return
 
-    def _table(self, tbl):
-        for p in tbl.iter(W + 'p'):
-            self._paragraph(p, in_table=True)
+            m = CHLAN_RE.match(text)
+            if m:
+                self.chlan = m.group(1)
+                self.par_no = 0
+                self._emit(f'Члан {self.chlan}.',
+                           addr={'chapter': self.chapter,
+                                 'chlan': self.chlan, 'paragraph': '0'})
+                return
+
+        if self._centered(p) and not text.endswith((';', ':', '.', ',')):
+            # Подзаголовок раздела («Саобраћајни пројекат», «1.1. Знакови
+            # опасности») — в этом docx они отличаются только выключкой.
+            self._emit(f'### {md_escape(text.rstrip("*"))}')
+            return
+
+        self._emit(md_escape(text), addr=self._addr())
 
     # --- изображения ------------------------------------------------------
 
-    def _images(self, p):
+    def _preceding_codes(self, texts, i):
+        """Коды знаков из ближайшего текстового абзаца выше строки картинок.
+
+        Пункт перечисляет нарисованные знаки в скобках; один и тот же код
+        повторяется в пункте по нескольку раз («(IV-10) паркирање …»), поэтому
+        порядок первых вхождений и есть порядок картинок.
+        """
+        j = i - 1
+        while j >= 0 and (not texts[j] or texts[j] in SKIP_LINES):
+            j -= 1
+        if j < 0:
+            return []
+        codes = CODE_PAREN_RE.findall(texts[j]) or CODE_RE.findall(texts[j])
+        return list(dict.fromkeys(codes))
+
+    def _extent(self, drawing):
+        extent = drawing.find('.//' + WP + 'extent')
+        if extent is None:
+            return None, None
+        w = round(int(extent.get('cx') or 0) / EMU_PER_PX, 1)
+        h = round(int(extent.get('cy') or 0) / EMU_PER_PX, 1)
+        if not w or not h or (w == BROKEN_EXTENT and h == BROKEN_EXTENT):
+            return None, None
+        return w, h
+
+    def _images(self, drawings, texts, i):
+        codes = self._preceding_codes(texts, i)
+        official = [self.signs.resolve(c) for c in codes] if codes else []
+        if official and all(official):
+            # Все знаки пункта есть в assets/signs — рисунок docx не нужен:
+            # ставим официальные SVG и подпись с кодами под ними.
+            w, h = self._extent(drawings[0])
+            unit_w = round(w / len(codes), 1) if w else DEFAULT_SIGN_W
+            unit_h = h or DEFAULT_SIGN_H
+            images = [{'src': src, 'w': unit_w, 'h': unit_h}
+                      for src in official]
+            self.sign_slots += 1
+            self._emit('', images=images, addr=self._addr())
+            self._emit(f'**{" ".join(codes)}**', addr=self._addr())
+            return
+
         images = []
-        for drawing in p.iter(W + 'drawing'):
-            res = self.svg.convert(drawing)
-            if res is None:
+        for drawing in drawings:
+            blip = drawing.find('.//' + A + 'blip')
+            if blip is None:
                 continue
-            kind, payload = res
-            if payload is None:
+            rid = blip.get(R + 'embed') or blip.get(R + 'link')
+            if rid not in self.media:
                 continue
-            if kind == 'svg':
-                name = self._store(payload.encode('utf-8'), 'svg')
-            else:
-                if payload not in self.media:
-                    continue
-                data, ext = self.media[payload]
-                name = self._store(data, ext)
-            img = {'src': f'assets/pravilnik/{name}'}
-            # Размер рисунка на странице docx: приложение показывает картинку
-            # в этих px, а не в собственных размерах файла (официальные SVG
-            # знаков огромные и без w/h раздули бы колонку).
-            extent = drawing.find('.//' + WP + 'extent')
-            if extent is not None:
-                w = round(emu(extent.get('cx')) / EMU_PER_PX, 1)
-                h = round(emu(extent.get('cy')) / EMU_PER_PX, 1)
-                if w and h:
-                    img['w'] = int(w) if float(w).is_integer() else w
-                    img['h'] = int(h) if float(h).is_integer() else h
+            data, ext = self.media[rid]
+            img = {'src': f'assets/pravilnik/{self._store(data, ext)}'}
+            w, h = self._extent(drawing)
+            img['w'] = w or DEFAULT_SIGN_W
+            img['h'] = h or DEFAULT_SIGN_H
             images.append(img)
-        return images
+        if not images:
+            return
+        self.raster_slots += 1
+        self._emit('', images=images, addr=self._addr())
 
     def _store(self, data, ext):
         digest = hashlib.sha1(data).hexdigest()
@@ -464,132 +284,23 @@ class Parser:
         return name
 
 
-# Строка-подпись под знаками: только коды, выделенные жирным. Обычно код
-# один («**I-1**»), но бывают и слипшиеся («**III-65III-65.1**»), и с лишним
-# пробелом внутри («**III -24.1**»).
-SIGN_CAPTION_RE = re.compile(r'^\*\*(?:[IVX]{1,3}\s*-\s*\d+(?:\.\d+)*\s*)+\*\*$')
-SIGN_CODE_IN_CAPTION_RE = re.compile(r'[IVX]{1,3}\s*-\s*\d+(?:\.\d+)*')
-
-
-def caption_codes(sr):
-    """Коды строки-подписи (без пробелов внутри кода); пусто — не подпись."""
-    text = (sr or '').strip()
-    if not SIGN_CAPTION_RE.match(text):
-        return []
-    return [re.sub(r'\s', '', m) for m in SIGN_CODE_IN_CAPTION_RE.findall(text)]
-
-
-# Имена файлов в assets/signs/ следуют нумерации правилника 2017 года (так
-# названы файлы Wikimedia Commons), а нумерации 2010 и 2017 пересекаются:
-# «assets/signs/<код>.svg» местами показывает ДРУГОЙ знак, чем <код> в этом
-# (2010-м) документе. Для таких кодов замена задаётся явно: имя правильного
-# файла или None, когда официального SVG знака 2010 года попросту нет
-# (остаётся извлечённый из docx рисунок). Проверено контактными листами
-# «docx ↔ официальный SVG» по всем 174 подменам.
-OFFICIAL_OVERRIDES = {
-    'II-30': 'ii-30-40',     # ограничење брзине: и в docx рисунок с «40»
-    'II-38': 'ii-38-40',     # најмања брзина: и в docx рисунок с «40»
-    'III-7': 'iii-8-2017',   # iii-7.svg — пешачко-бициклистички прелаз (2017);
-                             # подземни пролаз в 2017 — III-8
-    'III-17': None,          # iii-17.svg — престанак свих забрана (2017)
-    'III-18': None,          # iii-18.svg — престанак ланаца за снег (2017)
-    'III-19': 'iii-68',      # аутопут: в 2017 он под номером III-68
-    'III-20': 'iii-68.1',    # завршетак аутопута: в 2017 это III-68.1
-    'III-26': 'iii-26-kraj', # iii-26.svg — пешачка зона (2017)
-    'III-27': 'iii-14-40',   # iii-27.svg — зона 30 (2017); престанак
-                             # ограничења в 2017 — III-14 (рисунок с «40»)
-    'III-27.1': 'iii-15-40', # престанак најмање брзине: в 2017 это III-15
-    'III-28': 'iii-28-kraj', # iii-28.svg — зона школе (2017)
-    'III-29': 'iii-17',      # престанак свих забрана: в 2017 это III-17
-    'III-29.1': 'iii-18',    # престанак ланаца: в 2017 это III-18
-    'III-30': None,          # iii-30.svg — паркиралиште (2017)
-    'III-32': 'iii-30',      # паркиралиште: в 2017 оно под номером III-30
-    'III-32.1': 'iii-31-2017',  # паркинг гаража
-    'III-60': 'iii-67-70',   # препоручена брзина: в 2017 это III-67 («70»)
-    'III-68': 'iii-11-2017', # iii-68.svg — аутопут (2017); деца на путу —
-                             # жёлто-зелёная табла III-11 образца 2017 года
-    'III-77': 'iii-26',      # пешачка зона: в 2017 она под номером III-26
-    'III-77.1': 'iii-26.1-2017',  # крај пешачке зоне
-    'III-78': 'iii-27',      # зона 30: в 2017 она под номером III-27
-    'III-78.1': 'iii-27.1-2017',  # крај зоне 30
-    'III-81': 'iii-29',      # зона успореног саобраћаја: в 2017 это III-29
-    'III-81.1': 'iii-29.1-2017',  # крај зоне успореног саобраћаја
-    'III-82': 'iii-28',      # зона школе: в 2017 она под номером III-28
-    'III-82.1': 'iii-28.1-2017',  # завршетак зоне школе
-}
-
-# Замена по имени извлечённого файла — для знака, чей код правилник
-# переиспользует (III-85 в чл. 27 — «излаз у случају опасности», а в чл. 38 —
-# жёлтый «предзнак за обилазак»): правило «код достаётся первому рисунку» до
-# второго вхождения не дотягивается, а официальный SVG у него свой.
-FILE_OVERRIDES = {
-    'img_228.jpeg': 'iii-85-1',  # предзнак за обилазак (чл. 38)
-}
-
-
-def dedupe_signs(rows):
-    """Заменяет извлечённые из docx знаки официальными SVG из assets/signs/.
-
-    Пары «картинка ↔ код» читаются из самого документа: за строкой с
-    картинками идут строки-подписи «**I-1**», по одной на картинку и в том же
-    порядке (пары берутся только при точном совпадении количества). Замена
-    применяется по имени файла ко всем строкам: одинаковые рисунки docx уже
-    слиты в один файл по хэшу, так что это тот же знак.
-    """
-    mapping = {}  # 'assets/pravilnik/img_NNN.svg' -> 'assets/signs/<код>.svg'
-    code_src = {}  # код -> первый docx-файл, на котором он встретился
-    for i, row in enumerate(rows):
-        imgs = row.get('images')
-        if not imgs:
+def media_files(zf):
+    """rel id → (данные, расширение). Картинки лежат в /media/*.bmp, но на
+    деле это JPEG и PNG — расширение берём из сигнатуры файла."""
+    rels = ET.fromstring(zf.read('word/_rels/document.xml.rels'))
+    names = set(zf.namelist())
+    media = {}
+    for rel in rels:
+        target = rel.get('Target') or ''
+        path = target.lstrip('/')
+        if not path.startswith('media/'):
+            path = 'word/' + target
+        if path not in names:
             continue
-        codes = []
-        j = i + 1
-        while j < len(rows) and len(codes) < len(imgs):
-            row_codes = caption_codes(rows[j]['sr'])
-            if not row_codes:
-                break
-            codes.extend(row_codes)
-            j += 1
-        if len(codes) != len(imgs):
-            continue
-        for img, code in zip(imgs, codes):
-            if code in OFFICIAL_OVERRIDES:
-                name = OFFICIAL_OVERRIDES[code]
-                if name is None:
-                    continue
-                official = f'assets/signs/{name}.svg'
-            else:
-                official = f'assets/signs/{code.lower()}.svg'
-            if not os.path.exists(os.path.join(ROOT, official)):
-                continue
-            # Правилник переиспользует номера в поздних главах для других
-            # знаков (III-85 в чл. 27 — «излаз у случају опасности», в чл. 38 —
-            # жёлтый «предзнак за обилазак»), поэтому код групп I–III достаётся
-            # только первому рисунку. Сетку допунских табли (IV) это не
-            # касается: там один знак повторён несколькими извлечёнными
-            # файлами, и замена нужна каждому.
-            if not code.startswith('IV'):
-                if code_src.setdefault(code, img['src']) != img['src']:
-                    continue
-            # Один и тот же файл (рисунки слиты по хэшу) обязан выходить на
-            # один и тот же код — противоречие значит сбитую привязку.
-            assert mapping.get(img['src'], official) == official, \
-                f"{img['src']}: {mapping[img['src']]} vs {official}"
-            mapping[img['src']] = official
-    for name, sign in FILE_OVERRIDES.items():
-        src = f'assets/pravilnik/{name}'
-        official = f'assets/signs/{sign}.svg'
-        assert os.path.exists(os.path.join(ROOT, official)), official
-        assert mapping.get(src, official) == official, \
-            f'{src}: {mapping[src]} vs {official}'
-        mapping[src] = official
-    replaced = 0
-    for row in rows:
-        for img in row.get('images', []):
-            if img['src'] in mapping:
-                img['src'] = mapping[img['src']]
-                replaced += 1
-    return mapping, len(mapping), replaced
+        data = zf.read(path)
+        ext = 'png' if data[:4] == b'\x89PNG' else 'jpg'
+        media[rel.get('Id')] = (data, ext)
+    return media
 
 
 def main():
@@ -598,45 +309,18 @@ def main():
     zf = zipfile.ZipFile(DOCX)
     doc_root = ET.fromstring(zf.read('word/document.xml'))
 
-    rels_root = ET.fromstring(zf.read('word/_rels/document.xml.rels'))
-    media = {}
-    for rel in rels_root:
-        target = rel.get('Target')
-        if target and target.startswith('media/'):
-            ext = target.rsplit('.', 1)[-1].lower()
-            media[rel.get('Id')] = (zf.read('word/' + target), ext)
-
-    numbering_xml = None
-    if 'word/numbering.xml' in zf.namelist():
-        numbering_xml = zf.read('word/numbering.xml')
-
     if os.path.isdir(OUT_DIR):
         shutil.rmtree(OUT_DIR)
     os.makedirs(OUT_DIR)
 
-    parser = Parser(doc_root, media, Numbering(numbering_xml))
+    parser = Parser(doc_root, media_files(zf), SignFiles())
     rows = parser.run()
 
-    audit = '--audit' in sys.argv
-    mapping, n_official, n_replaced = dedupe_signs(rows)
-    if audit:
-        # Режим сверки привязки: пары «рисунок docx → официальный SVG»
-        # выгружаются как есть, извлечённые файлы не удаляются — их
-        # попиксельно сличает tool/audit_signs_test.dart.
-        with open(os.path.join(ROOT, AUDIT_JSON), 'w', encoding='utf-8') as f:
-            json.dump(mapping, f, ensure_ascii=False, indent=1)
-        print(f'сверка привязки: {AUDIT_JSON}')
-    # Файлы, оставшиеся без ссылок после замены на официальные SVG.
+    # Файлы, оставшиеся без ссылок (одинаковые рисунки слиты по хэшу).
     referenced = {img['src'] for r in rows for img in r.get('images', [])}
-    pruned = 0
     for name in os.listdir(OUT_DIR):
-        if audit:
-            break
         if f'assets/pravilnik/{name}' not in referenced:
             os.remove(os.path.join(OUT_DIR, name))
-            pruned += 1
-    print(f'официальных знаков: {n_official} (ссылок заменено: {n_replaced}, '
-          f'файлов удалено: {pruned})')
 
     # Русский перевод живёт только в собранном JSON (собран
     # tool/pravilnik_ru/merge_ru.py) — переносим его на новые строки по
@@ -659,12 +343,11 @@ def main():
         tmp.write('\n')
     os.replace(tmp.name, OUT_JSON)
 
-    n_svg = sum(1 for v in parser.assets.values() if v.endswith('.svg'))
-    n_ras = len(parser.assets) - n_svg
-    print(f'строк: {len(rows)}, ассетов: {len(parser.assets)} '
-          f'(svg: {n_svg}, растровых: {n_ras})')
-    chlans = {r["chlan"] for r in rows if r["chlan"]}
-    print(f'глав: {parser.chapter_idx}, членов: {len(chlans)}')
+    chlans = {r['chlan'] for r in rows if r['chlan']}
+    print(f'строк: {len(rows)}, членов: {len(chlans)}')
+    print(f'рядов знаков из assets/signs: {parser.sign_slots}, '
+          f'растровых рисунков docx: {parser.raster_slots} '
+          f'({len(parser.assets)} файлов)')
 
 
 if __name__ == '__main__':

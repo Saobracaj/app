@@ -102,10 +102,15 @@ RoadSignIndexData buildRoadSignIndex(List<BezbParagraph> rows) {
   final index = <String, RoadSignInfo>{};
   for (var i = 0; i < rows.length; i++) {
     final images = rows[i].images;
+    if (images.isEmpty) continue;
     final captions = signCaptionsAt(rows, i);
-    if (captions == null) continue;
-    final codes = captions.codes;
-    final j = i + 1 + captions.captionRows.length;
+    // Подписи есть только под официальными SVG (по знаку на код). Рисунок,
+    // оставшийся картинкой самого документа, показывает весь ряд знаков
+    // пункта сразу, вместе с впечатанными кодами — коды для него читаются из
+    // абзаца-описания над рисунком, ровно как их читает tool/parse_pravilnik.py.
+    final codes = captions?.codes ?? _describedCodes(rows, i);
+    if (codes.isEmpty) continue;
+    final j = i + 1 + (captions?.captionRows.length ?? 0);
     for (var k = 0; k < codes.length; k++) {
       final code = codes[k];
       // В индексе только дорожные знаки (группы I–IV: опасность, наредбе,
@@ -113,10 +118,11 @@ RoadSignIndexData buildRoadSignIndex(List<BezbParagraph> rows) {
       // другая структура описаний, и по ним никто не нажимает.
       if (!RegExp(r'^I{1,3}V?-').hasMatch(code)) continue;
       if (index.containsKey(code)) continue;
-      final description = _findDescription(rows, j, code);
+      final description = _findDescription(rows, i, j, code);
       index[code] = RoadSignInfo(
         code: code,
-        asset: images[k].src,
+        // У ряда без подписей картинка одна на все коды пункта.
+        asset: images[k < images.length ? k : images.length - 1].src,
         nameSr: _name(description?.sr, code, open: '„', close: '”'),
         nameRu: _name(description?.ru, code, open: '«', close: '»'),
         descriptionSr: description?.sr,
@@ -136,6 +142,26 @@ RoadSignIndexData buildRoadSignIndex(List<BezbParagraph> rows) {
   return RoadSignIndexData(byCode: index, byAsset: byAsset);
 }
 
+/// Коды знаков, нарисованных на строке картинок [i], по абзацу-описанию над
+/// ней: пункт называет их в скобках («допунске табле (IV-10), (IV-11) и
+/// (IV-12)»), повторные упоминания того же кода отбрасываются. Если скобок в
+/// абзаце нет вовсе, годятся любые упоминания кодов.
+List<String> _describedCodes(List<BezbParagraph> rows, int i) {
+  var j = i - 1;
+  while (j >= 0 && (rows[j].sr ?? '').trim().isEmpty) {
+    j--;
+  }
+  if (j < 0) return const [];
+  final sr = rows[j].sr!;
+  final paren = RegExp(r'\(\s*([IVX]{1,3}-\d+(?:\.\d+)*)')
+      .allMatches(sr)
+      .map((m) => m.group(1)!);
+  final all = RegExp(r'[IVX]{1,3}-\d+(?:\.\d+)*')
+      .allMatches(sr)
+      .map((m) => m.group(0)!);
+  return {...(paren.isEmpty ? all : paren)}.toList();
+}
+
 /// Код, вокруг которого не продолжается номер: «III-65» не должен находиться
 /// ни внутри «III-65.2», ни внутри «VIII-65» — слева не должно быть римской
 /// цифры (без lookbehind: старые Safari его не разбирают).
@@ -150,23 +176,55 @@ RegExp _codeParen(String code) =>
 /// Абзац-описание знака [code]: из ближайших строк (кроме подписей) сначала
 /// берётся та, что упоминает код в формате определения «({код})», затем — с
 /// кодом без скобок («допунска табла IV-1, која…»), затем пункт перечня.
-/// Окно небольшое — описание стоит сразу за блоками «картинки + подписи»;
-/// искать «(код)» по всему документу нельзя: упоминания в правилах установки
-/// («знак I-19 (радови на путу) поставља се…») стоят за сотни строк от знака.
+///
+/// Правилник ставит описание ПЕРЕД рисунком («1) знак „кривина налево” (I-1)
+/// … ;» и следом ряд знаков), поэтому окно сначала просматривается вверх от
+/// строки картинок [image] и лишь потом вниз от [after] — на случай, когда
+/// один абзац описывает несколько идущих подряд рядов (II-43…II-43.4).
+/// Окно небольшое: искать «(код)» по всему документу нельзя, упоминания в
+/// правилах установки («знак I-19 (радови на путу) поставља се…») стоят за
+/// сотни строк от знака.
 final _itemRe = RegExp(r'^\d+\)\s');
 
-BezbParagraph? _findDescription(List<BezbParagraph> rows, int from, String code) {
+BezbParagraph? _findDescription(
+  List<BezbParagraph> rows,
+  int image,
+  int after,
+  String code,
+) {
   final paren = _codeParen(code);
   final token = _codeToken(code);
   BezbParagraph? tokenHit;
   BezbParagraph? firstItem;
-  for (var j = from; j < rows.length && j < from + 15; j++) {
-    final sr = (rows[j].sr ?? '').trim();
-    if (sr.isEmpty || _captionCodes(sr).isNotEmpty) continue;
-    if (paren.hasMatch(sr)) return rows[j];
-    if (tokenHit == null && token.hasMatch(sr)) tokenHit = rows[j];
-    if (_itemRe.hasMatch(sr)) firstItem ??= rows[j];
+
+  void scan(Iterable<int> indexes) {
+    for (final j in indexes) {
+      final sr = (rows[j].sr ?? '').trim();
+      if (sr.isEmpty || _captionCodes(sr).isNotEmpty) continue;
+      if (tokenHit == null && token.hasMatch(sr)) tokenHit = rows[j];
+      if (_itemRe.hasMatch(sr)) firstItem ??= rows[j];
+    }
   }
+
+  BezbParagraph? parenHit(Iterable<int> indexes) {
+    for (final j in indexes) {
+      final sr = (rows[j].sr ?? '').trim();
+      if (sr.isEmpty || _captionCodes(sr).isNotEmpty) continue;
+      if (paren.hasMatch(sr)) return rows[j];
+    }
+    return null;
+  }
+
+  final up = [
+    for (var j = image - 1; j >= 0 && j > image - 15; j--) j,
+  ];
+  final down = [
+    for (var j = after; j < rows.length && j < after + 15; j++) j,
+  ];
+  final hit = parenHit(up) ?? parenHit(down);
+  if (hit != null) return hit;
+  scan(up);
+  scan(down);
   // Код рядом не упомянут вовсе (в docx бывают опечатки вроде «lV-8.2» со
   // строчной L) — берём ближайший пункт перечня: он и есть описание блока.
   return tokenHit ?? firstItem;
@@ -231,49 +289,24 @@ class RoadSignIndex {
   }
 }
 
-/// Знаки, у которых имя файла и код документа означают РАЗНЫЕ знаки: файлы
-/// названы по правилнику 2017 года, а документ — 2010-го. Для них привязка по
-/// коду запрещена (описание было бы от чужого знака — так «зона школе» на
-/// экране объяснялась «престанком забране давања звучних знакова»); годится
-/// только совпадение по файлу.
+/// Файлы assets/signs/, названные по нумерации правилника 2010 года: рядом с
+/// ними лежит файл «<код>-2017.svg» — тот же номер, но ДРУГОЙ знак. Документ
+/// теперь 2017 года, поэтому его код такому файлу не подходит: описание было
+/// бы от чужого знака (так «предзнак за обилазак» объяснялся бы «опасном
+/// деоницом пута»). Годится только совпадение по самому файлу.
 ///
-/// Список — подмножество ключей OFFICIAL_OVERRIDES из tool/parse_pravilnik.py
-/// (там по тем же парам подменяются картинки самого документа): сюда попадает
-/// код, у которого есть ОДНОИМЁННЫЙ файл в assets/signs/ с другим знаком.
-/// Ключу без одноимённого файла запрет не нужен — врать нечему. Синхронность
-/// проверяет test/road_sign_index_test.dart.
-const renumberedIn2017 = {
-  'III-7',
-  'III-17',
-  'III-18',
-  'III-19',
-  'III-26',
-  'III-27',
-  'III-28',
-  'III-29',
-  'III-29.1',
-  'III-30',
-  'III-32',
-  'III-32.1',
-  'III-68',
-};
-
-/// Знаки образца 2017 года и переномерованные файлы, для которых в правилнике
-/// 2010 года есть тот же знак под другим номером: рисунок мог поменяться, но
-/// значение и абзац-описание те же («деца на путу» — зелёная табла 2017 года,
-/// в этом документе III-68).
-///
-/// Пары найдены сличением изображений (tool/audit_signs_gaps_test.dart) и
-/// проверены по тексту описаний; всё, чему пары в документе нет, остаётся без
-/// описания — врать описанием чужого знака нельзя.
-const equivalentIn2010 = {
-  'iii-11-2017': 'III-68', // деца на путу
-  'iii-8-2017': 'III-7', // прелаз за пешаке ван нивоа
-  'iii-14-40': 'III-27', // престанак ограничења брзине
-  'iii-15-40': 'III-27.1', // престанак најмање дозвољене брзине
-  'iii-67-70': 'III-60', // препоручена брзина
-  'iii-68.1': 'III-20', // завршетак аутопута
-  'e75-srb': 'III-18', // ознака европског пута
+/// Список проверяет test/road_sign_index_test.dart: он же и выводится —
+/// плоское имя файла попадает сюда ровно тогда, когда у него есть двойник
+/// «-2017». Особняком «e75-srb»: ознака европског пута, номера в правилнике
+/// 2017 года у неё нет вовсе.
+const legacy2010Files = {
+  'iii-8',
+  'iii-25',
+  'iii-85',
+  'iii-85-1', // вариант того же знака 2010 года
+  'iii-86',
+  'iii-92',
+  'e75-srb',
 };
 
 /// Сведения о знаке по имени файла в assets/signs/.
@@ -287,30 +320,26 @@ const equivalentIn2010 = {
 /// 2. **по файлу базового знака** — «ii-30-40» (ограничение 40 км/ч),
 ///    «ii-30-blank», «i-36c», «iii-85-1»: это варианты одного знака, описание
 ///    у семейства общее;
-/// 3. **по коду** — на случай, когда рисунок знака в документе остался
-///    извлечённым из docx (официального SVG у него нет) и по файлу не
-///    сходится. Запрещено для [renumberedIn2017] и там, где у кода документа
+/// 3. **по коду** — на случай, когда знак показан картинкой самого документа
+///    (официального SVG у него нет) и по файлу не сходится. Нумерация файлов
+///    и документа теперь одна (правилник 2017 года), так что код годится
+///    почти всем; запрещено для [legacy2010Files] и там, где у кода документа
 ///    свой официальный файл: раз он другой, знаки разные.
 ///
-/// Перед привязкой по коду срабатывает таблица [equivalentIn2010] — тот же
-/// знак под другим номером. Знаки с суффиксом «-2017» (образец 2017 года,
-/// которого в этом документе нет) базового знака не ищут: «iii-25-2017» и
-/// «III-25» — разные знаки.
+/// Знаки с суффиксом «-2017» (образец 2017 года там, где базовое имя занято
+/// знаком 2010-го) базового знака не ищут: «iii-25-2017» и «III-25» — разные
+/// знаки.
 RoadSignInfo? lookupRoadSign(RoadSignIndexData index, String sign) {
   final file = sign.toLowerCase();
   final exact = index.byAsset['assets/signs/$file.svg'];
   if (exact != null) return exact;
-  // Раньше поиска по семейству: «iii-68.1» (завршетак аутопута) не должен
-  // достаться базовому «iii-68» — это сам аутопут.
-  final equivalent = index.byCode[equivalentIn2010[file]];
-  if (equivalent != null) return equivalent;
   for (final candidate in _fileCandidates(file).skip(1)) {
     final hit = index.byAsset['assets/signs/$candidate.svg'];
     if (hit != null) return hit;
   }
   if (file.endsWith('-2017')) return null;
+  if (legacy2010Files.contains(file)) return null;
   for (final candidate in _codeCandidates(file.toUpperCase())) {
-    if (renumberedIn2017.contains(candidate)) continue;
     final hit = index.byCode[candidate];
     if (hit == null) continue;
     // У кода свой официальный файл, и он не наш (иначе сработал бы поиск по

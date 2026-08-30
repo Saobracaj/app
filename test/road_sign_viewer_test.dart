@@ -96,11 +96,11 @@ void main() {
     expect(find.text('Открыть в правилнике'), findsOneWidget);
   });
 
-  testWidgets('знак образца 2017 показывает описание своего двойника', (
+  testWidgets('знак образца 2017 показывает описание из документа', (
     tester,
   ) async {
-    // Зелёная «деца на путу» — знак 2017 года, в правилнике 2010-го тот же
-    // знак стоит под номером III-68 (см. equivalentIn2010).
+    // Зелёная «близина школе» — знак 2017 года; документ теперь тоже 2017-го,
+    // и знак стоит в нём под своим номером III-11.
     await tester.pumpWidget(
       wrap(const KonspektMarkdown(text: '![знак](anim/sign-iii-11-2017)')),
     );
@@ -111,29 +111,30 @@ void main() {
 
     expect(find.text('III-11-2017'), findsOneWidget);
     expect(
-      find.textContaining('деца на путу', findRichText: true),
+      find.textContaining('близина школе', findRichText: true),
       findsWidgets,
     );
-    // Правилник показывает этот же файл под номером III-68 — номер
-    // достоверен (по нему знак ищется в документе), поэтому он на экране.
-    expect(find.text('III-68'), findsOneWidget);
+    // Номер документа достоверен (по нему знак ищется в правилнике) —
+    // поэтому он на экране.
+    expect(find.text('III-11'), findsOneWidget);
     expect(find.text('Открыть в правилнике'), findsOneWidget);
   });
 
   testWidgets('знака нет в правилнике — крупный знак без описания и ссылки', (
     tester,
   ) async {
-    // «Зона 30» появилась только в правилнике 2017 года: описания нет, и
-    // подставлять чужое нельзя — но знак всё равно открывается крупно.
+    // Файл 2010 года, чей номер в правилнике 2017-го занят другим знаком
+    // (см. legacy2010Files): описания нет, подставлять чужое нельзя — но знак
+    // всё равно открывается крупно.
     await tester.pumpWidget(
-      wrap(const KonspektMarkdown(text: '![знак](anim/sign-iii-25-2017)')),
+      wrap(const KonspektMarkdown(text: '![знак](anim/sign-iii-25)')),
     );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byType(TappableRoadSign));
     await tester.pumpAndSettle();
 
-    expect(find.text('III-25-2017'), findsOneWidget);
+    expect(find.text('III-25'), findsOneWidget);
     expect(find.text('Открыть в правилнике'), findsNothing);
   });
 
@@ -173,22 +174,21 @@ void main() {
     await tester.pumpWidget(wrap(const Zakon()));
     await tester.pumpAndSettle();
 
-    // Файл iii-68.svg документ показывает под кодом III-19 («аутопут»):
-    // просмотр из правилника получает код подписи и показывает его, а не имя
-    // файла — нумерации 2010 и 2017 годов разошлись.
+    // Код подписи первичен: просмотр из правилника показывает его, а не имя
+    // файла. Файл ii-30-40.svg документ подписывает кодом II-30.
     final context = tester.element(find.byType(Zakon));
     showRoadSignViewer(
       context,
-      sign: 'iii-68',
-      documentCode: 'III-19',
+      sign: 'ii-30-40',
+      documentCode: 'II-30',
       showPravilnikLink: false,
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('III-19'), findsNWidgets(2));
-    expect(find.text('III-68'), findsNothing);
+    expect(find.text('II-30'), findsNWidgets(2));
+    expect(find.text('II-30-40'), findsNothing);
     expect(
-      find.textContaining('аутопут', findRichText: true),
+      find.textContaining('ограничење брзине', findRichText: true),
       findsWidgets,
     );
   });

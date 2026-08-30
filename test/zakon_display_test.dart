@@ -26,13 +26,14 @@ void main() {
 
   test('подписи склеены со строками картинок, коды — по одному на картинку',
       () {
-    // Блок «обавезан смер»: строка с тремя картинками, за ней три подписи.
+    // Блок «обавезан смер»: строка с пятью картинками, за ней подпись.
     final row = rows.firstWhere(
       (r) => r.row.images.any((i) => i.src.endsWith('ii-43.svg')),
     );
-    expect(row.row.images, hasLength(3));
-    expect(row.signCodes, ['II-43', 'II-43.1', 'II-43.2']);
-    expect(row.mergedCaptions, hasLength(3));
+    expect(row.row.images, hasLength(5));
+    expect(row.signCodes,
+        ['II-43', 'II-43.1', 'II-43.2', 'II-43.3', 'II-43.4']);
+    expect(row.mergedCaptions, hasLength(1));
     // Сами строки-подписи с экрана ушли — их коды теперь ячейки таблицы.
     expect(
       rows.where(
@@ -44,10 +45,10 @@ void main() {
 
   test('склейка покрывает все группы знаков, картинки не теряются', () {
     final merged = rows.where((r) => r.signCodes.isNotEmpty).toList();
-    // ~250 блоков «картинки + подписи» во всех группах (I–IV — знаки,
-    // V и дальше — разметка и семафоры).
-    expect(merged.length, greaterThan(240));
-    for (final group in ['I-', 'II-', 'III-', 'IV-', 'V-', 'VII-']) {
+    // ~160 блоков «картинки + подписи»: подписи стоят под официальными SVG
+    // (по знаку на код), у остальных рисунков коды впечатаны в саму картинку.
+    expect(merged.length, greaterThan(150));
+    for (final group in ['I-', 'II-', 'III-', 'IV-']) {
       expect(
         merged.where((r) => r.signCodes.any((c) => c.startsWith(group))),
         isNotEmpty,

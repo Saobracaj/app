@@ -60,7 +60,9 @@ def main():
         sr = e['sr']
         ru = mechanical_ru(sr)
         if ru is None:
-            ru = sr2ru.get(sr)
+            # Перевод из чанков, иначе — уже стоявший в JSON (строка пережила
+            # смену редакции документа, см. prepare_chunks.py).
+            ru = sr2ru.get(sr) or (e.get('ru') or '').strip() or None
         if ru is None:
             missing.append(sr)
         else:
