@@ -124,14 +124,42 @@ class _RoadSignViewerState extends State<RoadSignViewer> {
   void _onDragUpdate(DragUpdateDetails details) =>
       setState(() => _drag += details.delta);
 
-  void _onDragEnd(DragEndDetails details) {
+  void _onDragEnd(DragEndDetails details) =>
+      _settle(details.velocity.pixelsPerSecond.dy);
+
+  /// Палец отпущен: далеко или быстро — закрыть, иначе вернуть знак на место.
+  void _settle(double velocityY) {
     final far = _drag.dy.abs() > _dismissDistance;
-    final fast = details.velocity.pixelsPerSecond.dy.abs() > _dismissVelocity;
+    final fast = velocityY.abs() > _dismissVelocity;
     if (far || fast) {
       Navigator.of(context).pop();
       return;
     }
     setState(() => _drag = Offset.zero);
+  }
+
+  /// Смахивание с любого места экрана, а не только со знака: пока списку есть
+  /// куда прокручиваться — он прокручивается, а перетаскивание за край (или
+  /// когда всё помещается на экран) утаскивает знак тем же жестом, что и
+  /// перетаскивание самого знака. Кламп-физика превращает движение пальца за
+  /// краем в [OverscrollNotification] с точной величиной.
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification is OverscrollNotification) {
+      // Только палец: баллистический долёт списка до края знак не трогает.
+      if (notification.dragDetails != null) {
+        setState(() => _drag += Offset(0, -notification.overscroll));
+      }
+    } else if (notification is ScrollUpdateNotification) {
+      // Палец вернулся в зону прокрутки — знак возвращается на место.
+      if (_drag != Offset.zero && notification.dragDetails != null) {
+        setState(() => _drag = Offset.zero);
+      }
+    } else if (notification is ScrollEndNotification) {
+      if (_drag != Offset.zero) {
+        _settle(notification.dragDetails?.velocity.pixelsPerSecond.dy ?? 0);
+      }
+    }
+    return false;
   }
 
   @override
@@ -173,80 +201,90 @@ class _RoadSignViewerState extends State<RoadSignViewer> {
               ? info?.descriptionSr
               : info?.descriptionRu ?? info?.descriptionSr;
           final image = SvgPicture.asset(asset, fit: BoxFit.contain);
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-            children: [
-              // Смахивание вверх/вниз закрывает просмотр — как в чате: жест
-              // висит на самом знаке, иначе его перехватил бы список.
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onVerticalDragUpdate: _onDragUpdate,
-                onVerticalDragEnd: _onDragEnd,
-                child: Transform.translate(
-                  offset: _drag,
-                  child: Transform.scale(
-                    scale: 1 - _progress * 0.2,
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: 280,
-                          maxHeight: 280,
+          return NotificationListener<ScrollNotification>(
+            onNotification: _onScrollNotification,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+              // Всегда принимать перетаскивание (даже когда всё помещается) и
+              // не пружинить на краях: движение за краем целиком уходит в
+              // overscroll-уведомления и становится смахиванием.
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: ClampingScrollPhysics(),
+              ),
+              children: [
+                // Смахивание вверх/вниз закрывает просмотр — как в чате. На
+                // самом знаке жест свой (список его перехватил бы), на
+                // остальной области работает через overscroll списка.
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onVerticalDragUpdate: _onDragUpdate,
+                  onVerticalDragEnd: _onDragEnd,
+                  child: Transform.translate(
+                    offset: _drag,
+                    child: Transform.scale(
+                      scale: 1 - _progress * 0.2,
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxWidth: 280,
+                            maxHeight: 280,
+                          ),
+                          child: widget.heroTag == null
+                              ? image
+                              : Hero(tag: widget.heroTag!, child: image),
                         ),
-                        child: widget.heroTag == null
-                            ? image
-                            : Hero(tag: widget.heroTag!, child: image),
                       ),
                     ),
                   ),
                 ),
-              ),
-              // Текст уходит вместе с фоном: к концу жеста на экране остаётся
-              // только знак, летящий обратно на своё место.
-              Opacity(
-                opacity: _backdrop,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const SizedBox(height: 24),
-                    if (code != null) ...[
-                      Text(
-                        code,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.labelLarge?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    if (name != null)
-                      Text(
-                        name,
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.titleLarge,
-                      ),
-                    if (description != null) ...[
-                      const SizedBox(height: 16),
-                      Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 560),
-                          child: MarkdownBody(data: _plain(description)),
-                        ),
-                      ),
-                    ],
-                    if (widget.onOpenPravilnik != null && info != null) ...[
+                // Текст уходит вместе с фоном: к концу жеста на экране остаётся
+                // только знак, летящий обратно на своё место.
+                Opacity(
+                  opacity: _backdrop,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                       const SizedBox(height: 24),
-                      Center(
-                        child: TextButton.icon(
-                          icon: const Icon(Icons.menu_book_outlined),
-                          label: Text(LocaleKeys.roadSign_openInPravilnik.tr()),
-                          onPressed: () => widget.onOpenPravilnik!(info),
+                      if (code != null) ...[
+                        Text(
+                          code,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 4),
+                      ],
+                      if (name != null)
+                        Text(
+                          name,
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.titleLarge,
+                        ),
+                      if (description != null) ...[
+                        const SizedBox(height: 16),
+                        Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 560),
+                            child: MarkdownBody(data: _plain(description)),
+                          ),
+                        ),
+                      ],
+                      if (widget.onOpenPravilnik != null && info != null) ...[
+                        const SizedBox(height: 24),
+                        Center(
+                          child: TextButton.icon(
+                            icon: const Icon(Icons.menu_book_outlined),
+                            label: Text(LocaleKeys.roadSign_openInPravilnik.tr()),
+                            onPressed: () => widget.onOpenPravilnik!(info),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),

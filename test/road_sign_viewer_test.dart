@@ -215,6 +215,74 @@ void main() {
     expect(find.byType(RoadSignViewer), findsNothing);
   });
 
+  testWidgets('смахивание работает по всей области просмотра, не только по знаку', (
+    tester,
+  ) async {
+    // Экран, где описание помещается целиком: любой вертикальный жест по
+    // области просмотра — смахивание.
+    tester.view.physicalSize = const Size(1000, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      wrap(const KonspektMarkdown(text: '![II-2](anim/sign-ii-2)')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(TappableRoadSign));
+    await tester.pumpAndSettle();
+    expect(find.byType(RoadSignViewer), findsOneWidget);
+
+    // Тащим вниз за описание (не за знак): списку прокручиваться некуда,
+    // движение уходит в overscroll и закрывает просмотр тем же жестом.
+    await tester.drag(
+      find.descendant(
+        of: find.byType(RoadSignViewer),
+        matching: find.text('Открыть в правилнике'),
+      ),
+      const Offset(0, 200),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(RoadSignViewer), findsNothing);
+  });
+
+  testWidgets('прокрутка длинного описания не закрывает просмотр', (
+    tester,
+  ) async {
+    // Экран нарочно низкий: описание не помещается, и списку есть куда
+    // прокручиваться — движение вверх должно прокручивать, а не закрывать.
+    tester.view.physicalSize = const Size(600, 400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      wrap(const KonspektMarkdown(text: '![II-2](anim/sign-ii-2)')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(TappableRoadSign));
+    await tester.pumpAndSettle();
+    expect(find.byType(RoadSignViewer), findsOneWidget);
+
+    final list = find.descendant(
+      of: find.byType(RoadSignViewer),
+      matching: find.byType(Scrollable),
+    );
+    final position = tester.state<ScrollableState>(list).position;
+    expect(position.maxScrollExtent, greaterThan(0));
+
+    // Тащим вверх за низ экрана (центр списка — это сам знак со своим
+    // жестом) на половину запаса прокрутки: до нижнего края список не
+    // доходит, overscroll не начинается — просмотр остаётся открытым.
+    await tester.dragFrom(
+      tester.getBottomLeft(list) + const Offset(300, -40),
+      Offset(0, -position.maxScrollExtent / 2 - 18),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(RoadSignViewer), findsOneWidget);
+    expect(position.pixels, greaterThan(0));
+  });
+
   testWidgets('ссылка «Открыть в правилнике» закрывает знак и открывает закон', (
     tester,
   ) async {
