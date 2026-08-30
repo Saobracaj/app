@@ -114,9 +114,9 @@ void main() {
       find.textContaining('деца на путу', findRichText: true),
       findsWidgets,
     );
-    // Номер двойника (III-68 из документа 2010 года) на экране не показывается
-    // — это номер другого образца знака.
-    expect(find.text('III-68'), findsNothing);
+    // Правилник показывает этот же файл под номером III-68 — номер
+    // достоверен (по нему знак ищется в документе), поэтому он на экране.
+    expect(find.text('III-68'), findsOneWidget);
     expect(find.text('Открыть в правилнике'), findsOneWidget);
   });
 

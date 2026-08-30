@@ -67,6 +67,9 @@ void main() {
     ('iv-1', 'iv-1', false),
     ('iii-11-2017', 'iii-11-2017', false),
     ('iii-28', 'iii-28', false),
+    ('iv-5', 'iv-5', false),
+    ('ii-45.2', 'ii-45.2', false),
+    ('iii-53', 'iii-53', false),
   ]) {
     testWidgets('превью просмотрщика знака $name', (tester) async {
       await tester.binding.setSurfaceSize(const Size(420, 900));
