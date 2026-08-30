@@ -55,9 +55,9 @@ void main() {
   });
 
   test('знак без официального SVG остаётся с извлечённым из docx файлом', () {
-    // II-43.2 нет в assets/signs/ — дедупликация его не тронула, но описание
+    // II-19.1 нет в assets/signs/ — дедупликация его не тронула, но описание
     // и адрес у него такие же полноправные.
-    final info = index.byCode['II-43.2']!;
+    final info = index.byCode['II-19.1']!;
     expect(info.asset, startsWith('assets/pravilnik/'));
     expect(info.descriptionSr, isNotEmpty);
     expect(info.chlan, isNotNull);
@@ -103,10 +103,12 @@ void main() {
     final autoput = lookupRoadSign(index, 'iii-68')!;
     expect(autoput.code, 'III-19');
     expect(autoput.descriptionSr, contains('аутопут'));
-    // «Зона школе» (файл iii-28.svg) в правилнике 2010 года не описана —
-    // лучше без описания, чем описание «престанка забране давања звучних
-    // знакова», под номером III-28 которого документ описывает другой знак.
-    expect(lookupRoadSign(index, 'iii-28'), isNull);
+    // «Зона школе» (файл iii-28.svg) в этом документе стоит под номером
+    // III-82 — описание достаётся от него, а не от III-28 документа
+    // («престанак забране давања звучних знакова» — другой знак).
+    final zonaSkole = lookupRoadSign(index, 'iii-28')!;
+    expect(zonaSkole.code, 'III-82');
+    expect(zonaSkole.descriptionSr, contains('зона школе'));
   });
 
   test('маркеры конспектов находят описание, кроме знаков образца 2017', () {
@@ -118,22 +120,12 @@ void main() {
         .toList();
     expect(signs, isNotEmpty);
 
-    // Знаков нет в правилнике 2010 года: e75-srb — не знак правилника,
-    // остальные появились или сменили вид позже.
+    // Знаков нет в правилнике 2010 года: появились или сменили вид позже.
     const absentFromDocument = {
-      'e75-srb',
       'ii-46',
       'ii-47',
       'iii-5',
       'iii-7',
-      'iii-14-40',
-      'iii-15-40',
-      'iii-18',
-      'iii-26',
-      'iii-27',
-      'iii-28',
-      'iii-29',
-      'iii-30',
       'iv-18',
     };
     final missing = signs
@@ -141,6 +133,12 @@ void main() {
         .where((s) => lookupRoadSign(index, s) == null)
         .toList();
     expect(missing, isEmpty);
+    // …и наоборот: раз знак попал в список, описания у него правда нет —
+    // найденное описание значит, что запись в списке устарела.
+    final stale = absentFromDocument
+        .where((s) => lookupRoadSign(index, s) != null)
+        .toList();
+    expect(stale, isEmpty);
     // Вариант с числом находит базовый знак.
     expect(lookupRoadSign(index, 'ii-30-40')?.code, 'II-30');
   });
@@ -159,10 +157,14 @@ void main() {
     }
   });
 
-  test('список переномерованных знаков совпадает с парсером', () {
+  test('список переномерованных знаков согласован с парсером', () {
     // Правило «файл ≠ код» записано дважды: здесь и в подмене картинок самого
     // документа (tool/parse_pravilnik.py). Разъехавшись, они дадут описание от
-    // чужого знака — сверяем прямо по исходнику скрипта.
+    // чужого знака — сверяем прямо по исходнику скрипта. Запрет привязки по
+    // коду нужен только коду, чей ОДНОИМЁННЫЙ файл существует и означает
+    // другой знак; ключам без такого файла (замена «II-30 → ii-30-40» и
+    // подобные) запрет только вредил бы — вариантам семейства (ii-30-blank)
+    // описание достаётся по коду базового знака.
     final source = File('tool/parse_pravilnik.py').readAsStringSync();
     final block = RegExp(r'OFFICIAL_OVERRIDES = \{(.*?)\n\}', dotAll: true)
         .firstMatch(source)!
@@ -171,6 +173,11 @@ void main() {
         .allMatches(block)
         .map((m) => m.group(1)!)
         .toSet();
-    expect(codes, renumberedIn2017);
+    expect(renumberedIn2017.difference(codes), isEmpty);
+    for (final code in codes) {
+      if (File('assets/signs/${code.toLowerCase()}.svg').existsSync()) {
+        expect(renumberedIn2017, contains(code), reason: code);
+      }
+    }
   });
 }

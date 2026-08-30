@@ -237,9 +237,11 @@ class RoadSignIndex {
 /// экране объяснялась «престанком забране давања звучних знакова»); годится
 /// только совпадение по файлу.
 ///
-/// Список повторяет OFFICIAL_OVERRIDES из tool/parse_pravilnik.py, где по тем
-/// же парам подменяются картинки самого документа; синхронность проверяет
-/// test/road_sign_index_test.dart.
+/// Список — подмножество ключей OFFICIAL_OVERRIDES из tool/parse_pravilnik.py
+/// (там по тем же парам подменяются картинки самого документа): сюда попадает
+/// код, у которого есть ОДНОИМЁННЫЙ файл в assets/signs/ с другим знаком.
+/// Ключу без одноимённого файла запрет не нужен — врать нечему. Синхронность
+/// проверяет test/road_sign_index_test.dart.
 const renumberedIn2017 = {
   'III-7',
   'III-17',
@@ -254,7 +256,6 @@ const renumberedIn2017 = {
   'III-32',
   'III-32.1',
   'III-68',
-  'IV-5',
 };
 
 /// Знаки образца 2017 года и переномерованные файлы, для которых в правилнике
@@ -311,9 +312,20 @@ RoadSignInfo? lookupRoadSign(RoadSignIndexData index, String sign) {
   for (final candidate in _codeCandidates(file.toUpperCase())) {
     if (renumberedIn2017.contains(candidate)) continue;
     final hit = index.byCode[candidate];
+    if (hit == null) continue;
     // У кода свой официальный файл, и он не наш (иначе сработал бы поиск по
-    // файлу) — значит, это другой знак.
-    if (hit == null || hit.asset.startsWith('assets/signs/')) continue;
+    // файлу) — значит, это другой знак. Исключение — файл из семейства нашего
+    // же знака: у «ii-30-blank» код II-30 показывает официальный «ii-30-40»,
+    // и описание у них общее.
+    if (hit.asset.startsWith('assets/signs/')) {
+      final hitFile = hit.asset
+          .substring('assets/signs/'.length)
+          .replaceAll('.svg', '');
+      final related = _fileCandidates(hitFile)
+          .toSet()
+          .intersection(_fileCandidates(file).toSet());
+      if (related.isEmpty) continue;
+    }
     return hit;
   }
   return null;
