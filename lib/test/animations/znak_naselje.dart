@@ -26,11 +26,14 @@ class ZnakNaselje extends StatelessWidget {
           child: SizedBox(
             width: 400,
             height: 306,
-            child: CustomPaint(
-              painter: _NaseljePainter(
-                Theme.of(context).colorScheme,
-                _naseljeLabels(context),
-                signs,
+            child: TappableSigns(
+              signs: signs,
+              child: CustomPaint(
+                painter: _NaseljePainter(
+                  Theme.of(context).colorScheme,
+                  _naseljeLabels(context),
+                  signs,
+                ),
               ),
             ),
           ),

@@ -24,8 +24,11 @@ class TrakePredPrugom extends StatelessWidget {
           child: SizedBox(
             width: 400,
             height: 420,
-            child: CustomPaint(
-              painter: _TrakePainter(Theme.of(context).colorScheme, signs),
+            child: TappableSigns(
+              signs: signs,
+              child: CustomPaint(
+                painter: _TrakePainter(Theme.of(context).colorScheme, signs),
+              ),
             ),
           ),
         ),

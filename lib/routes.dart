@@ -65,7 +65,7 @@ final routes = RouteMap(
   // A mistyped or outdated address gets a designed screen with a way home
   // instead of routemaster's bare default one.
   onUnknownRoute: (path) => MaterialPage(child: NotFoundPage(path: path)),
-  routes: {
+  routes: _withPravilnik({
     // «История» ('/statistics') временно скрыта из нижней навигации; сам
     // маршрут ниже остаётся рабочим для прямых ссылок.
     // Switching a tab has to leave a browser history entry, otherwise the
@@ -289,8 +289,21 @@ final routes = RouteMap(
         focusComposer: data.queryParameters['focus'] == '1',
       ),
     ),
-  },
+  }),
 );
+
+/// У каждого адреса «…/zakon» есть близнец «…/pravilnik».
+///
+/// Правилник открывается ссылкой из просмотрщика знака, а знак нажимают где
+/// угодно — в конспекте, в вопросе, в иллюстрации. Ссылка ведёт относительным
+/// адресом (как и ссылки на закон), поэтому документ должен существовать
+/// ребёнком того же экрана: иначе переход упирается в «страница не найдена».
+Map<String, PageBuilder> _withPravilnik(Map<String, PageBuilder> routes) => {
+  ...routes,
+  for (final path in routes.keys.where((p) => p.endsWith('/zakon')))
+    '${path.substring(0, path.length - '/zakon'.length)}/pravilnik':
+        pravilnikPage,
+};
 
 /// Deep link into a single question opened straight on its discussion tab.
 ///

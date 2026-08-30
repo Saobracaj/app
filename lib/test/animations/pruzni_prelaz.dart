@@ -52,9 +52,12 @@ class _PruzniPrelazState extends State<PruzniPrelaz>
                   signs: const ['I-34'],
                   builder: (context, signs) => AnimatedBuilder(
                     animation: _controller,
-                    builder: (context, _) => CustomPaint(
-                      painter:
-                          _CrossingPainter(scheme, _controller.value, signs),
+                    builder: (context, _) => TappableSigns(
+                      signs: signs,
+                      child: CustomPaint(
+                        painter:
+                            _CrossingPainter(scheme, _controller.value, signs),
+                      ),
                     ),
                   ),
                 ),

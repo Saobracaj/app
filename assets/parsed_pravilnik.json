@@ -4396,7 +4396,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/signs/iii-7.svg",
+    "src": "assets/pravilnik/img_121.svg",
     "w": 106.5,
     "h": 159.7
    }
@@ -4536,7 +4536,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/signs/iii-17.svg",
+    "src": "assets/pravilnik/img_125.svg",
     "w": 105.1,
     "h": 75.1
    },
@@ -4593,7 +4593,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/signs/iii-18.svg",
+    "src": "assets/pravilnik/img_128.svg",
     "w": 239.5,
     "h": 99.8
    }
@@ -4624,7 +4624,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/pravilnik/img_129.svg",
+    "src": "assets/signs/iii-68.svg",
     "w": 112.1,
     "h": 167.9
    }
@@ -4903,7 +4903,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/signs/iii-26.svg",
+    "src": "assets/signs/iii-26-kraj.svg",
     "w": 114,
     "h": 114.1
    }
@@ -4934,7 +4934,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/signs/iii-27.svg",
+    "src": "assets/pravilnik/img_139.svg",
     "w": 114.1,
     "h": 114.1
    },
@@ -4978,7 +4978,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/signs/iii-28.svg",
+    "src": "assets/signs/iii-28-kraj.svg",
     "w": 114,
     "h": 114.1
    }
@@ -5009,12 +5009,12 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/signs/iii-29.svg",
+    "src": "assets/signs/iii-17.svg",
     "w": 114.1,
     "h": 114.1
    },
    {
-    "src": "assets/pravilnik/img_143.png",
+    "src": "assets/signs/iii-18.svg",
     "w": 127,
     "h": 127
    },
@@ -5115,7 +5115,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/signs/iii-30.svg",
+    "src": "assets/pravilnik/img_148.svg",
     "w": 114,
     "h": 114.1
    }
@@ -5185,12 +5185,12 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/pravilnik/img_150.svg",
+    "src": "assets/signs/iii-30.svg",
     "w": 114.1,
     "h": 114.1
    },
    {
-    "src": "assets/pravilnik/img_151.svg",
+    "src": "assets/signs/iii-31-2017.svg",
     "w": 114.1,
     "h": 114.1
    }
@@ -6464,7 +6464,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/signs/iii-68.svg",
+    "src": "assets/pravilnik/img_187.svg",
     "w": 113.4,
     "h": 113.1
    }
@@ -7993,7 +7993,7 @@
   "isTitle": false,
   "images": [
    {
-    "src": "assets/signs/iii-85.svg",
+    "src": "assets/pravilnik/img_228.jpeg",
     "w": 136.7,
     "h": 189.1
    }

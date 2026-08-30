@@ -32,9 +32,12 @@ class PosebneTrakeAutoput extends StatelessWidget {
           child: SizedBox(
             width: _w,
             height: _h,
-            child: CustomPaint(
-              painter:
-                  _PosebneTrakePainter(Theme.of(context).colorScheme, signs),
+            child: TappableSigns(
+              signs: signs,
+              child: CustomPaint(
+                painter:
+                    _PosebneTrakePainter(Theme.of(context).colorScheme, signs),
+              ),
             ),
           ),
         ),

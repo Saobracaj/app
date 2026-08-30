@@ -66,6 +66,7 @@ void main() {
     ('i-1_ru', 'i-1', true),
     ('iv-1', 'iv-1', false),
     ('iii-11-2017', 'iii-11-2017', false),
+    ('iii-28', 'iii-28', false),
   ]) {
     testWidgets('превью просмотрщика знака $name', (tester) async {
       await tester.binding.setSurfaceSize(const Size(420, 900));
@@ -98,7 +99,7 @@ void main() {
                 locale: context.locale,
                 home: RepaintBoundary(
                   key: const ValueKey('shot'),
-                  child: RoadSignViewer(sign: sign),
+                  child: RoadSignViewer(sign: sign, onOpenPravilnik: (_) {}),
                 ),
               ),
             ),

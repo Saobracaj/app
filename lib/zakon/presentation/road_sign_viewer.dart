@@ -10,10 +10,23 @@ import 'package:saobracaj/test/animations/road_sign.dart';
 import 'package:saobracaj/zakon/domain/road_sign_index.dart';
 import 'package:saobracaj/zakon/presentation/zakon_panel.dart';
 
+/// Насколько далеко нужно утащить знак, чтобы отпускание закрыло просмотр
+/// (те же числа, что у просмотра фотографий чата).
+const double _dismissDistance = 120;
+const double _dismissVelocity = 700;
+
 /// Полноэкранный просмотр дорожного знака: крупное изображение (с hero-полётом
 /// от знака, по которому нажали), название и описание из правилника и ссылка
 /// на его абзац. Как и в законе, текст по умолчанию сербский, перевод — чипом
 /// «РУ» за фичей russian_content.
+///
+/// Открывается откуда угодно — из конспекта, из вопроса, из иллюстрации, из
+/// самого правилника, — поэтому маршрут кладётся поверх всего стека, как
+/// просмотр фотографий чата, и ничего в навигации не занимает. Ссылка «Открыть
+/// в правилнике» по той же причине не переходит из просмотрщика: сначала он
+/// закрывается, и только потом адрес открывается от экрана-хозяина ([context]).
+/// Иначе документ оказался бы ПОД просмотром знака, а «назад» — на «страница
+/// не найдена» (относительный адрес разрешался бы от чужого пути).
 Future<void> showRoadSignViewer(
   BuildContext context, {
   required String sign,
@@ -22,7 +35,8 @@ Future<void> showRoadSignViewer(
 }) {
   // Как просмотр фотографий чата: маршрут прозрачный, пока летит hero, под
   // знаком просвечивает конспект, и фон набирает плотность к концу перехода.
-  return Navigator.of(context, rootNavigator: true).push(
+  final navigator = Navigator.of(context, rootNavigator: true);
+  return navigator.push(
     PageRouteBuilder<void>(
       fullscreenDialog: true,
       opaque: false,
@@ -32,7 +46,21 @@ Future<void> showRoadSignViewer(
       pageBuilder: (_, _, _) => RoadSignViewer(
         sign: sign,
         heroTag: heroTag,
-        showPravilnikLink: showPravilnikLink,
+        onOpenPravilnik: !showPravilnikLink
+            ? null
+            : (info) {
+                navigator.pop();
+                if (!context.mounted) return;
+                openZakon(
+                  context,
+                  'pravilnik',
+                  queryParameters: {
+                    if (info.chapter != null) 'chapter': info.chapter!,
+                    if (info.chlan != null) 'chlan': info.chlan!,
+                    if (info.paragraph != null) 'paragraph': info.paragraph!,
+                  },
+                );
+              },
       ),
       transitionsBuilder: (_, animation, _, child) =>
           FadeTransition(opacity: animation, child: child),
@@ -40,24 +68,25 @@ Future<void> showRoadSignViewer(
   );
 }
 
-/// Экран одного знака. Stateful ровно ради переключателя языка — состояние
-/// чисто визуальное, как у чипа «РУ» на экране закона.
+/// Экран одного знака. Stateful ради переключателя языка и смахивания —
+/// состояние чисто визуальное, как у чипа «РУ» на экране закона.
 class RoadSignViewer extends StatefulWidget {
   RoadSignViewer({
     super.key,
     required this.sign,
     this.heroTag,
-    this.showPravilnikLink = true,
+    this.onOpenPravilnik,
   }) : info = RoadSignIndex.find(sign);
 
+  /// Имя файла знака в assets/signs/ («ii-2», регистр не важен).
   final String sign;
 
   /// Тег hero знака-источника; null — открытие без полёта.
   final Object? heroTag;
 
-  /// Ссылку «Открыть в правилнике» прячет сам правилник: оттуда она вела бы
-  /// на уже открытый документ.
-  final bool showPravilnikLink;
+  /// Как открыть абзац правилника. null — ссылки нет: так просмотрщик
+  /// открывается из самого правилника, где переходить некуда.
+  final void Function(RoadSignInfo info)? onOpenPravilnik;
 
   /// Сведения из правилника; индекс собирается один раз, повторные открытия
   /// отвечают мгновенно.
@@ -70,15 +99,41 @@ class RoadSignViewer extends StatefulWidget {
 class _RoadSignViewerState extends State<RoadSignViewer> {
   bool _isSr = true;
 
+  /// Насколько знак утащен от центра, пока палец на экране.
+  Offset _drag = Offset.zero;
+
   String get _code => widget.sign.toUpperCase();
+
+  /// Плотность фона: к моменту, когда отпускание закроет просмотр, под знаком
+  /// уже виден конспект — жест сразу показывает, куда вернёшься.
+  double get _backdrop =>
+      (1 - _drag.dy.abs() / _dismissDistance).clamp(0.0, 1.0);
+
+  /// Доля пути до закрытия, 0..1 — по ней уменьшается знак.
+  double get _progress =>
+      (_drag.dy.abs() / (_dismissDistance * 2)).clamp(0.0, 1.0);
+
+  void _onDragUpdate(DragUpdateDetails details) =>
+      setState(() => _drag += details.delta);
+
+  void _onDragEnd(DragEndDetails details) {
+    final far = _drag.dy.abs() > _dismissDistance;
+    final fast = details.velocity.pixelsPerSecond.dy.abs() > _dismissVelocity;
+    if (far || fast) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() => _drag = Offset.zero);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: theme.colorScheme.surface.withValues(alpha: _backdrop),
       appBar: AppBar(
-        title: Text(_code),
+        backgroundColor: Colors.transparent,
+        title: Opacity(opacity: _backdrop, child: Text(_code)),
         actions: [
           FeatureGate(
             feature: AppFeature.russianContent,
@@ -107,51 +162,66 @@ class _RoadSignViewerState extends State<RoadSignViewer> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
             children: [
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: 280,
-                    maxHeight: 280,
-                  ),
-                  child: widget.heroTag == null
-                      ? image
-                      : Hero(tag: widget.heroTag!, child: image),
-                ),
-              ),
-              const SizedBox(height: 24),
-              if (name != null)
-                Text(
-                  name,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.titleLarge,
-                ),
-              if (description != null) ...[
-                const SizedBox(height: 16),
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 560),
-                    child: MarkdownBody(data: _plain(description)),
-                  ),
-                ),
-              ],
-              if (widget.showPravilnikLink && info != null) ...[
-                const SizedBox(height: 24),
-                Center(
-                  child: TextButton.icon(
-                    icon: const Icon(Icons.menu_book_outlined),
-                    label: Text(LocaleKeys.roadSign_openInPravilnik.tr()),
-                    onPressed: () => openZakon(
-                      context,
-                      'pravilnik',
-                      queryParameters: {
-                        if (info.chapter != null) 'chapter': info.chapter!,
-                        if (info.chlan != null) 'chlan': info.chlan!,
-                        if (info.paragraph != null) 'paragraph': info.paragraph!,
-                      },
+              // Смахивание вверх/вниз закрывает просмотр — как в чате: жест
+              // висит на самом знаке, иначе его перехватил бы список.
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onVerticalDragUpdate: _onDragUpdate,
+                onVerticalDragEnd: _onDragEnd,
+                child: Transform.translate(
+                  offset: _drag,
+                  child: Transform.scale(
+                    scale: 1 - _progress * 0.2,
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: 280,
+                          maxHeight: 280,
+                        ),
+                        child: widget.heroTag == null
+                            ? image
+                            : Hero(tag: widget.heroTag!, child: image),
+                      ),
                     ),
                   ),
                 ),
-              ],
+              ),
+              // Текст уходит вместе с фоном: к концу жеста на экране остаётся
+              // только знак, летящий обратно на своё место.
+              Opacity(
+                opacity: _backdrop,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 24),
+                    if (name != null)
+                      Text(
+                        name,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleLarge,
+                      ),
+                    if (description != null) ...[
+                      const SizedBox(height: 16),
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 560),
+                          child: MarkdownBody(data: _plain(description)),
+                        ),
+                      ),
+                    ],
+                    if (widget.onOpenPravilnik != null && info != null) ...[
+                      const SizedBox(height: 24),
+                      Center(
+                        child: TextButton.icon(
+                          icon: const Icon(Icons.menu_book_outlined),
+                          label: Text(LocaleKeys.roadSign_openInPravilnik.tr()),
+                          onPressed: () => widget.onOpenPravilnik!(info),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ],
           );
         },
@@ -184,7 +254,8 @@ class TappableRoadSign extends StatefulWidget {
   final double? width;
   final double? height;
 
-  /// См. [RoadSignViewer.showPravilnikLink].
+  /// Ссылку «Открыть в правилнике» прячет сам правилник: оттуда она вела бы
+  /// на уже открытый документ.
   final bool showPravilnikLink;
 
   @override
