@@ -31,11 +31,14 @@ class ZoneUporedno extends StatelessWidget {
           child: SizedBox(
             width: 400,
             height: 404,
-            child: CustomPaint(
-              painter: _ZonesPainter(
-                Theme.of(context).colorScheme,
-                context.tr(LocaleKeys.zoneUporedno_trap),
-                signs,
+            child: TappableSigns(
+              signs: signs,
+              child: CustomPaint(
+                painter: _ZonesPainter(
+                  Theme.of(context).colorScheme,
+                  context.tr(LocaleKeys.zoneUporedno_trap),
+                  signs,
+                ),
               ),
             ),
           ),

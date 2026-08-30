@@ -10,6 +10,7 @@ import 'package:saobracaj/feature_flags/data/feature_flags_snapshot.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/konspekt/presentation/konspekt_markdown.dart';
+import 'package:saobracaj/test/animations/road_sign.dart';
 import 'package:saobracaj/zakon/domain/road_sign_index.dart';
 import 'package:saobracaj/zakon/presentation/road_sign_viewer.dart';
 import 'package:saobracaj/zakon/zakon.dart';
@@ -94,11 +95,11 @@ void main() {
     expect(find.text('Открыть в правилнике'), findsOneWidget);
   });
 
-  testWidgets('знак без описания в правилнике открывается без ссылки', (
+  testWidgets('знак образца 2017 показывает описание своего двойника', (
     tester,
   ) async {
-    // iii-11-2017 — нумерация правилника 2017 года: описания сознательно
-    // нет (см. lookupRoadSign), но крупный знак всё равно показывается.
+    // Зелёная «деца на путу» — знак 2017 года, в правилнике 2010-го тот же
+    // знак стоит под номером III-68 (см. equivalentIn2010).
     await tester.pumpWidget(
       wrap(const KonspektMarkdown(text: '![знак](anim/sign-iii-11-2017)')),
     );
@@ -108,6 +109,27 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('III-11-2017'), findsOneWidget);
+    expect(
+      find.textContaining('деца на путу', findRichText: true),
+      findsWidgets,
+    );
+    expect(find.text('Открыть в правилнике'), findsOneWidget);
+  });
+
+  testWidgets('знака нет в правилнике — крупный знак без описания и ссылки', (
+    tester,
+  ) async {
+    // «Зона 30» появилась только в правилнике 2017 года: описания нет, и
+    // подставлять чужое нельзя — но знак всё равно открывается крупно.
+    await tester.pumpWidget(
+      wrap(const KonspektMarkdown(text: '![знак](anim/sign-iii-25-2017)')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(TappableRoadSign));
+    await tester.pumpAndSettle();
+
+    expect(find.text('III-25-2017'), findsOneWidget);
     expect(find.text('Открыть в правилнике'), findsNothing);
   });
 
@@ -136,4 +158,104 @@ void main() {
     );
     expect(find.text('Открыть в правилнике'), findsNothing);
   });
+
+  testWidgets('смахивание закрывает просмотр знака', (tester) async {
+    await tester.pumpWidget(
+      wrap(const KonspektMarkdown(text: '![II-2](anim/sign-ii-2)')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(TappableRoadSign));
+    await tester.pumpAndSettle();
+    expect(find.byType(RoadSignViewer), findsOneWidget);
+
+    // Как в просмотре фотографий чата: тащим сам знак вниз и отпускаем.
+    await tester.drag(
+      find.descendant(
+        of: find.byType(RoadSignViewer),
+        matching: find.byType(Hero),
+      ),
+      const Offset(0, 200),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(RoadSignViewer), findsNothing);
+  });
+
+  testWidgets('ссылка «Открыть в правилнике» закрывает знак и открывает закон', (
+    tester,
+  ) async {
+    // Широкий экран: правилник выезжает панелью и не требует роутера — так
+    // проверяется главное, что просмотрщик уходит с дороги (иначе документ
+    // открывался бы под ним, а «назад» вело на «страница не найдена»).
+    tester.view.physicalSize = const Size(1400, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      wrap(const KonspektMarkdown(text: '![II-2](anim/sign-ii-2)')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(TappableRoadSign));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Открыть в правилнике'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(RoadSignViewer), findsNothing);
+    expect(find.byType(Zakon), findsOneWidget);
+  });
+
+  testWidgets('знак, нарисованный в иллюстрации, тоже открывается по нажатию', (
+    tester,
+  ) async {
+    var tapsPastSign = 0;
+    await tester.pumpWidget(
+      wrap(
+        GestureDetector(
+          onTap: () => tapsPastSign++,
+          child: RoadSignScope(
+            signs: const ['I-1'],
+            builder: (context, signs) => TappableSigns(
+              signs: signs,
+              child: CustomPaint(
+                size: const Size(200, 200),
+                painter: _OneSignPainter(signs),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Мимо знака нажатие проходит насквозь — сцена сохраняет свои жесты.
+    await tester.tapAt(tester.getTopLeft(find.byType(TappableSigns)) + const Offset(150, 150));
+    await tester.pumpAndSettle();
+    expect(tapsPastSign, 1);
+    expect(find.byType(RoadSignViewer), findsNothing);
+
+    await tester.tapAt(tester.getTopLeft(find.byType(TappableSigns)) + const Offset(50, 50));
+    await tester.pumpAndSettle();
+    expect(tapsPastSign, 1);
+    expect(find.text('I-1'), findsOneWidget);
+    expect(
+      find.textContaining('кривина налево', findRichText: true),
+      findsWidgets,
+    );
+  });
+}
+
+/// Сцена с одним знаком в левом верхнем углу — ровно чтобы проверить слой
+/// нажатий поверх холста.
+class _OneSignPainter extends CustomPainter {
+  _OneSignPainter(this.signs);
+
+  final RoadSigns signs;
+
+  @override
+  void paint(Canvas canvas, Size size) =>
+      signs.paint(canvas, 'I-1', const Rect.fromLTWH(10, 10, 80, 80));
+
+  @override
+  bool shouldRepaint(_OneSignPainter oldDelegate) => oldDelegate.signs != signs;
 }

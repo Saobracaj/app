@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:saobracaj/zakon/presentation/road_sign_viewer.dart';
 
 /// Официальные SVG сербских дорожных знаков (Wikimedia Commons,
 /// `Category:SVG road signs in Serbia`). Ассеты лежат в `assets/signs/`,
@@ -37,13 +38,18 @@ class RoadSignSvg extends StatelessWidget {
 /// Экземпляр меняется при завершении загрузки — храни его полем painter'а
 /// и учитывай в `shouldRepaint`.
 class RoadSigns {
-  const RoadSigns._(this._generation);
+  RoadSigns._(this._generation);
 
   /// Меняется, когда кэш пополнился, — чтобы `oldDelegate.signs != signs`
   /// в `shouldRepaint` замечал дозагрузку.
   final int _generation;
 
   static final Map<String, PictureInfo> _cache = {};
+
+  /// Где на холсте оказался каждый знак в последнем кадре — по этим
+  /// прямоугольникам [TappableSigns] ловит нажатия. Координаты те же, что у
+  /// painter'а, поэтому слой нажатий обязан лежать ровно на его CustomPaint.
+  final Map<String, Rect> _painted = {};
 
   /// Рисует знак [sign] вписанным в [target] (contain, по центру).
   /// Пока SVG не загружен — no-op (кадр без знака).
@@ -52,6 +58,7 @@ class RoadSigns {
     if (info == null) {
       return;
     }
+    _painted[sign.toLowerCase()] = target;
     if (opacity < 1) {
       canvas.saveLayer(
         target.inflate(2),
@@ -71,6 +78,14 @@ class RoadSigns {
     canvas.scale(scale);
     canvas.drawPicture(info.picture);
     canvas.restore();
+  }
+
+  /// Знак, нарисованный в точке [position] холста, или null.
+  String? signAt(Offset position) {
+    for (final entry in _painted.entries) {
+      if (entry.value.contains(position)) return entry.key;
+    }
+    return null;
   }
 
   /// Соотношение сторон знака (ширина/высота) после загрузки, иначе `null`.
@@ -131,4 +146,82 @@ class _RoadSignScopeState extends State<RoadSignScope> {
 
   @override
   Widget build(BuildContext context) => widget.builder(context, _signs);
+}
+
+/// Слой нажатий над иллюстрацией, рисующей знаки на холсте: тап по знаку
+/// открывает тот же просмотрщик, что и тап по знаку в конспекте.
+///
+/// Оборачивает CustomPaint сцены (и обязан лежать ровно на нём — координаты
+/// нажатия сверяются с координатами painter'а):
+///
+/// ```dart
+/// TappableSigns(
+///   signs: signs,
+///   child: CustomPaint(painter: _ScenePainter(signs)),
+/// )
+/// ```
+///
+/// Мимо знака нажатие проходит насквозь — пауза и шаги [InteractiveAnimation]
+/// продолжают работать: слой отвечает на нажатие, только когда точка попала в
+/// прямоугольник знака из последнего кадра.
+class TappableSigns extends StatelessWidget {
+  const TappableSigns({super.key, required this.signs, required this.child});
+
+  final RoadSigns signs;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        child,
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.deferToChild,
+            onTapUp: (details) {
+              final sign = signs.signAt(details.localPosition);
+              if (sign != null) showRoadSignViewer(context, sign: sign);
+            },
+            child: _SignHitArea(signs),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Пустая область, «занятая» только там, где нарисованы знаки: тап мимо знака
+/// её не задевает и достаётся тому, кто под ней (сцене с паузой по нажатию).
+class _SignHitArea extends LeafRenderObjectWidget {
+  const _SignHitArea(this.signs);
+
+  final RoadSigns signs;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderSignHitArea(signs);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderSignHitArea renderObject,
+  ) {
+    renderObject.signs = signs;
+  }
+}
+
+class _RenderSignHitArea extends RenderBox {
+  _RenderSignHitArea(this.signs);
+
+  RoadSigns signs;
+
+  @override
+  bool get sizedByParent => true;
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) =>
+      constraints.biggest.isFinite ? constraints.biggest : Size.zero;
+
+  @override
+  bool hitTestSelf(Offset position) => signs.signAt(position) != null;
 }

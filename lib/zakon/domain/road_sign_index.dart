@@ -63,7 +63,7 @@ List<String> _captionCodes(String? sr) {
 /// при точном совпадении количества — так же собирает их и дедупликация в
 /// tool/parse_pravilnik.py. Описание ищется вперёд в пределах окна: у групп
 /// вроде II-43…II-43.4 один абзац стоит после нескольких блоков картинок.
-Map<String, RoadSignInfo> buildRoadSignIndex(List<BezbParagraph> rows) {
+RoadSignIndexData buildRoadSignIndex(List<BezbParagraph> rows) {
   final index = <String, RoadSignInfo>{};
   for (var i = 0; i < rows.length; i++) {
     final images = rows[i].images;
@@ -102,7 +102,13 @@ Map<String, RoadSignInfo> buildRoadSignIndex(List<BezbParagraph> rows) {
       );
     }
   }
-  return index;
+  final byAsset = <String, RoadSignInfo>{};
+  for (final info in index.values) {
+    // Первый код выигрывает: одна и та же табла IV-группы стоит в документе
+    // несколько раз, а сетка допунских табли повторяет рисунок построчно.
+    byAsset.putIfAbsent(info.asset, () => info);
+  }
+  return RoadSignIndexData(byCode: index, byAsset: byAsset);
 }
 
 /// Код, за которым не продолжается номер: «III-65» не должен находиться
@@ -147,15 +153,27 @@ String? _name(String? description, String code, {required String open, required 
   return null;
 }
 
+/// Индекс правилника: сведения о знаке достаются и по коду документа, и по
+/// файлу изображения. Файл — ключ надёжнее кода: имена в assets/signs/ идут
+/// по нумерации правилника 2017 года, а этот документ 2010-го, и номера
+/// местами разошлись (файл iii-68.svg — аутопут, а III-68 в документе — деца
+/// на путу).
+class RoadSignIndexData {
+  const RoadSignIndexData({required this.byCode, required this.byAsset});
+
+  final Map<String, RoadSignInfo> byCode;
+  final Map<String, RoadSignInfo> byAsset;
+}
+
 /// Индекс знаков правилника, собираемый один раз по первому обращению.
 class RoadSignIndex {
-  static Future<Map<String, RoadSignInfo>>? _index;
+  static Future<RoadSignIndexData>? _index;
 
-  /// Сведения о знаке [code] (регистр не важен: маркеры конспектов пишут
-  /// «ii-2») или null, если правилник такого знака не описывает.
-  static Future<RoadSignInfo?> find(String code) async {
+  /// Сведения о знаке [sign] — имя файла из assets/signs/ («ii-2», регистр не
+  /// важен) — или null, если правилник такого знака не описывает.
+  static Future<RoadSignInfo?> find(String sign) async {
     _index ??= pravilnikDataSource.paragraphs.then(buildRoadSignIndex);
-    return lookupRoadSign(await _index!, code);
+    return lookupRoadSign(await _index!, sign);
   }
 
   /// Сброс кэша для тестов: Future, рождённый в фейковой зоне одного
@@ -166,40 +184,115 @@ class RoadSignIndex {
   }
 }
 
-/// Поиск с фолбэком: имена файлов в assets/signs/ бывают шире кодов
-/// правилника.
+/// Знаки, у которых имя файла и код документа означают РАЗНЫЕ знаки: файлы
+/// названы по правилнику 2017 года, а документ — 2010-го. Для них привязка по
+/// коду запрещена (описание было бы от чужого знака — так «зона школе» на
+/// экране объяснялась «престанком забране давања звучних знакова»); годится
+/// только совпадение по файлу.
 ///
-/// - «ii-30-40» — вариант знака с другим числом: описание берётся у базового
-///   II-30 (сначала пробуем «II-30.40» — вариант через точку);
-/// - «ii-30-blank», «i-35-t2» — самодельные суффиксы файлов: тоже к базовому;
-/// - «iii-11-2017» — знак из правилника 2017 года: его нумерация с этим
-///   документом не совпадает, подставлять описание III-11 было бы враньём —
-///   такой знак остаётся без описания.
+/// Список повторяет OFFICIAL_OVERRIDES из tool/parse_pravilnik.py, где по тем
+/// же парам подменяются картинки самого документа; синхронность проверяет
+/// test/road_sign_index_test.dart.
+const renumberedIn2017 = {
+  'III-7',
+  'III-17',
+  'III-18',
+  'III-19',
+  'III-26',
+  'III-27',
+  'III-28',
+  'III-29',
+  'III-29.1',
+  'III-30',
+  'III-32',
+  'III-32.1',
+  'III-68',
+};
+
+/// Знаки образца 2017 года и переномерованные файлы, для которых в правилнике
+/// 2010 года есть тот же знак под другим номером: рисунок мог поменяться, но
+/// значение и абзац-описание те же («деца на путу» — зелёная табла 2017 года,
+/// в этом документе III-68).
 ///
-/// Вынесен отдельно, чтобы тесты гоняли ровно боевое правило на индексе,
-/// собранном из файла.
-RoadSignInfo? lookupRoadSign(Map<String, RoadSignInfo> index, String code) {
-  final upper = code.toUpperCase();
-  final exact = index[upper];
+/// Пары найдены сличением изображений (tool/audit_signs_gaps_test.dart) и
+/// проверены по тексту описаний; всё, чему пары в документе нет, остаётся без
+/// описания — врать описанием чужого знака нельзя.
+const equivalentIn2010 = {
+  'iii-11-2017': 'III-68', // деца на путу
+  'iii-8-2017': 'III-7', // прелаз за пешаке ван нивоа
+  'iii-14-40': 'III-27', // престанак ограничења брзине
+  'iii-15-40': 'III-27.1', // престанак најмање дозвољене брзине
+  'iii-67-70': 'III-60', // препоручена брзина
+  'iii-68.1': 'III-20', // завршетак аутопута
+  'e75-srb': 'III-18', // ознака европског пута
+};
+
+/// Сведения о знаке по имени файла в assets/signs/.
+///
+/// Порядок такой:
+///
+/// 1. **по файлу** — правилник показывает ровно этот файл (дедупликация в
+///    tool/parse_pravilnik.py подставила официальные SVG в сам документ), так
+///    что описание гарантированно от этого знака, каким бы номером он в
+///    документе ни назывался;
+/// 2. **по файлу базового знака** — «ii-30-40» (ограничение 40 км/ч),
+///    «ii-30-blank», «i-36c», «iii-85-1»: это варианты одного знака, описание
+///    у семейства общее;
+/// 3. **по коду** — на случай, когда рисунок знака в документе остался
+///    извлечённым из docx (официального SVG у него нет) и по файлу не
+///    сходится. Запрещено для [renumberedIn2017] и там, где у кода документа
+///    свой официальный файл: раз он другой, знаки разные.
+///
+/// Перед привязкой по коду срабатывает таблица [equivalentIn2010] — тот же
+/// знак под другим номером. Знаки с суффиксом «-2017» (образец 2017 года,
+/// которого в этом документе нет) базового знака не ищут: «iii-25-2017» и
+/// «III-25» — разные знаки.
+RoadSignInfo? lookupRoadSign(RoadSignIndexData index, String sign) {
+  final file = sign.toLowerCase();
+  final exact = index.byAsset['assets/signs/$file.svg'];
   if (exact != null) return exact;
-  if (upper.endsWith('-2017')) return null;
-  final numeric = RegExp(r'^(.+)-(\d+)$').firstMatch(upper);
-  final dotVariant = RegExp(r'^(.+)\.\d+$').firstMatch(upper);
-  final letters = RegExp(r'^(.+\d)[A-Z]+$').firstMatch(upper);
-  final suffixed = RegExp(r'^(.+)-[A-Z0-9]+$').firstMatch(upper);
-  final candidates = <String?>[
-    // «II-30-40» → вариант через точку «II-30.40»
-    if (numeric != null) '${numeric.group(1)}.${numeric.group(2)}',
-    // «I-29.2», «III-68.1» → базовый знак семейства
-    dotVariant?.group(1),
-    // «I-36C» → «I-36»
-    letters?.group(1),
-    // «II-30-BLANK», «I-35-T2» → базовый знак
-    suffixed?.group(1),
-  ];
-  for (final candidate in candidates) {
-    final hit = index[candidate];
+  // Раньше поиска по семейству: «iii-68.1» (завршетак аутопута) не должен
+  // достаться базовому «iii-68» — это сам аутопут.
+  final equivalent = index.byCode[equivalentIn2010[file]];
+  if (equivalent != null) return equivalent;
+  for (final candidate in _fileCandidates(file).skip(1)) {
+    final hit = index.byAsset['assets/signs/$candidate.svg'];
     if (hit != null) return hit;
+  }
+  if (file.endsWith('-2017')) return null;
+  for (final candidate in _codeCandidates(file.toUpperCase())) {
+    if (renumberedIn2017.contains(candidate)) continue;
+    final hit = index.byCode[candidate];
+    // У кода свой официальный файл, и он не наш (иначе сработал бы поиск по
+    // файлу) — значит, это другой знак.
+    if (hit == null || hit.asset.startsWith('assets/signs/')) continue;
+    return hit;
   }
   return null;
 }
+
+/// Имена файлов, чьё описание годится знаку [file]: он сам и базовые знаки
+/// его семейства.
+List<String> _fileCandidates(String file) {
+  if (file.endsWith('-2017')) return [file];
+  final numeric = RegExp(r'^(.+)-(\d+)$').firstMatch(file);
+  final letters = RegExp(r'^(.+\d)[a-z]+$').firstMatch(file);
+  final suffixed = RegExp(r'^(.+)-[a-z0-9]+$').firstMatch(file);
+  final dotVariant = RegExp(r'^(.+)\.\d+$').firstMatch(file);
+  return [
+    file,
+    // «ii-30-40» → вариант через точку «ii-30.40», затем сам «ii-30»
+    if (numeric != null) '${numeric.group(1)}.${numeric.group(2)}',
+    if (numeric != null) numeric.group(1)!,
+    // «i-36c» → «i-36»
+    if (letters != null) letters.group(1)!,
+    // «ii-30-blank», «i-35-t2», «iii-85-1» → базовый знак
+    if (suffixed != null) suffixed.group(1)!,
+    // «i-29.2» → «i-29»
+    if (dotVariant != null) dotVariant.group(1)!,
+  ];
+}
+
+/// Коды правилника, под которыми знак [code] мог быть описан.
+List<String> _codeCandidates(String code) =>
+    _fileCandidates(code.toLowerCase()).map((c) => c.toUpperCase()).toList();

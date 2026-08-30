@@ -28,11 +28,14 @@ class TriVrsteZnakova extends StatelessWidget {
           child: SizedBox(
             width: 400,
             height: 322,
-            child: CustomPaint(
-              painter: _TriVrsteZnakovaPainter(
-                Theme.of(context).colorScheme,
-                _SignLabels.of(context),
-                signs,
+            child: TappableSigns(
+              signs: signs,
+              child: CustomPaint(
+                painter: _TriVrsteZnakovaPainter(
+                  Theme.of(context).colorScheme,
+                  _SignLabels.of(context),
+                  signs,
+                ),
               ),
             ),
           ),

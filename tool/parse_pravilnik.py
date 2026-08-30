@@ -47,6 +47,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCX = os.path.join(ROOT, 'tool', 'data', 'pravilnik_o_saobracajnoj_signalizaciji.docx')
 OUT_JSON = os.path.join(ROOT, 'assets', 'parsed_pravilnik.json')
 OUT_DIR = os.path.join(ROOT, 'assets', 'pravilnik')
+# Куда --audit кладёт пары «рисунок docx → официальный SVG» для сверки.
+AUDIT_JSON = os.path.join('build', 'sign_audit.json')
 
 EMU_PER_PX = 9525  # 96 dpi
 EMU_PER_PT = 12700
@@ -477,6 +479,30 @@ def caption_codes(sr):
     return [re.sub(r'\s', '', m) for m in SIGN_CODE_IN_CAPTION_RE.findall(text)]
 
 
+# Имена файлов в assets/signs/ следуют нумерации правилника 2017 года (так
+# названы файлы Wikimedia Commons), а нумерации 2010 и 2017 пересекаются:
+# «assets/signs/<код>.svg» местами показывает ДРУГОЙ знак, чем <код> в этом
+# (2010-м) документе. Для таких кодов замена задаётся явно: имя правильного
+# файла или None, когда официального SVG знака 2010 года попросту нет
+# (остаётся извлечённый из docx рисунок). Проверено контактными листами
+# «docx ↔ официальный SVG» по всем 174 подменам.
+OFFICIAL_OVERRIDES = {
+    'III-7': None,           # iii-7.svg — пешачко-бициклистички прелаз (2017)
+    'III-17': None,          # iii-17.svg — престанак свих забрана (2017)
+    'III-18': None,          # iii-18.svg — престанак ланаца за снег (2017)
+    'III-19': 'iii-68',      # аутопут: в 2017 он под номером III-68
+    'III-26': 'iii-26-kraj', # iii-26.svg — пешачка зона (2017)
+    'III-27': None,          # iii-27.svg — зона 30 (2017)
+    'III-28': 'iii-28-kraj', # iii-28.svg — зона школе (2017)
+    'III-29': 'iii-17',      # престанак свих забрана: в 2017 это III-17
+    'III-29.1': 'iii-18',    # престанак ланаца: в 2017 это III-18
+    'III-30': None,          # iii-30.svg — паркиралиште (2017)
+    'III-32': 'iii-30',      # паркиралиште: в 2017 оно под номером III-30
+    'III-32.1': 'iii-31-2017',  # паркинг гаража
+    'III-68': None,          # iii-68.svg — аутопут (2017); 2010-й III-68 — деца
+}
+
+
 def dedupe_signs(rows):
     """Заменяет извлечённые из docx знаки официальными SVG из assets/signs/.
 
@@ -487,6 +513,7 @@ def dedupe_signs(rows):
     слиты в один файл по хэшу, так что это тот же знак.
     """
     mapping = {}  # 'assets/pravilnik/img_NNN.svg' -> 'assets/signs/<код>.svg'
+    code_src = {}  # код -> первый docx-файл, на котором он встретился
     for i, row in enumerate(rows):
         imgs = row.get('images')
         if not imgs:
@@ -502,9 +529,24 @@ def dedupe_signs(rows):
         if len(codes) != len(imgs):
             continue
         for img, code in zip(imgs, codes):
-            official = f'assets/signs/{code.lower()}.svg'
+            if code in OFFICIAL_OVERRIDES:
+                name = OFFICIAL_OVERRIDES[code]
+                if name is None:
+                    continue
+                official = f'assets/signs/{name}.svg'
+            else:
+                official = f'assets/signs/{code.lower()}.svg'
             if not os.path.exists(os.path.join(ROOT, official)):
                 continue
+            # Правилник переиспользует номера в поздних главах для других
+            # знаков (III-85 в чл. 27 — «излаз у случају опасности», в чл. 38 —
+            # жёлтый «предзнак за обилазак»), поэтому код групп I–III достаётся
+            # только первому рисунку. Сетку допунских табли (IV) это не
+            # касается: там один знак повторён несколькими извлечёнными
+            # файлами, и замена нужна каждому.
+            if not code.startswith('IV'):
+                if code_src.setdefault(code, img['src']) != img['src']:
+                    continue
             # Один и тот же файл (рисунки слиты по хэшу) обязан выходить на
             # один и тот же код — противоречие значит сбитую привязку.
             assert mapping.get(img['src'], official) == official, \
@@ -516,7 +558,7 @@ def dedupe_signs(rows):
             if img['src'] in mapping:
                 img['src'] = mapping[img['src']]
                 replaced += 1
-    return len(mapping), replaced
+    return mapping, len(mapping), replaced
 
 
 def main():
@@ -544,11 +586,21 @@ def main():
     parser = Parser(doc_root, media, Numbering(numbering_xml))
     rows = parser.run()
 
-    n_official, n_replaced = dedupe_signs(rows)
+    audit = '--audit' in sys.argv
+    mapping, n_official, n_replaced = dedupe_signs(rows)
+    if audit:
+        # Режим сверки привязки: пары «рисунок docx → официальный SVG»
+        # выгружаются как есть, извлечённые файлы не удаляются — их
+        # попиксельно сличает tool/audit_signs_test.dart.
+        with open(os.path.join(ROOT, AUDIT_JSON), 'w', encoding='utf-8') as f:
+            json.dump(mapping, f, ensure_ascii=False, indent=1)
+        print(f'сверка привязки: {AUDIT_JSON}')
     # Файлы, оставшиеся без ссылок после замены на официальные SVG.
     referenced = {img['src'] for r in rows for img in r.get('images', [])}
     pruned = 0
     for name in os.listdir(OUT_DIR):
+        if audit:
+            break
         if f'assets/pravilnik/{name}' not in referenced:
             os.remove(os.path.join(OUT_DIR, name))
             pruned += 1

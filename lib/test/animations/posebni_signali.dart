@@ -24,7 +24,10 @@ class PosebniSignali extends StatelessWidget {
           child: SizedBox(
             width: 400,
             height: 492,
-            child: CustomPaint(painter: _PosebniSignaliPainter(scheme, signs)),
+            child: TappableSigns(
+              signs: signs,
+              child: CustomPaint(painter: _PosebniSignaliPainter(scheme, signs)),
+            ),
           ),
         ),
       ),
