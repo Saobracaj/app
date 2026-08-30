@@ -58,12 +58,14 @@ void main() {
     Directory('build/pravilnik_preview').createSync(recursive: true);
   });
 
-  for (final (name, chlan, ru) in [
-    ('chlan104', '104', false),
-    ('chlan48', '48', false),
-    ('chlan13_ru', '13', true),
-    ('chlan26_ru', '26', true),
-    ('chlan104_ru', '104', true),
+  for (final (name, chlan, paragraph, ru) in [
+    ('chlan104', '104', null, false),
+    ('chlan48', '48', null, false),
+    ('chlan13', '13', '2', false),
+    ('chlan20_znak43', '20', '19', false),
+    ('chlan13_ru', '13', null, true),
+    ('chlan26_ru', '26', null, true),
+    ('chlan104_ru', '104', null, true),
   ]) {
     testWidgets('превью правилника $name', (tester) async {
       await tester.binding.setSurfaceSize(const Size(420, 900));
@@ -99,6 +101,7 @@ void main() {
                   child: Zakon(
                     document: LawDocument.pravilnik,
                     chlan: chlan,
+                    paragraph: paragraph,
                   ),
                 ),
               ),

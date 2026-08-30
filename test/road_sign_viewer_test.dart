@@ -86,8 +86,9 @@ void main() {
     await tester.tap(find.byType(TappableRoadSign));
     await tester.pumpAndSettle();
 
-    // Заголовок — код знака; описание по умолчанию сербское, как в законе.
-    expect(find.text('II-2'), findsOneWidget);
+    // Код знака — в заголовке и подписью под изображением; описание по
+    // умолчанию сербское, как в законе.
+    expect(find.text('II-2'), findsNWidgets(2));
     expect(
       find.textContaining('обавезно заустављање', findRichText: true),
       findsWidgets,
@@ -113,6 +114,9 @@ void main() {
       find.textContaining('деца на путу', findRichText: true),
       findsWidgets,
     );
+    // Номер двойника (III-68 из документа 2010 года) на экране не показывается
+    // — это номер другого образца знака.
+    expect(find.text('III-68'), findsNothing);
     expect(find.text('Открыть в правилнике'), findsOneWidget);
   });
 
@@ -151,12 +155,42 @@ void main() {
     showRoadSignViewer(context, sign: 'i-1', showPravilnikLink: false);
     await tester.pumpAndSettle();
 
-    expect(find.text('I-1'), findsOneWidget);
+    // Код — в заголовке и подписью под изображением.
+    expect(find.text('I-1'), findsNWidgets(2));
     expect(
       find.textContaining('кривина налево', findRichText: true),
       findsWidgets,
     );
     expect(find.text('Открыть в правилнике'), findsNothing);
+  });
+
+  testWidgets('код из подписи правилника первичен для номера и описания', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(wrap(const Zakon()));
+    await tester.pumpAndSettle();
+
+    // Файл iii-68.svg документ показывает под кодом III-19 («аутопут»):
+    // просмотр из правилника получает код подписи и показывает его, а не имя
+    // файла — нумерации 2010 и 2017 годов разошлись.
+    final context = tester.element(find.byType(Zakon));
+    showRoadSignViewer(
+      context,
+      sign: 'iii-68',
+      documentCode: 'III-19',
+      showPravilnikLink: false,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('III-19'), findsNWidgets(2));
+    expect(find.text('III-68'), findsNothing);
+    expect(
+      find.textContaining('аутопут', findRichText: true),
+      findsWidgets,
+    );
   });
 
   testWidgets('смахивание закрывает просмотр знака', (tester) async {
@@ -237,7 +271,8 @@ void main() {
     await tester.tapAt(tester.getTopLeft(find.byType(TappableSigns)) + const Offset(50, 50));
     await tester.pumpAndSettle();
     expect(tapsPastSign, 1);
-    expect(find.text('I-1'), findsOneWidget);
+    // Код — в заголовке и подписью под изображением.
+    expect(find.text('I-1'), findsNWidgets(2));
     expect(
       find.textContaining('кривина налево', findRichText: true),
       findsWidgets,

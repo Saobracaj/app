@@ -55,6 +55,41 @@ List<String> _captionCodes(String? sr) {
       .toList();
 }
 
+/// Подписи под строкой картинок [i]: строки-подписи ниже читаются, пока кодов
+/// меньше, чем картинок. Пара «картинка ↔ код» принимается только при точном
+/// совпадении количества (или один общий код на весь ряд — фото + рисунок
+/// одной таблы, как у IV-22); иначе null — этим же правилом пользуется и
+/// дедупликация в tool/parse_pravilnik.py.
+class SignCaptions {
+  const SignCaptions({required this.codes, required this.captionRows});
+
+  /// Коды в порядке картинок строки (либо один общий на весь ряд).
+  final List<String> codes;
+
+  /// Прочитанные строки-подписи — стоят сразу за строкой с картинками.
+  final List<BezbParagraph> captionRows;
+}
+
+SignCaptions? signCaptionsAt(List<BezbParagraph> rows, int i) {
+  final images = rows[i].images;
+  if (images.isEmpty) return null;
+  final codes = <String>[];
+  final captionRows = <BezbParagraph>[];
+  var j = i + 1;
+  while (j < rows.length && codes.length < images.length) {
+    final rowCodes = _captionCodes(rows[j].sr);
+    if (rowCodes.isEmpty) break;
+    codes.addAll(rowCodes);
+    captionRows.add(rows[j]);
+    j++;
+  }
+  if (codes.length != images.length &&
+      !(codes.length == 1 && images.length > 1)) {
+    return null;
+  }
+  return SignCaptions(codes: codes, captionRows: captionRows);
+}
+
 /// Собирает индекс «код знака → сведения» из строк правилника.
 ///
 /// Структура документа регулярна: строка с картинками, за ней строки-подписи
@@ -67,20 +102,10 @@ RoadSignIndexData buildRoadSignIndex(List<BezbParagraph> rows) {
   final index = <String, RoadSignInfo>{};
   for (var i = 0; i < rows.length; i++) {
     final images = rows[i].images;
-    if (images.isEmpty) continue;
-    final codes = <String>[];
-    var j = i + 1;
-    while (j < rows.length && codes.length < images.length) {
-      final rowCodes = _captionCodes(rows[j].sr);
-      if (rowCodes.isEmpty) break;
-      codes.addAll(rowCodes);
-      j++;
-    }
-    // Одна подпись на несколько картинок (фото + рисунок одной таблы, как у
-    // IV-22) — код всё равно однозначен; прочие расхождения — не знаки.
-    if (codes.length != images.length && !(codes.length == 1 && images.length > 1)) {
-      continue;
-    }
+    final captions = signCaptionsAt(rows, i);
+    if (captions == null) continue;
+    final codes = captions.codes;
+    final j = i + 1 + captions.captionRows.length;
     for (var k = 0; k < codes.length; k++) {
       final code = codes[k];
       // В индексе только дорожные знаки (группы I–IV: опасность, наредбе,
@@ -111,29 +136,40 @@ RoadSignIndexData buildRoadSignIndex(List<BezbParagraph> rows) {
   return RoadSignIndexData(byCode: index, byAsset: byAsset);
 }
 
-/// Код, за которым не продолжается номер: «III-65» не должен находиться
-/// внутри «III-65.2».
+/// Код, вокруг которого не продолжается номер: «III-65» не должен находиться
+/// ни внутри «III-65.2», ни внутри «VIII-65» — слева не должно быть римской
+/// цифры (без lookbehind: старые Safari его не разбирают).
 RegExp _codeToken(String code) =>
-    RegExp('${RegExp.escape(code)}(?![\\d.])');
+    RegExp('(?:^|[^IVX])${RegExp.escape(code)}(?![\\d.])');
 
-/// Абзац-описание знака [code]: первая из ближайших строк (кроме подписей),
-/// которая упоминает сам код — обычно пункт перечня «18) знак…», но бывает и
-/// «Знак „туристичка информациона табла” (III-75)…» без номера. Окно
-/// небольшое — описание стоит сразу за блоками «картинки + подписи».
+/// Код в формате определения — сразу за открывающей скобкой: описание каждого
+/// знака упоминает его как «(I-1)» или «(II-43), (II-43.1) и (II-43.2)».
+RegExp _codeParen(String code) =>
+    RegExp('\\(\\s*${RegExp.escape(code)}(?![\\d.])');
+
+/// Абзац-описание знака [code]: из ближайших строк (кроме подписей) сначала
+/// берётся та, что упоминает код в формате определения «({код})», затем — с
+/// кодом без скобок («допунска табла IV-1, која…»), затем пункт перечня.
+/// Окно небольшое — описание стоит сразу за блоками «картинки + подписи»;
+/// искать «(код)» по всему документу нельзя: упоминания в правилах установки
+/// («знак I-19 (радови на путу) поставља се…») стоят за сотни строк от знака.
 final _itemRe = RegExp(r'^\d+\)\s');
 
 BezbParagraph? _findDescription(List<BezbParagraph> rows, int from, String code) {
+  final paren = _codeParen(code);
   final token = _codeToken(code);
+  BezbParagraph? tokenHit;
   BezbParagraph? firstItem;
   for (var j = from; j < rows.length && j < from + 15; j++) {
     final sr = (rows[j].sr ?? '').trim();
     if (sr.isEmpty || _captionCodes(sr).isNotEmpty) continue;
-    if (token.hasMatch(sr)) return rows[j];
+    if (paren.hasMatch(sr)) return rows[j];
+    if (tokenHit == null && token.hasMatch(sr)) tokenHit = rows[j];
     if (_itemRe.hasMatch(sr)) firstItem ??= rows[j];
   }
   // Код рядом не упомянут вовсе (в docx бывают опечатки вроде «lV-8.2» со
   // строчной L) — берём ближайший пункт перечня: он и есть описание блока.
-  return firstItem;
+  return tokenHit ?? firstItem;
 }
 
 /// Название знака из описания: текст в кавычках, за которым в скобках
@@ -171,9 +207,20 @@ class RoadSignIndex {
 
   /// Сведения о знаке [sign] — имя файла из assets/signs/ («ii-2», регистр не
   /// важен) — или null, если правилник такого знака не описывает.
-  static Future<RoadSignInfo?> find(String sign) async {
+  ///
+  /// [documentCode] — точный код знака из подписи самого правилника (его
+  /// передаёт экран документа, где пары «картинка ↔ код» известны): поиск по
+  /// нему первичен, потому что имя файла может значить другой знак (нумерации
+  /// 2010 и 2017 годов разошлись), а один файл — стоять в документе под
+  /// несколькими кодами.
+  static Future<RoadSignInfo?> find(String sign, {String? documentCode}) async {
     _index ??= pravilnikDataSource.paragraphs.then(buildRoadSignIndex);
-    return lookupRoadSign(await _index!, sign);
+    final data = await _index!;
+    if (documentCode != null) {
+      final exact = data.byCode[documentCode];
+      if (exact != null) return exact;
+    }
+    return lookupRoadSign(data, sign);
   }
 
   /// Сброс кэша для тестов: Future, рождённый в фейковой зоне одного

@@ -239,6 +239,29 @@ void main() {
       expect(find.text('РУ'), findsNothing);
     });
 
+    testWidgets('коды знаков стоят прямо под своими картинками', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(500, 1200);
+      addTearDown(tester.view.reset);
+
+      // Члан 13, абзац 2 — первая строка со знаками (I-1 и I-1.1).
+      await tester.pumpWidget(
+        wrap(const Zakon(
+          document: LawDocument.pravilnik,
+          chlan: '13',
+          paragraph: '2',
+        )),
+      );
+      await tester.pumpAndSettle();
+
+      // Подписи склеены с рядом картинок: коды — обычные Text-ячейки таблицы
+      // под знаками, а не отдельные markdown-строки «**I-1**».
+      expect(find.text('I-1'), findsOneWidget);
+      expect(find.text('I-1.1'), findsOneWidget);
+    });
+
     testWidgets('с russian_content кнопка «РУ» переключает на перевод', (
       tester,
     ) async {

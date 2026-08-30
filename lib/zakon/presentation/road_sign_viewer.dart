@@ -30,6 +30,7 @@ const double _dismissVelocity = 700;
 Future<void> showRoadSignViewer(
   BuildContext context, {
   required String sign,
+  String? documentCode,
   Object? heroTag,
   bool showPravilnikLink = true,
 }) {
@@ -45,6 +46,7 @@ Future<void> showRoadSignViewer(
       reverseTransitionDuration: const Duration(milliseconds: 200),
       pageBuilder: (_, _, _) => RoadSignViewer(
         sign: sign,
+        documentCode: documentCode,
         heroTag: heroTag,
         onOpenPravilnik: !showPravilnikLink
             ? null
@@ -74,12 +76,18 @@ class RoadSignViewer extends StatefulWidget {
   RoadSignViewer({
     super.key,
     required this.sign,
+    this.documentCode,
     this.heroTag,
     this.onOpenPravilnik,
-  }) : info = RoadSignIndex.find(sign);
+  }) : info = RoadSignIndex.find(sign, documentCode: documentCode);
 
   /// Имя файла знака в assets/signs/ («ii-2», регистр не важен).
   final String sign;
+
+  /// Точный код знака из подписи правилника («III-19»), когда просмотр открыт
+  /// из самого документа: описание ищется по нему, и показывается именно он —
+  /// имя файла может значить другой номер (нумерации 2010 и 2017 разошлись).
+  final String? documentCode;
 
   /// Тег hero знака-источника; null — открытие без полёта.
   final Object? heroTag;
@@ -102,7 +110,7 @@ class _RoadSignViewerState extends State<RoadSignViewer> {
   /// Насколько знак утащен от центра, пока палец на экране.
   Offset _drag = Offset.zero;
 
-  String get _code => widget.sign.toUpperCase();
+  String get _code => widget.documentCode ?? widget.sign.toUpperCase();
 
   /// Плотность фона: к моменту, когда отпускание закроет просмотр, под знаком
   /// уже виден конспект — жест сразу показывает, куда вернёшься.
@@ -154,6 +162,12 @@ class _RoadSignViewerState extends State<RoadSignViewer> {
           // должна остаться вариантной. Пока индекс собирается (или знака в
           // правилнике нет) — просто знак без описания.
           final asset = RoadSignSvg.assetPath(widget.sign);
+          // Номер знака под изображением — только достоверный: код из подписи
+          // правилника или код документа, показывающего ровно этот файл. У
+          // знака образца 2017 года с описанием от двойника 2010-го номера
+          // двойника на экране быть не должно.
+          final code = widget.documentCode ??
+              (info != null && info.asset == asset ? info.code : null);
           final name = _isSr ? info?.nameSr : info?.nameRu ?? info?.nameSr;
           final description = _isSr
               ? info?.descriptionSr
@@ -194,6 +208,16 @@ class _RoadSignViewerState extends State<RoadSignViewer> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     const SizedBox(height: 24),
+                    if (code != null) ...[
+                      Text(
+                        code,
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.labelLarge?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
                     if (name != null)
                       Text(
                         name,
@@ -246,6 +270,7 @@ class TappableRoadSign extends StatefulWidget {
     super.key,
     this.width,
     this.height,
+    this.documentCode,
     this.showPravilnikLink = true,
   });
 
@@ -253,6 +278,10 @@ class TappableRoadSign extends StatefulWidget {
   final String sign;
   final double? width;
   final double? height;
+
+  /// Точный код знака из подписи документа — передаёт экран правилника, где
+  /// пары «картинка ↔ код» известны (см. [RoadSignViewer.documentCode]).
+  final String? documentCode;
 
   /// Ссылку «Открыть в правилнике» прячет сам правилник: оттуда она вела бы
   /// на уже открытый документ.
@@ -273,6 +302,7 @@ class _TappableRoadSignState extends State<TappableRoadSign> {
         onTap: () => showRoadSignViewer(
           context,
           sign: widget.sign,
+          documentCode: widget.documentCode,
           heroTag: _heroTag,
           showPravilnikLink: widget.showPravilnikLink,
         ),

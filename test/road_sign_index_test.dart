@@ -63,6 +63,23 @@ void main() {
     expect(info.chlan, isNotNull);
   });
 
+  test('описание предпочитает упоминание в формате «({код})»', () {
+    // Описание каждого знака упоминает его код в скобках — «(I-1)»,
+    // «(II-43), (II-43.1)…»; поиск в окне берёт такую строку первой, чтобы
+    // случайное упоминание кода в чужом абзаце не перехватило описание.
+    for (final code in ['I-1', 'II-43.2', 'III-19', 'II-2']) {
+      final sr = index.byCode[code]!.descriptionSr!;
+      expect(sr.replaceAll(' ', ''), contains('($code'), reason: code);
+    }
+    // «III-…» не должен находиться внутри более длинного номера: II-29.3 —
+    // опечатка документа (на деле III-29.3), и его описание — ближайший пункт
+    // перечня «24) знак „престанак свих забрана”…», а не случайная подстрока.
+    expect(
+      index.byCode['II-29.3']!.descriptionSr,
+      contains('престанак свих забрана'),
+    );
+  });
+
   test('у каждого знака индекса есть описание и адрес для ссылки', () {
     for (final info in index.byCode.values) {
       expect(info.descriptionSr, isNotNull, reason: info.code);
