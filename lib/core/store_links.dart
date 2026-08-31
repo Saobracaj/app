@@ -2,17 +2,18 @@
 /// была оплата.
 ///
 /// Android-ссылка собирается из applicationId (`android/app/build.gradle.kts`).
-/// Apple-ссылке нужен числовой идентификатор приложения из App Store Connect —
-/// bundle id для неё не годится; пока оператор его не проставил,
-/// [appStoreUrl] возвращает `null` и кнопка App Store просто не показывается.
+/// Apple-ссылке нужен числовой идентификатор приложения — bundle id для неё
+/// не годится; без него [appStoreUrl] возвращает `null` и кнопка App Store
+/// просто не показывается.
 library;
 
 /// applicationId Android-сборки.
 const androidApplicationId = 'at.gleb.saobracaj';
 
 /// Числовой Apple ID приложения (App Store Connect → App Information →
-/// General Information → Apple ID). Пустая строка — ссылка неизвестна.
-const appStoreAppId = '';
+/// General Information → Apple ID; он же в адресе карточки в App Store).
+/// Пустая строка — ссылка неизвестна и кнопка App Store не показывается.
+const appStoreAppId = '6744607772';
 
 Uri get googlePlayUrl => Uri.parse(
   'https://play.google.com/store/apps/details?id=$androidApplicationId',
