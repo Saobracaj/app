@@ -106,12 +106,17 @@ class AnalyticsService {
 
   /// The law was opened from a link (route on the phone, side panel on the
   /// wide screen — the panel raises no screen event, hence its own event).
-  void logZakonOpened({String? chlan, String? paragraph, String? chapter}) =>
-      _track('zakon_opened', {
-        'chlan': ?chlan,
-        'paragraph': ?paragraph,
-        'chapter': ?chapter,
-      });
+  void logZakonOpened({
+    String? chlan,
+    String? paragraph,
+    String? chapter,
+    String? document,
+  }) => _track('zakon_opened', {
+    'chlan': ?chlan,
+    'paragraph': ?paragraph,
+    'chapter': ?chapter,
+    'document': ?document,
+  });
 
   /// Records a screen change for a routemaster path. The path is reduced to
   /// its route template plus a readable name (see [analyticsScreenName] /

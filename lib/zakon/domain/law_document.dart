@@ -19,6 +19,10 @@ enum LawDocument {
   final String title;
   final String linkPath;
 
+  /// Имя документа в событиях аналитики (`zakon_opened`): путь ссылки без
+  /// ведущего слэша — «zakon» или «pravilnik».
+  String get analyticsName => linkPath.substring(1);
+
   ZakonDataSource get dataSource => switch (this) {
     LawDocument.zakonOBezbednosti => zakonOBezbednostiDataSource,
     LawDocument.pravilnik => pravilnikDataSource,
