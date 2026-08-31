@@ -930,7 +930,7 @@
       "other": "{} категории"
     },
     "valueOption": "по выбору",
-    "valueNone": "нет",
+    "valueNone": "не входит",
     "valueAlways": "всегда",
     "legendFull": "открыто во всех категориях",
     "legendPart": "открыто в бесплатных категориях",

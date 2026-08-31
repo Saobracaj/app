@@ -917,7 +917,7 @@
       "other": "{} kategorije"
     },
     "valueOption": "po izboru",
-    "valueNone": "ne",
+    "valueNone": "nije uključeno",
     "valueAlways": "uvek",
     "legendFull": "otvoreno u svim kategorijama",
     "legendPart": "otvoreno u besplatnim kategorijama",

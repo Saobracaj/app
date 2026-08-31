@@ -403,6 +403,31 @@ void main() {
     expect(find.text('все категории'), findsWidgets);
   });
 
+  testWidgets('строка русских материалов повторяет выбор, а не сам выбор', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap(russianContent: true));
+    await tester.pumpAndSettle();
+
+    // Тумблер включён — таблица под ним не имеет права говорить «по выбору»:
+    // выбор уже сделан, и строка называет его результат.
+    expect(find.text('по выбору'), findsNothing);
+    // Подпись легенды без своего кружка в таблице тоже не висит.
+    expect(find.text('надбавка'), findsNothing);
+
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+
+    expect(find.text('по выбору'), findsNothing);
+    // Выключенная надбавка — «не входит» в двух ячейках («Материалы на
+    // русском» по подписке и «Чат с AI» бесплатно) плюс подпись легенды.
+    expect(find.text('не входит'), findsNWidgets(3));
+  });
+
   testWidgets('кружки столбца стоят на одной вертикали с его заголовком', (
     tester,
   ) async {

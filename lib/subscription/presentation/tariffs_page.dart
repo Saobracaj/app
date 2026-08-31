@@ -93,7 +93,9 @@ class TariffsPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 _PromoField(state: state),
                 const SizedBox(height: 28),
-                const PlanFeaturesComparison(),
+                // Тумблер надбавки — над таблицей, поэтому строка «Материалы
+                // на русском» показывает уже сделанный выбор, а не «по выбору».
+                PlanFeaturesComparison(withRussian: state.withRussian),
                 const SizedBox(height: 16),
                 const _FreeTierCard(),
                 const SizedBox(height: 16),
