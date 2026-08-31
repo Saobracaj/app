@@ -148,10 +148,10 @@ class Parser:
         return {'chapter': self.chapter, 'paragraph': str(self.par_no),
                 'chlan': self.chlan}
 
-    def _emit(self, sr, images=None, addr=None, is_title=False):
+    def _emit(self, sr, images=None, addr=None, is_title=False, ru=None):
         row = {
             'chapter': None, 'paragraph': None, 'chlan': None,
-            'sr': sr, 'ru': None, 'isTitle': is_title,
+            'sr': sr, 'ru': ru, 'isTitle': is_title,
         }
         if addr:
             row.update(addr)
@@ -250,7 +250,10 @@ class Parser:
                       for src in official]
             self.sign_slots += 1
             self._emit('', images=images, addr=self._addr())
-            self._emit(f'**{" ".join(codes)}**', addr=self._addr())
+            # Подпись — одни коды, перевода не требует: ru = sr сразу, иначе
+            # новая строка ждала бы прогона tool/pravilnik_ru.
+            caption = f'**{" ".join(codes)}**'
+            self._emit(caption, addr=self._addr(), ru=caption)
             return
 
         images = []
