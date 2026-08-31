@@ -617,8 +617,10 @@ class _FreeTierCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Заголовок со звёздочкой — та же, что стоит у «N категорий» в
+            // таблице выше: она и связывает ячейку с этим объяснением.
             Text(
-              LocaleKeys.subscription_freeTitle.tr(),
+              freeCategoriesFootnoteTitle(),
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),

@@ -110,10 +110,21 @@ List<PlanFeatureRow> planFeatureRows({bool? withRussian}) => [
   ),
 ];
 
+/// Знак сноски у «в N категориях»: само число ничего не говорит тому, кто не
+/// знает структуру экзамена, а звёздочка ведёт к карточке «Что доступно
+/// бесплатно» — там эти категории названы поимённо
+/// ([freeCategoriesFootnoteTitle]).
+const freeCategoriesFootnoteMark = '*';
+
+/// Заголовок карточки, к которой ведёт звёздочка, — с тем же знаком впереди.
+String freeCategoriesFootnoteTitle() =>
+    '$freeCategoriesFootnoteMark\u2009${LocaleKeys.subscription_freeTitle.tr()}';
+
 String planAccessLabel(PlanAccess access) => switch (access) {
   PlanAccess.all => LocaleKeys.subscription_valueAllCategories.tr(),
   PlanAccess.freeCategories =>
-    LocaleKeys.subscription_valueFreeCategories.plural(freeCategoryIds.length),
+    '${LocaleKeys.subscription_valueFreeCategories.plural(freeCategoryIds.length)}'
+        '$freeCategoriesFootnoteMark',
   PlanAccess.none => LocaleKeys.subscription_valueNone.tr(),
   PlanAccess.optional => LocaleKeys.subscription_valueOption.tr(),
   PlanAccess.always => LocaleKeys.subscription_valueAlways.tr(),
