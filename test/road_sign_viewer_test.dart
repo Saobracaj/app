@@ -123,18 +123,19 @@ void main() {
   testWidgets('знака нет в правилнике — крупный знак без описания и ссылки', (
     tester,
   ) async {
-    // Файл 2010 года, чей номер в правилнике 2017-го занят другим знаком
-    // (см. legacy2010Files): описания нет, подставлять чужое нельзя — но знак
-    // всё равно открывается крупно.
+    // Файл 2010 года (жёлтый путоказ), чей номер в правилнике 2017-го занят
+    // другим знаком — «iii-8-2017», подземни пешачки пролаз (см.
+    // legacy2010Files): описания нет, подставлять чужое нельзя — но знак всё
+    // равно открывается крупно.
     await tester.pumpWidget(
-      wrap(const KonspektMarkdown(text: '![знак](anim/sign-iii-25)')),
+      wrap(const KonspektMarkdown(text: '![знак](anim/sign-iii-8)')),
     );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byType(TappableRoadSign));
     await tester.pumpAndSettle();
 
-    expect(find.text('III-25'), findsOneWidget);
+    expect(find.text('III-8'), findsOneWidget);
     expect(find.text('Открыть в правилнике'), findsNothing);
   });
 

@@ -309,6 +309,33 @@ const legacy2010Files = {
   'e75-srb',
 };
 
+/// Файлы assets/signs/, чьё имя значит в этом документе ДРУГОЙ знак: имена
+/// идут по нумерации Викисклада, а она местами разошлась с правилником 2017
+/// года (файл iii-54.svg — «стање пролаза», а III-54 документа — WC). Искать
+/// описание по коду из имени таким файлам нельзя: оно пришло бы от чужого
+/// знака. Тем, что стоят в самом документе (под своим настоящим кодом),
+/// описание всё равно находится по файлу — запрет касается только отката.
+///
+/// Список выведен из CODE_OVERRIDES и WRONG_SIGN в tool/parse_pravilnik.py:
+/// это их коды, у которых есть одноимённый файл. Синхронность проверяет
+/// test/road_sign_index_test.dart.
+const misnumberedFiles = {
+  'iii-4',
+  'iii-12',
+  'iii-13',
+  'iii-21',
+  'iii-22',
+  'iii-54',
+  'iii-55',
+  'iii-57',
+  'iii-69',
+  'iii-69.1',
+  'iii-71',
+  'iii-76',
+  'iii-79',
+  'iii-83',
+};
+
 /// Сведения о знаке по имени файла в assets/signs/.
 ///
 /// Порядок такой:
@@ -323,8 +350,8 @@ const legacy2010Files = {
 /// 3. **по коду** — на случай, когда знак показан картинкой самого документа
 ///    (официального SVG у него нет) и по файлу не сходится. Нумерация файлов
 ///    и документа теперь одна (правилник 2017 года), так что код годится
-///    почти всем; запрещено для [legacy2010Files] и там, где у кода документа
-///    свой официальный файл: раз он другой, знаки разные.
+///    почти всем; запрещено для [legacy2010Files] и [misnumberedFiles] и там,
+///    где у кода документа свой официальный файл: раз он другой, знаки разные.
 ///
 /// Знаки с суффиксом «-2017» (образец 2017 года там, где базовое имя занято
 /// знаком 2010-го) базового знака не ищут: «iii-25-2017» и «III-25» — разные
@@ -338,7 +365,9 @@ RoadSignInfo? lookupRoadSign(RoadSignIndexData index, String sign) {
     if (hit != null) return hit;
   }
   if (file.endsWith('-2017')) return null;
-  if (legacy2010Files.contains(file)) return null;
+  if (legacy2010Files.contains(file) || misnumberedFiles.contains(file)) {
+    return null;
+  }
   for (final candidate in _codeCandidates(file.toUpperCase())) {
     final hit = index.byCode[candidate];
     if (hit == null) continue;
@@ -364,9 +393,13 @@ RoadSignInfo? lookupRoadSign(RoadSignIndexData index, String sign) {
 /// его семейства.
 List<String> _fileCandidates(String file) {
   if (file.endsWith('-2017')) return [file];
-  final numeric = RegExp(r'^(.+)-(\d+)$').firstMatch(file);
+  // Отрезается только суффикс варианта: базовое имя обязано остаться
+  // номером знака («ii-30-40» → «ii-30»). Без этого «iii-25» разбиралось бы
+  // на «iii», и любые два знака группы считались бы роднёй — описание
+  // путоказа iii-12 приходило бы от «престанка забране претицања».
+  final numeric = RegExp(r'^(.+-\d+)-(\d+)$').firstMatch(file);
   final letters = RegExp(r'^(.+\d)[a-z]+$').firstMatch(file);
-  final suffixed = RegExp(r'^(.+)-[a-z0-9]+$').firstMatch(file);
+  final suffixed = RegExp(r'^(.+-\d+)-[a-z0-9]+$').firstMatch(file);
   final dotVariant = RegExp(r'^(.+)\.\d+$').firstMatch(file);
   return [
     file,
