@@ -51,7 +51,7 @@
 | `definition_opened` | тап по определению в тексте вопроса | `term` |
 | `translation_toggled` | чип «РУ» на вопросе | `enabled` |
 | `konspekt_opened` | открытие конспекта | `category` |
-| `zakon_opened` | открытие закона по ссылке | `chlan`, `paragraph`, `chapter` |
+| `zakon_opened` | открытие закона (или правилника) по ссылке | `chlan`, `paragraph`, `chapter`, `document` (`zakon`/`pravilnik`) |
 | `question_shared` | копирование ссылки на вопрос | `question_id` |
 | `question_list_shared` | первый шаринг списка | `question_count` |
 | `shared_list_opened` | открытие чужой ссылки на список | `outcome`, `question_count`, `viewer_is_owner` |
