@@ -399,8 +399,49 @@ void main() {
 
     expect(find.text('Объяснения к вопросам'), findsOneWidget);
     // Бесплатный уровень — те же функции на трёх категориях.
-    expect(find.text('3 категории'), findsWidgets);
+    expect(find.text('3 категории$freeCategoriesFootnoteMark'), findsWidgets);
     expect(find.text('все категории'), findsWidgets);
+  });
+
+  // «3 категории» без пояснения — загадка: какие именно? Звёздочка в ячейке и
+  // такая же звёздочка у заголовка карточки, где категории названы поимённо,
+  // связывают одно с другим.
+  testWidgets('«N категорий» помечено звёздочкой, и сноска её объясняет', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap(russianContent: false));
+    await tester.pumpAndSettle();
+
+    // Ни одной ячейки «3 категории» без звёздочки не осталось.
+    expect(find.text('3 категории'), findsNothing);
+    expect(find.text('3 категории$freeCategoriesFootnoteMark'), findsWidgets);
+
+    // Сноска — заголовок карточки с названиями бесплатных категорий.
+    final title = freeCategoriesFootnoteTitle();
+    expect(title.startsWith(freeCategoriesFootnoteMark), isTrue);
+    expect(find.text(title), findsOneWidget);
+    expect(find.text('Что доступно бесплатно'), findsNothing);
+  });
+
+  // На узком экране таблица превращается в список — звёздочка нужна и там.
+  testWidgets('в списочной вёрстке звёздочка тоже на месте', (tester) async {
+    tester.view.physicalSize = const Size(390, 3600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap(russianContent: false));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Table), findsNothing);
+    expect(
+      find.textContaining('3 категории$freeCategoriesFootnoteMark'),
+      findsWidgets,
+    );
+    expect(find.text(freeCategoriesFootnoteTitle()), findsOneWidget);
   });
 
   testWidgets('кружки столбца стоят на одной вертикали с его заголовком', (
