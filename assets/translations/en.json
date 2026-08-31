@@ -896,7 +896,7 @@
       "other": "{} categories"
     },
     "valueOption": "optional",
-    "valueNone": "no",
+    "valueNone": "not included",
     "valueAlways": "always",
     "legendFull": "open in every category",
     "legendPart": "open in the free categories",
