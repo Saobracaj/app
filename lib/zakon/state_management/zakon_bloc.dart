@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:saobracaj/data/zakon_o_bezbednosti_data_source.dart';
+import 'package:saobracaj/zakon/domain/zakon_display.dart';
 
 part 'zakon_bloc.freezed.dart';
 
@@ -10,8 +11,15 @@ class ZakonBloc extends Bloc<ZakonEvent, ZakonState> {
   final String? paragraph;
   final String? chlan;
   final String? chapter;
+  final ZakonDataSource dataSource;
 
-  ZakonBloc(this.paragraph, this.chlan, this.chapter) : super(ZakonState()) {
+  ZakonBloc(
+    this.paragraph,
+    this.chlan,
+    this.chapter, {
+    ZakonDataSource? dataSource,
+  }) : dataSource = dataSource ?? zakonOBezbednostiDataSource,
+       super(ZakonState()) {
     on<Load>(_onLoad);
     on<ToggleLang>(_onToggleLang);
     on<ScrollTo>(_onScrollTo);
@@ -19,8 +27,11 @@ class ZakonBloc extends Bloc<ZakonEvent, ZakonState> {
   }
 
   void _onLoad(Load event, Emitter<ZakonState> emit) async {
-    final paragraphs = await zakonOBezbednostiDataSource.paragraphs;
-    emit(state.copyWith(zakon: paragraphs));
+    final paragraphs = await dataSource.paragraphs;
+    emit(state.copyWith(
+      zakon: paragraphs,
+      rows: buildZakonDisplayRows(paragraphs),
+    ));
     if (paragraph != null || chlan != null || chapter != null) {
       add(ScrollTo(paragraph, chlan, chapter));
     }
@@ -31,11 +42,12 @@ class ZakonBloc extends Bloc<ZakonEvent, ZakonState> {
   }
 
   void _onScrollTo(ScrollTo event, Emitter<ZakonState> emit) {
-    final List<BezbParagraph> zakon = state.zakon;
-    final index = zakon.indexWhere((element) {
-      if(event.paragraph == null && event.chlan == null && event.chapter == null) {
-        return false; // No condition to match
-      }
+    if (event.paragraph == null &&
+        event.chlan == null &&
+        event.chapter == null) {
+      return; // No condition to match
+    }
+    bool matches(BezbParagraph element) {
       var condition = true;
       if (event.paragraph != null) {
         condition = condition && element.paragraph == event.paragraph;
@@ -47,7 +59,13 @@ class ZakonBloc extends Bloc<ZakonEvent, ZakonState> {
         condition = condition && element.chapter == event.chapter;
       }
       return condition;
-    });
+    }
+
+    // Индекс ищется по строкам экрана: подпись, склеенная со строкой
+    // картинок, всё ещё находится по своему адресу — ссылка ведёт на её блок.
+    final index = state.rows.indexWhere(
+      (r) => matches(r.row) || r.mergedCaptions.any(matches),
+    );
     if (index != -1) {
       emit(state.copyWith(scrollTo: index));
       emit(state.copyWith(scrollTo: null));
@@ -73,6 +91,9 @@ class ScrollTo extends ZakonEvent {
 abstract class ZakonState with _$ZakonState {
   const factory ZakonState({
     @Default([]) List<BezbParagraph> zakon,
+    // Те же строки, как их показывает экран: блоки «картинки + подписи»
+    // правилника склеены в одну строку-таблицу (см. buildZakonDisplayRows).
+    @Default([]) List<ZakonDisplayRow> rows,
     @Default(false) bool isBusy,
     @Default(true) bool isSr,
     String? errorMessage,

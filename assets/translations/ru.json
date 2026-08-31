@@ -930,7 +930,7 @@
       "other": "{} категории"
     },
     "valueOption": "по выбору",
-    "valueNone": "нет",
+    "valueNone": "не входит",
     "valueAlways": "всегда",
     "legendFull": "открыто во всех категориях",
     "legendPart": "открыто в бесплатных категориях",
@@ -1114,5 +1114,13 @@
   },
   "zakon": {
     "contents": "Содержание"
+  },
+  "roadSign": {
+    "openInPravilnik": "Открыть в правилнике"
+  },
+  "interactiveAnimation": {
+    "pause": "Приостановить анимацию",
+    "play": "Продолжить анимацию",
+    "step": "Кадр {}"
   }
 }

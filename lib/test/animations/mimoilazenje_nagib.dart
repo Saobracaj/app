@@ -80,8 +80,11 @@ class _MimoilazenjeNagibState extends State<MimoilazenjeNagib>
                 signs: const ['I-4'],
                 builder: (context, signs) => AnimatedBuilder(
                   animation: _controller,
-                  builder: (context, _) => CustomPaint(
-                    painter: _NagibPainter(scheme, _controller.value, signs),
+                  builder: (context, _) => TappableSigns(
+                    signs: signs,
+                    child: CustomPaint(
+                      painter: _NagibPainter(scheme, _controller.value, signs),
+                    ),
                   ),
                 ),
               ),

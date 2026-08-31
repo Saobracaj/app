@@ -28,11 +28,14 @@ class HijerarhijaPiramida extends StatelessWidget {
           child: SizedBox(
             width: 400,
             height: 440,
-            child: CustomPaint(
-              painter: _PiramidaPainter(
-                Theme.of(context).colorScheme,
-                _PiramidaLabels.of(context),
-                signs,
+            child: TappableSigns(
+              signs: signs,
+              child: CustomPaint(
+                painter: _PiramidaPainter(
+                  Theme.of(context).colorScheme,
+                  _PiramidaLabels.of(context),
+                  signs,
+                ),
               ),
             ),
           ),

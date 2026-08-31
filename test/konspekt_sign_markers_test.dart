@@ -16,6 +16,7 @@ void main() {
 |---|---|
 | ![I-1](anim/sign-i-1) ![I-1.1](anim/sign-i-1.1) | *опасна кривина* |
 | ![II-2](anim/sign-ii-2) | *обавезно заустављање* |
+| ![IV-1](anim/sign-iv-1) | *на удаљености 200 m* |
 
 - ![II-30](anim/sign-ii-30-40) число в круге = *ограничење брзине*
 
@@ -24,7 +25,17 @@ void main() {
     await tester.pumpWidget(const MaterialApp(
       home: Scaffold(body: SingleChildScrollView(child: KonspektMarkdown(text: text))),
     ));
-    expect(find.byType(RoadSignSvg), findsNWidgets(5));
+    expect(find.byType(RoadSignSvg), findsNWidgets(6));
+    // Дополнительные таблички (группа IV) — композиции «знак + табличка»:
+    // они масштабируются по ширине, иначе табличка нечитаемо мелкая; обычные
+    // знаки — по высоте.
+    final plate = tester.widgetList<RoadSignSvg>(find.byType(RoadSignSvg))
+        .singleWhere((it) => it.sign == 'iv-1');
+    expect(plate.width, greaterThanOrEqualTo(96));
+    expect(plate.height, isNull);
+    final sign = tester.widgetList<RoadSignSvg>(find.byType(RoadSignSvg))
+        .firstWhere((it) => it.sign == 'ii-2');
+    expect(sign.height, 48);
     expect(tester.takeException(), isNull);
   });
 }

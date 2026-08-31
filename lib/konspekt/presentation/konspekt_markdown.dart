@@ -17,8 +17,8 @@ import 'package:saobracaj/zakon/presentation/zakon_panel.dart';
 /// - `question?id=7921` — opens the question in a preview sheet over the text;
 /// - `konspekt?category=25&section=slug` — same-konspekt links scroll in place
 ///   (via [onSectionLink]), links to another category push a new page;
-/// - `zakon?...`, `dict/...`, `https://<deep-link-host>/...` — same handling
-///   as [QuestMarkdown];
+/// - `zakon?...`, `pravilnik?...`, `dict/...`,
+///   `https://<deep-link-host>/...` — same handling as [QuestMarkdown];
 /// - `![alt](illustration:slug)` — renders a placeholder card (the artwork
 ///   will be produced later).
 class KonspektMarkdown extends StatelessWidget {
@@ -107,6 +107,9 @@ class KonspektMarkdown extends StatelessWidget {
         // Relative: the law opens on top of whatever screen this text is on
         // (a konspekt, a question, the preview sheet), so "back" returns here.
         openZakon(context, 'zakon', queryParameters: uri.queryParameters);
+      case 'pravilnik':
+        // The signalization rulebook is addressed exactly like the law.
+        openZakon(context, 'pravilnik', queryParameters: uri.queryParameters);
       default:
         navigateToUri(context, Uri.parse(href));
     }

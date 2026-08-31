@@ -1,17 +1,21 @@
+import 'dart:math' as math;
+
 // easy_localization реэкспортирует intl со своим TextDirection — прячем его,
 // чтобы в файле остался TextDirection из Flutter (нужен TextPainter'у).
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
+import 'package:saobracaj/test/animations/auto.dart';
 import 'package:saobracaj/test/animations/painters.dart';
 
-/// Поперечный разрез дороги с подписями-скобками.
+/// Дорога сверху с подписями-скобками.
 ///
 /// Вопросы этой подкатегории — фото дороги с жёлтыми стрелками разной длины, и
 /// отвечать на них надо именно по длине стрелки. Поэтому схема построена вокруг
 /// вложенности: *пут* ⊃ *коловоз* ⊃ *коловозна трака* ⊃ *саобраћајна трака*.
-/// Каждый уровень — своя скобка своего цвета под тем участком разреза, который
-/// он покрывает; вертикальные направляющие связывают края скобок с краями
+/// Сверху — вид дороги с высоты (машины, тротуар, банкина, разметка), а под
+/// ним каждый уровень — своя скобка своего цвета под тем участком, который он
+/// покрывает; вертикальные направляющие связывают края скобок с краями
 /// участков, чтобы «длину стрелки» было видно глазами.
 class PresekPuta extends StatelessWidget {
   const PresekPuta({super.key});
@@ -24,7 +28,7 @@ class PresekPuta extends StatelessWidget {
         fit: BoxFit.contain,
         child: SizedBox(
           width: 400,
-          height: 342,
+          height: 426,
           child: CustomPaint(
             painter: _PresekPainter(
               Theme.of(context).colorScheme,
@@ -63,7 +67,9 @@ class _PresekPainter extends CustomPainter {
   final ColorScheme scheme;
   final _PresekLabels labels;
 
-  // === Горизонтальная разметка разреза (сетка 400 в ширину) ===
+  // === Горизонтальная разметка (сетка 400 в ширину) ===
+  // Скобки внизу привязаны к этим же краям, поэтому вся вложенность понятий
+  // задана одним набором координат: пут ⊃ коловоз ⊃ траке.
   static const _roadLeft = 14.0; // край пута слева
   static const _roadRight = 386.0;
   static const _sidewalkLeft = 44.0; // между банкином и тротоаром
@@ -75,31 +81,37 @@ class _PresekPainter extends CustomPainter {
   static const _laneEdges = [80.0, 140.0, 200.0, 260.0, 320.0];
 
   // === Вертикальная разметка ===
-  static const _asphaltTop = 86.0;
-  static const _asphaltBottom = 100.0;
-  static const _sidewalkTop = 76.0; // тротоар приподнят над коловозом
-  static const _groundBottom = 106.0;
+  // Дорога идёт сверху вниз: левая половина едет «на нас» (вниз), правая —
+  // «от нас» (вверх), как при правостороннем движении.
+  static const _sceneTop = 76.0;
+  static const _sceneBottom = 190.0;
 
   // Уровни скобок: чем шире понятие, тем ниже его скобка.
-  static const _laneRow = 122.0;
-  static const _halfRow = 178.0;
-  static const _kolovozRow = 234.0;
-  static const _roadRow = 290.0;
+  static const _laneRow = 206.0;
+  static const _halfRow = 262.0;
+  static const _kolovozRow = 318.0;
+  static const _roadRow = 374.0;
+
+  // Размер легковушки в сцене: полоса 60 в ширину, машина занимает ~треть.
+  static const _carLength = 46.0;
+  static const _carWidth = 22.0;
 
   // Покрытия — цвет и есть содержание, поэтому литеральные и одинаковые в
   // обеих темах (как в road.dart). Брать их из темы нельзя: в тёмной схеме
   // surfaceContainerHighest, outlineVariant и асфальт попадают в один
-  // узкий диапазон серого, и разрез превращается в однородную полосу.
+  // узкий диапазон серого, и дорога превращается в однородную полосу.
   static const _asphalt = Color(0xFF3C3C3C);
   static const _sidewalk = Color(0xFFBFBFBF); // бетонная плита тротоара
   static const _shoulder = Color(0xFF8C8474); // грунт/щебень банкине
+  static const _grass = Color(0xFF7C9B69); // земля за пределами пута
   static const _marking = Color(0xFFF5F5F5);
   static const _carBlue = Color(0xFF1E88E5);
   static const _carGreen = Color(0xFF43A047);
+  static const _carRed = Color(0xFFE53935);
 
   @override
   void paint(Canvas canvas, Size size) {
-    _paintCrossSection(canvas);
+    _paintTopView(canvas);
     _paintGuides(canvas);
 
     // Саобраћајна трака — своя скобка над каждой отдельной полосой.
@@ -124,92 +136,135 @@ class _PresekPainter extends CustomPainter {
     _rowCaption(canvas, _roadRow, 'ПУТ', labels.road, scheme.onSurfaceVariant);
   }
 
-  /// Сам разрез: банкина — тротоар — асфальт — тротоар — банкина.
-  void _paintCrossSection(Canvas canvas) {
-    // Грунт под всей конструкцией: он же банкина по краям.
+  /// Вид сверху: трава — банкина — тротоар — коловоз — тротоар — банкина.
+  void _paintTopView(Canvas canvas) {
+    // Трава за краями пута: видно, что «пут» — это от края до края,
+    // а дальше уже не дорога.
+    for (final rect in const [
+      Rect.fromLTRB(4, _sceneTop, _roadLeft, _sceneBottom),
+      Rect.fromLTRB(_roadRight, _sceneTop, 396, _sceneBottom),
+    ]) {
+      canvas.drawRect(rect, Paint()..color = _grass);
+    }
+
+    // Грунт по всей ширине пута: по краям он остаётся виден как банкина.
     canvas.drawRect(
-      const Rect.fromLTRB(_roadLeft, _asphaltTop, _roadRight, _groundBottom),
+      const Rect.fromLTRB(_roadLeft, _sceneTop, _roadRight, _sceneBottom),
       Paint()..color = _shoulder,
     );
+    // Щебень на банкинах — фактура отличает грунт от бетона тротоара и на
+    // чёрно-белой печати, и при плохом контрасте экрана.
+    final gravel = Paint()..color = const Color(0xFF6E6757);
+    for (final left in const [_roadLeft, _sidewalkRight]) {
+      for (var y = _sceneTop + 7; y < _sceneBottom - 4; y += 9) {
+        final x = left + 6 + (y * 13) % 18;
+        canvas.drawCircle(Offset(x, y), 1.3, gravel);
+      }
+    }
 
-    // Тротоары — приподнятые площадки по краям коловоза. Швы между плитами
-    // добавлены не для красоты: они отличают тротоар от банкине не только
-    // тоном, а значит и на чёрно-белой печати, и при плохом контрасте экрана.
+    // Тротоары — бетонные плиты со швами поперёк хода пешехода.
     for (final rect in const [
-      Rect.fromLTRB(_sidewalkLeft, _sidewalkTop, _kolovozLeft, _groundBottom),
-      Rect.fromLTRB(_kolovozRight, _sidewalkTop, _sidewalkRight, _groundBottom),
+      Rect.fromLTRB(_sidewalkLeft, _sceneTop, _kolovozLeft, _sceneBottom),
+      Rect.fromLTRB(_kolovozRight, _sceneTop, _sidewalkRight, _sceneBottom),
     ]) {
       canvas.drawRect(rect, Paint()..color = _sidewalk);
       final seam = _stroke(const Color(0xFF8F8F8F), 1);
-      for (var x = rect.left + 9; x < rect.right - 2; x += 9) {
+      for (var y = rect.top + 14; y < rect.bottom - 2; y += 14) {
         canvas.drawLine(
-            Offset(x, rect.top + 2), Offset(x, rect.bottom - 2), seam);
+            Offset(rect.left + 2, y), Offset(rect.right - 2, y), seam);
       }
       canvas.drawRect(rect, _stroke(const Color(0xFF6E6E6E), 1.2));
     }
 
     canvas.drawRect(
-      const Rect.fromLTRB(
-          _kolovozLeft, _asphaltTop, _kolovozRight, _asphaltBottom),
+      const Rect.fromLTRB(_kolovozLeft, _sceneTop, _kolovozRight, _sceneBottom),
       Paint()..color = _asphalt,
     );
 
-    // Разметка на поверхности асфальта: осевая шире продольных.
-    final markingPaint = Paint()..color = _marking;
-    canvas.drawRect(
-      Rect.fromCenter(
-          center: const Offset(_axis, _asphaltTop + 2), width: 9, height: 4),
-      markingPaint,
-    );
-    for (final x in [140.0, 260.0]) {
-      canvas.drawRect(
-        Rect.fromCenter(
-            center: Offset(x, _asphaltTop + 2), width: 5, height: 4),
-        markingPaint,
-      );
+    // Разметка: сплошные краевые (утоплены внутрь асфальта, чтобы не слиться
+    // со светлым фоном), сплошная осевая и прерывистые между полосами
+    // одного направления.
+    final edge = _stroke(_marking, 2.5);
+    for (final x in const [_kolovozLeft + 2.5, _kolovozRight - 2.5]) {
+      canvas.drawLine(Offset(x, _sceneTop), Offset(x, _sceneBottom), edge);
+    }
+    canvas.drawLine(const Offset(_axis, _sceneTop),
+        const Offset(_axis, _sceneBottom), _stroke(_marking, 3));
+    final dashed = _stroke(_marking, 2.5);
+    for (final x in const [140.0, 260.0]) {
+      for (var y = _sceneTop + 6; y < _sceneBottom - 4; y += 21) {
+        canvas.drawLine(Offset(x, y), Offset(x, y + 12), dashed);
+      }
     }
 
-    // По машине во второй и третьей полосе: одна саобраћајна трака — это
-    // место ровно для одного ряда ТС, и на схеме это должно быть видно.
-    _paintCar(canvas, 170, _carGreen);
-    _paintCar(canvas, 230, _carBlue);
+    // Стрелки направления на асфальте: левая коловозна трака едет вниз,
+    // правая — вверх. Так «половина коловоза — для одного направления»
+    // видно и без машин.
+    for (final x in const [110.0, 170.0]) {
+      _roadArrow(canvas, x, down: true);
+    }
+    for (final x in const [230.0, 290.0]) {
+      _roadArrow(canvas, x, down: false);
+    }
+
+    // По машине в полосе: одна саобраћајна трака — это место ровно для
+    // одного ряда ТС, и на схеме это должно быть видно.
+    _paintCarVertical(canvas, const Offset(110, 112), _carGreen,
+        facingUp: false);
+    _paintCarVertical(canvas, const Offset(230, 146), _carBlue, facingUp: true);
+    _paintCarVertical(canvas, const Offset(290, 156), _carRed, facingUp: true);
 
     canvas.drawRect(
-      const Rect.fromLTRB(_roadLeft, _asphaltTop, _roadRight, _groundBottom),
+      const Rect.fromLTRB(_roadLeft, _sceneTop, _roadRight, _sceneBottom),
       _stroke(scheme.outline, 1.4),
     );
 
-    _sideCaption(canvas, 62, 'ТРОТОАР', labels.sidewalk, const Offset(62, 74));
-    _sideCaption(canvas, 344, 'БАНКИНА', labels.shoulder, const Offset(371, 86));
+    _sideCaption(canvas, 62, 'ТРОТОАР', labels.sidewalk, const Offset(62, 80));
+    _sideCaption(canvas, 344, 'БАНКИНА', labels.shoulder,
+        const Offset(371, 80));
   }
 
-  /// Машина «в лоб»: кузов, крыша с окном и два колеса.
-  void _paintCar(Canvas canvas, double centerX, Color color) {
-    const bottom = _asphaltTop;
-    final body = RRect.fromRectAndRadius(
-      Rect.fromLTRB(centerX - 17, bottom - 15, centerX + 17, bottom),
-      const Radius.circular(3),
+  /// Каноничная легковушка ([paintAutoTopView]) в вертикальной полосе:
+  /// поворачиваем холст, потому что «родная» машинка едет горизонтально.
+  void _paintCarVertical(
+    Canvas canvas,
+    Offset center,
+    Color color, {
+    required bool facingUp,
+  }) {
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(facingUp ? -math.pi / 2 : math.pi / 2);
+    paintAutoTopView(
+      canvas,
+      Rect.fromCenter(center: Offset.zero, width: _carLength, height: _carWidth),
+      color: color,
     );
-    final roof = RRect.fromRectAndRadius(
-      Rect.fromLTRB(centerX - 11, bottom - 25, centerX + 11, bottom - 13),
-      const Radius.circular(3),
-    );
-    canvas.drawRRect(roof, Paint()..color = color);
-    canvas.drawRRect(body, Paint()..color = color);
+    canvas.restore();
+  }
+
+  /// Стрелка-разметка направления движения в полосе [x]. Стрелки «вниз»
+  /// нарисованы в нижней части сцены, «вверх» — в верхней, чтобы не
+  /// пересекаться с машинами.
+  void _roadArrow(Canvas canvas, double x, {required bool down}) {
+    final paint = Paint()..color = _marking.withValues(alpha: 0.9);
+    final tail = down ? _sceneBottom - 42 : _sceneTop + 42;
+    final tip = down ? _sceneBottom - 16 : _sceneTop + 16;
+    final headBase = down ? tip - 9 : tip + 9;
     canvas.drawRect(
-      Rect.fromLTRB(centerX - 8, bottom - 23, centerX + 8, bottom - 16),
-      Paint()..color = _marking.withValues(alpha: 0.75),
+      Rect.fromLTRB(x - 1.5, math.min(tail, headBase), x + 1.5,
+          math.max(tail, headBase)),
+      paint,
     );
-    for (final dx in [-13.0, 13.0]) {
-      canvas.drawRect(
-        Rect.fromCenter(
-            center: Offset(centerX + dx, bottom - 2), width: 7, height: 5),
-        Paint()..color = const Color(0xFF212121),
-      );
-    }
+    final head = Path()
+      ..moveTo(x, tip)
+      ..lineTo(x - 5, headBase)
+      ..lineTo(x + 5, headBase)
+      ..close();
+    canvas.drawPath(head, paint);
   }
 
-  /// Подпись сбоку от разреза со стрелкой к нужной части.
+  /// Подпись сбоку от сцены со стрелкой к нужной части.
   void _sideCaption(
     Canvas canvas,
     double centerX,
@@ -257,7 +312,7 @@ class _PresekPainter extends CustomPainter {
   /// Пунктирные направляющие от краёв участков вниз к их скобкам: без них
   /// непонятно, какая скобка какому куску асфальта соответствует.
   void _paintGuides(Canvas canvas) {
-    // (x на разрезе, скобка, до которой тянется направляющая)
+    // (x на сцене, скобка, до которой тянется направляющая)
     const guides = [
       (_roadLeft, _roadRow),
       (_roadRight, _roadRow),
@@ -269,7 +324,7 @@ class _PresekPainter extends CustomPainter {
     ];
     final paint = _stroke(scheme.outlineVariant, 1);
     for (final (x, bottom) in guides) {
-      for (var y = _groundBottom + 2; y < bottom - 8; y += 7) {
+      for (var y = _sceneBottom + 2; y < bottom - 8; y += 7) {
         canvas.drawLine(Offset(x, y), Offset(x, y + 4), paint);
       }
     }

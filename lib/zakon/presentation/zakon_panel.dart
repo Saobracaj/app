@@ -5,6 +5,7 @@ import 'package:routemaster/routemaster.dart';
 
 import '../../core/analytics/analytics_service.dart';
 import '../../core/responsive.dart';
+import '../domain/law_document.dart';
 import '../zakon.dart';
 
 /// Ширина выдвижной панели закона: колонка комфортного чтения, но не больше
@@ -12,7 +13,9 @@ import '../zakon.dart';
 const double _kPanelMaxWidth = 560;
 
 /// Открывает закон по ссылке [path] (`zakon?paragraph=…&chlan=…&chapter=…`,
-/// в том числе относительной — как её понимает routemaster).
+/// в том числе относительной — как её понимает routemaster). Ссылка
+/// `pravilnik?…` того же вида открывает правилник о саобраћајној
+/// сигнализацији — документ определяется самим адресом, см. [documentOfPath].
 ///
 /// На широком экране закон больше не занимает отдельное окно: он выезжает
 /// боковой панелью поверх текущего экрана, так что вопрос (конспект, попап с
@@ -28,12 +31,14 @@ Future<void> openZakon(
     ...Uri.parse(path).queryParameters,
     ...?queryParameters,
   };
+  final document = documentOfPath(path);
   // Логируется здесь, а не на экране: на широком экране панель не роут и
   // события `$screen` не поднимает, а сюда сходятся оба варианта открытия.
   analytics.logZakonOpened(
     chlan: params['chlan'],
     paragraph: params['paragraph'],
     chapter: params['chapter'],
+    document: document.analyticsName,
   );
   if (!context.isExpandedScreen) {
     Routemaster.of(context).push(path, queryParameters: queryParameters);
@@ -41,15 +46,28 @@ Future<void> openZakon(
   }
   return showZakonPanel(
     context,
+    document: document,
     paragraph: params['paragraph'],
     chlan: params['chlan'],
     chapter: params['chapter'],
   );
 }
 
+/// Документ, на который указывает ссылка [path]: `pravilnik?…` (и
+/// `/pravilnik`) — правилник, всё остальное — закон. Ссылки приходят из
+/// текстов (объяснение к вопросу, конспект, словарь), поэтому разбирается
+/// только первый сегмент пути.
+LawDocument documentOfPath(String path) {
+  final segments = Uri.parse(path).pathSegments.where((s) => s.isNotEmpty);
+  return segments.isNotEmpty && segments.first == 'pravilnik'
+      ? LawDocument.pravilnik
+      : LawDocument.zakonOBezbednosti;
+}
+
 /// Сама панель: выезжает справа, закрывается крестиком или тапом по затемнению.
 Future<void> showZakonPanel(
   BuildContext context, {
+  LawDocument document = LawDocument.zakonOBezbednosti,
   String? paragraph,
   String? chlan,
   String? chapter,
@@ -77,6 +95,7 @@ Future<void> showZakonPanel(
               start: Radius.circular(20),
             ).resolve(Directionality.of(context)),
             child: Zakon(
+              document: document,
               paragraph: paragraph,
               chlan: chlan,
               chapter: chapter,

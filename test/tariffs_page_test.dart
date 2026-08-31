@@ -399,8 +399,74 @@ void main() {
 
     expect(find.text('Объяснения к вопросам'), findsOneWidget);
     // Бесплатный уровень — те же функции на трёх категориях.
-    expect(find.text('3 категории'), findsWidgets);
+    expect(find.text('3 категории$freeCategoriesFootnoteMark'), findsWidgets);
     expect(find.text('все категории'), findsWidgets);
+  });
+
+  testWidgets('строка русских материалов повторяет выбор, а не сам выбор', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap(russianContent: true));
+    await tester.pumpAndSettle();
+
+    // Тумблер включён — таблица под ним не имеет права говорить «по выбору»:
+    // выбор уже сделан, и строка называет его результат.
+    expect(find.text('по выбору'), findsNothing);
+    // Подпись легенды без своего кружка в таблице тоже не висит.
+    expect(find.text('надбавка'), findsNothing);
+
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+
+    expect(find.text('по выбору'), findsNothing);
+    // Выключенная надбавка — «не входит» в двух ячейках («Материалы на
+    // русском» по подписке и «Чат с AI» бесплатно) плюс подпись легенды.
+    expect(find.text('не входит'), findsNWidgets(3));
+  });
+
+  // «3 категории» без пояснения — загадка: какие именно? Звёздочка в ячейке и
+  // такая же звёздочка у заголовка карточки, где категории названы поимённо,
+  // связывают одно с другим.
+  testWidgets('«N категорий» помечено звёздочкой, и сноска её объясняет', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap(russianContent: false));
+    await tester.pumpAndSettle();
+
+    // Ни одной ячейки «3 категории» без звёздочки не осталось.
+    expect(find.text('3 категории'), findsNothing);
+    expect(find.text('3 категории$freeCategoriesFootnoteMark'), findsWidgets);
+
+    // Сноска — заголовок карточки с названиями бесплатных категорий.
+    final title = freeCategoriesFootnoteTitle();
+    expect(title.startsWith(freeCategoriesFootnoteMark), isTrue);
+    expect(find.text(title), findsOneWidget);
+    expect(find.text('Что доступно бесплатно'), findsNothing);
+  });
+
+  // На узком экране таблица превращается в список — звёздочка нужна и там.
+  testWidgets('в списочной вёрстке звёздочка тоже на месте', (tester) async {
+    tester.view.physicalSize = const Size(390, 3600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap(russianContent: false));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Table), findsNothing);
+    expect(
+      find.textContaining('3 категории$freeCategoriesFootnoteMark'),
+      findsWidgets,
+    );
+    expect(find.text(freeCategoriesFootnoteTitle()), findsOneWidget);
   });
 
   testWidgets('кружки столбца стоят на одной вертикали с его заголовком', (

@@ -103,10 +103,13 @@ class QuestMarkdown extends StatelessWidget {
       final link = href.split('/')[1];
 
       showMarkdown(context, Uri.decodeFull(link));
-    } else if (href.startsWith('/zakon')) {
+    } else if (href.startsWith('/zakon') || href.startsWith('/pravilnik')) {
       final link = href.split('/')[1];
       openZakon(context, link);
-    } else if (href.startsWith('zakon')) {
+    } else if (href.startsWith('zakon') || href.startsWith('pravilnik')) {
+      // `pravilnik?chapter=…&chlan=…&paragraph=…` — та же ссылка, что и на
+      // закон, только в правилник о саобраћајној сигнализацији: объяснения к
+      // вопросам о знаках и разметке ссылаются именно туда.
       openZakon(context, href);
     } else {
       // Ссылка на наш сайт открывается внутри приложения — этим занимается

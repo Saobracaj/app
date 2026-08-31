@@ -33,8 +33,11 @@ class UpotrebaSvetalaMatrica extends StatelessWidget {
           child: SizedBox(
             width: 400,
             height: 452,
-            child: CustomPaint(
-                painter: _ScenePainter(scheme, Gloss.of(context), signs)),
+            child: TappableSigns(
+              signs: signs,
+              child: CustomPaint(
+                  painter: _ScenePainter(scheme, Gloss.of(context), signs)),
+            ),
           ),
         ),
       ),

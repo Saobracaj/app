@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:saobracaj/test/animations/interactive_animation.dart';
 import 'package:saobracaj/test/animations/raskrsnica_common.dart';
 
 /// Правило десне стране на перекрёстке без знаков и светофора.
@@ -15,42 +16,36 @@ import 'package:saobracaj/test/animations/raskrsnica_common.dart';
 /// Три машины, а не две, — специально: с двумя правило выглядит как «уступи
 /// встречному справа», и остаётся непонятным, почему кто-то едет первым.
 /// Цепочка «у красного справа никого → едет первым» и есть ответ.
-class PraviloDesneStrane extends StatefulWidget {
+class PraviloDesneStrane extends StatelessWidget {
   const PraviloDesneStrane({super.key});
-
-  @override
-  State<PraviloDesneStrane> createState() => _PraviloDesneStraneState();
-}
-
-class _PraviloDesneStraneState extends State<PraviloDesneStrane>
-    with SingleTickerProviderStateMixin {
-  /// Восемь секунд на пять фаз: подъезд, три проезда и пауза с итогом.
-  /// Быстрее — не успеть прочитать подпись, которая меняется вместе с фазой.
-  late final _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 8000),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.all(8),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(
-          width: 400,
-          height: 420,
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) => CustomPaint(
-              painter: _ScenePainter(scheme, _controller.value),
+      // Восемь секунд на пять фаз: подъезд, три проезда и пауза с итогом.
+      // Быстрее — не успеть прочитать подпись, которая меняется вместе с фазой.
+      child: InteractiveAnimation(
+        cycle: const Duration(milliseconds: 8000),
+        // Границы фаз — из _ScenePainter._phase.
+        stepStarts: const [
+          0,
+          _ScenePainter._approach,
+          _ScenePainter._redGo,
+          _ScenePainter._greenGo,
+          _ScenePainter._blueGo,
+        ],
+        builder: (context, animation) => FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(
+            width: 400,
+            height: 420,
+            child: AnimatedBuilder(
+              animation: animation,
+              builder: (context, _) => CustomPaint(
+                painter: _ScenePainter(scheme, animation.value),
+              ),
             ),
           ),
         ),

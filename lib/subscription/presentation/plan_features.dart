@@ -53,7 +53,12 @@ class PlanFeatureRow {
 
 /// Строки витрины. Порядок — от того, что человек уже трогает каждый день, к
 /// тому, ради чего платят.
-List<PlanFeatureRow> planFeatureRows() => [
+///
+/// [withRussian] — состояние тумблера надбавки, если он на экране есть. Пока
+/// выбор не сделан (`null`), русские материалы стоят «по выбору»; как только
+/// человек решил, строка называет результат его решения, а не сам факт выбора:
+/// иначе тумблер говорит «включено», а таблица под ним — «по выбору».
+List<PlanFeatureRow> planFeatureRows({bool? withRussian}) => [
   PlanFeatureRow(
     title: LocaleKeys.subscription_featureQuestions.tr(),
     hint: LocaleKeys.subscription_featureQuestionsHint.tr(),
@@ -91,7 +96,11 @@ List<PlanFeatureRow> planFeatureRows() => [
     title: LocaleKeys.subscription_featureRussian.tr(),
     hint: LocaleKeys.subscription_featureRussianHint.tr(),
     free: PlanAccess.freeCategories,
-    paid: PlanAccess.optional,
+    paid: switch (withRussian) {
+      null => PlanAccess.optional,
+      true => PlanAccess.all,
+      false => PlanAccess.none,
+    },
   ),
   PlanFeatureRow(
     title: LocaleKeys.subscription_featureCommunity.tr(),
@@ -101,10 +110,21 @@ List<PlanFeatureRow> planFeatureRows() => [
   ),
 ];
 
+/// Знак сноски у «в N категориях»: само число ничего не говорит тому, кто не
+/// знает структуру экзамена, а звёздочка ведёт к карточке «Что доступно
+/// бесплатно» — там эти категории названы поимённо
+/// ([freeCategoriesFootnoteTitle]).
+const freeCategoriesFootnoteMark = '*';
+
+/// Заголовок карточки, к которой ведёт звёздочка, — с тем же знаком впереди.
+String freeCategoriesFootnoteTitle() =>
+    '$freeCategoriesFootnoteMark\u2009${LocaleKeys.subscription_freeTitle.tr()}';
+
 String planAccessLabel(PlanAccess access) => switch (access) {
   PlanAccess.all => LocaleKeys.subscription_valueAllCategories.tr(),
   PlanAccess.freeCategories =>
-    LocaleKeys.subscription_valueFreeCategories.plural(freeCategoryIds.length),
+    '${LocaleKeys.subscription_valueFreeCategories.plural(freeCategoryIds.length)}'
+        '$freeCategoriesFootnoteMark',
   PlanAccess.none => LocaleKeys.subscription_valueNone.tr(),
   PlanAccess.optional => LocaleKeys.subscription_valueOption.tr(),
   PlanAccess.always => LocaleKeys.subscription_valueAlways.tr(),
@@ -113,11 +133,15 @@ String planAccessLabel(PlanAccess access) => switch (access) {
 /// Сравнение «бесплатно / по подписке». На узком экране таблица из трёх колонок
 /// нечитаема, поэтому там — те же строки списком.
 class PlanFeaturesComparison extends StatelessWidget {
-  const PlanFeaturesComparison({super.key});
+  const PlanFeaturesComparison({super.key, this.withRussian});
+
+  /// Состояние тумблера русской надбавки на этом экране; `null` — тумблера
+  /// рядом нет (у замка, в настройках), и выбор ещё не сделан.
+  final bool? withRussian;
 
   @override
   Widget build(BuildContext context) {
-    final rows = planFeatureRows();
+    final rows = planFeatureRows(withRussian: withRussian);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -126,7 +150,7 @@ class PlanFeaturesComparison extends StatelessWidget {
         else
           _FeatureList(rows: rows),
         const SizedBox(height: 12),
-        const _Legend(),
+        _Legend(rows: rows),
       ],
     );
   }
@@ -468,17 +492,25 @@ class AccessMark extends StatelessWidget {
 }
 
 class _Legend extends StatelessWidget {
-  const _Legend();
+  const _Legend({required this.rows});
+
+  final List<PlanFeatureRow> rows;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Легенда объясняет только те кружки, что в таблице есть: с решённой
+    // надбавкой строки «по выбору» не остаётся, и подпись к ней повисает над
+    // пустотой. У `always` кружок общий с `all` — и подпись тоже.
+    final shown = {
+      for (final row in rows) ...[row.free, row.paid],
+    }.map((a) => a == PlanAccess.always ? PlanAccess.all : a).toSet();
     final items = <(PlanAccess, String)>[
       (PlanAccess.all, LocaleKeys.subscription_legendFull.tr()),
       (PlanAccess.freeCategories, LocaleKeys.subscription_legendPart.tr()),
       (PlanAccess.optional, LocaleKeys.subscription_legendOption.tr()),
       (PlanAccess.none, LocaleKeys.subscription_legendNone.tr()),
-    ];
+    ].where((item) => shown.contains(item.$1));
     return LayoutBuilder(
       builder: (context, constraints) => Wrap(
         spacing: 20,

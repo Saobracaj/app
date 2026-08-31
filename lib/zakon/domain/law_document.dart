@@ -1,0 +1,30 @@
+import 'package:saobracaj/data/zakon_o_bezbednosti_data_source.dart';
+
+/// Документ, который умеет показывать виджет [Zakon]: закон о безопасности
+/// дорожного движения или правилник о дорожной сигнализации. У обоих одна
+/// схема строк (глава/член/абзац) и одинаковые ссылки — отличаются заголовок,
+/// источник данных и путь, на который указывает скопированная ссылка.
+enum LawDocument {
+  zakonOBezbednosti(
+    title: 'ЗАКОН о безбедности саобраћаја на путевима',
+    linkPath: '/zakon',
+  ),
+  pravilnik(
+    title: 'ПРАВИЛНИК о саобраћајној сигнализацији',
+    linkPath: '/pravilnik',
+  );
+
+  const LawDocument({required this.title, required this.linkPath});
+
+  final String title;
+  final String linkPath;
+
+  /// Имя документа в событиях аналитики (`zakon_opened`): путь ссылки без
+  /// ведущего слэша — «zakon» или «pravilnik».
+  String get analyticsName => linkPath.substring(1);
+
+  ZakonDataSource get dataSource => switch (this) {
+    LawDocument.zakonOBezbednosti => zakonOBezbednostiDataSource,
+    LawDocument.pravilnik => pravilnikDataSource,
+  };
+}

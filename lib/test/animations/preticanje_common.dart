@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:saobracaj/test/animations/auto.dart';
 import 'package:saobracaj/theme/app_theme.dart';
 
 /// Общие рисовалки для сцен про претицање (`preticanje_sekvenca.dart`,
@@ -101,68 +102,15 @@ void drawCar(
 
   final l = length;
   final w = width;
-  final body = RRect.fromRectAndRadius(
+
+  // Кузов — общая машинка из auto.dart (та же, что в «Мимоилажење» и
+  // «Претицање»). Лампы показивача правца рисуем поверх сами: на общем
+  // плане штатные лампочки машинки слишком мелкие.
+  paintAutoTopView(
+    canvas,
     Rect.fromCenter(center: Offset.zero, width: l, height: w),
-    Radius.circular(w * 0.3),
+    color: color,
   );
-
-  // Колёса рисуем первыми — они торчат из-под кузова.
-  final wheelPaint = Paint()..color = Colors.black.withValues(alpha: 0.75);
-  for (final sx in [-0.3, 0.28]) {
-    for (final sy in [-1.0, 1.0]) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(l * sx, sy * (w / 2 + 1)),
-            width: l * 0.16,
-            height: w * 0.22,
-          ),
-          const Radius.circular(2),
-        ),
-        wheelPaint,
-      );
-    }
-  }
-
-  canvas.drawRRect(body, Paint()..color = color);
-  canvas.drawRRect(
-    body,
-    Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..color = Color.lerp(color, Colors.black, 0.45)!,
-  );
-
-  // Стёкла: лобовое ближе к носу, заднее — к корме.
-  final glass = Paint()..color = Colors.white.withValues(alpha: 0.8);
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(
-      Rect.fromLTRB(l * 0.08, -w * 0.33, l * 0.22, w * 0.33),
-      const Radius.circular(2),
-    ),
-    glass,
-  );
-  canvas.drawRRect(
-    RRect.fromRectAndRadius(
-      Rect.fromLTRB(-l * 0.3, -w * 0.31, -l * 0.18, w * 0.31),
-      const Radius.circular(2),
-    ),
-    glass,
-  );
-
-  // Фары и стопы — чтобы нос отличался от кормы даже на стоп-кадре.
-  final head = Paint()..color = const Color(0xFFFFF3C4);
-  final tail = Paint()..color = const Color(0xFFD32F2F);
-  for (final sy in [-1.0, 1.0]) {
-    canvas.drawRect(
-      Rect.fromLTWH(l * 0.44, sy * w * 0.34 - 2, 4, 4),
-      head,
-    );
-    canvas.drawRect(
-      Rect.fromLTWH(-l * 0.48, sy * w * 0.34 - 2, 4, 4),
-      tail,
-    );
-  }
 
   // Показивачи правца: левый — сверху, правый — снизу. Лампы вынесены за
   // габарит кузова, иначе на общем плане их не разглядеть.

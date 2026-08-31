@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:saobracaj/test/animations/alkohol_prag_skala.dart';
+import 'package:saobracaj/test/animations/interactive_animation.dart';
 import 'package:saobracaj/test/animations/kruzni_tok.dart';
 import 'package:saobracaj/test/animations/manevri.dart';
 import 'package:saobracaj/test/animations/nula_promila.dart';
@@ -17,7 +18,7 @@ import 'package:saobracaj/test/animations/propustanje.dart';
 import 'package:saobracaj/test/animations/propustanje_vozila_s_prvenstvom.dart';
 import 'package:saobracaj/test/animations/pruzni_prelaz.dart';
 import 'package:saobracaj/test/animations/rastojanje_odstojanje.dart';
-import 'package:saobracaj/test/animations/road_sign.dart';
+import 'package:saobracaj/zakon/presentation/road_sign_viewer.dart';
 import 'package:saobracaj/test/animations/skala_alkohola.dart';
 import 'package:saobracaj/test/animations/sta_sme_kategorija_b.dart';
 import 'package:saobracaj/test/animations/trake_pred_prugom.dart';
@@ -65,22 +66,26 @@ import 'zaustavljeno_vs_parkirano.dart';
 import 'zaustavni_put.dart';
 import 'znaci_policajca.dart';
 
+// Зацикленные сцены со своими контроллерами обёрнуты здесь в
+// InteractiveAnimation.pauseOnly — пауза по тапу и кнопке. Пошаговые сцены
+// (postupak-teska-nezgoda и подобные) оборачиваются основным конструктором
+// InteractiveAnimation у себя в файле — там доступно и переключение кадров.
 final _animations = {
   'pravilo-desne-strane': PraviloDesneStrane(),
   'klinc-raskrsnica': KlincRaskrsnica(),
   'blokirana-raskrsnica': BlokiranaRaskrsnica(),
-  'mimoilazenje': Mimoilazenje(),
-  'mimoilazenje-nagib': MimoilazenjeNagib(),
-  'pravilo-jednog-vozila': PraviloJednogVozila(),
-  'preticanje': Obgon(),
-  'obilazenje': ObyezdAnimacija(),
-  'obilazenje2': ObyezdAnimacija2(),
-  'propustanje': BlockedRoadScene(),
+  'mimoilazenje': InteractiveAnimation.pauseOnly(child: Mimoilazenje()),
+  'mimoilazenje-nagib': InteractiveAnimation.pauseOnly(child: MimoilazenjeNagib()),
+  'pravilo-jednog-vozila': InteractiveAnimation.pauseOnly(child: PraviloJednogVozila()),
+  'preticanje': InteractiveAnimation.pauseOnly(child: Obgon()),
+  'obilazenje': InteractiveAnimation.pauseOnly(child: ObyezdAnimacija()),
+  'obilazenje2': InteractiveAnimation.pauseOnly(child: ObyezdAnimacija2()),
+  'propustanje': InteractiveAnimation.pauseOnly(child: BlockedRoadScene()),
   // Слаг из ТЗ; старый ключ 'rastojanje_odstojanje' убран — по текстам
   // комментариев и объяснений в БД бэкенда он нигде не встречается.
   'odstojanje-rastojanje-shema': RastojanjeOndsojanje(),
   'manevri-animacija': Manevri(),
-  'preticanje-sekvenca': PreticanjeSekvenca(),
+  'preticanje-sekvenca': InteractiveAnimation.pauseOnly(child: PreticanjeSekvenca()),
   'preticanje-strane': PreticanjeStrane(),
   'kategorije-stablo': ThemedCompactDecisionTree(),
   'oznaka-pneumatika': OznakaPneumatika(),
@@ -100,24 +105,24 @@ final _animations = {
   'uklanjanje-tok': UklanjanjeTok(),
   // Конспект 30 «Правила дорожного движения»
   'trougao-i-prsluk': TrougaoIPrsluk(),
-  'obilazenje-prepreke': ObilazenjePrepreke(),
+  'obilazenje-prepreke': InteractiveAnimation.pauseOnly(child: ObilazenjePrepreke()),
   'zaustavni-put': ZaustavniPut(),
   // Конспект 32 «Саобраћајна сигнализација»
   'tri-vrste-znakova': TriVrsteZnakova(),
   'uzduzne-linije': UzduzneLinije(),
   'hijerarhija-piramida': HijerarhijaPiramida(),
   'znaci-policajca': ZnaciPolicajca(),
-  'pruzni-prelaz': PruzniPrelaz(),
+  'pruzni-prelaz': InteractiveAnimation.pauseOnly(child: PruzniPrelaz()),
   'trake-pred-prugom': TrakePredPrugom(),
   'pozicija-pred-skretanje': PozicijaPredSkretanje(),
-  'skretanje-pesaci': SkretanjePesaci(),
-  'kruzni-tok': KruzniTok(),
+  'skretanje-pesaci': InteractiveAnimation.pauseOnly(child: SkretanjePesaci()),
+  'kruzni-tok': InteractiveAnimation.pauseOnly(child: KruzniTok()),
   'zaustavljeno-vs-parkirano': ZaustavljenoVsParkirano(),
   'zabrana-zaustavljanja-parkiranja': ZabranaZaustavljanjaParkiranja(),
   'dopunske-table-parkiranje': DopunskeTableParkiranje(),
   'prikolica-b-vs-be': PrikolicaBvsBe(),
   'katadiopteri-na-prikolici': KatadiopteriNaPrikolici(),
-  'raskinuta-veza-prikolice': RaskinutaVezaPrikolice(),
+  'raskinuta-veza-prikolice': InteractiveAnimation.pauseOnly(child: RaskinutaVezaPrikolice()),
   'sta-sme-kategorija-b': StaSmeKategorijaB(),
   'probna-ogranicenja': ProbnaOgranicenja(),
   'probna-brzine': ProbnaBrzine(),
@@ -132,7 +137,7 @@ final _animations = {
   'dometi-svetlosnih-snopova': DometiSvetlosnihSnopova(),
   'upotreba-svetala-matrica': UpotrebaSvetalaMatrica(),
   'posebni-signali': PosebniSignali(),
-  'propustanje-vozila-s-prvenstvom': PropustanjeVozilaSPrvenstvom(),
+  'propustanje-vozila-s-prvenstvom': InteractiveAnimation.pauseOnly(child: PropustanjeVozilaSPrvenstvom()),
   'autoput-trake': AutoputTrake(),
   'posebne-trake-autoput': PosebneTrakeAutoput(),
   'autoput-vs-motoput': AutoputVsMotoput(),
@@ -141,8 +146,16 @@ final _animations = {
 Widget getAnimation(String animationName) {
   // `sign-<номер>` — официальный SVG знака из assets/signs/ (см.
   // road_sign.dart); конспекты вставляют их маркером `anim/sign-ii-2`.
+  // Нажатие открывает знак крупно, с описанием из правилника.
   if (animationName.startsWith('sign-')) {
-    return RoadSignSvg(animationName.substring('sign-'.length), height: 48);
+    final sign = animationName.substring('sign-'.length);
+    // Дополнительные таблички (группа IV) масштабируются по ширине: их SVG —
+    // либо широкая табличка, либо высокая композиция «знак + табличка», и при
+    // общей высоте 48 сама табличка выходит нечитаемо мелкой.
+    if (sign.startsWith('iv-')) {
+      return TappableRoadSign(sign, width: 110);
+    }
+    return TappableRoadSign(sign, height: 48);
   }
   return _animations[animationName] ?? Text('Animation not found');
 }

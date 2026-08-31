@@ -42,6 +42,7 @@ import 'package:saobracaj/core/presentation/not_found_page.dart';
 import 'package:saobracaj/core/presentation/panel_page.dart';
 import 'package:saobracaj/test/quest/quest.dart';
 import 'package:saobracaj/test/start_test.dart';
+import 'package:saobracaj/zakon/domain/law_document.dart';
 import 'package:saobracaj/zakon/zakon.dart';
 
 /// The screens a question can be opened on: every one of them hosts the same
@@ -64,7 +65,7 @@ final routes = RouteMap(
   // A mistyped or outdated address gets a designed screen with a way home
   // instead of routemaster's bare default one.
   onUnknownRoute: (path) => MaterialPage(child: NotFoundPage(path: path)),
-  routes: {
+  routes: _withPravilnik({
     // «История» ('/statistics') временно скрыта из нижней навигации; сам
     // маршрут ниже остаётся рабочим для прямых ссылок.
     // Switching a tab has to leave a browser history entry, otherwise the
@@ -189,6 +190,9 @@ final routes = RouteMap(
     ),
     '/about': (_) => MaterialPage(child: AboutPage()),
     '/zakon': zakonPage,
+    // «Правилник о саобраћајној сигнализацији» — тот же просмотрщик, что и у
+    // закона, со ссылками вида /pravilnik?chlan=…&paragraph=….
+    '/pravilnik': pravilnikPage,
     // Deep link to a category konspekt, optionally straight to one section:
     // /konspekt?category=25&section=manevri
     '/konspekt': konspektPage,
@@ -285,8 +289,21 @@ final routes = RouteMap(
         focusComposer: data.queryParameters['focus'] == '1',
       ),
     ),
-  },
+  }),
 );
+
+/// У каждого адреса «…/zakon» есть близнец «…/pravilnik».
+///
+/// Правилник открывается ссылкой из просмотрщика знака, а знак нажимают где
+/// угодно — в конспекте, в вопросе, в иллюстрации. Ссылка ведёт относительным
+/// адресом (как и ссылки на закон), поэтому документ должен существовать
+/// ребёнком того же экрана: иначе переход упирается в «страница не найдена».
+Map<String, PageBuilder> _withPravilnik(Map<String, PageBuilder> routes) => {
+  ...routes,
+  for (final path in routes.keys.where((p) => p.endsWith('/zakon')))
+    '${path.substring(0, path.length - '/zakon'.length)}/pravilnik':
+        pravilnikPage,
+};
 
 /// Deep link into a single question opened straight on its discussion tab.
 ///
@@ -376,6 +393,15 @@ MaterialPage commentEditPage(dynamic data) => MaterialPage(
 
 MaterialPage zakonPage(dynamic params) => MaterialPage(
   child: Zakon(
+    paragraph: params.queryParameters['paragraph'],
+    chapter: params.queryParameters['chapter'],
+    chlan: params.queryParameters['chlan'],
+  ),
+);
+
+MaterialPage pravilnikPage(dynamic params) => MaterialPage(
+  child: Zakon(
+    document: LawDocument.pravilnik,
     paragraph: params.queryParameters['paragraph'],
     chapter: params.queryParameters['chapter'],
     chlan: params.queryParameters['chlan'],

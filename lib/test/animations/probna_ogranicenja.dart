@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:saobracaj/test/animations/infografika_common.dart';
 
@@ -37,6 +39,8 @@ const _carBody = Color(0xFF3D7BD6);
 const _carGlass = Color(0x99101418);
 const _plateFace = Color(0xFFF7F7F7);
 const _plateInk = Color(0xFF17191C);
+const _plateRed = Color(0xFFD8232A);
+const _plateBlue = Color(0xFF3585C5);
 
 class _ScenePainter extends InfoScenePainter {
   _ScenePainter(super.colorScheme, this.gloss);
@@ -109,22 +113,72 @@ class _ScenePainter extends InfoScenePainter {
     );
   }
 
-  /// Сама наклейка: белый квадрат с чёрной буквой — так она выглядит на
-  /// машине, поэтому цвета литеральные.
+  /// Сама наклейка — уменьшенная копия настоящей: белый квадрат, в нём
+  /// красный пятиугольник вершиной вверх, поверх него синий вершиной вниз,
+  /// на синем — белая курсивная «П» с засечками. Цвета литеральные: это
+  /// цвета самой наклейки, а не роли темы.
   void _plate(Canvas canvas, Offset center) {
-    final rect = Rect.fromCenter(center: center, width: 30, height: 30);
+    const side = 34.0;
+    final rect = Rect.fromCenter(center: center, width: side, height: side);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(4)),
+      RRect.fromRectAndRadius(rect, const Radius.circular(3)),
       Paint()..color = _plateFace,
     );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(rect, const Radius.circular(4)),
+      RRect.fromRectAndRadius(rect, const Radius.circular(3)),
       Paint()
         ..color = _plateInk
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.6,
+        ..strokeWidth = 1.4,
     );
-    text(canvas, 'П', center, _plateInk, maxWidth: 26, fontSize: 19, isBold: true);
+
+    // Координаты ниже — в долях эталонной наклейки 100×100.
+    final u = side / 100;
+    final pc = center.translate(0, -2 * u);
+    // Красный повёрнут относительно синего, поэтому его углы выглядывают
+    // между сторонами синего — как на настоящей наклейке.
+    canvas.drawPath(
+      _pentagon(pc, 42 * u, pointUp: true, tiltDeg: 8),
+      Paint()..color = _plateRed,
+    );
+    canvas.drawPath(
+      _pentagon(pc, 37 * u, pointUp: false),
+      Paint()..color = _plateBlue,
+    );
+    _serifP(canvas, pc.translate(0, 2 * u), 26 * u, 31 * u);
+  }
+
+  Path _pentagon(Offset c, double r,
+      {required bool pointUp, double tiltDeg = 0}) {
+    final start = (pointUp ? -90 : 90) + tiltDeg;
+    final path = Path();
+    for (var i = 0; i < 5; i++) {
+      final a = (start + 72 * i) * math.pi / 180;
+      final p = c + Offset(math.cos(a), math.sin(a)) * r;
+      i == 0 ? path.moveTo(p.dx, p.dy) : path.lineTo(p.dx, p.dy);
+    }
+    return path..close();
+  }
+
+  /// «П» рисуется контуром, а не шрифтом: у шрифта приложения нет засечек,
+  /// а на наклейке буква именно засечная и наклонная.
+  void _serifP(Canvas canvas, Offset center, double w, double h) {
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.skew(-0.18, 0);
+    final st = 0.26 * w; // толщина стебля
+    final bt = 0.22 * h; // толщина перекладины
+    final ft = 0.10 * h; // высота засечки-подошвы
+    final fe = 0.10 * w; // вынос засечки в сторону
+    final letter = Path()
+      ..addRect(Rect.fromLTRB(-w / 2 - fe, -h / 2, w / 2 + fe, -h / 2 + bt))
+      ..addRect(Rect.fromLTRB(-w / 2, -h / 2, -w / 2 + st, h / 2))
+      ..addRect(Rect.fromLTRB(w / 2 - st, -h / 2, w / 2, h / 2))
+      ..addRect(
+          Rect.fromLTRB(-w / 2 - fe, h / 2 - ft, -w / 2 + st + fe, h / 2))
+      ..addRect(Rect.fromLTRB(w / 2 - st - fe, h / 2 - ft, w / 2 + fe, h / 2));
+    canvas.drawPath(letter, Paint()..color = Colors.white);
+    canvas.restore();
   }
 
   // --- Четыре ограничения -------------------------------------------------

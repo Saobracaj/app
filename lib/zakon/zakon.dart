@@ -8,8 +8,12 @@ import 'package:saobracaj/core/presentation/translation_chip.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:saobracaj/data/zakon_o_bezbednosti_data_source.dart';
+import 'package:saobracaj/zakon/domain/law_document.dart';
+import 'package:saobracaj/zakon/presentation/road_sign_viewer.dart';
 import 'package:saobracaj/zakon/domain/zakon_contents.dart';
+import 'package:saobracaj/zakon/domain/zakon_display.dart';
 import 'package:saobracaj/zakon/state_management/zakon_bloc.dart';
 import 'package:flutter/services.dart';
 
@@ -22,11 +26,16 @@ class Zakon extends StatefulWidget {
     this.chlan,
     this.chapter,
     this.asPanel = false,
+    this.document = LawDocument.zakonOBezbednosti,
   });
 
   final String? paragraph;
   final String? chlan;
   final String? chapter;
+
+  /// Какой документ показан: закон (по умолчанию) или правилник — тот же
+  /// виджет, оглавление и ссылки, различаются только данные и заголовок.
+  final LawDocument document;
 
   /// Закон показан выдвижной боковой панелью (см. `openZakon`), а не
   /// страницей: шапку закрывает крестик, а не стрелка «назад», и заголовок
@@ -54,8 +63,12 @@ class _ZakonState extends State<Zakon> {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) =>
-          ZakonBloc(widget.paragraph, widget.chlan, widget.chapter),
+      create: (context) => ZakonBloc(
+        widget.paragraph,
+        widget.chlan,
+        widget.chapter,
+        dataSource: widget.document.dataSource,
+      ),
       child: Scaffold(
         appBar: AppBar(
           automaticallyImplyLeading: !widget.asPanel,
@@ -67,7 +80,7 @@ class _ZakonState extends State<Zakon> {
                 )
               : null,
           title: Text(
-            'ЗАКОН о безбедности саобраћаја на путевима',
+            widget.document.title,
             style: widget.asPanel
                 ? Theme.of(context).textTheme.titleSmall
                 : null,
@@ -136,13 +149,16 @@ class _ZakonState extends State<Zakon> {
                     ? MediaQuery.sizeOf(context).width - _kTocWidth - 1
                     : null,
               ),
-              itemCount: state.zakon.length,
+              itemCount: state.rows.length,
               itemScrollController: _itemScrollController,
               itemPositionsListener: _itemPositionsListener,
               itemBuilder: (context, index) {
+                final row = state.rows[index];
                 return _Paragraph(
-                  paragraph: state.zakon[index],
+                  paragraph: row.row,
+                  signCodes: row.signCodes,
                   isSerbian: state.isSr,
+                  linkPath: widget.document.linkPath,
                 );
               },
             );
@@ -171,10 +187,22 @@ class _ZakonState extends State<Zakon> {
 }
 
 class _Paragraph extends StatelessWidget {
-  const _Paragraph({required this.paragraph, required this.isSerbian});
+  const _Paragraph({
+    required this.paragraph,
+    required this.isSerbian,
+    required this.linkPath,
+    this.signCodes = const [],
+  });
 
   final BezbParagraph paragraph;
+
+  /// Коды знаков под картинками строки (см. [ZakonDisplayRow.signCodes]).
+  final List<String> signCodes;
+
   final bool isSerbian;
+
+  /// Путь документа для копируемой ссылки ('/zakon' или '/pravilnik').
+  final String linkPath;
 
   @override
   Widget build(BuildContext context) {
@@ -188,7 +216,9 @@ class _Paragraph extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Text(
-            text.split('<sup>').join('').split('</sup>').join(''),
+            // Заголовок и так набран жирным: звёздочки markdown в обычном
+            // Text остались бы видны (шапка правилника «**ПРАВИЛНИК**»).
+            _plain(text).replaceAll('**', ''),
             textAlign: TextAlign.center,
             style: Theme.of(
               context,
@@ -203,17 +233,30 @@ class _Paragraph extends StatelessWidget {
     } else if (paragraph.isChlan) {
       text = '## $text';
     }
+    final body = Markdown(
+      data: _plain(text),
+      shrinkWrap: true,
+      selectable: false,
+      physics: NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    );
     return InkWell(
       onTap: () => _onTap(context),
-      child: Markdown(
-        data: text.split('<sup>').join('').split('</sup>').join(''),
-        shrinkWrap: true,
-        selectable: false,
-        physics: NeverScrollableScrollPhysics(),
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      ),
+      child: paragraph.images.isEmpty
+          ? body
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (text.trim().isNotEmpty) body,
+                _ParagraphImages(images: paragraph.images, codes: signCodes),
+              ],
+            ),
     );
   }
+
+  /// Текст без служебных `<sup>`-обёрток исходного документа.
+  static String _plain(String text) =>
+      text.split('<sup>').join('').split('</sup>').join('');
 
   void _onTap(BuildContext context) {
     final queryParameters = <String, String?>{};
@@ -230,7 +273,7 @@ class _Paragraph extends StatelessWidget {
       queryParameters['paragraph'] = paragraph.paragraph;
     }
 
-    final uri = appLink('/zakon', queryParameters);
+    final uri = appLink(linkPath, queryParameters);
 
     Clipboard.setData(ClipboardData(text: uri.toString())).then((_) {
       if (!context.mounted) return;
@@ -238,6 +281,97 @@ class _Paragraph extends StatelessWidget {
         context,
       ).showSnackBar(SnackBar(content: Text('Link is copied to clipboard')));
     });
+  }
+}
+
+/// Изображения строки правилника (дорожные знаки, рисунки): в один ряд, в
+/// натуральную величину из документа, а если ряд шире колонки — ужимаются,
+/// чтобы ничего не обрезалось. Код знака стоит прямо под своей картинкой,
+/// по центру — как таблица «знак → номер».
+class _ParagraphImages extends StatelessWidget {
+  const _ParagraphImages({required this.images, this.codes = const []});
+
+  final List<ParagraphImage> images;
+
+  /// Коды знаков: по одному на картинку в том же порядке, либо один общий на
+  /// весь ряд; пусто — подписей у строки нет, ряд показывается без кодов.
+  final List<String> codes;
+
+  @override
+  Widget build(BuildContext context) {
+    final codeStyle = Theme.of(context)
+        .textTheme
+        .bodyMedium
+        ?.copyWith(fontWeight: FontWeight.bold);
+    final perImage = codes.length == images.length;
+    final row = Row(
+      mainAxisSize: MainAxisSize.min,
+      // Низ у колонок общий: коды встают на одну строку и при разной высоте
+      // знаков.
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (final (i, image) in images.indexed) ...[
+          if (i > 0) const SizedBox(width: 16),
+          if (perImage)
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _paragraphImage(image, documentCode: codes[i]),
+                const SizedBox(height: 4),
+                Text(codes[i], style: codeStyle, textAlign: TextAlign.center),
+              ],
+            )
+          else
+            _paragraphImage(
+              image,
+              documentCode: codes.isEmpty ? null : codes.first,
+            ),
+        ],
+      ],
+    );
+    // Один код на несколько картинок (фото + рисунок одной таблы) — подпись
+    // по центру под всем рядом.
+    final content = perImage || codes.isEmpty
+        ? row
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              row,
+              const SizedBox(height: 4),
+              Text(codes.first, style: codeStyle, textAlign: TextAlign.center),
+            ],
+          );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: FittedBox(fit: BoxFit.scaleDown, child: content),
+      ),
+    );
+  }
+
+  /// Официальный знак (общий файл с конспектами, assets/signs/<код>.svg)
+  /// открывается по нажатию крупно; извлечённые из docx рисунки — просто
+  /// картинки. Размер — всегда как на странице документа. [documentCode] —
+  /// код знака из подписи: просмотрщик покажет его и найдёт описание по нему.
+  static Widget _paragraphImage(ParagraphImage image, {String? documentCode}) {
+    final src = image.src;
+    const signsPrefix = 'assets/signs/';
+    if (src.startsWith(signsPrefix)) {
+      final code = src.substring(signsPrefix.length).replaceAll('.svg', '');
+      return TappableRoadSign(
+        code,
+        width: image.w,
+        height: image.h,
+        documentCode: documentCode,
+        // Ссылка «Открыть в правилнике» отсюда вела бы на уже открытый
+        // документ.
+        showPravilnikLink: false,
+      );
+    }
+    return src.endsWith('.svg')
+        ? SvgPicture.asset(src, width: image.w, height: image.h)
+        : Image.asset(src, width: image.w, height: image.h);
   }
 }
 

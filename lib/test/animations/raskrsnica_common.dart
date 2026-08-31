@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:saobracaj/test/animations/auto.dart';
 import 'package:saobracaj/theme/app_theme.dart';
 
 /// Общая основа для сцен «перекрёсток вид сверху».
@@ -214,71 +215,14 @@ abstract class RaskrsnicaPainter extends CustomPainter {
     canvas.translate(center.dx, center.dy);
     canvas.rotate(heading);
 
-    final half = length / 2;
-    final halfW = width / 2;
-
-    // Колёса выступают за кузов: нарисованные вровень, они прячутся под ним и
-    // силуэт читается как коробка, а не как машина.
-    final wheels = Paint()..color = const Color(0xFF23262A);
-    for (final x in [half * 0.55, -half * 0.55]) {
-      for (final y in [-halfW - 2.5, halfW - 3.5]) {
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromLTWH(x - 7, y, 14, 6),
-            const Radius.circular(2),
-          ),
-          wheels,
-        );
-      }
-    }
-
-    final body = RRect.fromRectAndRadius(
-      Rect.fromLTRB(-half, -halfW, half, halfW),
-      const Radius.circular(7),
+    // Кузов — общая машинка из auto.dart (та же, что в «Мимоилажење» и
+    // «Претицање»); курс задан поворотом канваса выше.
+    paintAutoTopView(
+      canvas,
+      Rect.fromCenter(center: Offset.zero, width: length, height: width),
+      color: color,
+      brakeOn: brake,
     );
-    canvas.drawRRect(body, Paint()..color = color);
-    canvas.drawRRect(
-      body,
-      Paint()
-        ..color = const Color(0x66000000)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2,
-    );
-
-    // Стёкла: лобовое ближе к носу, заднее — к корме. По ним видно, куда
-    // машина смотрит, даже когда стоит.
-    final glass = Paint()..color = const Color(0xB3161A1F);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTRB(half * 0.25, -halfW + 3, half * 0.62, halfW - 3),
-        const Radius.circular(3),
-      ),
-      glass,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTRB(-half * 0.66, -halfW + 3, -half * 0.34, halfW - 3),
-        const Radius.circular(3),
-      ),
-      glass,
-    );
-    // Крыша светлее кузова — иначе на тёмной теме машина выглядит плоской.
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTRB(-half * 0.28, -halfW + 3, half * 0.18, halfW - 3),
-        const Radius.circular(3),
-      ),
-      Paint()..color = Colors.white.withValues(alpha: 0.14),
-    );
-
-    // Фары и стоп-сигналы.
-    final head = Paint()..color = const Color(0xFFFFF3C4);
-    canvas.drawRect(Rect.fromLTWH(half - 3, -halfW + 3, 3, 5), head);
-    canvas.drawRect(Rect.fromLTWH(half - 3, halfW - 8, 3, 5), head);
-    final rear = Paint()
-      ..color = brake ? const Color(0xFFFF4438) : const Color(0xFF8A2C25);
-    canvas.drawRect(Rect.fromLTWH(-half, -halfW + 3, 3, 5), rear);
-    canvas.drawRect(Rect.fromLTWH(-half, halfW - 8, 3, 5), rear);
 
     canvas.restore();
     if (opacity < 1) canvas.restore();

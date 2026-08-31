@@ -17,10 +17,12 @@ name: Build & Deploy
 
 on:
   push:
-    branches: [main]
+    # main — релиз (все цели + деплои, включая прод-веб); develop — мобильные
+    # сборки и загрузки в сторы (Play internal / TestFlight), но БЕЗ веба:
+    # веб из develop здесь не собирается — его катит deploy-dev-web.yml.
+    branches: [main, develop]
   # PR-ы теперь идут в develop (релиз — PR develop -> main); проверки гоняются
-  # для обоих направлений. Деплой dev-веба из develop — отдельный workflow
-  # deploy-dev-web.yml.
+  # для обоих направлений.
   pull_request:
     branches: [main, develop]
   workflow_dispatch:
@@ -46,7 +48,7 @@ on:
         default: false
         type: boolean
       deploy_android:
-        description: 'Upload the AAB to Google Play (also needs the PLAY_UPLOAD_ENABLED variable — currently OFF)'
+        description: 'Upload the AAB to Google Play (also needs the PLAY_UPLOAD_ENABLED variable)'
         required: false
         default: false
         type: boolean
@@ -191,7 +193,7 @@ jobs:
     name: Build Android
     needs: [preflight, checks]
     # Pull requests only run `checks` — store builds cost runner minutes and
-    # publish nothing.
+    # publish nothing. Пуши в main и develop собирают и заливают в сторы.
     if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.build_android) && needs.preflight.outputs.has_android_signing == 'true' }}
     runs-on: ubuntu-latest
     steps:
@@ -274,18 +276,13 @@ jobs:
           path: build/app/outputs/bundle/release/app-release.aab
           retention-days: 30
 
-      # DISABLED ON PURPOSE. The historical Play App Signing certificate was lost,
-      # so the new upload key (this pipeline's keystore) is not yet the one Google
-      # accepts for at.gleb.saobracaj — an upload would be rejected with
-      # "Your Android App Bundle is signed with the wrong key".
-      #
-      # To switch it on, once Google has reset the upload key (docs/ci-cd.md):
-      #   1. add the GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret;
-      #   2. set the repository variable PLAY_UPLOAD_ENABLED to `true`;
-      #   3. run the workflow manually with `deploy_android` ticked (or merge to
-      #      main, which then uploads to the `internal` track automatically).
+      # Uploads land on the `internal` track: pushes to main and develop publish
+      # there automatically, plus manual runs with `deploy_android`.
+      # The PLAY_UPLOAD_ENABLED variable is the kill switch — set it to anything
+      # but `true` to fall back to artifact-only builds (used while the upload
+      # key was being reset, see docs/ci-cd.md).
       - name: Upload to Google Play (internal track)
-        if: ${{ vars.PLAY_UPLOAD_ENABLED == 'true' && needs.preflight.outputs.has_play_api == 'true' && (inputs.deploy_android || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+        if: ${{ vars.PLAY_UPLOAD_ENABLED == 'true' && needs.preflight.outputs.has_play_api == 'true' && (inputs.deploy_android || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))) }}
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
@@ -456,7 +453,7 @@ jobs:
       # It is a hard gate only when this run would actually upload.
       - name: Validate the IPA against App Store Connect
         if: ${{ needs.preflight.outputs.has_appstore_api == 'true' }}
-        continue-on-error: ${{ !(inputs.deploy_ios || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+        continue-on-error: ${{ !(inputs.deploy_ios || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))) }}
         env:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -477,7 +474,7 @@ jobs:
       # The build lands in TestFlight; App Store submission stays a manual step in
       # App Store Connect.
       - name: Upload to TestFlight
-        if: ${{ needs.preflight.outputs.has_appstore_api == 'true' && (inputs.deploy_ios || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+        if: ${{ needs.preflight.outputs.has_appstore_api == 'true' && (inputs.deploy_ios || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))) }}
         env:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -501,7 +498,7 @@ jobs:
   distribute-testflight:
     name: Add the build to the TestFlight group
     needs: [preflight, build-ios]
-    if: ${{ needs.preflight.outputs.has_appstore_api == 'true' && (inputs.deploy_ios || (github.event_name == 'push' && github.ref == 'refs/heads/main')) }}
+    if: ${{ needs.preflight.outputs.has_appstore_api == 'true' && (inputs.deploy_ios || (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -528,7 +525,9 @@ jobs:
   build-web:
     name: Build web image
     needs: [preflight, checks]
-    if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.build_web) }}
+    # На push в develop веб не собираем: dev-домен обслуживает deploy-dev-web.yml,
+    # а прод-образ отсюда всё равно никуда не выкатился бы.
+    if: ${{ github.event_name != 'pull_request' && !(github.event_name == 'push' && github.ref == 'refs/heads/develop') && (github.event_name != 'workflow_dispatch' || inputs.build_web) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
