@@ -17,6 +17,7 @@ install fonttools`) и системный Arial Bold (macOS). Запуск из 
     /tmp/venv/bin/python tool/gen_konspekt_signs.py
 """
 
+import math
 import os
 import re
 
@@ -206,17 +207,68 @@ def parking_time_plate():
     return '\n'.join(out)
 
 
+# --- надпись уклона на I-3 / I-4 ------------------------------------------------
+
+# Официальные SVG «опасан успон» (I-3) и «опасна низбрдица» (I-4) с Викисклада
+# рисуют только чёрный клин: величина уклона там переменная и в шаблон не
+# вписана. В правилнике же на рисунке стоит «12 %» вдоль ската, и без числа
+# знак читается как чужой — надпись дорисовывается сюда.
+#
+# Координаты сняты с самого файла: чёрный клин лежит в path8885, а все
+# обёртки-<g> сводятся к переносу (325.3465, -102.24591) в системе viewBox.
+NAGIB_TEXT = '12 %'
+NAGIB_SLOPE = {
+    # файл: (начало ската, конец ската) — по возрастанию x
+    'i-3': ((153.0, 550.6), (493.6, 374.4)),   # успон: скат идёт вверх
+    'i-4': ((255.98, 374.42), (596.6, 550.57)),  # низбрдица: скат идёт вниз
+}
+NAGIB_RE = re.compile(r'\n?  <g id="nagib"[^>]*>.*?</g>', re.S)
+
+
+def nagib_group(name):
+    """Группа с надписью уклона вдоль ската знака [name]."""
+    (x1, y1), (x2, y2) = NAGIB_SLOPE[name]
+    dx, dy = x2 - x1, y2 - y1
+    length = math.hypot(dx, dy)
+    ux, uy = dx / length, dy / length
+    angle = math.degrees(math.atan2(dy, dx))
+    # Размер: надпись занимает чуть меньше половины ската — как на рисунке.
+    size = fit_size(NAGIB_TEXT, length * 0.46, 1000)
+    # Середина надписи — на верхней половине ската, сама она поднята над ним
+    # по нормали (внешняя сторона клина — та, что выше ската).
+    t = 0.46 if name == 'i-3' else 0.45
+    cx, cy = x1 + dx * t, y1 + dy * t
+    nx, ny = uy, -ux
+    if ny > 0:
+        nx, ny = -nx, -ny
+    gap = size * 0.24
+    bx, by = cx + nx * gap, cy + ny * gap
+    return (f'  <g id="nagib" '
+            f'transform="rotate({_num(angle)},{_num(bx)},{_num(by)})">'
+            f'{text_path(NAGIB_TEXT, size, bx, by, "#000")}</g>')
+
+
+def with_nagib(name):
+    """Официальный SVG знака с дорисованной надписью уклона (идемпотентно)."""
+    with open(os.path.join(SIGNS, name + '.svg'), encoding='utf-8') as f:
+        svg = NAGIB_RE.sub('', f.read())
+    return svg.replace('</svg>', nagib_group(name) + '\n</svg>')
+
+
 def main():
     files = {
         'iii-90': odmoriste(exit_variant=False),
         'iii-90.1': odmoriste(exit_variant=True),
         'iii-203.1': prestrojavanje_kruzni_tok(),
         'iv-5-parkiranje': parking_time_plate(),
+        # Знаки с Викисклада, которым дописывается величина уклона.
+        'i-3': with_nagib('i-3'),
+        'i-4': with_nagib('i-4'),
     }
     for name, svg in files.items():
         path = os.path.join(SIGNS, name + '.svg')
         with open(path, 'w', encoding='utf-8') as f:
-            f.write(svg + '\n')
+            f.write(svg.rstrip('\n') + '\n')
         print(f'{path}: {os.path.getsize(path)} байт')
 
 

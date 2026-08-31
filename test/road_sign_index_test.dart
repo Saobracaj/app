@@ -122,6 +122,13 @@ void main() {
       'iii-11.1',
       'iii-65.1',
       'iv-9',
+      // Путокази и таблы с вписанным содержимым: документ рисует их своим
+      // примером, официальный вектор — чужим, поэтому в правилник он не
+      // подставлен и описания у файла нет (см. misnumberedFiles).
+      'iii-12',
+      'iii-13',
+      'iii-76',
+      'iii-83',
     };
     final missing = signs
         .where((s) => !absentFromDocument.contains(s))
@@ -130,12 +137,14 @@ void main() {
         .where((s) => lookupRoadSign(index, s) == null)
         .toList();
     expect(missing, isEmpty);
-    // …и наоборот: раз знак попал в список, описания у него правда нет —
-    // найденное описание значит, что запись в списке устарела.
-    final stale = {...absentFromDocument, ...legacy2010Files}
-        .where((s) => lookupRoadSign(index, s) != null)
-        .toList();
-    expect(stale, isEmpty);
+    // …и наоборот: раз знак попал в список, описания по КОДУ у него нет.
+    // Найтись он может только по самому файлу — правилник показывает этот
+    // файл под своим (другим) номером, и такое описание верное.
+    for (final s in {...absentFromDocument, ...legacy2010Files}) {
+      final hit = lookupRoadSign(index, s);
+      if (hit == null) continue;
+      expect(hit.asset, 'assets/signs/$s.svg', reason: s);
+    }
     // Вариант с числом находит базовый знак.
     expect(lookupRoadSign(index, 'ii-30-40')?.code, 'II-30');
   });
@@ -147,10 +156,40 @@ void main() {
     expect(deca.code, 'III-11');
     expect(deca.descriptionSr, contains('школ'));
     // Знак 2010 года, чей номер в этом документе занят другим знаком, лучше
-    // оставить без описания, чем дать чужое.
+    // оставить без описания, чем дать чужое: по коду он не ищется. Найтись
+    // он может лишь по самому файлу — если правилник его всё-таки показывает
+    // (iii-25 стоит там под кодом III-12).
     for (final file in legacy2010Files) {
-      expect(lookupRoadSign(index, file), isNull, reason: file);
+      final hit = lookupRoadSign(index, file);
+      if (hit == null) continue;
+      expect(hit.asset, 'assets/signs/$file.svg', reason: file);
     }
+  });
+
+  test('misnumberedFiles повторяет расхождения из parse_pravilnik.py', () {
+    // Сборщик правилника (tool/parse_pravilnik.py) знает, у каких кодов
+    // одноимённый файл — другой знак: CODE_OVERRIDES подставляет верный
+    // файл, WRONG_SIGN оставляет рисунок документа. Приложению нельзя
+    // искать описание по коду ровно для этих имён — списки обязаны совпадать.
+    final source = File('tool/parse_pravilnik.py').readAsStringSync();
+    Iterable<String> block(String name) {
+      final body = RegExp('$name = \\{(.*?)\\n\\}', dotAll: true)
+          .firstMatch(source)!
+          .group(1)!;
+      return RegExp(r"'([IVX]{1,4}-[\d.]+)'")
+          .allMatches(body)
+          .map((m) => m.group(1)!.toLowerCase());
+    }
+
+    final signs = Directory('assets/signs')
+        .listSync()
+        .whereType<File>()
+        .map((f) => f.uri.pathSegments.last.replaceAll('.svg', ''))
+        .toSet();
+    final expected = {...block('CODE_OVERRIDES'), ...block('WRONG_SIGN')}
+        .where(signs.contains)
+        .toSet();
+    expect(misnumberedFiles, expected);
   });
 
   test('список знаков 2010 года выводится из имён файлов', () {
