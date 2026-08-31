@@ -60,9 +60,8 @@
 | `chat_message_sent` | сообщение в чате (в т.ч. комментарий к вопросу) | `kind` (`support`/`question`/`group`/`thread`/`chat`) |
 | `ask_ai_question` | вопрос AI в живом чате | `scope`, `scope_id` |
 | `question_search` | поиск по вопросам | `query_length`, `results` |
-| `checkout_step` | шаг покупки на web | `step` (`order_created`/`order_cancelled`), `sku` |
+| `checkout_step` | шаг покупки | `step` (`purchase_started`/`purchase_completed`/`purchase_cancelled`/`purchase_failed`/`purchases_restored`), `sku` |
 | `russian_addon_toggled` | галочка русского контента на тарифах | `enabled` (+ персона `russian_addon_chosen`) |
-| `promo_code_applied` | ввод промокода | `valid` |
 
 «Сколько прошло с регистрации» отдельным свойством не едет: у персоны в
 PostHog есть дата первого события и `$set`-время, разница считается прямо в

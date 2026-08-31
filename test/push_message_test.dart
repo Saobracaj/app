@@ -96,9 +96,8 @@ void main() {
         deepLinkPathFor(PushMessage.parseLink('/settings')!),
         '/settings',
       );
-      // Страница подписки существует только в вебе: там пуш открывает её
-      // внутри, а в мобильном приложении та же ссылка уходит в браузер
-      // (deepLinkPathFor возвращает null → launchUrl).
+      // Подписка теперь есть везде — пуш открывает её внутри приложения на
+      // любой платформе.
       expect(
         deepLinkPathFor(
           Uri.parse('https://saobracaj.gleb.at/subscription'),
@@ -108,7 +107,7 @@ void main() {
       );
       expect(
         deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/subscription')),
-        isNull,
+        '/subscription',
       );
     });
   });

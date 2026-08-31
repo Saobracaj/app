@@ -9,22 +9,24 @@ import '../models/billing_admin_models.dart';
 import 'billing_admin_events.dart';
 import 'billing_admin_state.dart';
 
-/// Денежный стол: заказы с подтверждением оплаты, карточка пользователя с
-/// ручными выдачами, журнал, тарифы и реквизиты получателя. Экран доступен
-/// держателям `manage_billing`; само право проверяет бэкенд на каждом запросе.
+/// Денежный стол: покупки в сторах, карточка пользователя с ручными выдачами,
+/// журнал и каталог тарифов. Экран доступен держателям `manage_billing`; само
+/// право проверяет бэкенд на каждом запросе.
+///
+/// Подтверждать оплату оператору больше нечего — сторы берут деньги сами, и
+/// право появляется по проверенному чеку. Ручная выдача осталась: ею чинят
+/// возвраты, компенсации и апгрейд «базовый → с русским».
 @injectable
 class BillingAdminBloc extends Bloc<BillingAdminEvent, BillingAdminState> {
   BillingAdminBloc(this._repository) : super(const BillingAdminState()) {
     on<BillingAdminStarted>(_onStarted);
     on<BillingTabSelected>(_onTabSelected);
-    on<OrdersFilterChanged>(_onOrdersFilterChanged);
+    on<PurchasesFilterChanged>(_onPurchasesFilterChanged);
     on<SearchDraftChanged>(
       (e, emit) => emit(state.copyWith(searchDraft: e.text)),
     );
-    on<OrdersPageRequested>(_onOrdersPageRequested);
-    on<OrdersRefreshed>(_onOrdersRefreshed);
-    on<OrderConfirmed>(_onOrderConfirmed);
-    on<OrderCancelledByAdmin>(_onOrderCancelled);
+    on<PurchasesPageRequested>(_onPurchasesPageRequested);
+    on<PurchasesRefreshed>(_onPurchasesRefreshed);
     on<UserLookedUp>(_onUserLookedUp);
     on<UserEmailDraftChanged>(
       (e, emit) => emit(state.copyWith(userEmailDraft: e.text)),
@@ -50,34 +52,6 @@ class BillingAdminBloc extends Bloc<BillingAdminEvent, BillingAdminState> {
     );
     on<TariffPriceCommitted>(_onTariffPriceCommitted);
     on<TariffActiveToggled>(_onTariffActiveToggled);
-    on<PromosRefreshed>((e, emit) => _loadPromos(emit));
-    on<PromoFormChanged>(
-      (e, emit) => emit(
-        state.copyWith(
-          promoCount: e.count ?? state.promoCount,
-          promoDiscount: e.discount ?? state.promoDiscount,
-          promoValidUntil: e.validUntil ?? state.promoValidUntil,
-          promoSku: e.clearSku ? null : (e.sku ?? state.promoSku),
-          promoNote: e.note ?? state.promoNote,
-        ),
-      ),
-    );
-    on<PromoCodesGenerated>(_onPromoCodesGenerated);
-    on<PromoCodeDeleted>(_onPromoCodeDeleted);
-    on<PayeeDraftChanged>(
-      (e, emit) => emit(
-        state.copyWith(
-          payeeDraft: state.payeeDraft.copyWith(
-            accountNumber: e.accountNumber ?? state.payeeDraft.accountNumber,
-            name: e.name ?? state.payeeDraft.name,
-            address: e.address ?? state.payeeDraft.address,
-            paymentCode: e.paymentCode ?? state.payeeDraft.paymentCode,
-            purpose: e.purpose ?? state.payeeDraft.purpose,
-          ),
-        ),
-      ),
-    );
-    on<PayeeSaved>(_onPayeeSaved);
   }
 
   final BillingAdminRepository _repository;
@@ -88,8 +62,7 @@ class BillingAdminBloc extends Bloc<BillingAdminEvent, BillingAdminState> {
     BillingAdminStarted event,
     Emitter<BillingAdminState> emit,
   ) async {
-    await _loadPayee(emit);
-    await _loadOrders(emit, offset: 0);
+    await _loadPurchases(emit, offset: 0);
   }
 
   Future<void> _onTabSelected(
@@ -98,60 +71,38 @@ class BillingAdminBloc extends Bloc<BillingAdminEvent, BillingAdminState> {
   ) async {
     emit(_clean().copyWith(tab: event.tab));
     switch (event.tab) {
-      case BillingTab.orders:
+      case BillingTab.purchases:
       case BillingTab.user:
         break;
       case BillingTab.audit:
         if (!state.auditLoaded) await _loadAudit(emit);
       case BillingTab.tariffs:
         if (!state.tariffsLoaded) await _loadTariffs(emit);
-      case BillingTab.promos:
-        // Тарифы нужны выпадашке «привязать к тарифу» в форме генерации.
-        if (!state.tariffsLoaded) await _loadTariffs(emit);
-        if (!state.promosLoaded) await _loadPromos(emit);
-      case BillingTab.payee:
-        if (state.payee == null) await _loadPayee(emit);
     }
   }
 
-  Future<void> _loadOrders(
+  Future<void> _loadPurchases(
     Emitter<BillingAdminState> emit, {
     required int offset,
   }) async {
-    emit(state.copyWith(ordersLoading: true, errorMessage: null));
+    emit(state.copyWith(purchasesLoading: true, errorMessage: null));
     try {
-      final page = await _repository.orders(
-        status: state.statusFilter,
+      final page = await _repository.purchases(
+        platform: state.platformFilter,
         search: state.search,
-        limit: state.ordersPageSize,
+        limit: state.purchasesPageSize,
         offset: offset,
       );
       emit(
         state.copyWith(
-          ordersLoading: false,
-          orders: page.items,
-          ordersTotal: page.total,
-          ordersOffset: offset,
+          purchasesLoading: false,
+          purchases: page.items,
+          purchasesTotal: page.total,
+          purchasesOffset: offset,
         ),
       );
     } catch (e) {
-      emit(state.copyWith(ordersLoading: false, errorMessage: _message(e)));
-    }
-  }
-
-  Future<void> _loadPayee(Emitter<BillingAdminState> emit) async {
-    emit(state.copyWith(payeeLoading: true));
-    try {
-      final payee = await _repository.payee();
-      emit(
-        state.copyWith(
-          payeeLoading: false,
-          payee: payee,
-          payeeDraft: PayeeDraft.fromPayee(payee),
-        ),
-      );
-    } catch (e) {
-      emit(state.copyWith(payeeLoading: false, errorMessage: _message(e)));
+      emit(state.copyWith(purchasesLoading: false, errorMessage: _message(e)));
     }
   }
 
@@ -183,67 +134,34 @@ class BillingAdminBloc extends Bloc<BillingAdminEvent, BillingAdminState> {
     }
   }
 
-  // --------------------------------------------------------------- заказы
+  // -------------------------------------------------------------- покупки
 
-  Future<void> _onOrdersFilterChanged(
-    OrdersFilterChanged event,
+  Future<void> _onPurchasesFilterChanged(
+    PurchasesFilterChanged event,
     Emitter<BillingAdminState> emit,
   ) async {
     final search = event.search ?? state.searchDraft;
     emit(
       _clean().copyWith(
-        statusFilter: event.clearStatus
+        platformFilter: event.clearPlatform
             ? null
-            : (event.status ?? state.statusFilter),
+            : (event.platform ?? state.platformFilter),
         search: search,
         searchDraft: search,
       ),
     );
-    await _loadOrders(emit, offset: 0);
+    await _loadPurchases(emit, offset: 0);
   }
 
-  Future<void> _onOrdersPageRequested(
-    OrdersPageRequested event,
+  Future<void> _onPurchasesPageRequested(
+    PurchasesPageRequested event,
     Emitter<BillingAdminState> emit,
-  ) => _loadOrders(emit, offset: event.offset < 0 ? 0 : event.offset);
+  ) => _loadPurchases(emit, offset: event.offset < 0 ? 0 : event.offset);
 
-  Future<void> _onOrdersRefreshed(
-    OrdersRefreshed event,
+  Future<void> _onPurchasesRefreshed(
+    PurchasesRefreshed event,
     Emitter<BillingAdminState> emit,
-  ) => _loadOrders(emit, offset: state.ordersOffset);
-
-  Future<void> _onOrderConfirmed(
-    OrderConfirmed event,
-    Emitter<BillingAdminState> emit,
-  ) async {
-    await _mutate(
-      emit,
-      () => _repository.confirmOrder(event.orderId),
-      info: LocaleKeys.billingAdmin_orderConfirmed.tr(),
-    );
-    await _afterOrderChange(emit);
-  }
-
-  Future<void> _onOrderCancelled(
-    OrderCancelledByAdmin event,
-    Emitter<BillingAdminState> emit,
-  ) async {
-    await _mutate(
-      emit,
-      () => _repository.cancelOrder(event.orderId, reason: event.reason),
-      info: LocaleKeys.billingAdmin_orderCancelled.tr(),
-    );
-    await _afterOrderChange(emit);
-  }
-
-  /// Заказ мог поменяться и в списке, и в открытой карточке пользователя —
-  /// перечитываем оба, чтобы не показывать «ожидает оплату» после подтверждения.
-  Future<void> _afterOrderChange(Emitter<BillingAdminState> emit) async {
-    await _loadOrders(emit, offset: state.ordersOffset);
-    if (state.user != null) await _reloadUser(emit);
-    // Журнал устарел — перечитается при следующем заходе на вкладку.
-    emit(state.copyWith(auditLoaded: false));
-  }
+  ) => _loadPurchases(emit, offset: state.purchasesOffset);
 
   // --------------------------------------------------------- пользователь
 
@@ -393,128 +311,6 @@ class BillingAdminBloc extends Bloc<BillingAdminEvent, BillingAdminState> {
       info: LocaleKeys.billingAdmin_tariffSaved.tr(),
     );
     await _loadTariffs(emit);
-  }
-
-  // ------------------------------------------------------------- промокоды
-
-  Future<void> _loadPromos(Emitter<BillingAdminState> emit) async {
-    emit(state.copyWith(promosLoading: true, errorMessage: null));
-    try {
-      final page = await _repository.promoCodes();
-      emit(
-        state.copyWith(
-          promosLoading: false,
-          promosLoaded: true,
-          promoCodes: page.items,
-        ),
-      );
-    } catch (e) {
-      emit(state.copyWith(promosLoading: false, errorMessage: _message(e)));
-    }
-  }
-
-  Future<void> _onPromoCodesGenerated(
-    PromoCodesGenerated event,
-    Emitter<BillingAdminState> emit,
-  ) async {
-    final count = state.promoCountValue;
-    final discount = state.promoDiscountValue;
-    final validUntil = state.promoValidUntil;
-    if (count == null || discount == null || validUntil == null) return;
-    emit(_clean().copyWith(submitting: true));
-    try {
-      final note = state.promoNote.trim();
-      final created = await _repository.generatePromoCodes(
-        count: count,
-        discountPercent: discount,
-        // До конца выбранного дня: оператор выбирает дату, а не момент.
-        validUntil: DateTime(
-          validUntil.year,
-          validUntil.month,
-          validUntil.day,
-          23,
-          59,
-          59,
-        ),
-        sku: state.promoSku,
-        note: note.isEmpty ? null : note,
-      );
-      emit(
-        state.copyWith(
-          submitting: false,
-          generatedPromoCodes: created,
-          auditLoaded: false,
-          infoMessage: LocaleKeys.billingAdmin_promosGenerated.tr(),
-        ),
-      );
-      await _loadPromos(emit);
-    } catch (e) {
-      emit(state.copyWith(submitting: false, errorMessage: _message(e)));
-    }
-  }
-
-  Future<void> _onPromoCodeDeleted(
-    PromoCodeDeleted event,
-    Emitter<BillingAdminState> emit,
-  ) async {
-    emit(_clean().copyWith(submitting: true));
-    try {
-      final deleted = await _repository.deletePromoCode(event.code);
-      emit(
-        state.copyWith(
-          submitting: false,
-          auditLoaded: !deleted && state.auditLoaded,
-          generatedPromoCodes: [
-            for (final c in state.generatedPromoCodes)
-              if (c.code != event.code) c,
-          ],
-          infoMessage: deleted
-              ? LocaleKeys.billingAdmin_promoDeleted.tr()
-              : null,
-          errorMessage: deleted
-              ? null
-              : LocaleKeys.billingAdmin_promoDeleteFailed.tr(),
-        ),
-      );
-      await _loadPromos(emit);
-    } catch (e) {
-      emit(state.copyWith(submitting: false, errorMessage: _message(e)));
-    }
-  }
-
-  // ------------------------------------------------------------ получатель
-
-  Future<void> _onPayeeSaved(
-    PayeeSaved event,
-    Emitter<BillingAdminState> emit,
-  ) async {
-    final draft = state.payeeDraft;
-    if (!draft.canSave) return;
-    emit(_clean().copyWith(submitting: true));
-    try {
-      final payee = await _repository.updatePayee(
-        accountNumber: draft.accountNumber,
-        name: draft.name,
-        address: draft.address.trim().isEmpty ? null : draft.address,
-        paymentCode: draft.paymentCode.trim().isEmpty
-            ? null
-            : draft.paymentCode,
-        purpose: draft.purpose.trim().isEmpty ? null : draft.purpose,
-      );
-      emit(
-        state.copyWith(
-          submitting: false,
-          payee: payee,
-          payeeDraft: PayeeDraft.fromPayee(payee),
-          auditLoaded: false,
-          infoMessage: LocaleKeys.billingAdmin_payeeSaved.tr(),
-        ),
-      );
-      // Реквизиты появились — у ожидающих заказов теперь есть уплатница.
-      await _loadOrders(emit, offset: state.ordersOffset);
-    } catch (e) {
-      emit(state.copyWith(submitting: false, errorMessage: _message(e)));
-    }
   }
 
   // --------------------------------------------------------------- helpers

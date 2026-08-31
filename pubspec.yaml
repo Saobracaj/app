@@ -108,6 +108,11 @@ dependencies:
   # image_picker игнорирует imageQuality.
   image: ^4.5.4
   restart_app: ^1.9.1
+  # Подписка продаётся внутри приложения — App Store и Google Play
+  # (lib/subscription/data/store_purchase_service.dart). Официальный плагин без
+  # веб-реализации: обращаться к InAppPurchase.instance можно только на iOS и
+  # Android, поэтому сервис за ним и стоит.
+  in_app_purchase: ^3.2.3
 
 dev_dependencies:
   flutter_test:

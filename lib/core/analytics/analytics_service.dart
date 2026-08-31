@@ -212,9 +212,10 @@ class AnalyticsService {
   void logSharedListImported({required int questionCount}) =>
       _track('shared_list_imported', {'question_count': questionCount});
 
-  /// The web-only money conversation reached a step: `tariffs_opened`,
-  /// `subscription_opened`, `order_created`, `order_cancelled` — everything
-  /// after that (payment, activation) happens outside the app.
+  /// The money conversation reached a step: `tariffs_opened`,
+  /// `subscription_opened`, `purchase_started`, `purchase_completed`,
+  /// `purchase_cancelled`, `purchase_failed`, `purchases_restored`. The
+  /// payment itself happens in the store and is invisible from here.
   void logCheckoutStep({required String step, String? sku}) =>
       _track('checkout_step', {'step': step, 'sku': ?sku});
 
@@ -225,11 +226,6 @@ class AnalyticsService {
         'enabled': enabled,
         r'$set': {'russian_addon_chosen': enabled},
       });
-
-  /// A promo code was submitted on the tariffs screen; [valid] — whether the
-  /// backend accepted it. The code itself is not reported.
-  void logPromoCodeApplied({required bool valid}) =>
-      _track('promo_code_applied', {'valid': valid});
 
   /// A question search was run; only the length of the query is reported —
   /// what exactly a person types is theirs.

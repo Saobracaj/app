@@ -4,7 +4,7 @@ import 'billing_admin_state.dart';
 /// События денежного стола (админки платежей).
 sealed class BillingAdminEvent {}
 
-/// Открыть стол: загрузить реквизиты получателя и первую страницу заказов.
+/// Открыть стол: загрузить первую страницу покупок.
 class BillingAdminStarted extends BillingAdminEvent {}
 
 /// Перейти на вкладку; данные вкладки подгружаются при первом входе.
@@ -13,44 +13,35 @@ class BillingTabSelected extends BillingAdminEvent {
   final BillingTab tab;
 }
 
-/// Сменить фильтр/поиск заказов (список перечитывается с первой страницы).
-class OrdersFilterChanged extends BillingAdminEvent {
-  OrdersFilterChanged({this.status, this.search, this.clearStatus = false});
+/// Сменить фильтр/поиск покупок (список перечитывается с первой страницы).
+class PurchasesFilterChanged extends BillingAdminEvent {
+  PurchasesFilterChanged({
+    this.platform,
+    this.search,
+    this.clearPlatform = false,
+  });
 
-  final OrderStatus? status;
+  final StorePlatform? platform;
   final String? search;
 
-  /// `status == null` — «не менять»; чтобы снять фильтр, ставится этот флаг.
-  final bool clearStatus;
+  /// `platform == null` — «не менять»; чтобы снять фильтр, ставится этот флаг.
+  final bool clearPlatform;
 }
 
-/// Набор текста в поле поиска (сам поиск — [OrdersFilterChanged]).
+/// Набор текста в поле поиска (сам поиск — [PurchasesFilterChanged]).
 class SearchDraftChanged extends BillingAdminEvent {
   SearchDraftChanged(this.text);
   final String text;
 }
 
-/// Листать заказы.
-class OrdersPageRequested extends BillingAdminEvent {
-  OrdersPageRequested(this.offset);
+/// Листать покупки.
+class PurchasesPageRequested extends BillingAdminEvent {
+  PurchasesPageRequested(this.offset);
   final int offset;
 }
 
-/// Перечитать текущую страницу заказов.
-class OrdersRefreshed extends BillingAdminEvent {}
-
-/// Оператор подтвердил оплату заказа.
-class OrderConfirmed extends BillingAdminEvent {
-  OrderConfirmed(this.orderId);
-  final String orderId;
-}
-
-/// Оператор отменил заказ.
-class OrderCancelledByAdmin extends BillingAdminEvent {
-  OrderCancelledByAdmin(this.orderId, {this.reason});
-  final String orderId;
-  final String? reason;
-}
+/// Перечитать текущую страницу покупок.
+class PurchasesRefreshed extends BillingAdminEvent {}
 
 /// Открыть карточку пользователя по email.
 class UserLookedUp extends BillingAdminEvent {
@@ -112,61 +103,10 @@ class TariffPriceCommitted extends BillingAdminEvent {
   final String sku;
 }
 
-/// Показать/скрыть тариф в витрине.
+/// Показать/скрыть тариф в веб-витрине.
 class TariffActiveToggled extends BillingAdminEvent {
   TariffActiveToggled(this.sku, this.active);
   final String sku;
   final bool active;
 }
 
-/// Перечитать список промокодов.
-class PromosRefreshed extends BillingAdminEvent {}
-
-/// Изменение формы генерации промокодов; `null` — поле не трогали.
-class PromoFormChanged extends BillingAdminEvent {
-  PromoFormChanged({
-    this.count,
-    this.discount,
-    this.validUntil,
-    this.sku,
-    this.clearSku = false,
-    this.note,
-  });
-
-  final String? count;
-  final String? discount;
-  final DateTime? validUntil;
-  final String? sku;
-
-  /// `sku == null` — «не менять»; чтобы вернуть «все тарифы», ставится флаг.
-  final bool clearSku;
-  final String? note;
-}
-
-/// Сгенерировать пачку промокодов из формы.
-class PromoCodesGenerated extends BillingAdminEvent {}
-
-/// Удалить неиспользованный промокод.
-class PromoCodeDeleted extends BillingAdminEvent {
-  PromoCodeDeleted(this.code);
-  final String code;
-}
-
-/// Изменение формы реквизитов; `null` — поле не трогали.
-class PayeeDraftChanged extends BillingAdminEvent {
-  PayeeDraftChanged({
-    this.accountNumber,
-    this.name,
-    this.address,
-    this.paymentCode,
-    this.purpose,
-  });
-  final String? accountNumber;
-  final String? name;
-  final String? address;
-  final String? paymentCode;
-  final String? purpose;
-}
-
-/// Сохранить реквизиты получателя из черновика формы.
-class PayeeSaved extends BillingAdminEvent {}

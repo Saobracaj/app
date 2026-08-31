@@ -8,12 +8,12 @@ import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../core/di.dart';
 import '../../core/legal_documents.dart';
 import '../../core/responsive.dart';
+import '../../core/store_links.dart';
 import '../../generated/locale_keys.g.dart';
 import '../models/subscription_models.dart';
 import '../state_management/subscription_bloc.dart';
 import '../state_management/subscription_events.dart';
 import '../state_management/subscription_state.dart';
-import 'pending_order_card.dart';
 import 'plan_features.dart';
 import 'tariff_formatting.dart';
 
@@ -28,9 +28,9 @@ import 'tariff_formatting.dart';
 /// по-прежнему два (`basic_*` / `russian_*`), но человек выбирает срок один
 /// раз, а не из шести комбинаций.
 ///
-/// Экран существует **только в вебе** — маршрут зарегистрирован под `kIsWeb`
-/// (см. `lib/routes.dart`). В мобильных сборках подписка не упоминается вообще:
-/// App Store 3.1.3(b) не разрешает ни цен, ни ссылок на внешнюю оплату.
+/// Оплата идёт через стор. В вебе стора нет, поэтому там витрина показывает
+/// те же цены как справочные и объясняет, что оформить подписку можно в
+/// приложении — ни к какой внешней оплате она не ведёт.
 class TariffsPage extends StatelessWidget {
   const TariffsPage({super.key});
 
@@ -41,8 +41,8 @@ class TariffsPage extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(title: Text(LocaleKeys.subscription_tariffsTitle.tr())),
         body: BlocConsumer<SubscriptionBloc, SubscriptionState>(
-          // Снэкбары — только про действия (заказ, промокод); ошибка загрузки
-          // рендерится инлайном ниже.
+          // Снэкбары — только про действия (покупка, восстановление); ошибка
+          // загрузки рендерится инлайном ниже.
           listenWhen: (prev, curr) =>
               curr.tariffs.isNotEmpty &&
               ((curr.errorMessage != null &&
@@ -68,6 +68,7 @@ class TariffsPage extends StatelessWidget {
                 ),
               );
             }
+            final platform = context.read<SubscriptionBloc>().storePlatform;
             // Список во всю ширину, поля — в его padding: полоса прокрутки
             // тогда идёт по краю окна, а не посреди экрана, и колесо мыши
             // работает над любой точкой страницы, а не только над колонкой.
@@ -79,19 +80,20 @@ class TariffsPage extends StatelessWidget {
                 bottom: 32,
               ),
               children: [
-                // Уже созданный заказ — сверху: человек вернулся доплатить,
-                // а не выбрать второй тариф.
-                if (state.pendingOrder != null) ...[
-                  PendingOrderCard(order: state.pendingOrder!),
+                if (platform == null) ...[
+                  const _BuyInAppCard(),
+                  const SizedBox(height: 16),
+                ] else if (state.subscription.autoRenewing) ...[
+                  const _AlreadyRenewingNote(),
                   const SizedBox(height: 16),
                 ],
-                const _OneTimeNote(),
-                const SizedBox(height: 16),
-                _TermRow(state: state),
+                _TermRow(state: state, platform: platform),
                 const SizedBox(height: 12),
                 _RussianAddon(state: state),
-                const SizedBox(height: 12),
-                _PromoField(state: state),
+                if (platform != null) ...[
+                  const SizedBox(height: 12),
+                  _RestoreRow(state: state),
+                ],
                 const SizedBox(height: 28),
                 // Тумблер надбавки — над таблицей, поэтому строка «Материалы
                 // на русском» показывает уже сделанный выбор, а не «по выбору».
@@ -99,7 +101,7 @@ class TariffsPage extends StatelessWidget {
                 const SizedBox(height: 16),
                 const _FreeTierCard(),
                 const SizedBox(height: 16),
-                const _LegalFooter(),
+                _LegalFooter(showRenewalTerms: state.hasAutoRenewingTariff),
               ],
             );
           },
@@ -109,11 +111,153 @@ class TariffsPage extends StatelessWidget {
   }
 }
 
+/// Веб: покупать здесь нечего. Карточка говорит, где оформляется подписка, и
+/// ведёт в стор — не на внешнюю оплату, а за самим приложением.
+class _BuyInAppCard extends StatelessWidget {
+  const _BuyInAppCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final appStore = appStoreUrl;
+    return Card(
+      margin: EdgeInsets.zero,
+      color: theme.colorScheme.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              LocaleKeys.subscription_webOnlyTitle.tr(),
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              LocaleKeys.subscription_webOnlyBody.tr(),
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (appStore != null)
+                  FilledButton.icon(
+                    onPressed: () =>
+                        launchUrl(appStore, mode: LaunchMode.externalApplication),
+                    icon: const Icon(Icons.apple, size: 18),
+                    label: Text(LocaleKeys.subscription_platformApple.tr()),
+                  ),
+                FilledButton.icon(
+                  onPressed: () => launchUrl(
+                    googlePlayUrl,
+                    mode: LaunchMode.externalApplication,
+                  ),
+                  icon: const Icon(Icons.shop_outlined, size: 18),
+                  label: Text(LocaleKeys.subscription_platformGoogle.tr()),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              LocaleKeys.subscription_referencePriceNote.tr(),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// У человека уже идёт автоподписка, а он смотрит на годовой тариф. Отменить
+/// автопродление из приложения нельзя — только в сторе, и сказать об этом надо
+/// до покупки, а не после второго списания.
+class _AlreadyRenewingNote extends StatelessWidget {
+  const _AlreadyRenewingNote();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final manageUrl = context.select(
+      (SubscriptionBloc bloc) => bloc.state.subscription.manageUrl,
+    );
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.tertiaryContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            LocaleKeys.subscription_alreadyRenewingWarning.tr(),
+            style: theme.textTheme.bodyMedium,
+          ),
+          if (manageUrl != null)
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: TextButton.icon(
+                onPressed: () => launchUrl(
+                  Uri.parse(manageUrl),
+                  mode: LaunchMode.externalApplication,
+                ),
+                icon: const Icon(Icons.open_in_new, size: 16),
+                label: Text(LocaleKeys.subscription_manageInStore.tr()),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// «Восстановить покупки» — обязательный для сторов путь: подписка привязана к
+/// аккаунту стора, а не к устройству.
+class _RestoreRow extends StatelessWidget {
+  const _RestoreRow({required this.state});
+
+  final SubscriptionState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            LocaleKeys.subscription_restoreHint.tr(),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        TextButton(
+          onPressed: state.busy
+              ? null
+              : () => context.read<SubscriptionBloc>().add(
+                  PurchasesRestoreRequested(),
+                ),
+          child: Text(LocaleKeys.subscription_restore.tr()),
+        ),
+      ],
+    );
+  }
+}
+
 /// Ссылки на условия использования (там же условия оплаты и возврата) и
-/// политику конфиденциальности — обязательная преддоговорная информация при
-/// продаже на расстоянии. Документы внешние, открываются в браузере.
+/// политику конфиденциальности — обязательная преддоговорная информация. Для
+/// автопродлеваемой подписки к ним добавляется формулировка условий продления,
+/// которую требуют оба стора.
 class _LegalFooter extends StatelessWidget {
-  const _LegalFooter();
+  const _LegalFooter({required this.showRenewalTerms});
+
+  final bool showRenewalTerms;
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +266,15 @@ class _LegalFooter extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (showRenewalTerms) ...[
+          Text(
+            LocaleKeys.subscription_autoRenewDisclosure.tr(),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
         Text(
           LocaleKeys.subscription_legalNote.tr(),
           style: theme.textTheme.bodySmall?.copyWith(
@@ -162,49 +315,13 @@ class _LegalLink extends StatelessWidget {
   }
 }
 
-/// Главный страх разовой оплаты переводом — «а не спишут ли потом ещё раз».
-/// Автопродления в системе нет вообще, и сказать об этом стоит до цен.
-class _OneTimeNote extends StatelessWidget {
-  const _OneTimeNote();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.check_circle_outline,
-            size: 20,
-            color: theme.colorScheme.primary,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              LocaleKeys.subscription_oneTimeNote.tr(),
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 /// Три срока рядом. На узком экране — стопкой, самый выгодный первым: на
 /// телефоне порядок и есть рекомендация.
 class _TermRow extends StatelessWidget {
-  const _TermRow({required this.state});
+  const _TermRow({required this.state, required this.platform});
 
   final SubscriptionState state;
+  final StorePlatform? platform;
 
   @override
   Widget build(BuildContext context) {
@@ -217,6 +334,7 @@ class _TermRow extends StatelessWidget {
         _TermCard(
           tariff: tariff,
           state: state,
+          platform: platform,
           recommended: tariff.sku == longest.sku,
         ),
     ];
@@ -252,11 +370,13 @@ class _TermCard extends StatelessWidget {
   const _TermCard({
     required this.tariff,
     required this.state,
+    required this.platform,
     required this.recommended,
   });
 
   final Tariff tariff;
   final SubscriptionState state;
+  final StorePlatform? platform;
   final bool recommended;
 
   @override
@@ -265,13 +385,11 @@ class _TermCard extends StatelessWidget {
     final authenticated = context.select(
       (AuthBloc bloc) => bloc.state.isAuthenticated,
     );
-    final saving = state.savingPercent(tariff);
+    final product = state.storeProductFor(tariff, platform);
+    final saving = state.savingPercent(tariff, platform);
     final savedRsd = state.savingRsd(tariff);
-    final promoPrice = state.promoPrice(tariff);
-    // Крупная цифра — цена за месяц; со скидкой она считается от новой суммы.
-    final perMonth = promoPrice == null
-        ? pricePerMonthLabel(tariff)
-        : priceLabel((promoPrice / tariff.months).round());
+    final perMonth = perMonthLabel(tariff, product);
+    final buying = state.purchasingSku == tariff.sku;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
@@ -301,55 +419,42 @@ class _TermCard extends StatelessWidget {
                   style: theme.textTheme.titleSmall,
                 ),
               ),
-              if (saving != null)
+              if (saving != null && saving > 0)
                 _SaveBadge(percent: saving, filled: recommended),
             ],
           ),
           const SizedBox(height: 12),
+          if (perMonth != null) ...[
+            Text(
+              perMonth,
+              style: theme.textTheme.headlineMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text(
+              LocaleKeys.subscription_perMonthUnit.tr(),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Divider(height: 1, color: theme.colorScheme.outlineVariant),
+            const SizedBox(height: 10),
+          ],
           Text(
-            perMonth,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              fontWeight: FontWeight.w600,
+            LocaleKeys.subscription_payTotal.tr(
+              args: [totalPriceLabel(tariff, product)],
             ),
+            style: theme.textTheme.bodyMedium,
           ),
-          Text(
-            LocaleKeys.subscription_perMonthUnit.tr(),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Divider(height: 1, color: theme.colorScheme.outlineVariant),
-          const SizedBox(height: 10),
-          if (promoPrice == null)
-            Text(payTotalLabel(tariff.priceRsd), style: theme.textTheme.bodyMedium)
-          else
-            Wrap(
-              spacing: 6,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                  payTotalLabel(promoPrice),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: theme.colorScheme.primary,
-                  ),
-                ),
-                Text(
-                  priceLabel(tariff.priceRsd),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    decoration: TextDecoration.lineThrough,
-                  ),
-                ),
-              ],
-            ),
           const SizedBox(height: 2),
           Text(
-            // У месячного «экономии» нет — вместо неё честное предупреждение,
-            // что продлевать придётся руками. Это и есть довод в пользу года.
-            savedRsd == null
-                ? LocaleKeys.subscription_monthlyRenewNote.tr()
+            // У месячного тарифа «экономии» нет — вместо неё главное про него:
+            // он продлевается сам. Это и есть довод в пользу года.
+            tariff.autoRenewing
+                ? LocaleKeys.subscription_autoRenewNote.tr()
+                : savedRsd == null || savedRsd <= 0
+                ? LocaleKeys.subscription_oneOffNote.tr()
                 : LocaleKeys.subscription_savingNote.tr(
                     args: [amountLabel(savedRsd)],
                   ),
@@ -358,32 +463,58 @@ class _TermCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-          if (authenticated)
-            recommended
-                ? FilledButton(
-                    onPressed: state.submitting
-                        ? null
-                        : () => context.read<SubscriptionBloc>().add(
-                            OrderRequested(tariff.sku),
-                          ),
-                    child: Text(LocaleKeys.subscription_choose.tr()),
-                  )
-                : OutlinedButton(
-                    onPressed: state.submitting
-                        ? null
-                        : () => context.read<SubscriptionBloc>().add(
-                            OrderRequested(tariff.sku),
-                          ),
-                    child: Text(LocaleKeys.subscription_choose.tr()),
-                  )
-          else
+          if (platform == null)
+            // Веб: кнопки покупки нет вовсе — ни к какой оплате отсюда не
+            // ведём, об этом сказано карточкой наверху.
+            const SizedBox.shrink()
+          else if (!authenticated)
             OutlinedButton(
               onPressed: () => Routemaster.of(context).push('/login'),
               child: Text(LocaleKeys.subscription_signInToBuy.tr()),
+            )
+          else
+            _BuyButton(
+              tariff: tariff,
+              recommended: recommended,
+              enabled: state.storeAvailable && !state.busy,
+              busy: buying,
             ),
         ],
       ),
     );
+  }
+}
+
+class _BuyButton extends StatelessWidget {
+  const _BuyButton({
+    required this.tariff,
+    required this.recommended,
+    required this.enabled,
+    required this.busy,
+  });
+
+  final Tariff tariff;
+  final bool recommended;
+  final bool enabled;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final onPressed = enabled
+        ? () => context.read<SubscriptionBloc>().add(
+            PurchaseRequested(tariff.sku),
+          )
+        : null;
+    final label = busy
+        ? const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
+        : Text(LocaleKeys.subscription_buy.tr());
+    return recommended
+        ? FilledButton(onPressed: onPressed, child: label)
+        : OutlinedButton(onPressed: onPressed, child: label);
   }
 }
 
@@ -488,116 +619,6 @@ class _RussianAddon extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Поле промокода. Код проверяется на бэкенде по нажатию «Применить»; после
-/// проверки скидка видна прямо на карточках сроков, а код уходит вместе с
-/// заказом. Гостю поле не показывается — проверка требует входа.
-class _PromoField extends StatelessWidget {
-  const _PromoField({required this.state});
-
-  final SubscriptionState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final authenticated = context.select(
-      (AuthBloc bloc) => bloc.state.isAuthenticated,
-    );
-    if (!authenticated) return const SizedBox.shrink();
-    final bloc = context.read<SubscriptionBloc>();
-    final promo = state.promo;
-
-    if (promo != null) {
-      Tariff? restrictedTo;
-      for (final t in state.tariffs) {
-        if (t.sku == promo.sku) restrictedTo = t;
-      }
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: theme.colorScheme.primary),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.local_offer_outlined, color: theme.colorScheme.primary),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    LocaleKeys.subscription_promoApplied.tr(
-                      namedArgs: {
-                        'code': promo.code,
-                        'percent': '${promo.discountPercent}',
-                      },
-                    ),
-                    style: theme.textTheme.titleSmall,
-                  ),
-                  if (restrictedTo != null)
-                    Text(
-                      LocaleKeys.subscription_promoLimited.tr(
-                        namedArgs: {
-                          'tariff':
-                              '${tariffKindName(restrictedTo.kind)}, ${monthsLabel(restrictedTo.months)}',
-                        },
-                      ),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            TextButton(
-              onPressed: () => bloc.add(PromoCodeCleared()),
-              child: Text(LocaleKeys.subscription_promoRemove.tr()),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: TextFormField(
-            initialValue: state.promoDraft,
-            textCapitalization: TextCapitalization.characters,
-            decoration: InputDecoration(
-              labelText: LocaleKeys.subscription_promoTitle.tr(),
-              errorText: state.promoError,
-              isDense: true,
-              border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.local_offer_outlined),
-            ),
-            onChanged: (v) => bloc.add(PromoCodeDraftChanged(v)),
-            onFieldSubmitted: (_) => bloc.add(PromoCodeApplied()),
-          ),
-        ),
-        const SizedBox(width: 8),
-        // Та же высота, что у isDense-поля рядом, — кнопка не должна его
-        // перерастать.
-        OutlinedButton(
-          onPressed:
-              state.promoChecking || state.promoDraft.trim().isEmpty
-              ? null
-              : () => bloc.add(PromoCodeApplied()),
-          child: state.promoChecking
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(LocaleKeys.subscription_promoApply.tr()),
-        ),
-      ],
     );
   }
 }
