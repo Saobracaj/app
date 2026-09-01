@@ -2,46 +2,37 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/subscription/models/subscription_models.dart';
 import 'package:saobracaj/subscription/state_management/subscription_state.dart';
 
+/// Тариф каталога — с идентификаторами товаров сторов, как их отдаёт бэкенд.
+/// Автопродление ровно у месячных: 6 и 12 месяцев платятся один раз.
+Tariff tariff(String sku, TariffKind kind, int months, int priceRsd) => Tariff(
+  sku: sku,
+  kind: kind,
+  months: months,
+  priceRsd: priceRsd,
+  appleProductId: 'at.gleb.saobracaj.$sku',
+  googleProductId: sku,
+  autoRenewing: months == 1,
+);
+
 /// Арифметика витрины: какие тарифы показаны, во сколько раз длинный срок
 /// дешевле помесячной оплаты и сколько стоит надбавка за русский.
 void main() {
   // Каталог из `TARIFF_SEED` (saobracaj_backend/src/billing/model.rs).
-  const catalog = [
-    Tariff(sku: 'basic_1m', kind: TariffKind.basic, months: 1, priceRsd: 990),
-    Tariff(sku: 'basic_6m', kind: TariffKind.basic, months: 6, priceRsd: 1990),
-    Tariff(
-      sku: 'basic_12m',
-      kind: TariffKind.basic,
-      months: 12,
-      priceRsd: 3490,
-    ),
-    Tariff(
-      sku: 'russian_1m',
-      kind: TariffKind.russian,
-      months: 1,
-      priceRsd: 1490,
-    ),
-    Tariff(
-      sku: 'russian_6m',
-      kind: TariffKind.russian,
-      months: 6,
-      priceRsd: 2990,
-    ),
-    Tariff(
-      sku: 'russian_12m',
-      kind: TariffKind.russian,
-      months: 12,
-      priceRsd: 4990,
-    ),
+  final catalog = [
+    tariff('basic_1m', TariffKind.basic, 1, 1190),
+    tariff('basic_6m', TariffKind.basic, 6, 2290),
+    tariff('basic_12m', TariffKind.basic, 12, 3990),
+    tariff('russian_1m', TariffKind.russian, 1, 1690),
+    tariff('russian_6m', TariffKind.russian, 6, 3490),
+    tariff('russian_12m', TariffKind.russian, 12, 5790),
   ];
 
-  const basic = SubscriptionState(tariffs: catalog, inProgress: false);
-  const russian = SubscriptionState(
+  final basic = SubscriptionState(tariffs: catalog, inProgress: false);
+  final russian = SubscriptionState(
     tariffs: catalog,
     inProgress: false,
     withRussian: true,
   );
-
   group('offeredTariffs', () {
     test('показывает один ряд сроков по возрастанию', () {
       expect(basic.offeredTariffs.map((t) => t.sku), [
@@ -61,16 +52,16 @@ void main() {
   });
 
   group('экономия против помесячной оплаты', () {
-    test('годовой базовый дешевле на 71%', () {
+    test('годовой базовый дешевле на 72%', () {
       final yearly = basic.offeredTariffs.last;
-      expect(basic.savingPercent(yearly), 71);
-      expect(basic.savingRsd(yearly), 11880 - 3490);
+      expect(basic.savingPercent(yearly), 72);
+      expect(basic.savingRsd(yearly), 1190 * 12 - 3990);
     });
 
     test('годовой с русским считается от своего же месячного', () {
       final yearly = russian.offeredTariffs.last;
-      expect(russian.savingPercent(yearly), 72);
-      expect(russian.savingRsd(yearly), 17880 - 4990);
+      expect(russian.savingPercent(yearly), 71);
+      expect(russian.savingRsd(yearly), 1690 * 12 - 5790);
     });
 
     test('месячному сравнивать себя не с чем', () {
@@ -80,16 +71,9 @@ void main() {
     });
 
     test('без месячного тарифа экономия не выдумывается', () {
-      const noMonthly = SubscriptionState(
+      final noMonthly = SubscriptionState(
         inProgress: false,
-        tariffs: [
-          Tariff(
-            sku: 'basic_12m',
-            kind: TariffKind.basic,
-            months: 12,
-            priceRsd: 3490,
-          ),
-        ],
+        tariffs: [tariff('basic_12m', TariffKind.basic, 12, 3990)],
       );
       expect(noMonthly.savingPercent(noMonthly.offeredTariffs.single), isNull);
     });
@@ -97,43 +81,26 @@ void main() {
 
   group('надбавка за русский', () {
     test('считается на самом длинном сроке', () {
-      expect(basic.russianAddonRsd, 4990 - 3490);
+      expect(basic.russianAddonRsd, 5790 - 3990);
       // Цифра одна и та же независимо от того, включён тумблер или нет —
       // иначе выключенный тумблер называл бы одну цену, а включённый другую.
       expect(russian.russianAddonRsd, basic.russianAddonRsd);
     });
 
     test('без пары тарифов цена надбавки не показывается', () {
-      const onlyBasic = SubscriptionState(
+      final onlyBasic = SubscriptionState(
         inProgress: false,
-        tariffs: [
-          Tariff(
-            sku: 'basic_12m',
-            kind: TariffKind.basic,
-            months: 12,
-            priceRsd: 3490,
-          ),
-        ],
+        tariffs: [tariff('basic_12m', TariffKind.basic, 12, 3990)],
       );
       expect(onlyBasic.russianAddonRsd, isNull);
     });
 
     test('сроки разной длины не сравниваются между собой', () {
-      const mismatched = SubscriptionState(
+      final mismatched = SubscriptionState(
         inProgress: false,
         tariffs: [
-          Tariff(
-            sku: 'basic_12m',
-            kind: TariffKind.basic,
-            months: 12,
-            priceRsd: 3490,
-          ),
-          Tariff(
-            sku: 'russian_6m',
-            kind: TariffKind.russian,
-            months: 6,
-            priceRsd: 2990,
-          ),
+          tariff('basic_12m', TariffKind.basic, 12, 3990),
+          tariff('russian_6m', TariffKind.russian, 6, 3490),
         ],
       );
       expect(mismatched.russianAddonRsd, isNull);

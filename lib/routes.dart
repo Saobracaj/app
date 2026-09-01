@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/auth/domain/settings_section.dart';
@@ -230,19 +229,13 @@ final routes = RouteMap(
     '/settings/:section': (data) {
       final section = SettingsSection.bySlug(data.pathParameters['section']);
       if (section == null) return const Redirect('/settings');
-      // Раздел подписки существует только в вебе — на мобильных прямая ссылка
-      // ведёт обратно в настройки, а не открывает разговор о деньгах.
-      if (section == SettingsSection.subscription && !kIsWeb) {
-        return const Redirect('/settings');
-      }
       return PanelPage(child: ProfilePage(section: section));
     },
-    // Продажа подписки живёт только в вебе: в мобильных сборках маршрутов нет
-    // вовсе, поэтому ни витрины, ни раздела аккаунта там не существует даже по
-    // прямой ссылке (App Store 3.1.3(b) — о подписке в приложении не говорим).
-    if (kIsWeb) '/tariffs': (_) => const MaterialPage(child: TariffsPage()),
-    if (kIsWeb)
-      '/subscription': (_) => const MaterialPage(child: SubscriptionPage()),
+    // Подписка продаётся внутри приложения, через стор, поэтому витрина и
+    // раздел аккаунта есть везде. В вебе покупать нечем: там та же витрина
+    // показывает справочные цены и отправляет за приложением.
+    '/tariffs': (_) => const MaterialPage(child: TariffsPage()),
+    '/subscription': (_) => const MaterialPage(child: SubscriptionPage()),
     '/appearance': (_) => const MaterialPage(child: AppearancePage()),
     '/features': (_) => const MaterialPage(child: FeatureFlagsPage()),
     '/notifications': (_) => const MaterialPage(child: NotificationsPage()),

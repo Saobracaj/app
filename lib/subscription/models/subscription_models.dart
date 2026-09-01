@@ -1,4 +1,4 @@
-/// Модели подписки и заказов — зеркало `saobracaj_backend/src/billing/model.rs`.
+/// Модели подписки и покупок — зеркало `saobracaj_backend/src/billing/model.rs`.
 ///
 /// Простые неизменяемые классы с `fromJson`: тут нет ни копирования полей, ни
 /// сравнения по значению, ради которых стоило бы тянуть freezed.
@@ -14,29 +14,48 @@ enum TariffKind {
       raw?.toUpperCase() == 'RUSSIAN' ? TariffKind.russian : TariffKind.basic;
 }
 
-/// Статус заказа.
-enum OrderStatus {
-  pending,
-  paid,
-  cancelled,
-  expired;
+/// Магазин, через который прошла оплата.
+enum StorePlatform {
+  apple,
+  google;
 
-  static OrderStatus parse(String? raw) => switch (raw?.toUpperCase()) {
-    'PAID' => OrderStatus.paid,
-    'CANCELLED' => OrderStatus.cancelled,
-    'EXPIRED' => OrderStatus.expired,
-    _ => OrderStatus.pending,
+  static StorePlatform? parse(String? raw) => switch (raw?.toUpperCase()) {
+    'APPLE' => StorePlatform.apple,
+    'GOOGLE' => StorePlatform.google,
+    _ => null,
+  };
+
+  /// Имя в GraphQL-энуме.
+  String get wire => name.toUpperCase();
+}
+
+/// Состояние покупки по данным магазина.
+enum StorePurchaseStatus {
+  active,
+  expired,
+  refunded;
+
+  static StorePurchaseStatus parse(String? raw) => switch (raw?.toUpperCase()) {
+    'EXPIRED' => StorePurchaseStatus.expired,
+    'REFUNDED' => StorePurchaseStatus.refunded,
+    _ => StorePurchaseStatus.active,
   };
 }
 
-/// Покупаемый SKU: семейство × срок. Цена приходит с сервера — её меняют без
-/// релиза приложения.
+/// Покупаемый SKU: семейство × срок.
+///
+/// Цена в динарах — **справочная**: её показывает веб-витрина, где магазина
+/// нет. В приложении цена всегда берётся из стора ([StoreProduct.price]) — там
+/// она в валюте покупателя и с местными налогами.
 class Tariff {
   const Tariff({
     required this.sku,
     required this.kind,
     required this.months,
     required this.priceRsd,
+    required this.appleProductId,
+    required this.googleProductId,
+    required this.autoRenewing,
   });
 
   factory Tariff.fromJson(Map<String, dynamic> json) => Tariff(
@@ -44,215 +63,126 @@ class Tariff {
     kind: TariffKind.parse(json['kind'] as String?),
     months: (json['months'] as num).toInt(),
     priceRsd: (json['priceRsd'] as num).toInt(),
+    appleProductId: json['appleProductId'] as String? ?? '',
+    googleProductId: json['googleProductId'] as String? ?? '',
+    autoRenewing: json['autoRenewing'] as bool? ?? false,
   );
+
+  /// GraphQL-выборка полей витрины.
+  static const fields =
+      'sku kind months priceRsd appleProductId googleProductId autoRenewing';
 
   final String sku;
   final TariffKind kind;
   final int months;
   final int priceRsd;
 
+  /// Идентификаторы товара в двух сторах — по ним приложение спрашивает у
+  /// стора локальную цену и по ним же покупает.
+  final String appleProductId;
+  final String googleProductId;
+
+  /// Продлевает ли стор подписку сам. Месячные тарифы — да; 6 и 12 месяцев
+  /// оплачиваются один раз и просто заканчиваются.
+  final bool autoRenewing;
+
   /// Цена за месяц — для подписи «выгоднее на N%» у длинных сроков.
   double get pricePerMonth => priceRsd / months;
+
+  /// Идентификатор товара в сторе [platform]; пустая строка, если тариф там
+  /// не заведён.
+  String productIdFor(StorePlatform platform) => switch (platform) {
+    StorePlatform.apple => appleProductId,
+    StorePlatform.google => googleProductId,
+  };
 }
 
-/// Платёжные реквизиты заказа в форме сербской уплатницы — зеркало
-/// `PaymentSlip` бэкенда. Приходят только у неоплаченного заказа и только после
-/// того, как оператор ввёл реквизиты получателя; до того `Order.payment == null`
-/// и карточка заказа показывает один позив на број.
-class PaymentSlip {
-  const PaymentSlip({
-    required this.payer,
-    required this.purpose,
-    required this.payeeName,
-    this.payeeAddress,
-    required this.paymentCode,
-    required this.currency,
-    required this.amountRsd,
-    required this.amountDisplay,
-    required this.payeeAccount,
-    required this.model,
-    required this.reference,
-    required this.referenceDisplay,
-    required this.ipsQrText,
-    required this.ipsQrUrl,
+/// Товар глазами стора: цена в валюте покупателя, уже отформатированная.
+///
+/// Собственная модель, а не `ProductDetails` плагина: состояние Bloc'а и тесты
+/// не должны зависеть от типа, которого в вебе нет вовсе.
+class StoreProduct {
+  const StoreProduct({
+    required this.id,
+    required this.price,
+    required this.rawPrice,
+    required this.currencyCode,
   });
 
-  factory PaymentSlip.fromJson(Map<String, dynamic> json) => PaymentSlip(
-    payer: json['payer'] as String? ?? '',
-    purpose: json['purpose'] as String? ?? '',
-    payeeName: json['payeeName'] as String? ?? '',
-    payeeAddress: json['payeeAddress'] as String?,
-    paymentCode: json['paymentCode'] as String? ?? '',
-    currency: json['currency'] as String? ?? 'RSD',
-    amountRsd: (json['amountRsd'] as num?)?.toInt() ?? 0,
-    amountDisplay: json['amountDisplay'] as String? ?? '',
-    payeeAccount: json['payeeAccount'] as String? ?? '',
-    model: json['model'] as String? ?? '97',
-    reference: json['reference'] as String? ?? '',
-    referenceDisplay: json['referenceDisplay'] as String? ?? '',
-    ipsQrText: json['ipsQrText'] as String? ?? '',
-    ipsQrUrl: json['ipsQrUrl'] as String? ?? '',
-  );
+  final String id;
 
-  /// GraphQL-выборка полей — общая для пользовательских и админских запросов.
-  static const fields = '''
-    payer purpose payeeName payeeAddress paymentCode currency amountRsd
-    amountDisplay payeeAccount model reference referenceDisplay ipsQrText
-    ipsQrUrl
-  ''';
-
-  /// «Уплатилац».
-  final String payer;
-
-  /// «Сврха уплате».
-  final String purpose;
-
-  /// «Прималац» — имя и адрес.
-  final String payeeName;
-  final String? payeeAddress;
-
-  /// «Шифра плаћања».
-  final String paymentCode;
-  final String currency;
-  final int amountRsd;
-
-  /// Сумма как на бланке: `3.490,00`.
-  final String amountDisplay;
-
-  /// «Рачун примаоца» в виде `BBB-AAAAAAAAAAAAA-KK`.
-  final String payeeAccount;
-
-  /// «Модел» — всегда 97.
-  final String model;
-
-  /// «Позив на број (одобрење)» — только цифры.
-  final String reference;
-  final String referenceDisplay;
-
-  /// Текст IPS QR (стандарт НБС) — рисуем QR прямо в приложении.
-  final String ipsQrText;
-
-  /// Тот же QR как PNG по ссылке (его же вставляет письмо).
-  final String ipsQrUrl;
-
-  /// «Прималац» одной строкой — для копирования и компактных списков.
-  String get payeeLine => payeeAddress == null || payeeAddress!.isEmpty
-      ? payeeName
-      : '$payeeName, $payeeAddress';
+  /// Цена как её показывает стор — «1.190,00 RSD», «€9.99». Показываем именно
+  /// её: правила обоих сторов требуют цену в валюте покупателя, а пересчитать
+  /// её самим мы всё равно не можем.
+  final String price;
+  final double rawPrice;
+  final String currencyCode;
 }
 
-/// Заказ: «хочу этот тариф». Пока не оплачен — несёт позив на број, по
-/// которому оператор найдёт платёж в банковской выписке, и (когда оператор ввёл
-/// реквизиты) уплатницу с IPS QR.
-class Order {
-  const Order({
+/// Покупка в сторе — строка истории и одновременно чек.
+class StorePurchase {
+  const StorePurchase({
     required this.id,
+    required this.platform,
     required this.sku,
     required this.kind,
     required this.months,
-    required this.amountRsd,
+    required this.productId,
+    required this.transactionId,
+    required this.autoRenewing,
     required this.status,
-    required this.referenceDisplay,
-    required this.createdAt,
-    required this.paymentDueAt,
-    this.payment,
+    required this.purchasedAt,
+    this.expiresAt,
     this.userEmail,
     this.userId,
-    this.paidAt,
-    this.promoCode,
-    this.discountPercent,
   });
 
-  factory Order.fromJson(Map<String, dynamic> json) => Order(
-    id: json['id'] as String,
-    sku: json['sku'] as String,
-    kind: TariffKind.parse(json['tariffKind'] as String?),
-    months: (json['months'] as num).toInt(),
-    amountRsd: (json['amountRsd'] as num).toInt(),
-    status: OrderStatus.parse(json['status'] as String?),
-    referenceDisplay: json['referenceDisplay'] as String? ?? '',
-    createdAt: DateTime.parse(json['createdAt'] as String).toLocal(),
-    paymentDueAt: DateTime.parse(json['paymentDueAt'] as String).toLocal(),
-    payment: json['payment'] == null
-        ? null
-        : PaymentSlip.fromJson(json['payment'] as Map<String, dynamic>),
-    userEmail: json['userEmail'] as String?,
-    userId: json['userId'] as String?,
-    paidAt: json['paidAt'] == null
-        ? null
-        : DateTime.parse(json['paidAt'] as String).toLocal(),
-    promoCode: json['promoCode'] as String?,
-    discountPercent: (json['discountPercent'] as num?)?.toInt(),
-  );
+  factory StorePurchase.fromJson(Map<String, dynamic> json) {
+    final expiresAt = json['expiresAt'] as String?;
+    return StorePurchase(
+      id: json['id'] as String,
+      platform: StorePlatform.parse(json['platform'] as String?) ??
+          StorePlatform.apple,
+      sku: json['sku'] as String,
+      kind: TariffKind.parse(json['tariffKind'] as String?),
+      months: (json['months'] as num).toInt(),
+      productId: json['productId'] as String? ?? '',
+      transactionId: json['transactionId'] as String? ?? '',
+      autoRenewing: json['autoRenewing'] as bool? ?? false,
+      status: StorePurchaseStatus.parse(json['status'] as String?),
+      purchasedAt: DateTime.parse(json['purchasedAt'] as String).toLocal(),
+      expiresAt: expiresAt == null ? null : DateTime.parse(expiresAt).toLocal(),
+      userEmail: json['userEmail'] as String?,
+      userId: json['userId'] as String?,
+    );
+  }
 
-  /// GraphQL-выборка полей заказа вместе с уплатницей.
-  static const fields =
-      '''
-    id userId userEmail sku tariffKind months amountRsd status referenceDisplay
-    createdAt paymentDueAt paidAt promoCode discountPercent
-    payment { ${PaymentSlip.fields} }
+  /// GraphQL-выборка полей — общая для пользовательских и админских запросов.
+  static const fields = '''
+    id userId userEmail platform sku tariffKind months productId transactionId
+    autoRenewing status purchasedAt expiresAt
   ''';
 
   final String id;
+  final StorePlatform platform;
   final String sku;
   final TariffKind kind;
   final int months;
-  final int amountRsd;
-  final OrderStatus status;
-  final String referenceDisplay;
-  final DateTime createdAt;
-  final DateTime paymentDueAt;
+  final String productId;
 
-  /// Уплатница с IPS QR; `null`, пока заказ не оплачиваем или реквизиты не
-  /// введены.
-  final PaymentSlip? payment;
+  /// Идентификатор платежа в сторе — по нему покупку находят в поддержке.
+  final String transactionId;
+  final bool autoRenewing;
+  final StorePurchaseStatus status;
+  final DateTime purchasedAt;
 
-  /// Покупатель — заполняется в админских выборках (в своих запросах это
-  /// сам вызывающий).
+  /// Когда заканчивается право по версии стора; у разовой покупки `null` —
+  /// срок там задаёт тариф, а не стор.
+  final DateTime? expiresAt;
+
+  /// Покупатель — заполняется в админских выборках.
   final String? userEmail;
   final String? userId;
-  final DateTime? paidAt;
-
-  /// Промокод, применённый при оформлении; [amountRsd] уже со скидкой.
-  final String? promoCode;
-  final int? discountPercent;
-
-  bool get isPending => status == OrderStatus.pending;
-}
-
-/// Что даёт применённый промокод — ответ `checkPromoCode`. Скидка и (если
-/// код привязан к тарифу) SKU, к которому он применим.
-class PromoCodeInfo {
-  const PromoCodeInfo({
-    required this.code,
-    required this.discountPercent,
-    this.sku,
-    required this.validUntil,
-  });
-
-  factory PromoCodeInfo.fromJson(Map<String, dynamic> json) => PromoCodeInfo(
-    code: json['code'] as String,
-    discountPercent: (json['discountPercent'] as num).toInt(),
-    sku: json['sku'] as String?,
-    validUntil: DateTime.parse(json['validUntil'] as String).toLocal(),
-  );
-
-  final String code;
-  final int discountPercent;
-
-  /// Единственный тариф, на который действует код; `null` — на все.
-  final String? sku;
-  final DateTime validUntil;
-
-  bool appliesTo(Tariff tariff) => sku == null || sku == tariff.sku;
-
-  /// Цена [tariff] с применённой скидкой — то же округление, что на бэкенде
-  /// (`discounted_amount`): до ближайшего динара, но не ниже одного.
-  int discountedPrice(Tariff tariff) {
-    if (discountPercent >= 100) return 0;
-    final amount = (tariff.priceRsd * (100 - discountPercent) + 50) ~/ 100;
-    return amount < 1 ? 1 : amount;
-  }
 }
 
 /// Текущее состояние подписки пользователя.
@@ -262,6 +192,9 @@ class SubscriptionStatus {
     this.kind,
     this.endsAt,
     this.daysLeft,
+    this.autoRenewing = false,
+    this.manageUrl,
+    this.platform,
     this.remindersEnabled = true,
     this.featureKeys = const [],
   });
@@ -278,6 +211,9 @@ class SubscriptionStatus {
           : TariffKind.parse(json['tariffKind'] as String?),
       endsAt: endsAt == null ? null : DateTime.parse(endsAt).toLocal(),
       daysLeft: (json['daysLeft'] as num?)?.toInt(),
+      autoRenewing: json['autoRenewing'] as bool? ?? false,
+      manageUrl: json['manageUrl'] as String?,
+      platform: StorePlatform.parse(json['platform'] as String?),
       remindersEnabled: json['remindersEnabled'] as bool? ?? true,
       featureKeys: [
         for (final k in json['featureKeys'] as List? ?? const []) k as String,
@@ -285,21 +221,39 @@ class SubscriptionStatus {
     );
   }
 
+  /// GraphQL-выборка полей.
+  static const fields = '''
+    active tariffKind endsAt daysLeft autoRenewing manageUrl platform
+    remindersEnabled
+  ''';
+
   final bool active;
   final TariffKind? kind;
   final DateTime? endsAt;
   final int? daysLeft;
+
+  /// Продлевает ли стор подписку сам. Тогда [endsAt] — дата следующего
+  /// списания, а не день, когда доступ закончится.
+  final bool autoRenewing;
+
+  /// Куда отправить человека управлять подпиской: отменить её можно только в
+  /// сторе, который её продал.
+  final String? manageUrl;
+  final StorePlatform? platform;
   final bool remindersEnabled;
 
   /// Ключи фич, которые сейчас даёт подписка (админская карточка).
   final List<String> featureKeys;
 
   /// Пора ли предложить продлить: за 14 и за 3 дня до конца — те же пороги, на
-  /// которых бэкенд шлёт письма-напоминания.
-  bool get shouldOfferRenewal => active && daysLeft != null && daysLeft! <= 14;
+  /// которых бэкенд шлёт письма-напоминания. Автопродлеваемую подписку
+  /// продлевать не предлагаем: стор спишет сам.
+  bool get shouldOfferRenewal =>
+      active && !autoRenewing && daysLeft != null && daysLeft! <= 14;
 
   /// Срочная плашка — осталось три дня или меньше.
-  bool get renewalIsUrgent => active && daysLeft != null && daysLeft! <= 3;
+  bool get renewalIsUrgent =>
+      shouldOfferRenewal && daysLeft != null && daysLeft! <= 3;
 }
 
 /// Период подписки — строка истории «с какого по какое число что действовало».
@@ -309,7 +263,8 @@ class SubscriptionPeriod {
     required this.endsAt,
     required this.kind,
     required this.revoked,
-    this.fromOrder = true,
+    this.fromPurchase = true,
+    this.autoRenewing = false,
     this.note,
   });
 
@@ -321,17 +276,24 @@ class SubscriptionPeriod {
             ? null
             : TariffKind.parse(json['tariffKind'] as String?),
         revoked: json['revokedAt'] != null,
-        fromOrder: (json['source'] as String?)?.toUpperCase() != 'MANUAL',
+        fromPurchase: (json['source'] as String?)?.toUpperCase() != 'MANUAL',
+        autoRenewing: json['autoRenewing'] as bool? ?? false,
         note: json['note'] as String?,
       );
+
+  /// GraphQL-выборка полей.
+  static const fields =
+      'startsAt endsAt tariffKind revokedAt source autoRenewing note';
 
   final DateTime startsAt;
   final DateTime endsAt;
   final TariffKind? kind;
   final bool revoked;
 
-  /// Откуда период: из оплаченного заказа или выдан оператором вручную.
-  final bool fromOrder;
+  /// Откуда период: из покупки (в сторе или, у старых строк, переводом) или
+  /// выдан оператором вручную.
+  final bool fromPurchase;
+  final bool autoRenewing;
 
   /// Комментарий оператора (ручные выдачи/продления/отзывы).
   final String? note;

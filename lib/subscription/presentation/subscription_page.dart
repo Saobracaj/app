@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/di.dart';
 import '../../core/responsive.dart';
@@ -10,11 +11,14 @@ import '../models/subscription_models.dart';
 import '../state_management/subscription_bloc.dart';
 import '../state_management/subscription_events.dart';
 import '../state_management/subscription_state.dart';
-import 'pending_order_card.dart';
 import 'tariff_formatting.dart';
 
-/// Раздел аккаунта «Подписка»: текущий тариф, срок действия, неоплаченный
-/// заказ и история. Только веб — в мобильных сборках раздела нет вовсе.
+/// Раздел аккаунта «Подписка»: текущий тариф, срок действия, покупки и
+/// история периодов.
+///
+/// Экран есть везде, включая веб: подписка — состояние аккаунта, а не только
+/// приложения. Купить её можно лишь в приложении (через стор), и оттуда же ей
+/// управляют — отменить автопродление умеет только сам стор.
 class SubscriptionPage extends StatelessWidget {
   const SubscriptionPage({super.key});
 
@@ -54,11 +58,10 @@ class SubscriptionContent extends StatelessWidget {
                   const SizedBox(height: 12),
                   _RenewalBanner(status: state.subscription),
                 ],
-                if (state.pendingOrder != null) ...[
-                  const SizedBox(height: 12),
-                  PendingOrderCard(order: state.pendingOrder!),
-                ],
-                if (state.subscription.active) ...[
+                // Напоминания об окончании незачем тому, кому стор продлит
+                // подписку сам, — письма про это и не приходят.
+                if (state.subscription.active &&
+                    !state.subscription.autoRenewing) ...[
                   const SizedBox(height: 12),
                   _RemindersSwitch(status: state.subscription),
                 ],
@@ -66,10 +69,12 @@ class SubscriptionContent extends StatelessWidget {
                   const SizedBox(height: 24),
                   _PeriodsCard(periods: state.periods),
                 ],
-                if (state.pastOrders.isNotEmpty) ...[
+                if (state.purchases.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  _OrdersCard(orders: state.pastOrders),
+                  _PurchasesCard(purchases: state.purchases),
                 ],
+                const SizedBox(height: 12),
+                _RestoreCard(state: state),
               ],
             ),
           );
@@ -119,6 +124,7 @@ class _CurrentPlanCard extends StatelessWidget {
         ),
       );
     }
+    final manageUrl = status.manageUrl;
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -137,19 +143,47 @@ class _CurrentPlanCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             if (status.endsAt != null)
+              // Дата у автоподписки — день следующего списания, а не день, в
+              // который доступ закончится. Путать эти два — прямой путь к
+              // «я думал, оно само отключится».
               Text(
-                LocaleKeys.subscription_activeUntil.tr(
-                  args: [formatDate(status.endsAt!)],
-                ),
+                status.autoRenewing
+                    ? LocaleKeys.subscription_renewsOn.tr(
+                        args: [formatDate(status.endsAt!)],
+                      )
+                    : LocaleKeys.subscription_activeUntil.tr(
+                        args: [formatDate(status.endsAt!)],
+                      ),
                 style: theme.textTheme.bodyMedium,
               ),
-            if (status.daysLeft != null)
+            if (status.daysLeft != null && !status.autoRenewing)
               Text(
                 LocaleKeys.subscription_daysLeft.plural(status.daysLeft!),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
+            if (status.autoRenewing) ...[
+              const SizedBox(height: 8),
+              Text(
+                LocaleKeys.subscription_manageInStoreHint.tr(),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (manageUrl != null)
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: TextButton.icon(
+                    onPressed: () => launchUrl(
+                      Uri.parse(manageUrl),
+                      mode: LaunchMode.externalApplication,
+                    ),
+                    icon: const Icon(Icons.open_in_new, size: 16),
+                    label: Text(LocaleKeys.subscription_manageInStore.tr()),
+                  ),
+                ),
+            ],
           ],
         ),
       ),
@@ -157,8 +191,8 @@ class _CurrentPlanCard extends StatelessWidget {
   }
 }
 
-/// Плашка «пора продлить» за 14 и за 3 дня до конца. Это веб — про деньги тут
-/// можно говорить прямо.
+/// Плашка «пора продлить» за 14 и за 3 дня до конца — только у подписки,
+/// которую никто не продлит автоматически.
 class _RenewalBanner extends StatelessWidget {
   const _RenewalBanner({required this.status});
 
@@ -223,6 +257,52 @@ class _RemindersSwitch extends StatelessWidget {
   }
 }
 
+/// «Восстановить покупки». В вебе стора нет — там карточка объясняет, что
+/// подписка оформляется в приложении, и никуда не ведёт.
+class _RestoreCard extends StatelessWidget {
+  const _RestoreCard({required this.state});
+
+  final SubscriptionState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final storeAvailable =
+        context.read<SubscriptionBloc>().storePlatform != null;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              storeAvailable
+                  ? LocaleKeys.subscription_restoreHint.tr()
+                  : LocaleKeys.subscription_webOnlyBody.tr(),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (storeAvailable)
+              Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: TextButton(
+                  onPressed: state.busy
+                      ? null
+                      : () => context.read<SubscriptionBloc>().add(
+                          PurchasesRestoreRequested(),
+                        ),
+                  child: Text(LocaleKeys.subscription_restore.tr()),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PeriodsCard extends StatelessWidget {
   const _PeriodsCard({required this.periods});
 
@@ -249,6 +329,8 @@ class _PeriodsCard extends StatelessWidget {
                 child: Text(
                   '${LocaleKeys.subscription_periodRow.tr(namedArgs: {'from': formatDate(period.startsAt), 'to': formatDate(period.endsAt)})}'
                   ' · ${tariffKindName(period.kind ?? TariffKind.basic)}'
+                  '${period.autoRenewing ? ' · ${LocaleKeys.subscription_autoRenewOn.tr()}' : ''}'
+                  '${period.fromPurchase ? '' : ' · ${LocaleKeys.subscription_periodSourceManual.tr()}'}'
                   '${period.revoked ? ' · ${LocaleKeys.subscription_revoked.tr()}' : ''}',
                   style: theme.textTheme.bodyMedium,
                 ),
@@ -260,10 +342,12 @@ class _PeriodsCard extends StatelessWidget {
   }
 }
 
-class _OrdersCard extends StatelessWidget {
-  const _OrdersCard({required this.orders});
+/// Покупки в сторе — история и одновременно то, что человек назовёт в
+/// поддержке: идентификатор платежа виден здесь.
+class _PurchasesCard extends StatelessWidget {
+  const _PurchasesCard({required this.purchases});
 
-  final List<Order> orders;
+  final List<StorePurchase> purchases;
 
   @override
   Widget build(BuildContext context) {
@@ -276,19 +360,31 @@ class _OrdersCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              LocaleKeys.subscription_ordersTitle.tr(),
+              LocaleKeys.subscription_purchasesTitle.tr(),
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 8),
-            for (final order in orders)
+            for (final purchase in purchases)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Text(
-                  '${formatDate(order.createdAt)} · '
-                  '${tariffKindName(order.kind)}, ${monthsLabel(order.months)} · '
-                  '${priceLabel(order.amountRsd)} · '
-                  '${orderStatusLabel(order.status)}',
-                  style: theme.textTheme.bodyMedium,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${formatDate(purchase.purchasedAt)} · '
+                      '${tariffKindName(purchase.kind)}, ${monthsLabel(purchase.months)} · '
+                      '${storePlatformName(purchase.platform)} · '
+                      '${purchaseStatusLabel(purchase.status)}',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                    if (purchase.transactionId.isNotEmpty)
+                      Text(
+                        purchase.transactionId,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
                 ),
               ),
           ],

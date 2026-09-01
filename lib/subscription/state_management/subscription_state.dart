@@ -5,34 +5,39 @@ import '../models/subscription_models.dart';
 part 'subscription_state.freezed.dart';
 
 /// Состояние раздела «Подписка» и витрины тарифов — один Bloc обслуживает оба
-/// экрана: и там и там нужны и каталог, и текущая подписка, и неоплаченный
-/// заказ (иначе витрина предложила бы оформить второй заказ на то же самое).
+/// экрана: и там и там нужны и каталог, и текущая подписка.
 @freezed
 abstract class SubscriptionState with _$SubscriptionState {
   const factory SubscriptionState({
     @Default(true) bool inProgress,
-    @Default(false) bool submitting,
     @Default(<Tariff>[]) List<Tariff> tariffs,
     @Default(SubscriptionStatus.none) SubscriptionStatus subscription,
-    @Default(<Order>[]) List<Order> orders,
+    @Default(<StorePurchase>[]) List<StorePurchase> purchases,
     @Default(<SubscriptionPeriod>[]) List<SubscriptionPeriod> periods,
     @Default(false) bool withRussian,
     String? errorMessage,
 
     /// Одноразовое сообщение об успехе (снэкбар) — например, подписка
-    /// активирована стопроцентным промокодом без оплаты.
+    /// активирована после покупки.
     String? infoMessage,
 
-    // --- промокод на витрине
-    /// Текст в поле промокода до нажатия «Применить».
-    @Default('') String promoDraft,
+    // --- сторона стора
+    /// Цены стора по идентификатору товара. Пусто в вебе и пока стор не
+    /// ответил — витрина тогда показывает справочную цену в динарах.
+    @Default(<String, StoreProduct>{}) Map<String, StoreProduct> storeProducts,
 
-    /// Проверенный и применённый промокод; скидка видна на карточках сроков.
-    PromoCodeInfo? promo,
-    @Default(false) bool promoChecking,
+    /// Можно ли платить прямо сейчас: есть плагин, стор доступен, товары
+    /// заведены. В вебе — всегда `false`.
+    @Default(false) bool storeAvailable,
 
-    /// Причина отказа проверки кода — показывается под полем.
-    String? promoError,
+    /// SKU, окно оплаты которого сейчас открыто.
+    String? purchasingSku,
+
+    /// Идёт «восстановить покупки».
+    @Default(false) bool restoring,
+
+    /// Чек уже у бэкенда, ждём подтверждения права.
+    @Default(false) bool redeeming,
   }) = _SubscriptionState;
 
   const SubscriptionState._();
@@ -48,6 +53,13 @@ abstract class SubscriptionState with _$SubscriptionState {
     ]..sort((a, b) => a.months.compareTo(b.months));
   }
 
+  /// Цена тарифа в сторе, если стор её сообщил.
+  StoreProduct? storeProductFor(Tariff tariff, StorePlatform? platform) {
+    if (platform == null) return null;
+    final id = tariff.productIdFor(platform);
+    return id.isEmpty ? null : storeProducts[id];
+  }
+
   /// Месячный тариф выбранного семейства — база, относительно которой считается
   /// экономия длинных сроков. `null`, если каталог такого срока не содержит.
   Tariff? get monthlyTariff {
@@ -60,20 +72,29 @@ abstract class SubscriptionState with _$SubscriptionState {
   /// Насколько [tariff] дешевле, чем тот же срок помесячными платежами, в
   /// процентах. `null`, когда сравнивать не с чем (нет месячного тарифа или это
   /// он сам).
-  int? savingPercent(Tariff tariff) {
+  ///
+  /// Считается по ценам стора, когда они известны: там цена в валюте
+  /// покупателя, и справочные динары могут давать другую пропорцию.
+  int? savingPercent(Tariff tariff, [StorePlatform? platform]) {
     final monthly = monthlyTariff;
     if (monthly == null || tariff.months <= 1) return null;
-    final asMonthly = monthly.priceRsd * tariff.months;
+    final monthlyPrice = _price(monthly, platform);
+    final price = _price(tariff, platform);
+    final asMonthly = monthlyPrice * tariff.months;
     if (asMonthly <= 0) return null;
-    return ((1 - tariff.priceRsd / asMonthly) * 100).round();
+    return ((1 - price / asMonthly) * 100).round();
   }
 
-  /// Сколько человек оставляет себе, выбрав [tariff] вместо помесячной оплаты.
+  /// Сколько человек оставляет себе, выбрав [tariff] вместо помесячной оплаты,
+  /// в справочных динарах. `null`, когда сравнивать не с чем.
   int? savingRsd(Tariff tariff) {
     final monthly = monthlyTariff;
     if (monthly == null || tariff.months <= 1) return null;
     return monthly.priceRsd * tariff.months - tariff.priceRsd;
   }
+
+  double _price(Tariff tariff, StorePlatform? platform) =>
+      storeProductFor(tariff, platform)?.rawPrice ?? tariff.priceRsd.toDouble();
 
   /// Надбавка за русские материалы на самом длинном сроке — цена, которую видно
   /// у выключенного тумблера. `null`, если пары тарифов для сравнения нет.
@@ -95,32 +116,11 @@ abstract class SubscriptionState with _$SubscriptionState {
     return russian.priceRsd - basic.priceRsd;
   }
 
-  /// Цена [tariff] с применённым промокодом; `null`, когда кода нет или он
-  /// не действует на этот тариф.
-  int? promoPrice(Tariff tariff) {
-    final promo = this.promo;
-    if (promo == null || !promo.appliesTo(tariff)) return null;
-    return promo.discountedPrice(tariff);
-  }
+  /// Есть ли среди предлагаемых тарифов автопродлеваемый — от этого зависит,
+  /// показывать ли условия автопродления, которых требуют оба стора.
+  bool get hasAutoRenewingTariff =>
+      offeredTariffs.any((tariff) => tariff.autoRenewing);
 
-  /// Промокод, который надо передать в заказ на [tariff].
-  String? promoCodeFor(Tariff tariff) {
-    final promo = this.promo;
-    return promo != null && promo.appliesTo(tariff) ? promo.code : null;
-  }
-
-  /// Заказ, который ждёт оплаты, — по нему человек возвращается доплатить,
-  /// вместо того чтобы создавать второй.
-  Order? get pendingOrder {
-    for (final order in orders) {
-      if (order.isPending) return order;
-    }
-    return null;
-  }
-
-  /// Прошлые (не ожидающие оплаты) заказы — история.
-  List<Order> get pastOrders => [
-    for (final order in orders)
-      if (!order.isPending) order,
-  ];
+  /// Идёт ли сейчас платёжная операция — на это время кнопки покупки заперты.
+  bool get busy => purchasingSku != null || restoring || redeeming;
 }

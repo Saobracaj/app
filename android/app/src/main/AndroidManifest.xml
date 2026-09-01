@@ -13,6 +13,10 @@
     <uses-permission
         android:name="com.google.android.gms.permission.AD_ID"
         tools:node="remove"/>
+    <!-- Покупка подписки внутри приложения (in_app_purchase). Play Billing
+         объявляет это разрешение и сам, но здесь оно видно тому, кто читает
+         манифест, а не зависимости. -->
+    <uses-permission android:name="com.android.vending.BILLING"/>
     <application
         android:label="saobracaj"
         android:name="${applicationName}"

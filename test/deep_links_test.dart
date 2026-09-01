@@ -74,10 +74,10 @@ void main() {
       expect(deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/nonsense')), isNull);
     });
 
-    test('страницы оплаты — не наши на мобильном, но наши в вебе', () {
-      // Продажа живёт только в вебе (App Store 3.1.3(b)): в мобильном
-      // приложении такую ссылку должен открыть браузер, поэтому все три
-      // адреса денег для него «чужие» — во всех формах, какими они приходят.
+    test('страницы подписки открываются ссылкой на любой платформе', () {
+      // Подписка продаётся внутри приложения, поэтому её адреса — обычные
+      // экраны и на мобильном: ссылка из письма ведёт на витрину, а не в
+      // браузер.
       const money = [
         'https://saobracaj.gleb.at/tariffs',
         'https://saobracaj.gleb.at/subscription',
@@ -86,21 +86,18 @@ void main() {
         'saobracaj://saobracaj.gleb.at/settings/subscription',
       ];
       for (final link in money) {
-        expect(deepLinkPathFor(Uri.parse(link)), isNull, reason: link);
+        expect(deepLinkPathFor(Uri.parse(link)), isNotNull, reason: link);
       }
-      // В вебе это обычные экраны — ссылка внутри приложения открывает их же.
       expect(
-        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/tariffs'), isWeb: true),
+        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/tariffs')),
         '/tariffs',
       );
       expect(
         deepLinkPathFor(
           Uri.parse('https://saobracaj.gleb.at/settings/subscription'),
-          isWeb: true,
         ),
         '/settings/subscription',
       );
-      // Остальные разделы настроек мобильному по-прежнему доступны.
       expect(
         deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/settings/profile')),
         '/settings/profile',

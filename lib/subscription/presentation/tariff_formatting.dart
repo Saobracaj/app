@@ -39,11 +39,34 @@ String payTotalLabel(int rsd) =>
 String pricePerMonthLabel(Tariff tariff) =>
     priceLabel(tariff.pricePerMonth.round());
 
-String orderStatusLabel(OrderStatus status) => switch (status) {
-  OrderStatus.pending => LocaleKeys.subscription_statusPending.tr(),
-  OrderStatus.paid => LocaleKeys.subscription_statusPaid.tr(),
-  OrderStatus.cancelled => LocaleKeys.subscription_statusCancelled.tr(),
-  OrderStatus.expired => LocaleKeys.subscription_statusExpired.tr(),
+/// Полная цена тарифа так, как её надо показать: цену стора — как есть (там
+/// валюта покупателя и его налоги), а без стора — справочную в динарах.
+String totalPriceLabel(Tariff tariff, StoreProduct? product) =>
+    product?.price ?? priceLabel(tariff.priceRsd);
+
+/// Цена за месяц: у товара стора делим его же сумму, иначе справочную.
+///
+/// Валюту при делении не пересчитываем — берём готовую строку стора и меняем
+/// в ней только число, поэтому для многомесячных тарифов цена за месяц
+/// показывается лишь тогда, когда стор дал разбираемую сумму.
+String? perMonthLabel(Tariff tariff, StoreProduct? product) {
+  if (product == null) return pricePerMonthLabel(tariff);
+  if (tariff.months <= 1) return product.price;
+  final perMonth = product.rawPrice / tariff.months;
+  return NumberFormat.simpleCurrency(name: product.currencyCode).format(perMonth);
+}
+
+String purchaseStatusLabel(StorePurchaseStatus status) => switch (status) {
+  StorePurchaseStatus.active => LocaleKeys.subscription_purchaseStatusActive.tr(),
+  StorePurchaseStatus.expired =>
+    LocaleKeys.subscription_purchaseStatusExpired.tr(),
+  StorePurchaseStatus.refunded =>
+    LocaleKeys.subscription_purchaseStatusRefunded.tr(),
+};
+
+String storePlatformName(StorePlatform platform) => switch (platform) {
+  StorePlatform.apple => LocaleKeys.subscription_platformApple.tr(),
+  StorePlatform.google => LocaleKeys.subscription_platformGoogle.tr(),
 };
 
 /// Дата без времени: срок подписки и срок оплаты — вопрос дня, не минуты.

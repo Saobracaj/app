@@ -1,5 +1,4 @@
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
@@ -190,9 +189,9 @@ class ProfilePage extends StatelessWidget {
           title: 'settings.profile'.tr(),
           subtitle: 'settings.profileSubtitle'.tr(),
         ),
-      // Подписка — только веб и только для вошедшего: заказ привязан к
-      // аккаунту, а в мобильных сборках о подписке не говорим вовсе.
-      if (kIsWeb && auth.isAuthenticated)
+      // Подписка — для вошедшего: она привязана к аккаунту, а не к устройству
+      // и не к аккаунту стора.
+      if (auth.isAuthenticated)
         _SettingsEntry(
           section: SettingsSection.subscription,
           icon: Icons.card_membership_outlined,

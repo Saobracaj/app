@@ -62,6 +62,7 @@ import '../question_lists/data/question_lists_repository.dart' as _i206;
 import '../question_lists/data/shared_lists_repository.dart' as _i742;
 import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
 import '../question_lists/state_management/shared_list_bloc.dart' as _i718;
+import '../subscription/data/store_purchase_service.dart' as _i1058;
 import '../subscription/data/subscription_repository.dart' as _i731;
 import '../subscription/state_management/subscription_bloc.dart' as _i335;
 import '../test/data/quiz_preferences_repository.dart' as _i442;
@@ -125,6 +126,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i468.PushMessageService>(
       () => _i468.PushMessageService(),
       dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i1058.StorePurchaseService>(
+      () => _i1058.StorePurchaseService(),
     );
     gh.lazySingleton<_i442.QuizPreferencesRepository>(
       () => _i442.QuizPreferencesRepository(),
@@ -322,6 +326,13 @@ extension GetItInjectableX on _i174.GetIt {
         initialSection,
       ),
     );
+    gh.factory<_i335.SubscriptionBloc>(
+      () => _i335.SubscriptionBloc(
+        gh<_i731.SubscriptionRepository>(),
+        gh<_i1058.StorePurchaseService>(),
+        gh<_i389.FeatureFlagsRepository>(),
+      ),
+    );
     gh.factoryParam<_i794.AskAiChatBloc, _i997.AskAiChatScope, String>(
       (scope, scopeId) =>
           _i794.AskAiChatBloc(gh<_i154.AskAiChatRepository>(), scope, scopeId),
@@ -361,12 +372,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i147.QuestionDifficultyRepository>(),
         gh<_i388.AuthBloc>(),
         questionId,
-      ),
-    );
-    gh.factory<_i335.SubscriptionBloc>(
-      () => _i335.SubscriptionBloc(
-        gh<_i731.SubscriptionRepository>(),
-        gh<_i389.FeatureFlagsRepository>(),
       ),
     );
     gh.factory<_i246.TestPushBloc>(
