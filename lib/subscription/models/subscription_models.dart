@@ -4,16 +4,6 @@
 /// сравнения по значению, ради которых стоило бы тянуть freezed.
 library;
 
-/// Семейство тарифа. Разница между ними — объём контента (конспекты и
-/// объяснения на русском), а не наценка за язык.
-enum TariffKind {
-  basic,
-  russian;
-
-  static TariffKind parse(String? raw) =>
-      raw?.toUpperCase() == 'RUSSIAN' ? TariffKind.russian : TariffKind.basic;
-}
-
 /// Магазин, через который прошла оплата.
 enum StorePlatform {
   apple,
@@ -42,7 +32,9 @@ enum StorePurchaseStatus {
   };
 }
 
-/// Покупаемый SKU: семейство × срок.
+/// Покупаемый SKU — пропуск Premium на 1, 3 или 12 месяцев. Тариф один: все
+/// пропуска открывают одно и то же (весь премиум-слой, русские материалы
+/// включены) и различаются только сроком и ценой.
 ///
 /// Цена в динарах — **справочная**: её показывает веб-витрина, где магазина
 /// нет. В приложении цена всегда берётся из стора ([StoreProduct.price]) — там
@@ -50,7 +42,6 @@ enum StorePurchaseStatus {
 class Tariff {
   const Tariff({
     required this.sku,
-    required this.kind,
     required this.months,
     required this.priceRsd,
     required this.appleProductId,
@@ -60,7 +51,6 @@ class Tariff {
 
   factory Tariff.fromJson(Map<String, dynamic> json) => Tariff(
     sku: json['sku'] as String,
-    kind: TariffKind.parse(json['kind'] as String?),
     months: (json['months'] as num).toInt(),
     priceRsd: (json['priceRsd'] as num).toInt(),
     appleProductId: json['appleProductId'] as String? ?? '',
@@ -70,10 +60,9 @@ class Tariff {
 
   /// GraphQL-выборка полей витрины.
   static const fields =
-      'sku kind months priceRsd appleProductId googleProductId autoRenewing';
+      'sku months priceRsd appleProductId googleProductId autoRenewing';
 
   final String sku;
-  final TariffKind kind;
   final int months;
   final int priceRsd;
 
@@ -82,9 +71,13 @@ class Tariff {
   final String appleProductId;
   final String googleProductId;
 
-  /// Продлевает ли стор подписку сам. Месячные тарифы — да; 6 и 12 месяцев
+  /// Продлевает ли стор подписку сам. Месячный пропуск — да; 3 и 12 месяцев
   /// оплачиваются один раз и просто заканчиваются.
   final bool autoRenewing;
+
+  /// Пропуск, который витрина выделяет как «самый популярный»: три месяца —
+  /// обычное окно подготовки (курс теории плюс экзамен).
+  bool get recommended => months == 3;
 
   /// Цена за месяц — для подписи «выгоднее на N%» у длинных сроков.
   double get pricePerMonth => priceRsd / months;
@@ -125,7 +118,6 @@ class StorePurchase {
     required this.id,
     required this.platform,
     required this.sku,
-    required this.kind,
     required this.months,
     required this.productId,
     required this.transactionId,
@@ -141,10 +133,10 @@ class StorePurchase {
     final expiresAt = json['expiresAt'] as String?;
     return StorePurchase(
       id: json['id'] as String,
-      platform: StorePlatform.parse(json['platform'] as String?) ??
+      platform:
+          StorePlatform.parse(json['platform'] as String?) ??
           StorePlatform.apple,
       sku: json['sku'] as String,
-      kind: TariffKind.parse(json['tariffKind'] as String?),
       months: (json['months'] as num).toInt(),
       productId: json['productId'] as String? ?? '',
       transactionId: json['transactionId'] as String? ?? '',
@@ -159,14 +151,13 @@ class StorePurchase {
 
   /// GraphQL-выборка полей — общая для пользовательских и админских запросов.
   static const fields = '''
-    id userId userEmail platform sku tariffKind months productId transactionId
+    id userId userEmail platform sku months productId transactionId
     autoRenewing status purchasedAt expiresAt
   ''';
 
   final String id;
   final StorePlatform platform;
   final String sku;
-  final TariffKind kind;
   final int months;
   final String productId;
 
@@ -189,7 +180,6 @@ class StorePurchase {
 class SubscriptionStatus {
   const SubscriptionStatus({
     required this.active,
-    this.kind,
     this.endsAt,
     this.daysLeft,
     this.autoRenewing = false,
@@ -206,9 +196,6 @@ class SubscriptionStatus {
     final endsAt = json['endsAt'] as String?;
     return SubscriptionStatus(
       active: json['active'] as bool? ?? false,
-      kind: json['tariffKind'] == null
-          ? null
-          : TariffKind.parse(json['tariffKind'] as String?),
       endsAt: endsAt == null ? null : DateTime.parse(endsAt).toLocal(),
       daysLeft: (json['daysLeft'] as num?)?.toInt(),
       autoRenewing: json['autoRenewing'] as bool? ?? false,
@@ -223,12 +210,11 @@ class SubscriptionStatus {
 
   /// GraphQL-выборка полей.
   static const fields = '''
-    active tariffKind endsAt daysLeft autoRenewing manageUrl platform
+    active endsAt daysLeft autoRenewing manageUrl platform
     remindersEnabled
   ''';
 
   final bool active;
-  final TariffKind? kind;
   final DateTime? endsAt;
   final int? daysLeft;
 
@@ -261,7 +247,6 @@ class SubscriptionPeriod {
   const SubscriptionPeriod({
     required this.startsAt,
     required this.endsAt,
-    required this.kind,
     required this.revoked,
     this.fromPurchase = true,
     this.autoRenewing = false,
@@ -272,9 +257,6 @@ class SubscriptionPeriod {
       SubscriptionPeriod(
         startsAt: DateTime.parse(json['startsAt'] as String).toLocal(),
         endsAt: DateTime.parse(json['endsAt'] as String).toLocal(),
-        kind: json['tariffKind'] == null
-            ? null
-            : TariffKind.parse(json['tariffKind'] as String?),
         revoked: json['revokedAt'] != null,
         fromPurchase: (json['source'] as String?)?.toUpperCase() != 'MANUAL',
         autoRenewing: json['autoRenewing'] as bool? ?? false,
@@ -282,12 +264,10 @@ class SubscriptionPeriod {
       );
 
   /// GraphQL-выборка полей.
-  static const fields =
-      'startsAt endsAt tariffKind revokedAt source autoRenewing note';
+  static const fields = 'startsAt endsAt revokedAt source autoRenewing note';
 
   final DateTime startsAt;
   final DateTime endsAt;
-  final TariffKind? kind;
   final bool revoked;
 
   /// Откуда период: из покупки (в сторе или, у старых строк, переводом) или

@@ -19,10 +19,9 @@ class _FakeRepo implements BillingAdminRepository {
     'userId': 'u1',
     'userEmail': 'buyer@example.com',
     'platform': 'GOOGLE',
-    'sku': 'basic_12m',
-    'tariffKind': 'BASIC',
+    'sku': 'premium_12m',
     'months': 12,
-    'productId': 'basic_12m',
+    'productId': 'premium_12m',
     'transactionId': 'GPA.3311-1111-2222-33333',
     'autoRenewing': false,
     'status': 'ACTIVE',
@@ -61,20 +60,19 @@ class _FakeRepo implements BillingAdminRepository {
       action: 'store_purchase_redeemed',
       createdAt: DateTime(2026, 8, 16),
       actorEmail: null,
-      details: '{"sku":"basic_12m"}',
+      details: '{"sku":"premium_12m"}',
     ),
   ];
 
   @override
   Future<List<AdminTariff>> allTariffs() async => const [
     AdminTariff(
-      sku: 'basic_1m',
-      kind: TariffKind.basic,
+      sku: 'premium_1m',
       months: 1,
-      priceRsd: 1190,
+      priceRsd: 1490,
       active: true,
-      appleProductId: 'at.gleb.saobracaj.basic_1m',
-      googleProductId: 'basic_1m',
+      appleProductId: 'at.gleb.saobracaj.premium_1m',
+      googleProductId: 'premium_1m',
       autoRenewing: true,
     ),
   ];
@@ -82,10 +80,9 @@ class _FakeRepo implements BillingAdminRepository {
   @override
   Future<void> grantSubscription({
     required String userId,
-    required TariffKind kind,
     required int months,
     String? note,
-  }) async => calls.add('grant:$userId:${kind.name}:$months');
+  }) async => calls.add('grant:$userId:$months');
 
   @override
   Future<void> extendSubscription({
@@ -111,12 +108,11 @@ class _FakeRepo implements BillingAdminRepository {
     calls.add('tariff:$sku:$priceRsd:$active');
     return AdminTariff(
       sku: sku,
-      kind: TariffKind.basic,
       months: 1,
-      priceRsd: priceRsd ?? 1190,
+      priceRsd: priceRsd ?? 1490,
       active: active ?? true,
-      appleProductId: appleProductId ?? 'at.gleb.saobracaj.basic_1m',
-      googleProductId: googleProductId ?? 'basic_1m',
+      appleProductId: appleProductId ?? 'at.gleb.saobracaj.premium_1m',
+      googleProductId: googleProductId ?? 'premium_1m',
       autoRenewing: true,
     );
   }
@@ -198,11 +194,11 @@ void main() {
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'Тарифы'));
     await tester.pumpAndSettle();
-    expect(find.text('basic_1m'), findsOneWidget);
+    expect(find.text('premium_1m'), findsOneWidget);
     // Идентификаторы товаров видны: расхождение с консолью выглядит как
     // «кнопка купить ничего не делает», и найти его надо здесь.
     expect(
-      find.textContaining('App Store: at.gleb.saobracaj.basic_1m'),
+      find.textContaining('App Store: at.gleb.saobracaj.premium_1m'),
       findsOneWidget,
     );
   });

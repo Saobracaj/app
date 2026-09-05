@@ -11,10 +11,11 @@ import '../models/subscription_models.dart';
 import '../state_management/subscription_bloc.dart';
 import '../state_management/subscription_events.dart';
 import '../state_management/subscription_state.dart';
+import 'extension_promise_card.dart';
 import 'tariff_formatting.dart';
 
 /// Раздел аккаунта «Подписка»: текущий тариф, срок действия, покупки и
-/// история периодов.
+/// история периодов, а также обещание продлить пропуск тому, кто не сдал.
 ///
 /// Экран есть везде, включая веб: подписка — состояние аккаунта, а не только
 /// приложения. Купить её можно лишь в приложении (через стор), и оттуда же ей
@@ -64,6 +65,12 @@ class SubscriptionContent extends StatelessWidget {
                     !state.subscription.autoRenewing) ...[
                   const SizedBox(height: 12),
                   _RemindersSwitch(status: state.subscription),
+                ],
+                // Обещание продления — тому, у кого подписка есть или была:
+                // просить продлить пропуск, которого не было, некому.
+                if (state.subscription.active || state.periods.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  const ExtensionPromiseCard(withRequestButton: true),
                 ],
                 if (state.periods.isNotEmpty) ...[
                   const SizedBox(height: 24),
@@ -137,10 +144,7 @@ class _CurrentPlanCard extends StatelessWidget {
               style: theme.textTheme.labelLarge,
             ),
             const SizedBox(height: 4),
-            Text(
-              tariffKindName(status.kind ?? TariffKind.basic),
-              style: theme.textTheme.headlineSmall,
-            ),
+            Text(planName(), style: theme.textTheme.headlineSmall),
             const SizedBox(height: 4),
             if (status.endsAt != null)
               // Дата у автоподписки — день следующего списания, а не день, в
@@ -328,7 +332,6 @@ class _PeriodsCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 4),
                 child: Text(
                   '${LocaleKeys.subscription_periodRow.tr(namedArgs: {'from': formatDate(period.startsAt), 'to': formatDate(period.endsAt)})}'
-                  ' · ${tariffKindName(period.kind ?? TariffKind.basic)}'
                   '${period.autoRenewing ? ' · ${LocaleKeys.subscription_autoRenewOn.tr()}' : ''}'
                   '${period.fromPurchase ? '' : ' · ${LocaleKeys.subscription_periodSourceManual.tr()}'}'
                   '${period.revoked ? ' · ${LocaleKeys.subscription_revoked.tr()}' : ''}',
@@ -372,7 +375,7 @@ class _PurchasesCard extends StatelessWidget {
                   children: [
                     Text(
                       '${formatDate(purchase.purchasedAt)} · '
-                      '${tariffKindName(purchase.kind)}, ${monthsLabel(purchase.months)} · '
+                      '${passLabel(purchase.months)} · '
                       '${storePlatformName(purchase.platform)} · '
                       '${purchaseStatusLabel(purchase.status)}',
                       style: theme.textTheme.bodyMedium,

@@ -91,9 +91,22 @@ class FeatureFlagsSnapshot {
     return localEnabled(feature);
   }
 
+  /// Whether [feature] is **locked behind the pass** for a question of
+  /// [categoryId]: a premium feature the user has not turned off locally,
+  /// which [isEnabledForCategory] would open with a grant (or a session and a
+  /// grant — a guest is locked too, and the paywall tells them to sign in).
+  ///
+  /// Locked is not «off»: a locked tab stays on screen with a preview and the
+  /// offer, a switched-off one disappears. That is why the two are separate
+  /// questions.
+  bool isLockedForCategory(AppFeature feature, String? categoryId) {
+    if (feature.access != FeatureAccess.premium) return false;
+    if (!localEnabled(feature)) return false;
+    return !isEnabledForCategory(feature, categoryId);
+  }
+
   /// The user's local toggle for [feature] (defaults to on).
-  bool localEnabled(AppFeature feature) =>
-      localOverrides[feature.key] ?? true;
+  bool localEnabled(AppFeature feature) => localOverrides[feature.key] ?? true;
 
   /// Convenience mirror of the standalone Russian-content option.
   bool get russianContent => isEnabled(AppFeature.russianContent);

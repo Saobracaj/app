@@ -47,7 +47,8 @@ class KonspektRepository {
   /// Throws when the catalog could neither be fetched nor read from the cache —
   /// "we don't know" must not be reported as "no category has notes", which is
   /// what used to hide the konspekt everywhere after a single failed request.
-  Future<Set<String>> availableCategories() async => (await _catalog()).keys.toSet();
+  Future<Set<String>> availableCategories() async =>
+      (await _catalog()).keys.toSet();
 
   /// The konspekt for [categoryId], or `null` if the backend has none.
   ///
@@ -70,7 +71,9 @@ class KonspektRepository {
     final cached = await _readCachedDocument(categoryId);
     // The catalog is the freshness oracle: an unchanged version means the
     // cached copy is still exactly what the backend would send.
-    if (cached != null && catalog != null && cached.version == catalog[categoryId]) {
+    if (cached != null &&
+        catalog != null &&
+        cached.version == catalog[categoryId]) {
       _documents[categoryId] = cached.konspekt;
       return cached.konspekt;
     }
@@ -79,7 +82,7 @@ class KonspektRepository {
       final data = await _client.run(
         r'''
           query Konspekt($categoryId: String!) {
-            konspekt(categoryId: $categoryId) { categoryId version document }
+            konspekt(categoryId: $categoryId) { categoryId version document locked }
           }
         ''',
         variables: {'categoryId': categoryId},
@@ -90,9 +93,16 @@ class KonspektRepository {
       final document = raw['document'];
       if (document is! Map) return null;
 
-      final konspekt = Konspekt.fromJson(document.cast<String, dynamic>());
-      _documents[categoryId] = konspekt;
-      unawaited(_cacheDocument(categoryId, raw['version'], document));
+      final konspekt = Konspekt.fromJson(
+        document.cast<String, dynamic>(),
+      ).copyWith(locked: raw['locked'] == true);
+      // A preview is what the reader gets *now*; it must not outlive the
+      // entitlement check — the pass bought a minute later would keep
+      // serving the cut document — so neither memory nor disk keeps it.
+      if (!konspekt.locked) {
+        _documents[categoryId] = konspekt;
+        unawaited(_cacheDocument(categoryId, raw['version'], document));
+      }
       return konspekt;
     } catch (_) {
       // Offline or a transient failure: a stale cached copy beats nothing.
@@ -154,7 +164,9 @@ class KonspektRepository {
       if (raw == null) return {};
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return {};
-      return decoded.map((key, value) => MapEntry(key.toString(), value is int ? value : 1));
+      return decoded.map(
+        (key, value) => MapEntry(key.toString(), value is int ? value : 1),
+      );
     } catch (_) {
       return {};
     }
@@ -187,11 +199,18 @@ class KonspektRepository {
     }
   }
 
-  Future<void> _cacheDocument(String categoryId, Object? version, Map<dynamic, dynamic> document) async {
+  Future<void> _cacheDocument(
+    String categoryId,
+    Object? version,
+    Map<dynamic, dynamic> document,
+  ) async {
     try {
       (await _prefs).setString(
         '$_documentPrefix$categoryId',
-        jsonEncode({'version': version is int ? version : 1, 'document': document}),
+        jsonEncode({
+          'version': version is int ? version : 1,
+          'document': document,
+        }),
       );
     } catch (_) {
       // Best-effort cache.

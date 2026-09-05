@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../auth/data/graphql_client.dart';
 import '../../../../feature_flags/data/feature_flags_repository.dart';
+import '../../../../feature_flags/domain/app_feature.dart';
 
 /// The editorial comment of one question as the app needs it: the applied
 /// [text], the unapplied [draft] and the moderation [status]. Editors (the
@@ -15,10 +16,17 @@ class QuestionCommentDetails {
     this.draft,
     this.textRu,
     this.draftRu,
+    this.locked = false,
   });
 
   /// `PENDING` | `DRAFT` | `MODERATION` | `READY`.
   final String status;
+
+  /// The caller may not read this explanation in full: [text] is only its
+  /// first lines (the backend cut them at a word boundary), shown under a blur
+  /// with the offer of the pass. Outside the free categories and without the
+  /// entitlement — a guest included.
+  final bool locked;
 
   /// The live, applied text in the study-content language — Serbian unless the
   /// `russian_content` feature is resolved on (falls back to the other
@@ -82,6 +90,7 @@ class CommentRepository {
 
   static const _fields = r'''
     status
+    locked
     text { items { lang text } }
     draft { items { lang text } }
   ''';
@@ -119,7 +128,10 @@ class CommentRepository {
 
   /// Saves (replaces) the RU draft for [questionId] and returns the updated
   /// comment. Requires the `edit_comments` permission.
-  Future<QuestionCommentDetails?> saveDraft(int questionId, String draft) async {
+  Future<QuestionCommentDetails?> saveDraft(
+    int questionId,
+    String draft,
+  ) async {
     final data = await _client.run(
       _saveDraftMutation,
       variables: {'id': questionId, 'draft': draft},
@@ -142,30 +154,48 @@ class CommentRepository {
     return _parse(data['setCommentStatus']);
   }
 
+  /// The text block with the comment's `locked` flag folded in, so the
+  /// language pick knows it is choosing for a preview.
+  dynamic _withLock(dynamic block, dynamic locked) {
+    if (block is! Map || locked != true) return block;
+    return {...block, 'locked': true};
+  }
+
   QuestionCommentDetails? _parse(dynamic comment) {
     if (comment is! Map) return null;
     return QuestionCommentDetails(
       status: comment['status']?.toString() ?? 'PENDING',
-      text: _pick(comment['text'], forDisplay: true),
+      text: _pick(
+        _withLock(comment['text'], comment['locked']),
+        forDisplay: true,
+      ),
       draft: _pick(comment['draft'], forDisplay: true),
       textRu: _pick(comment['text'], forDisplay: false),
       draftRu: _pick(comment['draft'], forDisplay: false),
+      locked: comment['locked'] == true,
     );
   }
 
   /// Picks one fragment out of a `{ items: [{lang, text}] }` block.
   ///
   /// [forDisplay] picks the study-content language — `RU` when the
-  /// `russian_content` feature is resolved on, `SR` otherwise — falling back to
-  /// the other language while the preferred one has no fragment yet, then to
-  /// the first non-empty item. The non-display variant is the RU-first editing
-  /// source (drafts are edited in RU in the app).
+  /// `russian_content` feature is resolved on **or** merely chosen (a locked
+  /// preview shows the reader the language they asked for, which is the point
+  /// of the preview), `SR` otherwise — falling back to the other language while
+  /// the preferred one has no fragment yet, then to the first non-empty item.
+  /// The non-display variant is the RU-first editing source (drafts are edited
+  /// in RU in the app).
   String? _pick(dynamic block, {required bool forDisplay}) {
     if (block is! Map) return null;
     final items = block['items'];
     if (items is! List || items.isEmpty) return null;
 
-    final preferred = _flags.snapshot.russianContent ? 'RU' : 'SR';
+    final snapshot = _flags.snapshot;
+    final russian =
+        snapshot.russianContent ||
+        (block['locked'] == true &&
+            snapshot.localEnabled(AppFeature.russianContent));
+    final preferred = russian ? 'RU' : 'SR';
     String? byPreferred;
     String? ru;
     String? sr;

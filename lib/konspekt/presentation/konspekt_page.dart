@@ -7,8 +7,9 @@ import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/core/presentation/load_failed_view.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
-import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
+import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
+import 'package:saobracaj/feature_flags/state_management/feature_flags_state.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/konspekt/models/konspekt.dart';
 import 'package:saobracaj/konspekt/presentation/konspekt_inline_text.dart';
@@ -19,6 +20,7 @@ import 'package:saobracaj/konspekt/state_management/konspekt_state.dart';
 import 'package:saobracaj/question_feedback/domain/question_feedback_source.dart';
 import 'package:saobracaj/question_feedback/domain/question_feedback_target.dart';
 import 'package:saobracaj/question_feedback/presentation/report_problem_button.dart';
+import 'package:saobracaj/subscription/presentation/paywall.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 
 /// Viewer for a category konspekt (study notes). Each section is rendered as
@@ -40,17 +42,44 @@ class _KonspektPageState extends State<KonspektPage> {
   @override
   Widget build(BuildContext context) {
     // The notes are premium content and reachable by deep link, so the page
-    // itself checks the flag: with it off nothing is fetched at all (the
-    // backend would refuse the query anyway).
-    return FeatureGate(
-      feature: AppFeature.categorySummaries,
-      categoryId: widget.categoryId,
-      placeholder: const _UnavailablePage(),
-      child: _content(),
+    // itself checks the flag. Locked (no pass for this category) is not off:
+    // the backend answers with a preview — intro, titles, the first block —
+    // and the page shows it with the offer. Only a reader who switched the
+    // konspekts off themselves gets nothing.
+    return BlocBuilder<FeatureFlagsBloc, FeatureFlagsState>(
+      buildWhen: (prev, curr) =>
+          prev.isEnabledForCategory(
+                AppFeature.categorySummaries,
+                widget.categoryId,
+              ) !=
+              curr.isEnabledForCategory(
+                AppFeature.categorySummaries,
+                widget.categoryId,
+              ) ||
+          prev.isLockedForCategory(
+                AppFeature.categorySummaries,
+                widget.categoryId,
+              ) !=
+              curr.isLockedForCategory(
+                AppFeature.categorySummaries,
+                widget.categoryId,
+              ),
+      builder: (context, flags) {
+        final enabled = flags.isEnabledForCategory(
+          AppFeature.categorySummaries,
+          widget.categoryId,
+        );
+        final locked = flags.isLockedForCategory(
+          AppFeature.categorySummaries,
+          widget.categoryId,
+        );
+        if (!enabled && !locked) return const _UnavailablePage();
+        return _content(locked: locked);
+      },
     );
   }
 
-  Widget _content() {
+  Widget _content({required bool locked}) {
     return BlocProvider(
       create: (_) => getIt<KonspektBloc>(
         param1: widget.categoryId,
@@ -166,19 +195,39 @@ class _KonspektPageState extends State<KonspektPage> {
                       ),
                     );
                   }
-                  final section =
-                      konspekt.sections[index - (state.hasIntro ? 1 : 0)];
+                  final sectionIndex = index - (state.hasIntro ? 1 : 0);
+                  final section = konspekt.sections[sectionIndex];
                   final isLast = index == state.itemCount - 1;
+                  final item = _SectionItem(
+                    section: section,
+                    russian: russian,
+                    categoryId: konspekt.categoryId,
+                    onSectionLink: (sectionId) => context
+                        .read<KonspektBloc>()
+                        .add(KonspektSectionRequested(sectionId)),
+                  );
+                  // The preview ends after the first section's sample: the
+                  // offer stands right where the text stops, and the titles
+                  // that follow show what the pass opens.
+                  if (locked && sectionIndex == 0) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        item,
+                        LockedContentCard(
+                          source: PaywallSource.konspektPage,
+                          categoryId: konspekt.categoryId,
+                          title: LocaleKeys.subscription_lockedKonspektTitle
+                              .tr(),
+                          body: LocaleKeys.subscription_lockedKonspektBody.tr(),
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                        ),
+                      ],
+                    );
+                  }
                   return Padding(
                     padding: EdgeInsets.only(bottom: isLast ? 32 : 0),
-                    child: _SectionItem(
-                      section: section,
-                      russian: russian,
-                      categoryId: konspekt.categoryId,
-                      onSectionLink: (sectionId) => context
-                          .read<KonspektBloc>()
-                          .add(KonspektSectionRequested(sectionId)),
-                    ),
+                    child: item,
                   );
                 },
               ),
