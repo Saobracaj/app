@@ -79,16 +79,19 @@ class KonspektBloc extends Bloc<KonspektEvent, KonspektState> {
       return;
     }
     emit(state.copyWith(inProgress: false, konspekt: konspekt));
-    analytics.logKonspektOpened(categoryId: categoryId);
+    analytics.logKonspektOpened(categoryId: categoryId, section: initialSection);
     final section = initialSection;
     if (section != null) {
-      add(KonspektSectionRequested(section));
+      add(KonspektSectionRequested(section, onOpen: true));
     }
   }
 
   void _onSectionRequested(KonspektSectionRequested event, Emitter<KonspektState> emit) {
     final index = state.indexOfSection(event.sectionId);
     if (index == null) return;
+    if (!event.onOpen) {
+      analytics.logKonspektSectionOpened(categoryId: categoryId, section: event.sectionId);
+    }
     // One-shot signal, same pattern as ZakonBloc.scrollTo.
     emit(state.copyWith(scrollTo: index));
     emit(state.copyWith(scrollTo: null));
