@@ -13,8 +13,6 @@ import 'package:saobracaj/auth/state_management/auth/auth_state.dart';
 import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
-import 'package:saobracaj/feature_flags/data/feature_flags_snapshot.dart';
-import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/subscription/data/store_purchase_service.dart';
 import 'package:saobracaj/subscription/data/subscription_repository.dart';
@@ -24,9 +22,8 @@ import 'package:saobracaj/subscription/presentation/tariffs_page.dart';
 import 'package:saobracaj/subscription/state_management/subscription_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Tariff _tariff(String sku, TariffKind kind, int months, int priceRsd) => Tariff(
+Tariff _tariff(String sku, int months, int priceRsd) => Tariff(
   sku: sku,
-  kind: kind,
   months: months,
   priceRsd: priceRsd,
   appleProductId: 'at.gleb.saobracaj.$sku',
@@ -48,12 +45,9 @@ class _StubSubscriptionRepository extends SubscriptionRepository {
 
   @override
   Future<List<Tariff>> tariffs() async => [
-    _tariff('basic_1m', TariffKind.basic, 1, 1190),
-    _tariff('basic_6m', TariffKind.basic, 6, 2290),
-    _tariff('basic_12m', TariffKind.basic, 12, 3990),
-    _tariff('russian_1m', TariffKind.russian, 1, 1690),
-    _tariff('russian_6m', TariffKind.russian, 6, 3490),
-    _tariff('russian_12m', TariffKind.russian, 12, 5790),
+    _tariff('premium_1m', 1, 1490),
+    _tariff('premium_3m', 3, 2990),
+    _tariff('premium_12m', 12, 4490),
   ];
 
   @override
@@ -135,25 +129,6 @@ class _NoStore extends _FakeStore {
   _NoStore() : super(platform: null, available: false);
 }
 
-/// Локальный тумблер русских материалов — тот самый, по которому витрина
-/// предвыбирает надбавку.
-class _StubFeatureFlagsRepository extends FeatureFlagsRepository {
-  _StubFeatureFlagsRepository(this._russian)
-    : super(GraphqlClient(TokenStorage()), TokenStorage());
-
-  final bool _russian;
-
-  @override
-  FeatureFlagsSnapshot get snapshot => FeatureFlagsSnapshot.resolve(
-    localOverrides: {AppFeature.russianContent.key: _russian},
-    grants: const {},
-    authenticated: false,
-  );
-
-  @override
-  Stream<FeatureFlagsSnapshot> get changes => Stream.value(snapshot);
-}
-
 class _GuestAuthBloc extends AuthBloc {
   _GuestAuthBloc(super.repository, super.subscriptions);
 
@@ -179,7 +154,6 @@ void main() {
   tearDown(getIt.reset);
 
   Widget wrap({
-    required bool russianContent,
     Locale? locale,
     bool authenticated = false,
     _StubSubscriptionRepository? repository,
@@ -189,7 +163,6 @@ void main() {
       () => SubscriptionBloc(
         repository ?? _StubSubscriptionRepository(),
         store ?? _FakeStore(),
-        _StubFeatureFlagsRepository(russianContent),
       ),
     );
     final storage = TokenStorage();
@@ -236,14 +209,14 @@ void main() {
   ) async {
     wide(tester);
 
-    await tester.pumpWidget(wrap(russianContent: false, authenticated: true));
+    await tester.pumpWidget(wrap(authenticated: true));
     await tester.pumpAndSettle();
 
     // Стор назвал цену для каждого товара — витрина показывает именно её.
-    expect(find.text('К оплате basic_1m price'), findsOneWidget);
-    expect(find.text('К оплате basic_12m price'), findsOneWidget);
+    expect(find.text('К оплате premium_1m price'), findsOneWidget);
+    expect(find.text('К оплате premium_12m price'), findsOneWidget);
     // Справочная цена в динарах при живом сторе на карточках не всплывает.
-    expect(find.textContaining('3\u00A0990 RSD'), findsNothing);
+    expect(find.textContaining('4\u00A0490 RSD'), findsNothing);
   });
 
   testWidgets('без стора витрина не продаёт, а отправляет в приложение', (
@@ -251,9 +224,7 @@ void main() {
   ) async {
     wide(tester);
 
-    await tester.pumpWidget(
-      wrap(russianContent: false, authenticated: true, store: _NoStore()),
-    );
+    await tester.pumpWidget(wrap(authenticated: true, store: _NoStore()));
     await tester.pumpAndSettle();
 
     expect(find.text('Подписка оформляется в приложении'), findsOneWidget);
@@ -261,7 +232,7 @@ void main() {
     expect(find.text('Оформить'), findsNothing);
     expect(find.text('Восстановить покупки'), findsNothing);
     // Зато цены видны — справочные, в динарах.
-    expect(find.text('К оплате 3\u00A0990 RSD'), findsOneWidget);
+    expect(find.text('К оплате 4\u00A0490 RSD'), findsOneWidget);
   });
 
   testWidgets('месячный подписан автопродлением, а годовой — экономией', (
@@ -269,7 +240,7 @@ void main() {
   ) async {
     wide(tester);
 
-    await tester.pumpWidget(wrap(russianContent: false, authenticated: true));
+    await tester.pumpWidget(wrap(authenticated: true));
     await tester.pumpAndSettle();
 
     expect(
@@ -277,7 +248,7 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.text('Экономия 10\u00A0290 RSD против помесячной оплаты'),
+      find.text('Экономия 13\u00A0390 RSD против помесячной оплаты'),
       findsOneWidget,
     );
   });
@@ -286,9 +257,7 @@ void main() {
     wide(tester);
     final store = _FakeStore();
 
-    await tester.pumpWidget(
-      wrap(russianContent: false, authenticated: true, store: store),
-    );
+    await tester.pumpWidget(wrap(authenticated: true, store: store));
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(FilledButton, 'Оформить'));
@@ -296,8 +265,9 @@ void main() {
     // «устаканиться» этой странице теперь и не положено.
     await tester.pump();
 
-    // Рекомендованная карточка — годовая: покупается её товар в этом сторе.
-    expect(store.bought, ['basic_12m']);
+    // Рекомендованная карточка — трёхмесячная: покупается её товар в этом
+    // сторе.
+    expect(store.bought, ['premium_3m']);
   });
 
   testWidgets('чек из стора уходит на бэкенд и открывает подписку', (
@@ -308,25 +278,20 @@ void main() {
     final repo = _StubSubscriptionRepository();
 
     await tester.pumpWidget(
-      wrap(
-        russianContent: false,
-        authenticated: true,
-        repository: repo,
-        store: store,
-      ),
+      wrap(authenticated: true, repository: repo, store: store),
     );
     await tester.pumpAndSettle();
 
     store.emit(
       StorePurchaseEvent(
-        productId: 'basic_12m',
+        productId: 'premium_12m',
         receipt: 'token-1',
         outcome: StorePurchaseOutcome.purchased,
       ),
     );
     await tester.pumpAndSettle();
 
-    expect(repo.redeemed, ['basic_12m:token-1']);
+    expect(repo.redeemed, ['premium_12m:token-1']);
     expect(find.text('Спасибо! Подписка активна.'), findsOneWidget);
   });
 
@@ -338,18 +303,13 @@ void main() {
     final repo = _StubSubscriptionRepository();
 
     await tester.pumpWidget(
-      wrap(
-        russianContent: false,
-        authenticated: true,
-        repository: repo,
-        store: store,
-      ),
+      wrap(authenticated: true, repository: repo, store: store),
     );
     await tester.pumpAndSettle();
 
     store.emit(
       StorePurchaseEvent(
-        productId: 'basic_12m',
+        productId: 'premium_12m',
         receipt: '',
         outcome: StorePurchaseOutcome.canceled,
       ),
@@ -366,9 +326,7 @@ void main() {
     wide(tester);
     final store = _FakeStore();
 
-    await tester.pumpWidget(
-      wrap(russianContent: false, authenticated: true, store: store),
-    );
+    await tester.pumpWidget(wrap(authenticated: true, store: store));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Восстановить покупки'));
@@ -379,64 +337,58 @@ void main() {
 
   // Отменить автопродление из приложения нельзя, и человек, который купит
   // год поверх месячной подписки, заплатит дважды, если его не предупредить.
-  testWidgets('при активной автоподписке витрина предупреждает о двойной оплате', (
+  testWidgets(
+    'при активной автоподписке витрина предупреждает о двойной оплате',
+    (tester) async {
+      wide(tester);
+      final repo = _StubSubscriptionRepository(
+        status: SubscriptionStatus(
+          active: true,
+          endsAt: DateTime.now().add(const Duration(days: 20)),
+          daysLeft: 20,
+          autoRenewing: true,
+          manageUrl: 'https://play.google.com/store/account/subscriptions',
+        ),
+      );
+
+      await tester.pumpWidget(wrap(authenticated: true, repository: repo));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.textContaining('Покупка на 3 или 12 месяцев её не отменит'),
+        findsOneWidget,
+      );
+      expect(find.text('Управлять подпиской'), findsOneWidget);
+    },
+  );
+
+  // Тариф один: русские материалы входят в любой пропуск, тумблера и второго
+  // ряда цен нет, а выделен трёхмесячный — обычное окно подготовки.
+  testWidgets('один Premium: без тумблера, с якорем и «самым популярным»', (
     tester,
   ) async {
     wide(tester);
-    final repo = _StubSubscriptionRepository(
-      status: SubscriptionStatus(
-        active: true,
-        kind: TariffKind.basic,
-        endsAt: DateTime.now().add(const Duration(days: 20)),
-        daysLeft: 20,
-        autoRenewing: true,
-        manageUrl: 'https://play.google.com/store/account/subscriptions',
-      ),
-    );
 
-    await tester.pumpWidget(
-      wrap(russianContent: false, authenticated: true, repository: repo),
-    );
+    await tester.pumpWidget(wrap(authenticated: true));
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('Покупка на 6 или 12 месяцев её не отменит'),
-      findsOneWidget,
-    );
-    expect(find.text('Управлять подпиской'), findsOneWidget);
+    expect(find.byType(Switch), findsNothing);
+    expect(find.text('Самый популярный'), findsOneWidget);
+    expect(find.text('Входят в любой пропуск'), findsOneWidget);
+    // Якорь — цена ошибки, а не цена конкурента.
+    expect(find.textContaining('5 800 RSD'), findsOneWidget);
+    // Обещание продления стоит на витрине, но без кнопки запроса — она в
+    // разделе «Подписка».
+    expect(find.textContaining('продлим пропуск на месяц'), findsOneWidget);
+    expect(find.text('Не сдал экзамен'), findsNothing);
+    // «Не входит» — только у чата с AI бесплатно и в легенде.
+    expect(find.text('не входит'), findsNWidgets(2));
   });
-
-  testWidgets('русскоязычному надбавка предвыбрана', (tester) async {
-    wide(tester);
-
-    await tester.pumpWidget(wrap(russianContent: true, authenticated: true));
-    await tester.pumpAndSettle();
-
-    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
-    expect(find.text('К оплате russian_12m price'), findsOneWidget);
-    expect(find.text('включено в цену'), findsOneWidget);
-  });
-
-  testWidgets(
-    'выключенная надбавка возвращает базовые цены и называет доплату',
-    (tester) async {
-      wide(tester);
-
-      await tester.pumpWidget(wrap(russianContent: true, authenticated: true));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.byType(Switch));
-      await tester.pumpAndSettle();
-
-      expect(find.text('К оплате basic_12m price'), findsOneWidget);
-      expect(find.text('+1\u00A0800 RSD'), findsOneWidget);
-    },
-  );
 
   testWidgets('гостю предлагают войти вместо покупки', (tester) async {
     wide(tester);
 
-    await tester.pumpWidget(wrap(russianContent: false));
+    await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
     expect(find.text('Войдите, чтобы оформить подписку'), findsNWidgets(3));
@@ -449,20 +401,20 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(wrap(russianContent: false, authenticated: true));
+    await tester.pumpWidget(wrap(authenticated: true));
     await tester.pumpAndSettle();
 
-    // Порядок сверху вниз: 12 → 6 → 1. На узком экране порядок и есть
-    // рекомендация — переключателя, который бы её нёс, здесь нет.
+    // Порядок сверху вниз: рекомендованные 3 месяца, потом 1 и 12. На узком
+    // экране порядок и есть рекомендация.
     final prices = tester
         .widgetList<Text>(find.byType(Text))
         .map((t) => t.data)
-        .where((t) => t != null && t.startsWith('К оплате basic_'))
+        .where((t) => t != null && t.startsWith('К оплате premium_'))
         .toList();
     expect(prices, [
-      'К оплате basic_12m price',
-      'К оплате basic_6m price',
-      'К оплате basic_1m price',
+      'К оплате premium_3m price',
+      'К оплате premium_1m price',
+      'К оплате premium_12m price',
     ]);
     // Таблица на такой ширине не показывается — вместо неё карточки-списки.
     expect(find.byType(Table), findsNothing);
@@ -480,7 +432,7 @@ void main() {
           tester.view.devicePixelRatio = 1;
           addTearDown(tester.view.reset);
 
-          await tester.pumpWidget(wrap(russianContent: false, locale: locale));
+          await tester.pumpWidget(wrap(locale: locale));
           await tester.pumpAndSettle();
 
           expect(tester.takeException(), isNull);
@@ -496,7 +448,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(wrap(russianContent: false));
+    await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
     // Список во всю ширину окна: полоса прокрутки у правого края, колесо мыши
@@ -513,38 +465,13 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(wrap(russianContent: false));
+    await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
     expect(find.text('Объяснения к вопросам'), findsOneWidget);
     // Бесплатный уровень — те же функции на трёх категориях.
     expect(find.text('3 категории$freeCategoriesFootnoteMark'), findsWidgets);
     expect(find.text('все категории'), findsWidgets);
-  });
-
-  testWidgets('строка русских материалов повторяет выбор, а не сам выбор', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1280, 2400);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(wrap(russianContent: true));
-    await tester.pumpAndSettle();
-
-    // Тумблер включён — таблица под ним не имеет права говорить «по выбору»:
-    // выбор уже сделан, и строка называет его результат.
-    expect(find.text('по выбору'), findsNothing);
-    // Подпись легенды без своего кружка в таблице тоже не висит.
-    expect(find.text('надбавка'), findsNothing);
-
-    await tester.tap(find.byType(Switch));
-    await tester.pumpAndSettle();
-
-    expect(find.text('по выбору'), findsNothing);
-    // Выключенная надбавка — «не входит» в двух ячейках («Материалы на
-    // русском» по подписке и «Чат с AI» бесплатно) плюс подпись легенды.
-    expect(find.text('не входит'), findsNWidgets(3));
   });
 
   // «3 категории» без пояснения — загадка: какие именно? Звёздочка в ячейке и
@@ -557,7 +484,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(wrap(russianContent: false));
+    await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
     // Ни одной ячейки «3 категории» без звёздочки не осталось.
@@ -577,7 +504,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(wrap(russianContent: false));
+    await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
     expect(find.byType(Table), findsNothing);
@@ -595,7 +522,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    await tester.pumpWidget(wrap(russianContent: false));
+    await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
     final marks = find.descendant(

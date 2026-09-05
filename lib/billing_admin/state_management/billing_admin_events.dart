@@ -57,8 +57,7 @@ class UserEmailDraftChanged extends BillingAdminEvent {
 
 /// Изменение формы ручной выдачи; `null` — поле не трогали.
 class GrantFormChanged extends BillingAdminEvent {
-  GrantFormChanged({this.kind, this.months, this.note});
-  final TariffKind? kind;
+  GrantFormChanged({this.months, this.note});
   final String? months;
   final String? note;
 }
@@ -66,10 +65,9 @@ class GrantFormChanged extends BillingAdminEvent {
 /// Перечитать открытую карточку пользователя (после действия).
 class UserRefreshed extends BillingAdminEvent {}
 
-/// Выдать подписку вручную (тот же путь — апгрейд «базовый → с русским»).
+/// Выдать подписку вручную: компенсация, продление «не сдал», тест.
 class SubscriptionGranted extends BillingAdminEvent {
-  SubscriptionGranted({required this.kind, required this.months, this.note});
-  final TariffKind kind;
+  SubscriptionGranted({required this.months, this.note});
   final int months;
   final String? note;
 }
@@ -109,4 +107,3 @@ class TariffActiveToggled extends BillingAdminEvent {
   final String sku;
   final bool active;
 }
-

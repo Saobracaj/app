@@ -9,6 +9,7 @@ import '../../../../generated/locale_keys.g.dart';
 import '../../../../konspekt/presentation/konspekt_inline_text.dart';
 import '../../../../konspekt/presentation/konspekt_markdown.dart';
 import '../../../../konspekt/presentation/konspekt_page.dart';
+import '../../../../subscription/presentation/paywall.dart';
 import '../state_management/question_konspekt_bloc.dart';
 import '../state_management/question_konspekt_events.dart';
 import '../state_management/question_konspekt_state.dart';
@@ -19,9 +20,21 @@ import '../state_management/question_konspekt_state.dart';
 /// widget renders the loaded excerpts — or, when the fetch failed, the reason
 /// and a retry (a failed load must not look like a question without notes).
 class QuestionKonspektTab extends StatelessWidget {
-  const QuestionKonspektTab({super.key, required this.categoryId});
+  const QuestionKonspektTab({
+    super.key,
+    required this.categoryId,
+    this.questionId,
+    this.locked = false,
+  });
 
   final String categoryId;
+  final int? questionId;
+
+  /// The category is behind the pass for this reader: the tab names the
+  /// sections about this question and offers the pass instead of the text.
+  /// Decided by the flags, not by the document — a cached full copy must not
+  /// leak past an expired entitlement.
+  final bool locked;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +57,26 @@ class QuestionKonspektTab extends StatelessWidget {
           );
         }
         if (state.sections.isEmpty) return const SizedBox.shrink();
+        if (locked) {
+          final russian = context
+              .watch<FeatureFlagsBloc>()
+              .state
+              .russianContentChosen;
+          final titles = state.sections
+              .map((s) => s.title.select(russian: russian))
+              .where((t) => t.isNotEmpty)
+              .join(' · ');
+          return LockedContentCard(
+            source: PaywallSource.konspekt,
+            questionId: questionId,
+            categoryId: categoryId,
+            title: LocaleKeys.subscription_lockedKonspektTitle.tr(),
+            body: titles.isEmpty
+                ? LocaleKeys.subscription_lockedKonspektBody.tr()
+                : '${LocaleKeys.subscription_lockedKonspektBody.tr()}\n'
+                      '${LocaleKeys.subscription_lockedSections.tr(args: [titles])}',
+          );
+        }
         final russian = context
             .watch<FeatureFlagsBloc>()
             .state

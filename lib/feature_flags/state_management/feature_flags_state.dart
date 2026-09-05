@@ -23,6 +23,12 @@ class FeatureFlagsState {
   bool isEnabledForCategory(AppFeature feature, String? categoryId) =>
       snapshot.isEnabledForCategory(feature, categoryId);
 
+  /// Whether [feature] is locked behind the pass for a question of
+  /// [categoryId] — shown as a preview with the offer, not hidden. See
+  /// [FeatureFlagsSnapshot.isLockedForCategory].
+  bool isLockedForCategory(AppFeature feature, String? categoryId) =>
+      snapshot.isLockedForCategory(feature, categoryId);
+
   /// Whether the Russian study content is shown for a question of
   /// [categoryId]: in the free categories it is open to everybody, elsewhere it
   /// needs the `russian_content` grant.
