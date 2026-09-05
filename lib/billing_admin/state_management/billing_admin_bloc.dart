@@ -34,7 +34,6 @@ class BillingAdminBloc extends Bloc<BillingAdminEvent, BillingAdminState> {
     on<GrantFormChanged>(
       (e, emit) => emit(
         state.copyWith(
-          grantKind: e.kind ?? state.grantKind,
           grantMonths: e.months ?? state.grantMonths,
           grantNote: e.note ?? state.grantNote,
         ),
@@ -214,7 +213,6 @@ class BillingAdminBloc extends Bloc<BillingAdminEvent, BillingAdminState> {
       emit,
       () => _repository.grantSubscription(
         userId: user.userId,
-        kind: event.kind,
         months: event.months,
         note: event.note,
       ),

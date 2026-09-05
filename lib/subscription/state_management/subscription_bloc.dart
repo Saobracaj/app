@@ -7,8 +7,6 @@ import 'package:injectable/injectable.dart';
 import '../../auth/data/graphql_client.dart';
 import '../../core/analytics/analytics_service.dart';
 import '../../core/network/error_messages.dart';
-import '../../feature_flags/data/feature_flags_repository.dart';
-import '../../feature_flags/domain/app_feature.dart';
 import '../../generated/locale_keys.g.dart';
 import '../data/store_purchase_service.dart';
 import '../data/subscription_repository.dart';
@@ -28,23 +26,12 @@ import 'subscription_state.dart';
 /// только открывает окно оплаты.
 @injectable
 class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
-  /// Надбавка за русские материалы предвыбрана по тому же локальному флагу,
-  /// которым человек уже ответил на вопрос о языке контента при первом запуске
-  /// (для русского устройства он включён без вопроса). Берём именно локальный
-  /// тумблер, а не `snapshot.russianContent`: последний у непокупателя всегда
-  /// выключен — премиум-гранта у него нет, и витрина предлагала бы базовый
-  /// тариф русскоязычному человеку.
-  SubscriptionBloc(this._repository, this._store, FeatureFlagsRepository flags)
-    : super(
-        SubscriptionState(
-          withRussian: flags.snapshot.localEnabled(AppFeature.russianContent),
-        ),
-      ) {
+  SubscriptionBloc(this._repository, this._store)
+    : super(const SubscriptionState()) {
     on<SubscriptionRequested>(_onRequested);
     on<PurchaseRequested>(_onPurchaseRequested);
     on<PurchasesRestoreRequested>(_onRestoreRequested);
     on<StorePurchaseReceived>(_onStorePurchase);
-    on<RussianAddonToggled>(_onRussianAddonToggled);
     on<RemindersToggled>(_onRemindersToggled);
     _storeSubscription = _store.purchases.listen(
       (event) => add(StorePurchaseReceived(event)),
@@ -160,10 +147,7 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     );
     analytics.logCheckoutStep(step: 'purchase_started', sku: event.sku);
     try {
-      await _store.buy(
-        productId: productId,
-        autoRenewing: tariff.autoRenewing,
-      );
+      await _store.buy(productId: productId, autoRenewing: tariff.autoRenewing);
     } catch (e) {
       emit(
         state.copyWith(
@@ -180,7 +164,9 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     Emitter<SubscriptionState> emit,
   ) async {
     if (state.restoring) return;
-    emit(state.copyWith(restoring: true, errorMessage: null, infoMessage: null));
+    emit(
+      state.copyWith(restoring: true, errorMessage: null, infoMessage: null),
+    );
     analytics.logCheckoutStep(step: 'purchases_restored');
     try {
       await _store.restore();
@@ -270,14 +256,6 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
       ),
     );
     add(SubscriptionRequested());
-  }
-
-  void _onRussianAddonToggled(
-    RussianAddonToggled event,
-    Emitter<SubscriptionState> emit,
-  ) {
-    analytics.logRussianAddonToggled(enabled: event.enabled);
-    emit(state.copyWith(withRussian: event.enabled));
   }
 
   Future<void> _onRemindersToggled(

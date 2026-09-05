@@ -259,9 +259,7 @@ class _PurchaseTile extends StatelessWidget {
       color: theme.colorScheme.onSurfaceVariant,
     );
     return ListTile(
-      title: Text(
-        '${tariffKindName(purchase.kind)}, ${monthsLabel(purchase.months)}',
-      ),
+      title: Text(passLabel(purchase.months)),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -384,9 +382,6 @@ class _UserTab extends StatelessWidget {
                     user.subscription.active
                         ? LocaleKeys.billingAdmin_subscriptionActive.tr(
                             namedArgs: {
-                              'kind': user.subscription.kind == null
-                                  ? '—'
-                                  : tariffKindName(user.subscription.kind!),
                               'date': user.subscription.endsAt == null
                                   ? '—'
                                   : formatDate(user.subscription.endsAt!),
@@ -451,16 +446,6 @@ class _GrantCard extends StatelessWidget {
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                DropdownMenu<TariffKind>(
-                  initialSelection: state.grantKind,
-                  width: 230,
-                  label: Text(LocaleKeys.billingAdmin_kindField.tr()),
-                  dropdownMenuEntries: [
-                    for (final k in TariffKind.values)
-                      DropdownMenuEntry(value: k, label: tariffKindName(k)),
-                  ],
-                  onSelected: (k) => bloc.add(GrantFormChanged(kind: k)),
-                ),
                 SizedBox(
                   width: 120,
                   child: TextFormField(
@@ -496,11 +481,7 @@ class _GrantCard extends StatelessWidget {
                 FilledButton(
                   onPressed: canAct
                       ? () => bloc.add(
-                          SubscriptionGranted(
-                            kind: state.grantKind,
-                            months: months,
-                            note: note,
-                          ),
+                          SubscriptionGranted(months: months, note: note),
                         )
                       : null,
                   child: Text(LocaleKeys.billingAdmin_grant.tr()),
@@ -577,7 +558,6 @@ class _PeriodsCard extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 4),
                   child: Text(
                     '${formatDate(p.startsAt)} — ${formatDate(p.endsAt)} · '
-                    '${p.kind == null ? '—' : tariffKindName(p.kind!)} · '
                     '${p.fromPurchase ? LocaleKeys.billingAdmin_periodSourcePurchase.tr() : LocaleKeys.billingAdmin_periodSourceManual.tr()}'
                     '${p.revoked ? ' · ${LocaleKeys.billingAdmin_revokedLabel.tr()}' : ''}'
                     '${p.note == null || p.note!.isEmpty ? '' : ' · ${p.note}'}',
@@ -595,6 +575,7 @@ class _PeriodsCard extends StatelessWidget {
     );
   }
 }
+
 class _UserPurchasesCard extends StatelessWidget {
   const _UserPurchasesCard({required this.purchases});
 
@@ -692,6 +673,7 @@ class _AuditTab extends StatelessWidget {
     );
   }
 }
+
 class _TariffsTab extends StatelessWidget {
   const _TariffsTab({required this.state});
 
@@ -721,9 +703,7 @@ class _TariffsTab extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        '${tariffKindName(t.kind)}, ${monthsLabel(t.months)}',
-                      ),
+                      Text(passLabel(t.months)),
                       Text(
                         t.sku,
                         style: theme.textTheme.bodySmall?.copyWith(

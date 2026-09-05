@@ -4,19 +4,13 @@ import '../../generated/locale_keys.g.dart';
 import '../models/subscription_models.dart';
 
 /// Общие для витрины и раздела аккаунта формулировки.
-///
-/// Тариф с русским описан через объём контента («конспекты и объяснения на
-/// русском»), а не как наценка за язык — это осознанная формулировка, а не
-/// оборот речи.
-String tariffKindName(TariffKind kind) => switch (kind) {
-  TariffKind.basic => LocaleKeys.subscription_kindBasic.tr(),
-  TariffKind.russian => LocaleKeys.subscription_kindRussian.tr(),
-};
 
-String tariffKindSummary(TariffKind kind) => switch (kind) {
-  TariffKind.basic => LocaleKeys.subscription_kindBasicSummary.tr(),
-  TariffKind.russian => LocaleKeys.subscription_kindRussianSummary.tr(),
-};
+/// Название единственного тарифа. Русские материалы в него входят — отдельного
+/// «русского» плана больше нет, и называть его нечем, кроме как «Premium».
+String planName() => LocaleKeys.subscription_planName.tr();
+
+/// «Premium, 3 месяца» — пропуск с его сроком.
+String passLabel(int months) => '${planName()}, ${monthsLabel(months)}';
 
 String monthsLabel(int months) => LocaleKeys.subscription_months.plural(months);
 
@@ -53,11 +47,14 @@ String? perMonthLabel(Tariff tariff, StoreProduct? product) {
   if (product == null) return pricePerMonthLabel(tariff);
   if (tariff.months <= 1) return product.price;
   final perMonth = product.rawPrice / tariff.months;
-  return NumberFormat.simpleCurrency(name: product.currencyCode).format(perMonth);
+  return NumberFormat.simpleCurrency(
+    name: product.currencyCode,
+  ).format(perMonth);
 }
 
 String purchaseStatusLabel(StorePurchaseStatus status) => switch (status) {
-  StorePurchaseStatus.active => LocaleKeys.subscription_purchaseStatusActive.tr(),
+  StorePurchaseStatus.active =>
+    LocaleKeys.subscription_purchaseStatusActive.tr(),
   StorePurchaseStatus.expired =>
     LocaleKeys.subscription_purchaseStatusExpired.tr(),
   StorePurchaseStatus.refunded =>

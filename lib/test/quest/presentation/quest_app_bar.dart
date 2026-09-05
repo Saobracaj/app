@@ -6,8 +6,10 @@ import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/core/deep_links.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/core/presentation/translation_chip.dart';
-import 'package:saobracaj/feature_flags/presentation/feature_gate.dart';
+import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
+import 'package:saobracaj/feature_flags/state_management/feature_flags_state.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
+import 'package:saobracaj/subscription/presentation/paywall.dart';
 import 'package:saobracaj/question_lists/presentation/add_to_lists_button.dart';
 import 'package:saobracaj/test/quest/state_management/translations_bloc.dart';
 
@@ -71,10 +73,33 @@ class QuestAppBar extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: [
-        FeatureGate(
-          feature: AppFeature.russianContent,
-          categoryId: categoryId,
-          child: const _TranslationChip(),
+        // The «РУ» chip: live with the entitlement (or in a free category),
+        // and still on screen — leading to the offer — when the Russian text
+        // is behind the pass for this question. Hidden only when the person
+        // turned the Russian materials off themselves.
+        BlocBuilder<FeatureFlagsBloc, FeatureFlagsState>(
+          builder: (context, flags) {
+            if (flags.isEnabledForCategory(
+              AppFeature.russianContent,
+              categoryId,
+            )) {
+              return const _TranslationChip();
+            }
+            if (flags.isLockedForCategory(
+              AppFeature.russianContent,
+              categoryId,
+            )) {
+              return TranslationChip(
+                on: false,
+                onTap: () => openPaywall(
+                  context,
+                  source: PaywallSource.russianToggle,
+                  questionId: questionId,
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          },
         ),
         // Ticking lists here keeps the menu open — see AddToListsButton.
         AddToListsButton(questionId: questionId),

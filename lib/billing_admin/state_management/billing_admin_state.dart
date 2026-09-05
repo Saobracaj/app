@@ -38,7 +38,6 @@ abstract class BillingAdminState with _$BillingAdminState {
     @Default(false) bool userNotFound,
 
     // --- форма ручной выдачи
-    @Default(TariffKind.basic) TariffKind grantKind,
     @Default('1') String grantMonths,
     @Default('') String grantNote,
 
@@ -67,8 +66,7 @@ abstract class BillingAdminState with _$BillingAdminState {
 
   bool get hasPrevPage => purchasesOffset > 0;
 
-  bool get hasNextPage =>
-      purchasesOffset + purchases.length < purchasesTotal;
+  bool get hasNextPage => purchasesOffset + purchases.length < purchasesTotal;
 
   /// Срок ручной выдачи/продления, если в поле разумное число.
   int? get grantMonthsValue {
