@@ -12,7 +12,8 @@ abstract class KonspektText with _$KonspektText {
 
   const factory KonspektText({String? ru, String? sr}) = _KonspektText;
 
-  factory KonspektText.fromJson(Map<String, dynamic> json) => _$KonspektTextFromJson(json);
+  factory KonspektText.fromJson(Map<String, dynamic> json) =>
+      _$KonspektTextFromJson(json);
 
   /// RU-first pick, used where no user context exists (authoring validation).
   /// Display code must use [select] — the shown language is decided by the
@@ -38,7 +39,8 @@ abstract class KonspektIllustration with _$KonspektIllustration {
     KonspektText? description,
   }) = _KonspektIllustration;
 
-  factory KonspektIllustration.fromJson(Map<String, dynamic> json) => _$KonspektIllustrationFromJson(json);
+  factory KonspektIllustration.fromJson(Map<String, dynamic> json) =>
+      _$KonspektIllustrationFromJson(json);
 }
 
 /// One fragment of a section: a self-contained piece of its markdown mapped
@@ -52,7 +54,8 @@ abstract class KonspektBlock with _$KonspektBlock {
     @Default([]) List<int> questionIds,
   }) = _KonspektBlock;
 
-  factory KonspektBlock.fromJson(Map<String, dynamic> json) => _$KonspektBlockFromJson(json);
+  factory KonspektBlock.fromJson(Map<String, dynamic> json) =>
+      _$KonspektBlockFromJson(json);
 }
 
 /// One deep-linkable part of a konspekt. Addressed as
@@ -73,7 +76,8 @@ abstract class KonspektSection with _$KonspektSection {
     @Default([]) List<int> questionIds,
   }) = _KonspektSection;
 
-  factory KonspektSection.fromJson(Map<String, dynamic> json) => _$KonspektSectionFromJson(json);
+  factory KonspektSection.fromJson(Map<String, dynamic> json) =>
+      _$KonspektSectionFromJson(json);
 }
 
 /// The glossary of key Serbian exam terms with translations (markdown table).
@@ -84,7 +88,8 @@ abstract class KonspektDictionary with _$KonspektDictionary {
     required KonspektText content,
   }) = _KonspektDictionary;
 
-  factory KonspektDictionary.fromJson(Map<String, dynamic> json) => _$KonspektDictionaryFromJson(json);
+  factory KonspektDictionary.fromJson(Map<String, dynamic> json) =>
+      _$KonspektDictionaryFromJson(json);
 }
 
 /// Study notes ("конспект") for one question category, downloaded from
@@ -99,7 +104,16 @@ abstract class Konspekt with _$Konspekt {
     KonspektText? intro,
     @Default([]) List<KonspektSection> sections,
     KonspektDictionary? dictionary,
+
+    /// The document is a **preview** — the backend sent the intro, the section
+    /// titles and the first block only, because the reader has no entitlement
+    /// for this category. Not part of the authored JSON; set from the GraphQL
+    /// `locked` field and never cached.
+    @Default(false)
+    @JsonKey(includeFromJson: false, includeToJson: false)
+    bool locked,
   }) = _Konspekt;
 
-  factory Konspekt.fromJson(Map<String, dynamic> json) => _$KonspektFromJson(json);
+  factory Konspekt.fromJson(Map<String, dynamic> json) =>
+      _$KonspektFromJson(json);
 }

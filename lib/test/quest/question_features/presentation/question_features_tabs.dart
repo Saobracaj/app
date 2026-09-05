@@ -13,6 +13,7 @@ import '../../../../chat/state_management/question_chat_count_state.dart';
 import '../../../../question_feedback/domain/question_feedback_source.dart';
 import '../../../../question_feedback/domain/question_feedback_target.dart';
 import '../../../../question_feedback/presentation/report_problem_button.dart';
+import '../../../../subscription/presentation/paywall.dart';
 import '../../comment/comment_widget/comment_widget.dart';
 import '../ask_ai/presentation/ask_ai_chat_section.dart';
 import '../state_management/question_features_bloc.dart';
@@ -71,10 +72,20 @@ class QuestionFeaturesTabs extends StatelessWidget {
     final flags = context.watch<FeatureFlagsBloc>().state;
     // Enabled by flags *for this question's category* — in the free categories
     // (25/26/28) the content tabs are open to everybody, the AI chat is not.
-    // The konspekt tab is additionally dropped below unless the category's
+    // A premium tab the reader has *not* switched off stays on screen when it
+    // is merely locked: it shows a preview and the offer of the pass — the
+    // paywall lives at the point of pain, not on a screen of its own. The
+    // konspekt tab is additionally dropped below unless the category's
     // konspekt actually has sections about this question.
+    final locked = {
+      for (final f in _features)
+        if (flags.isLockedForCategory(f, categoryId)) f,
+    };
     final enabled = _features
-        .where((f) => flags.isEnabledForCategory(f, categoryId))
+        .where(
+          (f) =>
+              flags.isEnabledForCategory(f, categoryId) || locked.contains(f),
+        )
         .toList();
     if (enabled.isEmpty) return const SizedBox.shrink();
 
@@ -158,6 +169,7 @@ class QuestionFeaturesTabs extends StatelessWidget {
                       questionId: questionId,
                       categoryId: categoryId,
                       chatMessageId: chatMessageId,
+                      locked: locked.contains(selected),
                     ),
                   ),
                 ],
@@ -321,6 +333,7 @@ class _TabContent extends StatelessWidget {
     required this.questionId,
     required this.categoryId,
     this.chatMessageId,
+    this.locked = false,
   });
 
   final AppFeature feature;
@@ -328,8 +341,31 @@ class _TabContent extends StatelessWidget {
   final String categoryId;
   final String? chatMessageId;
 
+  /// The feature is behind the pass for this question. The explanation and
+  /// the konspekt still load — the backend answers with a preview — while the
+  /// analysis and the AI chat have no preview and show the offer alone.
+  final bool locked;
+
   @override
   Widget build(BuildContext context) {
+    if (locked && feature == AppFeature.questionAnalysis) {
+      return LockedContentCard(
+        source: PaywallSource.analysis,
+        questionId: questionId,
+        categoryId: categoryId,
+        title: LocaleKeys.subscription_lockedAnalysisTitle.tr(),
+        body: LocaleKeys.subscription_lockedAnalysisBody.tr(),
+      );
+    }
+    if (locked && feature == AppFeature.askAi) {
+      return LockedContentCard(
+        source: PaywallSource.askAi,
+        questionId: questionId,
+        categoryId: categoryId,
+        title: LocaleKeys.subscription_lockedAskAiTitle.tr(),
+        body: LocaleKeys.subscription_lockedAskAiBody.tr(),
+      );
+    }
     switch (feature) {
       // Объяснение и конспект — вкладки с редакторским контентом, в котором
       // пользователю есть на что пожаловаться, поэтому кнопка «Сообщить об
@@ -345,7 +381,11 @@ class _TabContent extends StatelessWidget {
         return _WithReportButton(
           questionId: questionId,
           source: QuestionFeedbackSource.summary,
-          child: QuestionKonspektTab(categoryId: categoryId),
+          child: QuestionKonspektTab(
+            categoryId: categoryId,
+            questionId: questionId,
+            locked: locked,
+          ),
         );
       // Обсуждение вопроса — обычный чат приложения, только перевёрнутый:
       // поле ввода сверху, под ним свежее сообщение, дальше в прошлое.

@@ -31,7 +31,9 @@ class _StubKonspektRepository extends KonspektRepository {
   Future<Konspekt?> load(String categoryId) async {
     final file = File('konspekt_content/$categoryId.json');
     if (!file.existsSync()) return null;
-    return Konspekt.fromJson(jsonDecode(file.readAsStringSync()) as Map<String, dynamic>);
+    return Konspekt.fromJson(
+      jsonDecode(file.readAsStringSync()) as Map<String, dynamic>,
+    );
   }
 }
 
@@ -39,7 +41,7 @@ class _StubKonspektRepository extends KonspektRepository {
 /// render the page both as an entitled user and as one without the entitlement.
 class _StubFeatureFlagsRepository extends FeatureFlagsRepository {
   _StubFeatureFlagsRepository(this._grants, this._locals)
-      : super(GraphqlClient(TokenStorage()), TokenStorage());
+    : super(GraphqlClient(TokenStorage()), TokenStorage());
 
   final Set<String> _grants;
 
@@ -49,8 +51,11 @@ class _StubFeatureFlagsRepository extends FeatureFlagsRepository {
   final Map<String, bool> _locals;
 
   @override
-  FeatureFlagsSnapshot get snapshot =>
-      FeatureFlagsSnapshot.resolve(localOverrides: _locals, grants: _grants, authenticated: true);
+  FeatureFlagsSnapshot get snapshot => FeatureFlagsSnapshot.resolve(
+    localOverrides: _locals,
+    grants: _grants,
+    authenticated: true,
+  );
 
   @override
   Stream<FeatureFlagsSnapshot> get changes => Stream.value(snapshot);
@@ -61,9 +66,12 @@ void main() {
   SharedPreferences.setMockInitialValues({});
 
   setUpAll(() async {
-    getIt.registerLazySingleton<KonspektRepository>(_StubKonspektRepository.new);
+    getIt.registerLazySingleton<KonspektRepository>(
+      _StubKonspektRepository.new,
+    );
     getIt.registerFactoryParam<KonspektBloc, String, String?>(
-      (categoryId, section) => KonspektBloc(getIt(), NetworkStatus(), categoryId, section),
+      (categoryId, section) =>
+          KonspektBloc(getIt(), NetworkStatus(), categoryId, section),
     );
     await EasyLocalization.ensureInitialized();
   });
@@ -97,35 +105,57 @@ void main() {
     );
   }
 
-  testWidgets('KonspektPage renders the category 25 konspekt in Serbian by default', (tester) async {
-    await tester.pumpWidget(wrap(const KonspektPage(categoryId: '25')));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'KonspektPage renders the category 25 konspekt in Serbian by default',
+    (tester) async {
+      await tester.pumpWidget(wrap(const KonspektPage(categoryId: '25')));
+      await tester.pumpAndSettle();
 
-    // Without russian_content the authored Serbian fragment wins, both for the
-    // category name and for the section titles below it.
-    expect(find.text('Основе безбедности саобраћаја'), findsOneWidget);
-    expect(find.textContaining('Ко регулише и ко контролише саобраћај'), findsWidgets);
-  });
+      // Without russian_content the authored Serbian fragment wins, both for the
+      // category name and for the section titles below it.
+      expect(find.text('Основе безбедности саобраћаја'), findsOneWidget);
+      expect(
+        find.textContaining('Ко регулише и ко контролише саобраћај'),
+        findsWidgets,
+      );
+    },
+  );
 
-  testWidgets('KonspektPage shows Russian with the russian_content feature on', (tester) async {
-    await tester.pumpWidget(wrap(
-      const KonspektPage(categoryId: '25'),
-      grants: const {'category_summaries', 'russian_content'},
-      locals: const {},
-    ));
-    await tester.pumpAndSettle();
+  testWidgets(
+    'KonspektPage shows Russian with the russian_content feature on',
+    (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          const KonspektPage(categoryId: '25'),
+          grants: const {'category_summaries', 'russian_content'},
+          locals: const {},
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Основы безопасности дорожного движения'), findsOneWidget);
-  });
+      expect(
+        find.text('Основы безопасности дорожного движения'),
+        findsOneWidget,
+      );
+    },
+  );
 
-  testWidgets('KonspektPage deep link scrolls to the requested section', (tester) async {
-    await tester.pumpWidget(wrap(const KonspektPage(categoryId: '25', section: 'popravka-i-prepravka')));
+  testWidgets('KonspektPage deep link scrolls to the requested section', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        const KonspektPage(categoryId: '25', section: 'popravka-i-prepravka'),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Поправка и преправка'), findsWidgets);
   });
 
-  testWidgets('KonspektPage shows an error for a category without a konspekt', (tester) async {
+  testWidgets('KonspektPage shows an error for a category without a konspekt', (
+    tester,
+  ) async {
     await tester.pumpWidget(wrap(const KonspektPage(categoryId: '999')));
     await tester.pumpAndSettle();
 
@@ -133,22 +163,58 @@ void main() {
   });
 
   // Гейт — свойство вопроса: категория 27 платная, поэтому без гранта конспект
-  // закрыт…
-  testWidgets('KonspektPage stays closed without the category_summaries entitlement', (tester) async {
-    await tester.pumpWidget(wrap(const KonspektPage(categoryId: '27'), grants: const {}));
+  // заперт — страница показывает превью (бэкенд отдаёт вступление, названия
+  // разделов и первый блок) и предложение пропуска, а не «недоступен»…
+  testWidgets('KonspektPage previews a paid category without the entitlement', (
+    tester,
+  ) async {
+    // Категория 30 платная и с конспектом; заглушка отдаёт полный документ,
+    // но страница решает по флагам и показывает превью с предложением.
+    await tester.pumpWidget(
+      wrap(const KonspektPage(categoryId: '30'), grants: const {}),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('Конспект недоступен'), findsOneWidget);
+    expect(find.text('Конспект недоступен'), findsNothing);
+    // Карточка стоит после первого раздела — за вступлением, ниже экрана.
+    await tester.scrollUntilVisible(
+      find.text('Войти и открыть с Premium'),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(find.text('Войти и открыть с Premium'), findsOneWidget);
   });
+
+  // …а выключенный самим человеком конспект — не заперт, а выключен: страницы
+  // нет вовсе.
+  testWidgets(
+    'KonspektPage stays closed when the person switched konspekts off',
+    (tester) async {
+      await tester.pumpWidget(
+        wrap(
+          const KonspektPage(categoryId: '30'),
+          grants: const {},
+          locals: const {'category_summaries': false},
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Конспект недоступен'), findsOneWidget);
+    },
+  );
 
   // …а бесплатная категория 25 открыта всем, в том числе с русским контентом:
   // премиум-гранта нет, а конспект показывается.
-  testWidgets('KonspektPage opens a free category without any entitlement', (tester) async {
-    await tester.pumpWidget(wrap(
-      const KonspektPage(categoryId: '25'),
-      grants: const {},
-      locals: const {},
-    ));
+  testWidgets('KonspektPage opens a free category without any entitlement', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      wrap(
+        const KonspektPage(categoryId: '25'),
+        grants: const {},
+        locals: const {},
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Конспект недоступен'), findsNothing);

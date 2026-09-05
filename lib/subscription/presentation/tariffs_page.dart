@@ -14,19 +14,21 @@ import '../models/subscription_models.dart';
 import '../state_management/subscription_bloc.dart';
 import '../state_management/subscription_events.dart';
 import '../state_management/subscription_state.dart';
+import 'extension_promise_card.dart';
 import 'plan_features.dart';
 import 'tariff_formatting.dart';
 
-/// Витрина тарифов: три срока в один ряд, русские материалы — надбавкой.
+/// Витрина тарифов — она же экран пейволла: три пропуска Premium в один ряд.
 ///
-/// Сроки стоят рядом намеренно. Месячный тариф — это точка отсчёта: его цена за
-/// месяц втрое выше годовой, и увидеть это можно, только когда обе цифры на
+/// Сроки стоят рядом намеренно. Месячный пропуск — это точка отсчёта: его цена
+/// за месяц втрое выше годовой, и увидеть это можно, только когда обе цифры на
 /// экране одновременно и в одной единице. Поэтому крупная цифра в каждой
-/// карточке — цена за месяц, а полная сумма подписана мелко.
+/// карточке — цена за месяц, а полная сумма подписана мелко. Выделен
+/// трёхмесячный: это обычное окно подготовки, и он же «самый популярный».
 ///
-/// Русский не отдельный план, а тумблер: семейств тарифов на бэкенде
-/// по-прежнему два (`basic_*` / `russian_*`), но человек выбирает срок один
-/// раз, а не из шести комбинаций.
+/// Тариф один, русские материалы входят в любой пропуск — ни тумблеров, ни
+/// второго ряда цен. Под ценами — якорь («пересдача теории стоит 5 800 RSD»)
+/// и обещание продлить пропуск бесплатно тому, кто не сдал.
 ///
 /// Оплата идёт через стор. В вебе стора нет, поэтому там витрина показывает
 /// те же цены как справочные и объясняет, что оформить подписку можно в
@@ -89,15 +91,15 @@ class TariffsPage extends StatelessWidget {
                 ],
                 _TermRow(state: state, platform: platform),
                 const SizedBox(height: 12),
-                _RussianAddon(state: state),
+                const _AnchorNote(),
+                const SizedBox(height: 12),
+                const ExtensionPromiseCard(),
                 if (platform != null) ...[
                   const SizedBox(height: 12),
                   _RestoreRow(state: state),
                 ],
                 const SizedBox(height: 28),
-                // Тумблер надбавки — над таблицей, поэтому строка «Материалы
-                // на русском» показывает уже сделанный выбор, а не «по выбору».
-                PlanFeaturesComparison(withRussian: state.withRussian),
+                const PlanFeaturesComparison(),
                 const SizedBox(height: 16),
                 const _FreeTierCard(),
                 const SizedBox(height: 16),
@@ -144,8 +146,10 @@ class _BuyInAppCard extends StatelessWidget {
               children: [
                 if (appStore != null)
                   FilledButton.icon(
-                    onPressed: () =>
-                        launchUrl(appStore, mode: LaunchMode.externalApplication),
+                    onPressed: () => launchUrl(
+                      appStore,
+                      mode: LaunchMode.externalApplication,
+                    ),
                     icon: const Icon(Icons.apple, size: 18),
                     label: Text(LocaleKeys.subscription_platformApple.tr()),
                   ),
@@ -315,7 +319,41 @@ class _LegalLink extends StatelessWidget {
   }
 }
 
-/// Три срока рядом. На узком экране — стопкой, самый выгодный первым: на
+/// Якорь под ценами: цена ошибки, а не цена конкурента. Пересдача теории
+/// стоит дороже трёх месяцев подготовки со всеми объяснениями — с этим
+/// человек и должен сравнивать пропуск.
+class _AnchorNote extends StatelessWidget {
+  const _AnchorNote();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(
+            Icons.school_outlined,
+            size: 18,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            LocaleKeys.subscription_anchorNote.tr(),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Три срока рядом. На узком экране — стопкой, рекомендованный первым: на
 /// телефоне порядок и есть рекомендация.
 class _TermRow extends StatelessWidget {
   const _TermRow({required this.state, required this.platform});
@@ -327,7 +365,7 @@ class _TermRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tariffs = state.offeredTariffs;
     if (tariffs.isEmpty) return const SizedBox.shrink();
-    final longest = tariffs.last;
+    final recommended = state.recommendedTariff;
 
     final cards = [
       for (final tariff in tariffs)
@@ -335,14 +373,19 @@ class _TermRow extends StatelessWidget {
           tariff: tariff,
           state: state,
           platform: platform,
-          recommended: tariff.sku == longest.sku,
+          recommended: tariff.sku == recommended?.sku,
         ),
     ];
 
     if (!context.isMediumScreen) {
-      // Стопкой — от самого длинного срока к самому короткому: на телефоне
-      // порядок и есть рекомендация.
-      final stacked = cards.reversed.toList();
+      // Стопкой — рекомендованный первым, остальные по возрастанию срока: на
+      // телефоне порядок и есть рекомендация.
+      final stacked = [
+        for (final card in cards)
+          if (card.recommended) card,
+        for (final card in cards)
+          if (!card.recommended) card,
+      ];
       return Column(
         children: [
           for (var i = 0; i < stacked.length; i++) ...[
@@ -419,8 +462,24 @@ class _TermCard extends StatelessWidget {
                   style: theme.textTheme.titleSmall,
                 ),
               ),
-              if (saving != null && saving > 0)
-                _SaveBadge(percent: saving, filled: recommended),
+              // Ужимается, а не переполняет: на планшетной ширине карточка
+              // узкая, а «Najpopularniji» длинное.
+              if (recommended)
+                const Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: _PopularBadge(),
+                  ),
+                )
+              else if (saving != null && saving > 0)
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: AlignmentDirectional.centerEnd,
+                    child: _SaveBadge(percent: saving, filled: false),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -518,6 +577,32 @@ class _BuyButton extends StatelessWidget {
   }
 }
 
+/// «Самый популярный» — на рекомендованной карточке вместо процента
+/// экономии: экономия у неё тоже есть, но продаёт её не она, а то, что три
+/// месяца — обычный срок подготовки.
+class _PopularBadge extends StatelessWidget {
+  const _PopularBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        LocaleKeys.subscription_mostPopular.tr(),
+        style: theme.textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w700,
+          color: theme.colorScheme.onPrimary,
+        ),
+      ),
+    );
+  }
+}
+
 class _SaveBadge extends StatelessWidget {
   const _SaveBadge({required this.percent, required this.filled});
 
@@ -542,81 +627,6 @@ class _SaveBadge extends StatelessWidget {
           color: filled
               ? theme.colorScheme.onPrimary
               : theme.colorScheme.onSecondaryContainer,
-        ),
-      ),
-    );
-  }
-}
-
-/// Русские материалы — надбавка к любому сроку, а не отдельный план.
-///
-/// Тумблер предвыбран по локальному флагу `russian_content`, которым человек
-/// уже ответил на вопрос о языке материалов при первом запуске (см.
-/// `SubscriptionBloc`): русскоязычному не приходится догадываться, что русский
-/// — отдельная позиция, а выключить её можно одним нажатием.
-class _RussianAddon extends StatelessWidget {
-  const _RussianAddon({required this.state});
-
-  final SubscriptionState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final addon = state.russianAddonRsd;
-    final on = state.withRussian;
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () =>
-          context.read<SubscriptionBloc>().add(RussianAddonToggled(!on)),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: theme.colorScheme.outlineVariant),
-        ),
-        child: Row(
-          children: [
-            Switch(
-              value: on,
-              onChanged: (value) => context.read<SubscriptionBloc>().add(
-                RussianAddonToggled(value),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    LocaleKeys.subscription_russianAddonTitle.tr(),
-                    style: theme.textTheme.titleSmall,
-                  ),
-                  Text(
-                    on
-                        ? LocaleKeys.subscription_russianAddonOn.tr()
-                        : LocaleKeys.subscription_russianAddonOff.tr(),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (addon != null) ...[
-              const SizedBox(width: 12),
-              Text(
-                on
-                    ? LocaleKeys.subscription_russianAddonPriceOn.tr()
-                    : LocaleKeys.subscription_russianAddonPriceOff.tr(
-                        args: [amountLabel(addon)],
-                      ),
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ],
         ),
       ),
     );

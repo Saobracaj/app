@@ -107,24 +107,20 @@ class BillingAdminRepository {
     ];
   }
 
+  /// Тариф один, поэтому выдаётся только срок: набор фич у любой выдачи — весь
+  /// премиум-слой.
   Future<void> grantSubscription({
     required String userId,
-    required TariffKind kind,
     required int months,
     String? note,
   }) async {
     await _client.run(
       r'''
-        mutation GrantSubscription($userId: ID!, $kind: TariffKind!, $months: Int!, $note: String) {
-          grantSubscription(userId: $userId, kind: $kind, months: $months, note: $note) { id }
+        mutation GrantSubscription($userId: ID!, $months: Int!, $note: String) {
+          grantSubscription(userId: $userId, months: $months, note: $note) { id }
         }
       ''',
-      variables: {
-        'userId': userId,
-        'kind': kind.name.toUpperCase(),
-        'months': months,
-        'note': note,
-      },
+      variables: {'userId': userId, 'months': months, 'note': note},
       authenticated: true,
     );
   }

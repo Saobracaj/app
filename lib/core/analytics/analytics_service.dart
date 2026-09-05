@@ -51,10 +51,7 @@ class AnalyticsService {
   /// A feature tab under the question was opened by hand; [tab] is the
   /// [AppFeature] key (`public_question_comments`, `category_summaries`, …).
   void logQuestionTabOpened({required String tab, int? questionId}) =>
-      _track('question_tab_opened', {
-        'tab': tab,
-        'question_id': ?questionId,
-      });
+      _track('question_tab_opened', {'tab': tab, 'question_id': ?questionId});
 
   /// The user scrolled the question page down to the feature tabs (the phone
   /// layout; on the wide screen the tabs are always on screen). Once per
@@ -219,13 +216,25 @@ class AnalyticsService {
   void logCheckoutStep({required String step, String? sku}) =>
       _track('checkout_step', {'step': step, 'sku': ?sku});
 
-  /// The «русскоязычный контент» add-on checkbox on the tariffs screen. Also
-  /// updates the person, so "кто включал русский контент" is one filter.
-  void logRussianAddonToggled({required bool enabled}) =>
-      _track('russian_addon_toggled', {
-        'enabled': enabled,
-        r'$set': {'russian_addon_chosen': enabled},
-      });
+  /// The paywall came on screen: a locked explanation / konspekt / analysis /
+  /// AI card, or the Russian toggle outside the free categories. [source]
+  /// names the point of pain, so the funnel can be read per entry.
+  void logPaywallShown({
+    required String source,
+    int? questionId,
+    String? categoryId,
+  }) => _track('paywall_shown', {
+    'source': source,
+    'question_id': ?questionId,
+    'category_id': ?categoryId,
+  });
+
+  /// The paywall's call to action was tapped — the tariffs screen opens.
+  void logPaywallOpened({required String source, int? questionId}) =>
+      _track('paywall_opened', {'source': source, 'question_id': ?questionId});
+
+  /// «Не сдал экзамен» — the free-extension request went to the support chat.
+  void logExtensionRequested() => _track('extension_requested', const {});
 
   /// A question search was run; only the length of the query is reported —
   /// what exactly a person types is theirs.

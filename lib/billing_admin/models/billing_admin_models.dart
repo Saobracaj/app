@@ -72,7 +72,6 @@ class BillingAuditEntry {
 class AdminTariff {
   const AdminTariff({
     required this.sku,
-    required this.kind,
     required this.months,
     required this.priceRsd,
     required this.active,
@@ -83,7 +82,6 @@ class AdminTariff {
 
   factory AdminTariff.fromJson(Map<String, dynamic> json) => AdminTariff(
     sku: json['sku'] as String,
-    kind: TariffKind.parse(json['kind'] as String?),
     months: (json['months'] as num).toInt(),
     priceRsd: (json['priceRsd'] as num).toInt(),
     active: json['active'] as bool? ?? true,
@@ -93,11 +91,10 @@ class AdminTariff {
   );
 
   static const fields =
-      'sku kind months priceRsd active appleProductId googleProductId '
+      'sku months priceRsd active appleProductId googleProductId '
       'autoRenewing';
 
   final String sku;
-  final TariffKind kind;
   final int months;
 
   /// Справочная цена: её показывает веб-витрина. Сколько человек заплатит на
