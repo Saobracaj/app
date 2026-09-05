@@ -35,9 +35,20 @@ class AnalyticsEventSink {
     this.maxBuffered = 500,
     bool Function()? russianContent,
     Future<void> Function(Map<String, Object?> body)? postBatch,
-  }) : _dio = dio ?? Dio(),
+  }) : _dio = dio ?? Dio(_defaultOptions),
        _russianContent = russianContent,
        _postBatch = postBatch;
+
+  /// Dio ставит таймауты только по просьбе, а без них зависшее соединение
+  /// (мобильная сеть, пропавшая посреди запроса) держит [_sending] навечно:
+  /// пачки перестают уходить до перезапуска приложения, а очередь молча
+  /// вытесняет всё старше [maxBuffered]. С таймаутом такая отправка падает,
+  /// пачка возвращается в очередь и уходит следующим тиком.
+  static final _defaultOptions = BaseOptions(
+    connectTimeout: const Duration(seconds: 15),
+    sendTimeout: const Duration(seconds: 20),
+    receiveTimeout: const Duration(seconds: 20),
+  );
 
   /// Столько событий PostHog принимает за один вызов без риска упереться в
   /// лимит размера тела запроса.

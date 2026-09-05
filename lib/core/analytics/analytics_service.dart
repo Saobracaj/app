@@ -59,15 +59,28 @@ class AnalyticsService {
   void logQuestionTabsViewed({int? questionId}) =>
       _track('question_tabs_viewed', {'question_id': ?questionId});
 
+  /// The content of feature tab [tab] is actually on screen for question
+  /// [questionId] — the tab was selected while the panel was in view, whether
+  /// the panel got there by scrolling (phone), appeared in its pane (wide
+  /// screen) or the tab was switched to by hand. Once per question per tab.
+  /// This is the "which explanations / konspekt excerpts get read" event:
+  /// `tab = question_comments` is the explanation, `category_summaries` the
+  /// konspekt excerpt (its sections follow from the question id).
+  void logQuestionTabShown({required String tab, required int questionId}) =>
+      _track('question_tab_shown', {'tab': tab, 'question_id': questionId});
+
   /// An answer was given; [secondsSinceShown] counts from the moment the
-  /// question appeared on screen.
+  /// question appeared on screen. [mode] is `quiz` for a question run and
+  /// `exam` for the exam simulation (there the thinking time is not tracked).
   void logQuestionAnswered({
     required int questionId,
     required bool correct,
     int? secondsSinceShown,
+    String mode = 'quiz',
   }) => _track('question_answered', {
     'question_id': questionId,
     'correct': correct,
+    'mode': mode,
     'seconds_since_shown': ?secondsSinceShown,
   });
 
@@ -82,9 +95,25 @@ class AnalyticsService {
   void logTranslationToggled({required bool enabled}) =>
       _track('translation_toggled', {'enabled': enabled});
 
-  /// A category konspekt was successfully loaded and shown.
-  void logKonspektOpened({required String categoryId}) =>
-      _track('konspekt_opened', {'category': categoryId});
+  /// A category konspekt was successfully loaded and shown. [section] is the
+  /// section slug the page was opened at — from the question's konspekt tab or
+  /// a deep link; null when the konspekt was opened from its beginning.
+  void logKonspektOpened({required String categoryId, String? section}) =>
+      _track('konspekt_opened', {
+        'category': categoryId,
+        'section': ?section,
+      });
+
+  /// The user jumped to a konspekt section by hand — from the table of
+  /// contents or an inline cross-section link (the opening jump is part of
+  /// `konspekt_opened`).
+  void logKonspektSectionOpened({
+    required String categoryId,
+    required String section,
+  }) => _track('konspekt_section_opened', {
+    'category': categoryId,
+    'section': section,
+  });
 
   /// A subcategory was picked on the categories screen (that is how a
   /// category's questions are opened — the screen has no whole-category

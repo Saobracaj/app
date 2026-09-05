@@ -15,6 +15,7 @@ import '../../../../question_feedback/domain/question_feedback_target.dart';
 import '../../../../question_feedback/presentation/report_problem_button.dart';
 import '../../../../subscription/presentation/paywall.dart';
 import '../../comment/comment_widget/comment_widget.dart';
+import '../../presentation/tabs_seen_reporter.dart';
 import '../ask_ai/presentation/ask_ai_chat_section.dart';
 import '../state_management/question_features_bloc.dart';
 import '../state_management/question_features_events.dart';
@@ -43,9 +44,16 @@ class QuestionFeaturesTabs extends StatelessWidget {
     this.initialFeature,
     this.chatMessageId,
     this.autoScroll = false,
+    this.underQuestion = true,
   });
 
   final int questionId;
+
+  /// Where the panel sits: under the answers, reached by scrolling (the phone
+  /// layout, default), or in the wide layout's side pane that is on screen
+  /// from the moment the answers are revealed. Analytics context only — see
+  /// [TabsSeenReporter].
+  final bool underQuestion;
 
   /// The category the question belongs to — the konspekt tab excerpts that
   /// category's konspekt.
@@ -176,9 +184,18 @@ class QuestionFeaturesTabs extends StatelessWidget {
               ),
             ),
           );
+          // What of the panel reached the screen — «домотал» and which tab's
+          // content was actually shown for this question.
+          final reported = TabsSeenReporter(
+            key: ValueKey('tabs-seen-$questionId'),
+            questionId: questionId,
+            tab: selected,
+            underQuestion: underQuestion,
+            child: card,
+          );
           // On a deep link into the discussion, scroll this panel into view once
           // it is laid out.
-          return autoScroll ? _EnsureVisibleOnce(child: card) : card;
+          return autoScroll ? _EnsureVisibleOnce(child: reported) : reported;
         },
       ),
     );
