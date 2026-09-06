@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../core/analytics/analytics_service.dart';
+
 import '../data/feature_flags_repository.dart';
 import '../data/feature_flags_snapshot.dart';
 import 'feature_flags_events.dart';
@@ -21,6 +23,7 @@ class FeatureFlagsBloc extends Bloc<FeatureFlagsEvent, FeatureFlagsState> {
     on<FeatureFlagsStarted>(_onStarted);
     on<FeatureFlagsSnapshotChanged>(_onSnapshotChanged);
     on<FeatureToggled>(_onToggled);
+    on<RussianTranslationTrialUsed>(_onTrialUsed);
   }
 
   final FeatureFlagsRepository _repository;
@@ -47,6 +50,17 @@ class FeatureFlagsBloc extends Bloc<FeatureFlagsEvent, FeatureFlagsState> {
     Emitter<FeatureFlagsState> emit,
   ) {
     return _repository.setLocalEnabled(event.feature, event.enabled);
+  }
+
+  Future<void> _onTrialUsed(
+    RussianTranslationTrialUsed event,
+    Emitter<FeatureFlagsState> emit,
+  ) async {
+    await _repository.consumeRussianTranslationTrial();
+    analytics.logTranslationTrialUsed(
+      usesLeft: _repository.russianTranslationTriesLeft,
+      questionId: event.questionId,
+    );
   }
 
   @override

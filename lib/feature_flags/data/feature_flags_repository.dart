@@ -40,6 +40,7 @@ class FeatureFlagsRepository {
   static const _localSuffix = '.enabled';
   static const _grantsKey = 'feature_grants';
   static const _russianAskedKey = 'russian_content_asked';
+  static const _russianTrialUsedKey = 'russian_translation_trial_used';
 
   final StreamController<FeatureFlagsSnapshot> _controller =
       StreamController<FeatureFlagsSnapshot>.broadcast();
@@ -48,6 +49,10 @@ class FeatureFlagsRepository {
   Set<String> _grants = {};
   bool _authenticated = false;
   bool _russianAsked = false;
+
+  /// How many free showings of the «РУ» translation on locked questions have
+  /// been spent on this device — see [russianTranslationTrialUses].
+  int _russianTrialUsed = 0;
   FeatureFlagsSnapshot _snapshot = FeatureFlagsSnapshot.initial();
 
   /// Whether the device runs in Russian. Such a user is never asked — Russian
@@ -84,6 +89,7 @@ class FeatureFlagsRepository {
     _localOverrides = _readLocalOverrides(prefs);
     _grants = prefs.getStringList(_grantsKey)?.toSet() ?? {};
     _russianAsked = prefs.getBool(_russianAskedKey) ?? false;
+    _russianTrialUsed = prefs.getInt(_russianTrialUsedKey) ?? 0;
     _authenticated = (await _storage.accessToken)?.isNotEmpty ?? false;
     _recompute();
     if (_authenticated) {
@@ -164,6 +170,23 @@ class FeatureFlagsRepository {
     _recompute();
   }
 
+  /// Free showings of the «РУ» translation still left on locked questions.
+  int get russianTranslationTriesLeft =>
+      (russianTranslationTrialUses - _russianTrialUsed).clamp(
+        0,
+        russianTranslationTrialUses,
+      );
+
+  /// Spend one free showing of the «РУ» translation (persisted). The count
+  /// lives on the device, not on the account: it is a taste of the feature,
+  /// and a subscription makes it moot — with the grant the toggle never asks.
+  Future<void> consumeRussianTranslationTrial() async {
+    if (russianTranslationTriesLeft == 0) return;
+    _russianTrialUsed += 1;
+    await (await _prefs).setInt(_russianTrialUsedKey, _russianTrialUsed);
+    _recompute();
+  }
+
   Map<String, bool> _readLocalOverrides(SharedPreferences prefs) {
     final overrides = <String, bool>{};
     for (final f in AppFeature.values) {
@@ -186,6 +209,7 @@ class FeatureFlagsRepository {
       grants: _grants,
       authenticated: _authenticated,
       askRussianContent: shouldAskRussianContent,
+      russianTranslationTriesLeft: russianTranslationTriesLeft,
     );
     _controller.add(_snapshot);
   }

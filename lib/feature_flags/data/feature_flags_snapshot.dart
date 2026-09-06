@@ -13,6 +13,7 @@ class FeatureFlagsSnapshot {
     required this.grants,
     required this.authenticated,
     this.shouldAskRussianContent = false,
+    this.russianTranslationTriesLeft = 0,
   });
 
   /// The empty starting point: guest tier on, nothing granted, signed out.
@@ -30,6 +31,7 @@ class FeatureFlagsSnapshot {
     required Set<String> grants,
     required bool authenticated,
     bool askRussianContent = false,
+    int russianTranslationTriesLeft = 0,
   }) {
     final resolved = <AppFeature, bool>{};
     for (final f in AppFeature.values) {
@@ -47,6 +49,7 @@ class FeatureFlagsSnapshot {
       grants: Set.unmodifiable(grants),
       authenticated: authenticated,
       shouldAskRussianContent: askRussianContent,
+      russianTranslationTriesLeft: russianTranslationTriesLeft,
     );
   }
 
@@ -66,6 +69,19 @@ class FeatureFlagsSnapshot {
   /// while no decision is stored *and* the device language is not Russian.
   /// `RussianContentPrompt` shows the dialog while this is `true`.
   final bool shouldAskRussianContent;
+
+  /// How many free showings of the «РУ» translation are left on questions
+  /// where [AppFeature.russianContent] is locked — see
+  /// [russianTranslationTrialUses]. Zero once they are spent (and before the
+  /// repository has read the stored count: the gate errs on the closed side).
+  final int russianTranslationTriesLeft;
+
+  /// Whether the «РУ» translation of a question of [categoryId] may be shown
+  /// once more for free: the feature is locked there, yet a free try remains.
+  /// Nothing to do with the free categories — there it is not locked at all.
+  bool canTryRussianTranslation(String? categoryId) =>
+      russianTranslationTriesLeft > 0 &&
+      isLockedForCategory(AppFeature.russianContent, categoryId);
 
   /// Whether [feature] is available to the user right now.
   bool isEnabled(AppFeature feature) => enabled[feature] ?? false;
