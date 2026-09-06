@@ -1,5 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../../subscription/models/subscription_models.dart';
+
 part 'account_deletion_preview.freezed.dart';
 
 /// What deleting the account would affect — mirrors the backend's
@@ -10,6 +12,14 @@ abstract class AccountDeletionPreview with _$AccountDeletionPreview {
     @Default('') String email,
     @Default(false) bool hasActiveSubscription,
     DateTime? subscriptionUntil,
+
+    /// Стор продлевает подписку сам. Удаление аккаунта этого не остановит:
+    /// Apple даёт отменить только покупателю, Google-подписку отменяет бэкенд.
+    @Default(false) bool subscriptionAutoRenewing,
+    StorePlatform? subscriptionPlatform,
+
+    /// Страница подписок стора, где автопродление отменяют.
+    String? subscriptionManageUrl,
     @Default(0) int publicCommentCount,
     @Default(0) int supportAttachmentCount,
     @Default(0) int supportMessageCount,
@@ -28,6 +38,11 @@ abstract class AccountDeletionPreview with _$AccountDeletionPreview {
       subscriptionUntil: DateTime.tryParse(
         json['subscriptionUntil']?.toString() ?? '',
       )?.toLocal(),
+      subscriptionAutoRenewing: json['subscriptionAutoRenewing'] == true,
+      subscriptionPlatform: StorePlatform.parse(
+        json['subscriptionPlatform']?.toString(),
+      ),
+      subscriptionManageUrl: json['subscriptionManageUrl']?.toString(),
       publicCommentCount: count('publicCommentCount'),
       supportAttachmentCount: count('supportAttachmentCount'),
       supportMessageCount: count('supportMessageCount'),

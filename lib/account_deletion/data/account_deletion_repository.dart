@@ -16,6 +16,7 @@ class AccountDeletionRepository {
     query AccountDeletionPreview {
       accountDeletionPreview {
         email hasActiveSubscription subscriptionUntil
+        subscriptionAutoRenewing subscriptionPlatform subscriptionManageUrl
         publicCommentCount supportAttachmentCount supportMessageCount
         ownedGroupCount groupMembershipCount groupActivityCount
       }

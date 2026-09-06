@@ -973,7 +973,8 @@
     "legalStoreNote": "Naplatu i povraćaj sredstava obavlja App Store ili Google Play.",
     "legalAcceptNote": "Kupovinom prihvatate {terms} i {privacy}.",
     "legalTermsLink": "uslove korišćenja",
-    "legalPrivacyLink": "politiku privatnosti"
+    "legalPrivacyLink": "politiku privatnosti",
+    "purchaseAlreadyInStore": "Ova kupovina već čeka u redu prodavnice. Vraćamo je…"
   },
   "billingAdmin": {
     "title": "Uplate i pretplate",
@@ -1060,7 +1061,10 @@
     "doneBody": "Одјављени сте. Хвала што сте били са нама.",
     "close": "Затвори",
     "signInRequired": "Да бисте обрисали налог, пријавите се.",
-    "retry": "Покушај поново"
+    "retry": "Покушај поново",
+    "autoRenewWarningApple": "Претплата се аутоматски обнавља преко App Store-а и брисање налога је не зауставља: новац ће се и даље наплаћивати. Откажите аутоматско обнављање у App Store-у пре брисања налога.",
+    "autoRenewWarningGoogle": "Претплата се аутоматски обнавља преко Google Play-а. При брисању налога отказаћемо аутоматско обнављање; плаћени период важи до краја.",
+    "manageSubscription": "Отвори претплате у продавници"
   },
   "common": {
     "loadMore": "Прикажи још"
