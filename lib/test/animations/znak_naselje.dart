@@ -20,7 +20,7 @@ class ZnakNaselje extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(8),
       child: RoadSignScope(
-        signs: const ['III-23.1', 'III-24.1'],
+        signs: const ['III-24', 'III-24.1'],
         builder: (context, signs) => FittedBox(
           fit: BoxFit.contain,
           child: SizedBox(
@@ -87,12 +87,12 @@ class _NaseljePainter extends CustomPainter {
     _paintDecoyPlate(canvas);
   }
 
-  /// Знак *насеље* (III-23.1). С [crossed] — знак *завршетак насеља*
+  /// Знак *насеље* (III-24). С [crossed] — знак *завршетак насеља*
   /// (III-24.1): та же табличка, перечёркнутая красной диагональю.
   void _paintSign(Canvas canvas, Offset topLeft, {required bool crossed}) {
     final rect = Rect.fromLTWH(
         topLeft.dx, topLeft.dy, _signSize.width, _signSize.height);
-    signs.paint(canvas, crossed ? 'III-24.1' : 'III-23.1', rect);
+    signs.paint(canvas, crossed ? 'III-24.1' : 'III-24', rect);
   }
 
   void _paintCaption(Canvas canvas, double centerX, String term, String hint) {
