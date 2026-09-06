@@ -57,6 +57,11 @@ abstract class ChatState with _$ChatState {
     /// сервера: блок «не удалось загрузить» рисует облачко, а не крестик.
     @Default(false) bool loadFailedOffline,
 
+    /// Показать диалог с просьбой указать отображаемое имя: без него сообщение
+    /// не уходит, потому что подписать его нечем — собеседник видел бы «Без
+    /// имени».
+    @Default(false) bool displayNamePrompt,
+
     /// Show the "turn notifications on?" offer (owner's side, asked once).
     @Default(false) bool notificationsPrompt,
 

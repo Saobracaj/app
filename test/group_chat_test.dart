@@ -15,6 +15,7 @@ import 'package:saobracaj/chat/state_management/chat_events.dart';
 import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/groups/models/group.dart';
 import 'package:saobracaj/notifications/data/notification_permissions.dart';
+import 'package:saobracaj/profile/data/profile_repository.dart';
 import 'package:saobracaj/question_lists/data/shared_lists_repository.dart';
 import 'package:saobracaj/routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -55,6 +56,11 @@ class _FakeApi implements HttpClientAdapter {
       'Chat' => {'chat': _chat()},
       'Me' => {
         'me': const {'id': 'u1', 'email': 'u@e', 'permissions': []},
+      },
+      // Имя у автора есть — значит, диалог «укажите имя» перед отправкой не
+      // возникает и проверяется именно то, ради чего написан тест.
+      'MyProfile' => {
+        'myProfile': const {'displayName': 'Я', 'commentBan': false},
       },
       'ChatMessages' => {
         'chatMessages': const {
@@ -127,6 +133,7 @@ ChatBloc _bloc(_FakeApi api, {required String groupId}) {
     const NotificationPermissions(),
     AuthRepository(client, storage, AnalyticsService()),
     SharedListsRepository(client),
+    ProfileRepository(client),
     GroupChatTarget(groupId),
   );
 }

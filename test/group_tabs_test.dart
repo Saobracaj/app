@@ -116,6 +116,12 @@ class _FakeApi implements HttpClientAdapter {
         data = {
           'me': const {'id': 'u1', 'email': 'u@e', 'permissions': []},
         };
+      // Имя у автора есть — значит, диалог «укажите имя» перед отправкой не
+      // возникает и проверяется именно то, ради чего написан тест.
+      case 'MyProfile':
+        data = {
+          'myProfile': const {'displayName': 'Я', 'commentBan': false},
+        };
       default:
         data = {};
     }
@@ -169,6 +175,7 @@ class _FakeApi implements HttpClientAdapter {
       const NotificationPermissions(),
       auth,
       SharedListsRepository(client),
+      ProfileRepository(client),
       target,
     ),
   );

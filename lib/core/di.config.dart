@@ -287,15 +287,6 @@ extension GetItInjectableX on _i174.GetIt {
       (questionId, _) =>
           _i67.QuestionChatCountBloc(gh<_i299.ChatRepository>(), questionId),
     );
-    gh.factoryParam<_i373.ChatBloc, _i329.ChatTarget?, dynamic>(
-      (target, _) => _i373.ChatBloc(
-        gh<_i299.ChatRepository>(),
-        gh<_i426.NotificationPermissions>(),
-        gh<_i880.AuthRepository>(),
-        gh<_i742.SharedListsRepository>(),
-        target,
-      ),
-    );
     gh.factoryParam<_i658.CommentEditorBloc, int, dynamic>(
       (questionId, _) =>
           _i658.CommentEditorBloc(gh<_i359.CommentRepository>(), questionId),
@@ -398,6 +389,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i388.AuthBloc>(),
         target,
         source,
+      ),
+    );
+    gh.factoryParam<_i373.ChatBloc, _i329.ChatTarget?, dynamic>(
+      (target, _) => _i373.ChatBloc(
+        gh<_i299.ChatRepository>(),
+        gh<_i426.NotificationPermissions>(),
+        gh<_i880.AuthRepository>(),
+        gh<_i742.SharedListsRepository>(),
+        gh<_i311.ProfileRepository>(),
+        target,
       ),
     );
     gh.factoryParam<_i1064.GroupBloc, String, dynamic>(
