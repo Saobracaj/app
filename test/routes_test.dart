@@ -74,6 +74,36 @@ void main() {
     }
   });
 
+  test('каждый экран с гейтом умеет открыть поверх себя тарифы', () {
+    // Задача 1218209972696841: «назад» с витрины тарифов, открытой из гейта,
+    // должно вернуть ровно на предыдущий экран. Витрина открывается
+    // относительным путём, поэтому '…/tariffs' обязан существовать у вопроса,
+    // у конспекта внутри вопроса, у конспекта и у раздела «Подписка».
+    for (final host in _questionPaths) {
+      expect(routes.get('$host/tariffs'), isNotNull, reason: '$host/tariffs');
+      expect(
+        routes.get('$host/konspekt/tariffs'),
+        isNotNull,
+        reason: '$host/konspekt/tariffs',
+      );
+    }
+    expect(routes.get('/konspekt/tariffs'), isNotNull);
+    expect(routes.get('/subscription/tariffs'), isNotNull);
+    // Прямая ссылка на витрину живёт по-прежнему.
+    expect(routes.get('/tariffs'), isNotNull);
+  });
+
+  test('тарифы, открытые из вопроса и конспекта, лежат поверх них', () {
+    final fromQuestion = routes
+        .getAll('/quest/q/tariffs')!
+        .map((r) => r.pathTemplate);
+    expect(fromQuestion, ['/', '/quest', '/quest/q', '/quest/q/tariffs']);
+    final fromKonspekt = routes
+        .getAll('/konspekt/tariffs')!
+        .map((r) => r.pathTemplate);
+    expect(fromKonspekt, ['/', '/konspekt', '/konspekt/tariffs']);
+  });
+
   test('конспект, открытый из вопроса, лежит поверх вопроса', () {
     // Стек строится из пути, поэтому под конспектом остаётся сам вопрос —
     // «назад» возвращает к нему, а не на главную.

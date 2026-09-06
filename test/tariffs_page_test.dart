@@ -18,6 +18,7 @@ import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/subscription/data/store_purchase_service.dart';
 import 'package:saobracaj/subscription/data/subscription_repository.dart';
 import 'package:saobracaj/subscription/models/subscription_models.dart';
+import 'package:saobracaj/subscription/presentation/paywall.dart';
 import 'package:saobracaj/subscription/presentation/plan_features.dart';
 import 'package:saobracaj/subscription/presentation/subscription_page.dart';
 import 'package:saobracaj/subscription/presentation/tariffs_page.dart';
@@ -179,6 +180,7 @@ void main() {
     _StubSubscriptionRepository? repository,
     StorePurchaseService? store,
     Widget home = const TariffsPage(),
+    Map<String, PageBuilder> routes = const {},
   }) {
     getIt.registerFactory<SubscriptionBloc>(
       () => SubscriptionBloc(
@@ -210,26 +212,27 @@ void main() {
           Intl.defaultLocale = context.locale.toLanguageTag();
           // Роутер, а не `home`: после покупки витрина закрывает себя и
           // открывает экран подписки, и это должно быть видно тесту.
-          return MaterialApp.router(
-            localizationsDelegates: context.localizationDelegates,
-            supportedLocales: context.supportedLocales,
-            locale: context.locale,
-            routerDelegate: RoutemasterDelegate(
-              routesBuilder: (_) => RouteMap(
-                routes: {
-                  '/': (_) => MaterialPage(
-                    child: BlocProvider<AuthBloc>.value(
-                      value: auth,
-                      child: home,
+          // Сессия — над роутером, как в `main.dart`: её видит и страница
+          // маршрута, и экран, открытый поверх неё императивно.
+          return BlocProvider<AuthBloc>.value(
+            value: auth,
+            child: MaterialApp.router(
+              localizationsDelegates: context.localizationDelegates,
+              supportedLocales: context.supportedLocales,
+              locale: context.locale,
+              routerDelegate: RoutemasterDelegate(
+                routesBuilder: (_) => RouteMap(
+                  routes: {
+                    '/': (_) => MaterialPage(child: home),
+                    '/subscription': (_) => const MaterialPage(
+                      child: Scaffold(body: Text('экран подписки')),
                     ),
-                  ),
-                  '/subscription': (_) => const MaterialPage(
-                    child: Scaffold(body: Text('экран подписки')),
-                  ),
-                },
+                    ...routes,
+                  },
+                ),
               ),
+              routeInformationParser: const RoutemasterParser(),
             ),
-            routeInformationParser: const RoutemasterParser(),
           );
         },
       ),
@@ -892,5 +895,93 @@ void main() {
       tester.getTopLeft(find.text('К оплате сейчас')).dx,
       greaterThanOrEqualTo(300),
     );
+  });
+
+  // Задача 1218209972696841: «назад» с витрины, открытой из гейта, ведёт
+  // ровно на предыдущий экран. Гейт — карточка закрытого контента; в тесте
+  // она стоит на экране «Подписка», у которого есть свой адрес и свой
+  // '…/tariffs' в таблице маршрутов.
+  Widget gate() => const Scaffold(
+    body: LockedContentCard(
+      source: PaywallSource.explanation,
+      title: 'Объяснение',
+      body: 'Почему так',
+    ),
+  );
+
+  Finder gateCta() => find.descendant(
+    of: find.byType(LockedContentCard),
+    matching: find.byType(FilledButton),
+  );
+
+  testWidgets('тарифы открываются поверх экрана с гейтом, «назад» — на него', (
+    tester,
+  ) async {
+    wide(tester);
+    await tester.pumpWidget(
+      wrap(
+        authenticated: true,
+        home: const Scaffold(body: Text('главная')),
+        routes: {
+          '/subscription': (_) => MaterialPage(child: gate()),
+          '/subscription/tariffs': (_) =>
+              const MaterialPage(child: TariffsPage()),
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    Routemaster.of(tester.element(find.text('главная'))).push('/subscription');
+    await tester.pumpAndSettle();
+    expect(find.byType(LockedContentCard), findsOneWidget);
+
+    await tester.tap(gateCta());
+    await tester.pumpAndSettle();
+
+    // Витрина лежит поверх гейта, а не на месте всего стека.
+    expect(find.byType(TariffsPage), findsOneWidget);
+    expect(
+      RouteData.of(tester.element(find.byType(TariffsPage))).path,
+      '/subscription/tariffs',
+    );
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TariffsPage), findsNothing);
+    expect(find.byType(LockedContentCard), findsOneWidget);
+    expect(find.text('главная'), findsNothing);
+    expect(
+      RouteData.of(tester.element(find.byType(LockedContentCard))).path,
+      '/subscription',
+    );
+  });
+
+  testWidgets('с экрана без адреса тарифы открываются поверх него же', (
+    tester,
+  ) async {
+    // Экран, открытый императивно (как предпросмотр вопроса), адреса не
+    // имеет — витрина всё равно ложится поверх него, и «назад» ведёт на него.
+    wide(tester);
+    await tester.pumpWidget(
+      wrap(authenticated: true, home: const Scaffold(body: Text('главная'))),
+    );
+    await tester.pumpAndSettle();
+    final home = tester.element(find.text('главная'));
+    Navigator.of(
+      home,
+      rootNavigator: true,
+    ).push<void>(MaterialPageRoute(builder: (_) => gate()));
+    await tester.pumpAndSettle();
+
+    await tester.tap(gateCta());
+    await tester.pumpAndSettle();
+    expect(find.byType(TariffsPage), findsOneWidget);
+
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TariffsPage), findsNothing);
+    expect(find.byType(LockedContentCard), findsOneWidget);
+    expect(find.text('главная'), findsNothing);
   });
 }

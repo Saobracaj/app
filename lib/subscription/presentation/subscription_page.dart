@@ -1,7 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:routemaster/routemaster.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/di.dart';
@@ -9,6 +8,7 @@ import '../../core/responsive.dart';
 import '../../generated/locale_keys.g.dart';
 import '../models/subscription_models.dart';
 import '../state_management/subscription_bloc.dart';
+import 'paywall.dart';
 import '../state_management/subscription_events.dart';
 import '../state_management/subscription_state.dart';
 import 'extension_promise_card.dart';
@@ -122,7 +122,7 @@ class _CurrentPlanCard extends StatelessWidget {
               Align(
                 alignment: AlignmentDirectional.centerEnd,
                 child: FilledButton(
-                  onPressed: () => Routemaster.of(context).push('/tariffs'),
+                  onPressed: () => openTariffs(context),
                   child: Text(LocaleKeys.subscription_toTariffs.tr()),
                 ),
               ),
@@ -233,7 +233,7 @@ class _RenewalBanner extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             FilledButton(
-              onPressed: () => Routemaster.of(context).push('/tariffs'),
+              onPressed: () => openTariffs(context),
               child: Text(LocaleKeys.subscription_renew.tr()),
             ),
           ],

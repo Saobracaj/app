@@ -3,11 +3,12 @@ import 'dart:ui';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:routemaster/routemaster.dart';
 
 import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../core/analytics/analytics_service.dart';
+import '../../core/navigation.dart';
 import '../../generated/locale_keys.g.dart';
+import 'tariffs_page.dart';
 
 /// Откуда человек пришёл к пейволлу. Пейволл показывается только в точках
 /// боли — там, где нужен ответ «почему», — и никогда при запуске; источник
@@ -41,7 +42,20 @@ void openPaywall(
   int? questionId,
 }) {
   analytics.logPaywallOpened(source: source.key, questionId: questionId);
-  Routemaster.of(context).push('/tariffs');
+  openTariffs(context);
+}
+
+/// Открыть витрину тарифов **поверх** экрана [context].
+///
+/// Витрина лежит над тем экраном, откуда её открыли, и «назад» возвращает
+/// ровно туда — к вопросу, конспекту или разделу «Подписка». Абсолютный
+/// `push('/tariffs')` строил стек заново и сносил всё, что было под витриной:
+/// «назад» из тарифов, открытых с вопроса, уезжало на главную. Поэтому путь
+/// относительный (`…/tariffs` есть у каждого экрана с гейтом, см.
+/// `routes.dart`), а для экрана без собственного адреса — обычный
+/// императивный переход, у которого «назад» такое же.
+void openTariffs(BuildContext context) {
+  pushScreen(context, path: 'tariffs', screen: () => const TariffsPage());
 }
 
 /// Карточка закрытого контента: то, что видно без пропуска.
