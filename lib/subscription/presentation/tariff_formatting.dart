@@ -12,6 +12,31 @@ String planName() => LocaleKeys.subscription_planName.tr();
 /// «Premium, 3 месяца» — пропуск с его сроком.
 String passLabel(int months) => '${planName()}, ${monthsLabel(months)}';
 
+/// Полное название действующего тарифа для раздела «Подписка»: «Premium,
+/// 3 месяца» у разового платежа и «Premium, подписка на 1 месяц» у
+/// автопродлеваемой. Срок берётся из активной покупки в сторе; у права,
+/// выданного оператором, покупки нет — тогда просто «Premium».
+String activePlanLabel(
+  SubscriptionStatus status,
+  List<StorePurchase> purchases,
+) {
+  final active = purchases
+      .where((p) => p.status == StorePurchaseStatus.active)
+      .toList();
+  // Когда активных покупок несколько (год поверх месячной подписки), берём
+  // ту, чей тип совпадает с тем, что бэкенд назвал действующим правом.
+  final purchase =
+      active.where((p) => p.autoRenewing == status.autoRenewing).firstOrNull ??
+      active.firstOrNull;
+  if (purchase == null) return planName();
+  if (purchase.autoRenewing) {
+    return LocaleKeys.subscription_activePlanSubscription.tr(
+      namedArgs: {'plan': planName(), 'term': monthsLabel(purchase.months)},
+    );
+  }
+  return passLabel(purchase.months);
+}
+
 String monthsLabel(int months) => LocaleKeys.subscription_months.plural(months);
 
 /// Сумма с разделителем разрядов по текущей локали: «3 490», а не «3490».

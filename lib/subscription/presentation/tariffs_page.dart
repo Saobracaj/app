@@ -10,7 +10,6 @@ import '../../core/di.dart';
 import '../../core/legal_documents.dart';
 import '../../core/responsive.dart';
 import '../../core/store_links.dart';
-import '../../feature_flags/domain/app_feature.dart';
 import '../../generated/locale_keys.g.dart';
 import '../../theme/quiz_colors.dart';
 import '../models/subscription_models.dart';
@@ -444,17 +443,19 @@ class _PlanCard extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 8),
-          Text(
-            tariff.autoRenewing
-                ? LocaleKeys.subscription_autoRenewCardNote.tr()
-                : LocaleKeys.subscription_oneOffCardNote.tr(
-                    args: [monthsLabel(tariff.months)],
-                  ),
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          // Подпись только у подписки — что списания продолжатся, пока её не
+          // отменить. У разового платежа значок наверху уже сказал «без
+          // автопродления», а срок назван в строке цены; повторять это мелким
+          // текстом незачем.
+          if (tariff.autoRenewing) ...[
+            const SizedBox(height: 8),
+            Text(
+              LocaleKeys.subscription_autoRenewCardNote.tr(),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 16),
           if (platform == null)
             // Веб: кнопки покупки нет вовсе — ни к какой оплате отсюда не
@@ -797,19 +798,17 @@ class _Bullet extends StatelessWidget {
   }
 }
 
-/// Бесплатный уровень одной строкой плюс ссылка на подробное сравнение.
+/// Ссылка на подробное сравнение с бесплатным уровнем. Сами бесплатные
+/// категории здесь не перечисляем: на витрине их названия ничего не решают, а
+/// в сравнении за ссылкой они названы полностью.
 class _FreeTierLine extends StatelessWidget {
   const _FreeTierLine();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final categories = LocaleKeys.subscription_valueFreeCategories.plural(
-      freeCategoryIds.length,
-    );
     return _LinkedParagraph(
-      template:
-          '${LocaleKeys.subscription_freeShort.tr(args: [categories])} {compare}',
+      template: '{compare}',
       links: {
         'compare': (
           LocaleKeys.subscription_compareToFree.tr(),
