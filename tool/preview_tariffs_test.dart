@@ -100,10 +100,7 @@ class _Store extends StorePurchaseService {
       const Stream<StorePurchaseEvent>.empty();
 
   @override
-  Future<void> buy({
-    required String productId,
-    required bool autoRenewing,
-  }) async {}
+  Future<void> buy({required String productId}) async {}
 
   @override
   Future<void> restore() async {}
