@@ -141,24 +141,31 @@ class _ZakonState extends State<Zakon> {
             // не сам список: полоса прокрутки должна идти по правому краю
             // окна, а колесо мыши — работать в любой его точке, а не только
             // над колонкой текста.
-            final article = ScrollablePositionedList.builder(
-              padding: readableInsets(
-                context,
-                horizontal: 0,
-                availableWidth: withToc
-                    ? MediaQuery.sizeOf(context).width - _kTocWidth - 1
-                    : null,
-              ),
-              itemCount: state.rows.length,
-              itemScrollController: _itemScrollController,
-              itemPositionsListener: _itemPositionsListener,
-              itemBuilder: (context, index) {
-                final row = state.rows[index];
-                return _Paragraph(
-                  paragraph: row.row,
-                  signCodes: row.signCodes,
-                  isSerbian: state.isSr,
-                  linkPath: widget.document.linkPath,
+            //
+            // Поля считаются от реальной ширины области списка, а не от окна:
+            // в выдвижной панели (`asPanel`) список уже окна в разы, и поля
+            // «по окну» оставляли тексту ширину в один символ; рядом с
+            // оглавлением область тоже меньше окна на его колонку.
+            final article = LayoutBuilder(
+              builder: (context, constraints) {
+                return ScrollablePositionedList.builder(
+                  padding: readableInsets(
+                    context,
+                    horizontal: 0,
+                    availableWidth: constraints.maxWidth,
+                  ),
+                  itemCount: state.rows.length,
+                  itemScrollController: _itemScrollController,
+                  itemPositionsListener: _itemPositionsListener,
+                  itemBuilder: (context, index) {
+                    final row = state.rows[index];
+                    return _Paragraph(
+                      paragraph: row.row,
+                      signCodes: row.signCodes,
+                      isSerbian: state.isSr,
+                      linkPath: widget.document.linkPath,
+                    );
+                  },
                 );
               },
             );
