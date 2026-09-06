@@ -52,6 +52,16 @@ abstract class SubscriptionState with _$SubscriptionState {
 
   /// Витрина показывает один ряд сроков: тариф один, пропуска различаются
   /// только длиной — по возрастанию срока.
+  /// Тариф, который сейчас действует, — по активной покупке в сторе. На
+  /// витрине его срок подписан «текущий тариф», а купить второй раз нельзя.
+  /// У права, выданного оператором, тарифа нет.
+  Tariff? get currentTariff {
+    if (!subscription.active) return null;
+    final sku = activePurchaseOf(subscription, purchases)?.sku;
+    if (sku == null) return null;
+    return tariffs.where((t) => t.sku == sku).firstOrNull;
+  }
+
   List<Tariff> get offeredTariffs =>
       [...tariffs]..sort((a, b) => a.months.compareTo(b.months));
 

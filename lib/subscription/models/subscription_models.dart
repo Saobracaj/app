@@ -176,6 +176,21 @@ class StorePurchase {
   final String? userId;
 }
 
+/// Активная покупка в сторе, которой человек обязан действующим правом.
+/// Когда активных покупок несколько (год поверх месячной подписки), берём
+/// ту, чей тип совпадает с тем, что бэкенд назвал действующим правом. У
+/// права, выданного оператором, покупки нет — тогда `null`.
+StorePurchase? activePurchaseOf(
+  SubscriptionStatus status,
+  List<StorePurchase> purchases,
+) {
+  final active = purchases.where((p) => p.status == StorePurchaseStatus.active);
+  return active
+          .where((p) => p.autoRenewing == status.autoRenewing)
+          .firstOrNull ??
+      active.firstOrNull;
+}
+
 /// Текущее состояние подписки пользователя.
 class SubscriptionStatus {
   const SubscriptionStatus({

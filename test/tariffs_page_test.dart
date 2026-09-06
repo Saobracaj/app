@@ -144,10 +144,7 @@ class _FakeStore extends StorePurchaseService {
   Stream<StorePurchaseEvent> get purchases => _events.stream;
 
   @override
-  Future<void> buy({
-    required String productId,
-    required bool autoRenewing,
-  }) async {
+  Future<void> buy({required String productId}) async {
     bought.add(productId);
   }
 
@@ -726,32 +723,77 @@ void main() {
     expect(store.restoreCalls, 1);
   });
 
-  // Отменить автопродление из приложения нельзя, и человек, который купит
-  // год поверх месячной подписки, заплатит дважды, если его не предупредить.
-  testWidgets(
-    'при активной автоподписке витрина предупреждает о двойной оплате',
-    (tester) async {
-      wide(tester);
-      final repo = _StubSubscriptionRepository(
-        status: SubscriptionStatus(
-          active: true,
-          endsAt: DateTime.now().add(const Duration(days: 20)),
-          daysLeft: 20,
-          autoRenewing: true,
-          manageUrl: 'https://play.google.com/store/account/subscriptions',
-        ),
-      );
+  // Витрина открыта при действующей подписке (из настроек, по ссылке). Второй
+  // пропуск не продаём: его срок лишь встал бы в очередь, а месячные списания
+  // продолжились бы. Вместо прежнего предупреждения — подпись «текущий тариф»
+  // на действующем сроке, запертые кнопки покупки и кнопка в стор.
+  testWidgets('при действующей автоподписке витрина показывает текущий тариф', (
+    tester,
+  ) async {
+    wide(tester);
+    final repo = _StubSubscriptionRepository(
+      status: SubscriptionStatus(
+        active: true,
+        endsAt: DateTime.now().add(const Duration(days: 20)),
+        daysLeft: 20,
+        autoRenewing: true,
+        manageUrl: 'https://play.google.com/store/account/subscriptions',
+      ),
+      purchases: [_purchase('premium_1m', 1, autoRenewing: true)],
+    );
 
-      await tester.pumpWidget(wrap(authenticated: true, repository: repo));
-      await tester.pumpAndSettle();
+    await tester.pumpWidget(wrap(authenticated: true, repository: repo));
+    await tester.pumpAndSettle();
 
-      expect(
-        find.textContaining('Покупка на 3 или 12 месяцев её не отменит'),
-        findsOneWidget,
-      );
-      expect(find.text('Управлять подпиской'), findsOneWidget);
-    },
-  );
+    // Прежнего предупреждения нет; открыт срок действующего тарифа.
+    expect(find.textContaining('её не отменит'), findsNothing);
+    expect(find.text('Текущий тариф'), findsOneWidget);
+    expect(find.text('Управлять подпиской'), findsOneWidget);
+    expect(find.textContaining('Следующее списание'), findsOneWidget);
+    expect(find.text('Оформить подписку'), findsNothing);
+
+    // Другие сроки — с запертой кнопкой покупки. Переезд с первой страницы
+    // сразу на третью идёт через ещё не измеренную страницу — листалка
+    // должна довезти карточку, а не остаться на первой.
+    await tester.tap(find.text('12 месяцев'));
+    await tester.pumpAndSettle();
+    final buy = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Оплатить premium_12m price'),
+    );
+    expect(buy.onPressed, isNull);
+    expect(find.text('Управлять подпиской'), findsNothing);
+  });
+
+  // Разовый пропуск стор не продлевает — кнопки в стор нет, но срок подписан,
+  // а покупать поверх него тоже нельзя.
+  testWidgets('при действующем разовом пропуске кнопки покупки заперты', (
+    tester,
+  ) async {
+    wide(tester);
+    final repo = _StubSubscriptionRepository(
+      status: SubscriptionStatus(
+        active: true,
+        endsAt: DateTime.now().add(const Duration(days: 300)),
+        daysLeft: 300,
+      ),
+      purchases: [_purchase('premium_12m', 12, autoRenewing: false)],
+    );
+
+    await tester.pumpWidget(wrap(authenticated: true, repository: repo));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Текущий тариф'), findsOneWidget);
+    expect(find.textContaining('действует до'), findsOneWidget);
+    expect(find.text('Управлять подпиской'), findsNothing);
+    expect(find.text('Оплатить premium_12m price'), findsNothing);
+
+    await tester.tap(find.text('1 месяц'));
+    await tester.pumpAndSettle();
+    final buy = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Оформить подписку'),
+    );
+    expect(buy.onPressed, isNull);
+  });
 
   // Тариф один: русские материалы входят в любой пропуск, тумблера и второго
   // ряда цен нет. Значок «Популярный» стоит на рекомендованном сроке, процент

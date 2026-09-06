@@ -1,11 +1,11 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/di.dart';
 import '../../core/responsive.dart';
 import '../../generated/locale_keys.g.dart';
+import '../data/store_purchase_service.dart';
 import '../models/subscription_models.dart';
 import '../state_management/subscription_bloc.dart';
 import 'paywall.dart';
@@ -188,10 +188,8 @@ class _CurrentPlanCard extends StatelessWidget {
                 Align(
                   alignment: AlignmentDirectional.centerEnd,
                   child: TextButton.icon(
-                    onPressed: () => launchUrl(
-                      Uri.parse(manageUrl),
-                      mode: LaunchMode.externalApplication,
-                    ),
+                    onPressed: () => getIt<StorePurchaseService>()
+                        .openSubscriptionManagement(manageUrl: manageUrl),
                     icon: const Icon(Icons.open_in_new, size: 16),
                     label: Text(LocaleKeys.subscription_manageInStore.tr()),
                   ),

@@ -101,10 +101,7 @@ class _FakeStore extends StorePurchaseService {
   Stream<StorePurchaseEvent> get purchases => _events.stream;
 
   @override
-  Future<void> buy({
-    required String productId,
-    required bool autoRenewing,
-  }) async {
+  Future<void> buy({required String productId}) async {
     bought.add(productId);
     if (buyError != null) throw buyError!;
   }
