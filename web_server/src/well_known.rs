@@ -62,16 +62,26 @@ mod tests {
     }
 
     #[test]
-    fn apple_file_names_the_team_prefixed_app_id_and_covers_invites() {
+    fn apple_file_names_the_team_prefixed_app_id_and_claims_every_screen() {
         let parsed: serde_json::Value = serde_json::from_str(APPLE_APP_SITE_ASSOCIATION).unwrap();
         let details = &parsed["applinks"]["details"][0];
         assert_eq!(details["appIDs"][0], "BHH5379JU2.at.gleb.saobracaj.saobracaj");
-        let paths: Vec<&str> = details["components"]
-            .as_array()
-            .unwrap()
+        let components = details["components"].as_array().unwrap();
+        // Apple takes the first matching component, so the exclusions (the
+        // bundle, the verification files) must come before the catch-all, and
+        // the catch-all must be last: whatever screen the web version grows,
+        // its address opens the app.
+        let last = components.last().unwrap();
+        assert_eq!(last["/"], "*", "the catch-all must be the last component");
+        assert!(last.get("exclude").is_none());
+        let excluded: Vec<&str> = components[..components.len() - 1]
             .iter()
-            .map(|c| c["/"].as_str().unwrap())
+            .map(|c| {
+                assert_eq!(c["exclude"], true, "only exclusions precede the catch-all: {c}");
+                c["/"].as_str().unwrap()
+            })
             .collect();
-        assert!(paths.contains(&"/invite/*"), "invite links are the point: {paths:?}");
+        assert!(excluded.contains(&"/.well-known/*"), "{excluded:?}");
+        assert!(excluded.contains(&"/assets/*"), "{excluded:?}");
     }
 }

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/deep_links/deep_link_path.dart';
 import '../core/navigation.dart';
+import '../routes.dart';
 
 /// Открывает [uri] внутри приложения, если это адрес нашего же продукта.
 ///
@@ -15,10 +16,14 @@ import '../core/navigation.dart';
 ///
 /// Возвращает `false`, если по адресу нашего экрана нет (чужой домен или путь,
 /// которого нет в таблице маршрутов) — такую ссылку должен открыть браузер.
+/// Внешний диплинк с незнакомым путём, наоборот, остаётся в приложении и
+/// показывает «страница не найдена»: система уже открыла приложение, и
+/// отправить адрес обратно в браузер значило бы зациклить его на себе.
 bool openAppUri(BuildContext context, Uri uri) {
   final path = deepLinkPathFor(uri);
   if (path == null) return false;
   final target = Uri.parse(path);
+  if (routes.get(target.path) == null) return false;
   // «Экран поверх экрана» у routemaster существует только как зарегистрированный
   // путь. Если такой есть (закон или конспект, открытые из текста вопроса), то
   // открываем именно его — тогда «назад» возвращает туда, где нажали ссылку.

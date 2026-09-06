@@ -48,7 +48,11 @@ RouteSettings? _build(String path) {
   final result = routes.get(path);
   if (result == null) return null;
   return result.builder(
-    RouteData(path, pathTemplate: result.pathTemplate, pathParameters: result.pathParameters),
+    RouteData(
+      path,
+      pathTemplate: result.pathTemplate,
+      pathParameters: result.pathParameters,
+    ),
   );
 }
 
@@ -110,20 +114,23 @@ void main() {
     expect(_build('/question/8084'), isA<MaterialPage>());
   });
 
-  test('группа: адрес без /feed редиректит в ленту, «назад» из неё — домой', () {
-    // Redirect-родитель выпадает из стека, поэтому под лентой не остаётся
-    // промежуточного экрана группы (раньше «назад» уводил на экран с QR).
-    expect(_build('/groups/g1'), isA<Redirect>());
-    final stack = routes
-        .getAll('/groups/g1/feed/members')!
-        .map((r) => r.pathTemplate);
-    expect(stack, [
-      '/',
-      '/groups/:id',
-      '/groups/:id/feed',
-      '/groups/:id/feed/members',
-    ]);
-  });
+  test(
+    'группа: адрес без /feed редиректит в ленту, «назад» из неё — домой',
+    () {
+      // Redirect-родитель выпадает из стека, поэтому под лентой не остаётся
+      // промежуточного экрана группы (раньше «назад» уводил на экран с QR).
+      expect(_build('/groups/g1'), isA<Redirect>());
+      final stack = routes
+          .getAll('/groups/g1/feed/members')!
+          .map((r) => r.pathTemplate);
+      expect(stack, [
+        '/',
+        '/groups/:id',
+        '/groups/:id/feed',
+        '/groups/:id/feed/members',
+      ]);
+    },
+  );
 
   test('экран группы — две вкладки: чат и события', () {
     // Вкладки — настоящие адреса (TabPage), поэтому ссылка на разговор
@@ -155,6 +162,25 @@ void main() {
       final path = deepLinkPathFor(Uri.parse(link));
       expect(path, isNotNull, reason: 'ссылка не распознана: $link');
       expect(routes.get(path!), isNotNull, reason: 'нет маршрута для $path');
+    }
+  });
+
+  test('каждый верхнеуровневый маршрут открывается диплинком', () {
+    // Задача 1218209898661514: любая ссылка на saobracaj.gleb.at должна
+    // открываться в приложении. Платформы перехватывают весь домен, а здесь
+    // проверяется, что маппинг ссылок не отбрасывает ни один из корней
+    // routes.dart — иначе новый экран тихо остался бы только в браузере.
+    final roots = routeBuilders.keys
+        .map((p) => p.split('/').where((s) => s.isNotEmpty).firstOrNull)
+        .whereType<String>()
+        .toSet();
+    expect(roots, isNotEmpty);
+    for (final root in roots) {
+      expect(
+        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/$root')),
+        '/$root',
+        reason: 'корень $root не открывается ссылкой',
+      );
     }
   });
 
