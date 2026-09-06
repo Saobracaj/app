@@ -1,13 +1,20 @@
 /// Turning an incoming link into a route this app knows.
 ///
 /// Two shapes arrive at the app from outside:
-///   * `https://saobracaj.gleb.at/invite/ABC-DEF-GHI` — the invite link (and
-///     `/shared/ABCDEFGH`, a shared question list), an Android App Link / iOS
-///     Universal Link, verified against the files the web server publishes
-///     under `/.well-known/`;
-///   * `saobracaj://saobracaj.gleb.at/invite/ABC-DEF-GHI` — the same address
-///     under the app's own scheme, which works even where verification does
-///     not (a sideloaded build, an in-app browser that swallows App Links).
+///   * `https://saobracaj.gleb.at/…` — any address of the web version, an
+///     Android App Link / iOS Universal Link verified against the files the
+///     web server publishes under `/.well-known/`;
+///   * `saobracaj://saobracaj.gleb.at/…` — the same address under the app's
+///     own scheme, which works even where verification does not (a sideloaded
+///     build, an in-app browser that swallows App Links).
+///
+/// The web version and the app share `routes.dart`, so every address of the
+/// site is an address of the app: the path is handed to the router as is. A
+/// path the app has no screen for lands on «страница не найдена» with a way
+/// home — exactly what the browser shows for it — instead of being dropped on
+/// the floor, which used to leave the user staring at whatever screen the app
+/// happened to be on. Only the site's *files* (the Flutter bundle, the
+/// platform verification files) are not screens and are left alone.
 ///
 /// The mapping is a pure function so it can be tested without a device, and so
 /// the routing rules live in one place instead of inside a platform callback.
@@ -18,45 +25,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 const _webHost = 'saobracaj.gleb.at';
 const _customScheme = 'saobracaj';
 
-/// Top-level routes a link may open.
-///
-/// A link is not allowed to address just any screen: `routes.dart` has entries
-/// that only make sense as children of another page, and an unknown path would
-/// land the user on an empty "page not found". Anything outside this list is
-/// ignored, and the app opens where it was.
-const _linkableRoots = {
-  'invite',
-  // A shared question list: https://saobracaj.gleb.at/shared/ABCDEFGH
-  'shared',
-  'question',
-  'groups',
-  'konspekt',
-  'zakon',
-  // «Правилник о саобраћајној сигнализацији» — ссылки того же вида, что и на
-  // закон: /pravilnik?chapter=…&chlan=…&paragraph=….
-  'pravilnik',
-  'lists',
-  'questions',
-  'statistics',
-  'practice',
-  'about',
-  'home',
-  // The support chat: `saobracaj://support` for one's own conversation and
-  // `saobracaj://support/threads/<id>` for the moderator's view of one — both
-  // are what the backend puts in a support notification.
-  'support',
-  // Любой чат и тред по ссылке из пуша: `saobracaj://chat/<id>`.
-  'chat',
-  'thread',
-  // Top-level screens a notification may point at: the settings hub (the
-  // test-push screen suggests `/settings`), the subscription and its tariffs,
-  // and the moderator's screens.
-  'settings',
-  'notifications',
-  'subscription',
-  'tariffs',
-  'billing',
-};
+/// Directories of the site that hold files, not screens (mirrors the list
+/// `web_server/src/server.rs` serves from disk).
+const _fileRoots = {'.well-known', 'assets', 'canvaskit', 'icons', 'packages'};
 
 /// The in-app path for [uri], or `null` when the link is not ours to handle.
 ///
@@ -68,11 +39,18 @@ String? deepLinkPathFor(Uri uri, {bool isWeb = kIsWeb}) {
   final segments = _routeSegments(uri)?.where((s) => s.isNotEmpty).toList();
   if (segments == null) return null;
   if (segments.isEmpty) return '/';
-  if (!_linkableRoots.contains(segments.first)) return null;
+  if (_isFile(segments)) return null;
 
   final path = '/${segments.map(Uri.encodeComponent).join('/')}';
   return uri.hasQuery ? '$path?${uri.query}' : path;
 }
+
+/// Whether [segments] address a file of the site rather than a screen:
+/// something under a bundle directory, or a name with an extension at the top
+/// level (`/robots.txt`, `/flutter_bootstrap.js`, `/sitemap.xml`).
+bool _isFile(List<String> segments) =>
+    _fileRoots.contains(segments.first) ||
+    (segments.length == 1 && segments.first.contains('.'));
 
 /// The path segments to route by, or `null` if the link belongs elsewhere.
 List<String>? _routeSegments(Uri uri) {
