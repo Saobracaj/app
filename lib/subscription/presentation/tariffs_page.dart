@@ -123,16 +123,24 @@ class _TariffsScaffoldState extends State<_TariffsScaffold> {
           final platform = context.read<SubscriptionBloc>().storePlatform;
           final wide = context.isMediumScreen;
 
+          final offered = state.offeredTariffs;
+          final index = offered.indexWhere((t) => t.sku == selected.sku);
+
           final segments = _TermSegments(
             state: state,
             platform: platform,
             selected: selected,
             onChanged: (tariff) => setState(() => _selectedSku = tariff.sku),
           );
-          final card = _PlanCard(
-            tariff: selected,
-            state: state,
-            platform: platform,
+          // Карточка — страница листалки: срок переключают и смахиванием, а не
+          // только кнопкой, и оба пути анимируются одним и тем же движением.
+          final card = _TariffPager(
+            tariffs: offered,
+            index: index < 0 ? 0 : index,
+            onIndexChanged: (i) =>
+                setState(() => _selectedSku = offered[i].sku),
+            cardBuilder: (tariff) =>
+                _PlanCard(tariff: tariff, state: state, platform: platform),
           );
           const features = _FeaturesCard();
           // Условия автопродления — там, где продлевается: на разовом пропуске
@@ -205,9 +213,24 @@ class _TariffsScaffoldState extends State<_TariffsScaffold> {
   }
 }
 
+/// Овал переключателя. Названный ключ нужен тесту, который проверяет, что срок
+/// именно переезжает, а не перескакивает на новое место.
+@visibleForTesting
+const termThumbKey = ValueKey('tariffs-term-thumb');
+
+/// Длительность переезда овала и смены страницы. Одно число на оба движения:
+/// овал и карточка едут вместе, потому что это один и тот же выбор.
+const _termSwitchDuration = Duration(milliseconds: 260);
+const _termSwitchCurve = Curves.easeOutCubic;
+
 /// Переключатель срока. Значок «Популярный» / «−N%» висит над кнопкой, а не
 /// внутри неё: внутри он съедал бы место у самой подписи срока, которая на
 /// сербском и так длинная.
+///
+/// Овал под выбранным сроком — один виджет на весь переключатель, а не фон
+/// каждой кнопки: только так он умеет переезжать, а не мигать на новом месте.
+/// Кнопки лежат слоем выше и прозрачны — иначе всплеск нажатия ушёл бы под
+/// овал.
 class _TermSegments extends StatelessWidget {
   const _TermSegments({
     required this.state,
@@ -221,11 +244,15 @@ class _TermSegments extends StatelessWidget {
   final Tariff selected;
   final ValueChanged<Tariff> onChanged;
 
+  static const _height = 40.0;
+  static const _gap = 4.0;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tariffs = state.offeredTariffs;
     final recommended = state.recommendedTariff;
+    final index = tariffs.indexWhere((t) => t.sku == selected.sku);
     return Padding(
       // Место значку, который выступает над переключателем.
       padding: const EdgeInsets.only(top: 10),
@@ -235,20 +262,31 @@ class _TermSegments extends StatelessWidget {
           color: theme.colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(22),
         ),
-        child: Row(
-          children: [
-            for (var i = 0; i < tariffs.length; i++) ...[
-              if (i > 0) const SizedBox(width: 4),
-              Expanded(
-                child: _TermSegment(
-                  tariff: tariffs[i],
-                  selected: tariffs[i].sku == selected.sku,
-                  badge: _badgeFor(tariffs[i], recommended),
-                  onTap: () => onChanged(tariffs[i]),
+        child: SizedBox(
+          height: _height,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              if (tariffs.isNotEmpty)
+                _SegmentThumb(
+                  count: tariffs.length,
+                  index: index < 0 ? 0 : index,
                 ),
+              Row(
+                children: [
+                  for (var i = 0; i < tariffs.length; i++)
+                    Expanded(
+                      child: _TermSegment(
+                        tariff: tariffs[i],
+                        selected: tariffs[i].sku == selected.sku,
+                        badge: _badgeFor(tariffs[i], recommended),
+                        onTap: () => onChanged(tariffs[i]),
+                      ),
+                    ),
+                ],
               ),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -263,6 +301,48 @@ class _TermSegments extends StatelessWidget {
     final percent = state.savingPercent(tariff, platform);
     if (percent == null || percent <= 0) return null;
     return LocaleKeys.subscription_saveBadge.tr(args: ['$percent']);
+  }
+}
+
+/// Овал под выбранным сроком. Ширину берёт долей от переключателя, а место —
+/// выравниванием: кнопки равной ширины, и мерить их через `LayoutBuilder`,
+/// чтобы потом двигать `Positioned`, незачем.
+class _SegmentThumb extends StatelessWidget {
+  const _SegmentThumb({required this.count, required this.index});
+
+  final int count;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // Крайние кнопки прижаты к краям, промежуточные — равными долями между
+    // ними: то же, что даёт `Expanded` в ряду.
+    final x = count <= 1 ? 0.0 : -1 + 2 * index / (count - 1);
+    return AnimatedAlign(
+      duration: _termSwitchDuration,
+      curve: _termSwitchCurve,
+      alignment: AlignmentDirectional(x, 0),
+      child: FractionallySizedBox(
+        widthFactor: 1 / count,
+        heightFactor: 1,
+        child: Padding(
+          // Половина зазора с каждой стороны — между овалами остаётся тот же
+          // просвет, что был между кнопками.
+          padding: const EdgeInsets.symmetric(
+            horizontal: _TermSegments._gap / 2,
+          ),
+          child: Material(
+            key: termThumbKey,
+            color: theme.colorScheme.surface,
+            elevation: 1,
+            shadowColor: Colors.black,
+            borderRadius: BorderRadius.circular(18),
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -283,6 +363,12 @@ class _TermSegment extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final label = monthsLabel(tariff.months);
+    final style = (theme.textTheme.bodyMedium ?? const TextStyle()).copyWith(
+      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+      color: selected
+          ? theme.colorScheme.onSurface
+          : theme.colorScheme.onSurfaceVariant,
+    );
     return Semantics(
       button: true,
       selected: selected,
@@ -293,31 +379,27 @@ class _TermSegment extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          Material(
-            color: selected ? theme.colorScheme.surface : Colors.transparent,
-            elevation: selected ? 1 : 0,
-            shadowColor: Colors.black,
-            borderRadius: BorderRadius.circular(18),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(18),
-              child: SizedBox(
-                height: 40,
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: _TermSegments._gap / 2,
+            ),
+            // Прозрачный `Material` на каждой кнопке: всплеск нажатия рисуется
+            // в его слое — над овалом, а не под ним.
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(18),
                 child: Center(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        label,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: selected
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: selected
-                              ? theme.colorScheme.onSurface
-                              : theme.colorScheme.onSurfaceVariant,
-                        ),
+                    child: AnimatedDefaultTextStyle(
+                      duration: _termSwitchDuration,
+                      curve: _termSwitchCurve,
+                      style: style,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(label),
                       ),
                     ),
                   ),
@@ -362,6 +444,169 @@ class _SegmentBadge extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Листалка карточек: страница на срок. Переключатель и смахивание — один и
+/// тот же выбор, поэтому они делят и контроллер, и длительность движения.
+///
+/// Высота у страниц разная (у месячного пропуска нет строки экономии), а
+/// `PageView` требует заданную высоту. Поэтому каждая страница меряет себя, а
+/// листалка едет по измеренным высотам вместе со страницей: карточка не
+/// прыгает в конце переезда, а тянется вместе с ним. Пока не измерена ни одна
+/// страница — на экране просто карточка, без листалки: первый кадр должен быть
+/// правильным, а не нулевой высоты.
+class _TariffPager extends StatefulWidget {
+  const _TariffPager({
+    required this.tariffs,
+    required this.index,
+    required this.onIndexChanged,
+    required this.cardBuilder,
+  });
+
+  final List<Tariff> tariffs;
+  final int index;
+  final ValueChanged<int> onIndexChanged;
+  final Widget Function(Tariff tariff) cardBuilder;
+
+  @override
+  State<_TariffPager> createState() => _TariffPagerState();
+}
+
+class _TariffPagerState extends State<_TariffPager> {
+  late PageController _controller = PageController(initialPage: widget.index);
+
+  /// Высоты страниц по SKU, а не по номеру: каталог приезжает асинхронно и
+  /// может прийти в другом порядке.
+  final _heights = <String, double>{};
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TariffPager oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.index == oldWidget.index) return;
+    if (!_controller.hasClients) {
+      // Листалки на экране ещё нет — начальную страницу задать уже нечем,
+      // кроме нового контроллера.
+      _controller.dispose();
+      _controller = PageController(initialPage: widget.index);
+      return;
+    }
+    if ((_controller.page ?? widget.index.toDouble()).round() == widget.index) {
+      // Страницу сменило само смахивание — везти её ещё раз незачем.
+      return;
+    }
+    _controller.animateToPage(
+      widget.index,
+      duration: _termSwitchDuration,
+      curve: _termSwitchCurve,
+    );
+  }
+
+  void _report(String sku, double height) {
+    final known = _heights[sku];
+    if (known != null && (known - height).abs() < 0.5) return;
+    setState(() => _heights[sku] = height);
+  }
+
+  /// Высота листалки на текущем положении: между соседними страницами —
+  /// промежуточная, чтобы высота ехала вместе с ними.
+  double? _height() {
+    final position = _controller.hasClients ? _controller.page : null;
+    final page = position ?? widget.index.toDouble();
+    final last = widget.tariffs.length - 1;
+    final low = page.floor().clamp(0, last);
+    final high = page.ceil().clamp(0, last);
+    final from = _heights[widget.tariffs[low].sku];
+    final to = _heights[widget.tariffs[high].sku];
+    // Соседнюю страницу `PageView` строит только когда до неё доехали, так что
+    // одной из высот в этот момент может ещё не быть.
+    if (from == null || to == null) return from ?? to;
+    return from + (to - from) * (page - low);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final height = _height();
+        if (height == null) {
+          final tariff =
+              widget.tariffs[widget.index.clamp(0, widget.tariffs.length - 1)];
+          return _MeasuredCard(
+            onHeight: (value) => _report(tariff.sku, value),
+            child: widget.cardBuilder(tariff),
+          );
+        }
+        return SizedBox(
+          height: height,
+          // Мышью тоже листается: в вебе витрину смотрят с ноутбука, а
+          // `PageView` по умолчанию слушает только палец.
+          child: ScrollConfiguration(
+            behavior: ScrollConfiguration.of(context).copyWith(
+              dragDevices: const {
+                PointerDeviceKind.touch,
+                PointerDeviceKind.mouse,
+                PointerDeviceKind.trackpad,
+                PointerDeviceKind.stylus,
+              },
+            ),
+            child: PageView.builder(
+              controller: _controller,
+              itemCount: widget.tariffs.length,
+              onPageChanged: widget.onIndexChanged,
+              itemBuilder: (context, i) {
+                final tariff = widget.tariffs[i];
+                // Страница получает тугую высоту листалки, а карточке нужна своя:
+                // `OverflowBox` снимает ограничение, `ClipRect` не даёт карточке
+                // залезть на то, что стоит ниже, пока высоты не сравнялись.
+                return ClipRect(
+                  child: OverflowBox(
+                    alignment: Alignment.topCenter,
+                    minHeight: 0,
+                    maxHeight: double.infinity,
+                    child: _MeasuredCard(
+                      onHeight: (value) => _report(tariff.sku, value),
+                      child: widget.cardBuilder(tariff),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Сообщает свою высоту после каждого кадра — иначе `PageView` неоткуда узнать,
+/// какой высоты его страницы.
+class _MeasuredCard extends StatefulWidget {
+  const _MeasuredCard({required this.onHeight, required this.child});
+
+  final ValueChanged<double> onHeight;
+  final Widget child;
+
+  @override
+  State<_MeasuredCard> createState() => _MeasuredCardState();
+}
+
+class _MeasuredCardState extends State<_MeasuredCard> {
+  @override
+  Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final size = context.size;
+      if (size != null) widget.onHeight(size.height);
+    });
+    return widget.child;
   }
 }
 

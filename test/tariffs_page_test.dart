@@ -283,6 +283,70 @@ void main() {
     expect(find.text('premium_3m price'), findsNothing);
   });
 
+  // Овал переключателя должен переезжать, а не перескакивать: на середине
+  // движения он уже не там, где был, но ещё не там, где будет.
+  testWidgets('овал переключателя переезжает, а не перескакивает', (
+    tester,
+  ) async {
+    wide(tester);
+
+    await tester.pumpWidget(wrap(authenticated: true));
+    await tester.pumpAndSettle();
+
+    final thumb = find.byKey(termThumbKey);
+    final before = tester.getCenter(thumb).dx;
+
+    await tester.tap(find.text('12 месяцев'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    final middle = tester.getCenter(thumb).dx;
+
+    await tester.pumpAndSettle();
+    final after = tester.getCenter(thumb).dx;
+
+    expect(middle, greaterThan(before));
+    expect(middle, lessThan(after));
+    // Доехал ровно под выбранный срок.
+    expect(after, closeTo(tester.getCenter(find.text('12 месяцев')).dx, 1));
+  });
+
+  // Карточка едет вместе с овалом: на середине движения на экране обе — та,
+  // что уходит, и та, что приходит.
+  testWidgets('карточка переезжает вместе с переключателем', (tester) async {
+    wide(tester);
+
+    await tester.pumpWidget(wrap(authenticated: true));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('12 месяцев'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.text('premium_3m price'), findsOneWidget);
+    expect(find.text('premium_12m price'), findsOneWidget);
+
+    await tester.pumpAndSettle();
+    expect(find.text('premium_3m price'), findsNothing);
+  });
+
+  // Тот же выбор с другой стороны: карточку листают пальцем, а переключатель
+  // едет следом.
+  testWidgets('смахивание карточки переключает срок', (tester) async {
+    wide(tester);
+
+    await tester.pumpWidget(wrap(authenticated: true));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(PageView), const Offset(-400, 0));
+    await tester.pumpAndSettle();
+
+    expect(find.text('premium_12m price'), findsOneWidget);
+    expect(
+      tester.getCenter(find.byKey(termThumbKey)).dx,
+      closeTo(tester.getCenter(find.text('12 месяцев')).dx, 1),
+    );
+  });
+
   testWidgets('без стора витрина не продаёт, а отправляет в приложение', (
     tester,
   ) async {
