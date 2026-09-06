@@ -951,7 +951,8 @@
     "legalStoreNote": "The payment and any refund are handled by the App Store or Google Play.",
     "legalAcceptNote": "By buying you accept the {terms} and the {privacy}.",
     "legalTermsLink": "terms of use",
-    "legalPrivacyLink": "privacy policy"
+    "legalPrivacyLink": "privacy policy",
+    "purchaseAlreadyInStore": "This purchase is already waiting in the store's queue. Restoring it…"
   },
   "billingAdmin": {
     "title": "Payments and subscriptions",
@@ -1038,7 +1039,10 @@
     "doneBody": "You have been signed out. Thank you for being with us.",
     "close": "Close",
     "signInRequired": "Sign in to delete the account.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "autoRenewWarningApple": "The subscription renews automatically through the App Store, and deleting the account does not stop it: you will keep being charged. Cancel auto-renewal in the App Store before deleting the account.",
+    "autoRenewWarningGoogle": "The subscription renews automatically through Google Play. When the account is deleted we cancel auto-renewal; the paid period stays valid until it ends.",
+    "manageSubscription": "Open subscriptions in the store"
   },
   "common": {
     "loadMore": "Show more"

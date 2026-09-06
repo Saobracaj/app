@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
 
@@ -13,6 +14,18 @@ import '../data/subscription_repository.dart';
 import '../models/subscription_models.dart';
 import 'subscription_events.dart';
 import 'subscription_state.dart';
+
+/// `extensions.code`, с которым бэкенд отказывает в чеке окончательно: чек
+/// привязан к другому живому аккаунту, возвращён или называет неизвестный
+/// товар. Повторная попытка ничего не изменит — транзакцию стору надо
+/// завершить, иначе StoreKit будет перевыдавать её при каждом запуске.
+const purchaseRejectedCode = 'purchase_rejected';
+
+/// Код ошибки плагина на iOS: у StoreKit уже лежит незавершённая транзакция
+/// этого товара, и новую покупку он не начнёт. Лечится восстановлением
+/// покупок — очередь перевыдаст транзакцию, и она либо пройдёт, либо будет
+/// завершена по окончательному отказу.
+const storeKitDuplicateProductCode = 'storekit_duplicate_product_object';
 
 /// Bloc витрины тарифов и раздела «Подписка».
 ///
@@ -149,6 +162,23 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     try {
       await _store.buy(productId: productId, autoRenewing: tariff.autoRenewing);
     } catch (e) {
+      if (e is PlatformException && e.code == storeKitDuplicateProductCode) {
+        // Не «магазин недоступен»: в очереди StoreKit застряла транзакция
+        // этого же товара. Перевыдаём её через restore — как правило, это
+        // покупка, которую бэкенд однажды не принял.
+        emit(
+          state.copyWith(
+            purchasingSku: null,
+            infoMessage: LocaleKeys.subscription_purchaseAlreadyInStore.tr(),
+          ),
+        );
+        analytics.logCheckoutStep(
+          step: 'purchase_stuck_in_queue',
+          sku: event.sku,
+        );
+        add(PurchasesRestoreRequested());
+        return;
+      }
       emit(
         state.copyWith(
           purchasingSku: null,
@@ -239,8 +269,6 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
         receipt: purchase.receipt,
       );
     } on GraphqlException catch (e) {
-      // Чек стору не подтверждаем: пусть покупка останется незакрытой и
-      // приложение попробует ещё раз при следующем запуске.
       emit(
         state.copyWith(
           redeeming: false,
@@ -248,6 +276,17 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
           errorMessage: describeActionError(e),
         ),
       );
+      if (e.code == purchaseRejectedCode) {
+        // Окончательный отказ (чужой живой аккаунт, возврат, неизвестный
+        // товар): держать транзакцию в очереди бессмысленно — она бы
+        // всплывала с той же ошибкой при каждом запуске и блокировала новую
+        // покупку того же товара. Право стор и так не выдал.
+        analytics.logCheckoutStep(step: 'purchase_rejected');
+        await _store.complete(purchase);
+      }
+      // Сетевая или серверная ошибка: чек стору не подтверждаем, пусть
+      // покупка останется незакрытой и приложение попробует ещё раз при
+      // следующем запуске.
       return;
     }
     await _repository.refreshGrants();
