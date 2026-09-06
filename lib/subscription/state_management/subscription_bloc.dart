@@ -160,7 +160,7 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     );
     analytics.logCheckoutStep(step: 'purchase_started', sku: event.sku);
     try {
-      await _store.buy(productId: productId, autoRenewing: tariff.autoRenewing);
+      await _store.buy(productId: productId);
     } catch (e) {
       if (e is PlatformException && e.code == storeKitDuplicateProductCode) {
         // Не «магазин недоступен»: в очереди StoreKit застряла транзакция

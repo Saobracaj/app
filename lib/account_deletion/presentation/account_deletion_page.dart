@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../auth/state_management/auth/auth_state.dart';
 import '../../core/di.dart';
 import '../../core/responsive.dart';
 import '../../generated/locale_keys.g.dart';
+import '../../subscription/data/store_purchase_service.dart';
 import '../../subscription/models/subscription_models.dart';
 import '../../subscription/presentation/tariff_formatting.dart';
 import '../models/account_deletion_preview.dart';
@@ -373,10 +373,8 @@ class _AutoRenewWarning extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: OutlinedButton.icon(
-                onPressed: () => launchUrl(
-                  Uri.parse(manageUrl),
-                  mode: LaunchMode.externalApplication,
-                ),
+                onPressed: () => getIt<StorePurchaseService>()
+                    .openSubscriptionManagement(manageUrl: manageUrl),
                 icon: const Icon(Icons.open_in_new),
                 label: Text(LocaleKeys.accountDeletion_manageSubscription.tr()),
               ),

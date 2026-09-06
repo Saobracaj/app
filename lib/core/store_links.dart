@@ -22,3 +22,10 @@ Uri get googlePlayUrl => Uri.parse(
 Uri? get appStoreUrl => appStoreAppId.isEmpty
     ? null
     : Uri.parse('https://apps.apple.com/app/id$appStoreAppId');
+
+/// Группа подписок в App Store Connect (Features → Subscriptions →
+/// «Saobracaj Pretplata» → Group ID). С iOS 17 нативная шторка управления
+/// подписками умеет открываться сразу на группе — это и есть «конкретная
+/// подписка», а не общий список аккаунта. Runner сначала берёт группу из
+/// текущей покупки в StoreKit и только без неё — эту константу.
+const appStoreSubscriptionGroupId = '22350509';

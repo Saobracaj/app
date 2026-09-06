@@ -20,14 +20,7 @@ String activePlanLabel(
   SubscriptionStatus status,
   List<StorePurchase> purchases,
 ) {
-  final active = purchases
-      .where((p) => p.status == StorePurchaseStatus.active)
-      .toList();
-  // Когда активных покупок несколько (год поверх месячной подписки), берём
-  // ту, чей тип совпадает с тем, что бэкенд назвал действующим правом.
-  final purchase =
-      active.where((p) => p.autoRenewing == status.autoRenewing).firstOrNull ??
-      active.firstOrNull;
+  final purchase = activePurchaseOf(status, purchases);
   if (purchase == null) return planName();
   if (purchase.autoRenewing) {
     return LocaleKeys.subscription_activePlanSubscription.tr(

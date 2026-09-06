@@ -12,6 +12,7 @@ import '../../core/responsive.dart';
 import '../../core/store_links.dart';
 import '../../generated/locale_keys.g.dart';
 import '../../theme/quiz_colors.dart';
+import '../data/store_purchase_service.dart';
 import '../models/subscription_models.dart';
 import '../state_management/subscription_bloc.dart';
 import '../state_management/subscription_events.dart';
@@ -65,15 +66,16 @@ class _TariffsScaffold extends StatefulWidget {
 class _TariffsScaffoldState extends State<_TariffsScaffold> {
   String? _selectedSku;
 
-  /// Выбранный срок, а пока человек не выбирал — рекомендованный. Ищем по SKU,
-  /// а не храним сам тариф: каталог приезжает асинхронно и пересоздаётся.
+  /// Выбранный срок, а пока человек не выбирал — действующий тариф, если
+  /// подписка активна, иначе рекомендованный. Ищем по SKU, а не храним сам
+  /// тариф: каталог приезжает асинхронно и пересоздаётся.
   Tariff? _selected(SubscriptionState state) {
     final offered = state.offeredTariffs;
     if (offered.isEmpty) return null;
     for (final tariff in offered) {
       if (tariff.sku == _selectedSku) return tariff;
     }
-    return state.recommendedTariff ?? offered.first;
+    return state.currentTariff ?? state.recommendedTariff ?? offered.first;
   }
 
   @override
@@ -160,9 +162,6 @@ class _TariffsScaffoldState extends State<_TariffsScaffold> {
             children: [
               if (platform == null) ...[
                 const _BuyInAppCard(),
-                const SizedBox(height: 16),
-              ] else if (state.subscription.autoRenewing) ...[
-                const _AlreadyRenewingNote(),
                 const SizedBox(height: 16),
               ],
               // Переключатель стоит над обеими колонками, но во всю ширину
@@ -291,9 +290,13 @@ class _TermSegments extends StatelessWidget {
     );
   }
 
-  /// Рекомендованному сроку — «Популярный», остальным длинным — процент
-  /// экономии. Месячный не подписан ничем: он и есть база сравнения.
+  /// Действующему тарифу — «Текущий тариф», рекомендованному сроку —
+  /// «Популярный», остальным длинным — процент экономии. Месячный без
+  /// подписки не подписан ничем: он и есть база сравнения.
   String? _badgeFor(Tariff tariff, Tariff? recommended) {
+    if (tariff.sku == state.currentTariff?.sku) {
+      return LocaleKeys.subscription_currentPlanBadge.tr();
+    }
     if (tariff.sku == recommended?.sku) {
       return LocaleKeys.subscription_popularBadge.tr();
     }
@@ -479,6 +482,12 @@ class _TariffPagerState extends State<_TariffPager> {
   /// может прийти в другом порядке.
   final _heights = <String, double>{};
 
+  /// Последняя посчитанная высота. Пока листалка едет через страницу, которую
+  /// ещё не мерили, ни одной из двух соседних высот может не быть — и без
+  /// этой подстраховки листалка на кадр разбиралась до одной карточки,
+  /// теряя вместе с `PageView` и сам переезд.
+  double? _lastHeight;
+
   @override
   void dispose() {
     _controller.dispose();
@@ -525,8 +534,11 @@ class _TariffPagerState extends State<_TariffPager> {
     final to = _heights[widget.tariffs[high].sku];
     // Соседнюю страницу `PageView` строит только когда до неё доехали, так что
     // одной из высот в этот момент может ещё не быть.
-    if (from == null || to == null) return from ?? to;
-    return from + (to - from) * (page - low);
+    final height = from == null || to == null
+        ? from ?? to
+        : from + (to - from) * (page - low);
+    if (height != null) _lastHeight = height;
+    return height ?? _lastHeight;
   }
 
   @override
@@ -713,6 +725,10 @@ class _PlanCard extends StatelessWidget {
                 child: Text(LocaleKeys.subscription_signInToBuy.tr()),
               ),
             )
+          else if (state.currentTariff?.sku == tariff.sku)
+            // Действующий тариф: покупать его снова нечего, здесь — срок и
+            // кнопка в стор, если стор его продлевает.
+            _CurrentPlanFooter(status: state.subscription)
           else ...[
             _WideButton(
               child: _BuyButton(
@@ -720,7 +736,13 @@ class _PlanCard extends StatelessWidget {
                 label: tariff.autoRenewing
                     ? LocaleKeys.subscription_buySubscription.tr()
                     : LocaleKeys.subscription_payAmount.tr(args: [total]),
-                enabled: state.storeAvailable && !state.busy,
+                // Пока действует подписка, второй пропуск не продаём: его срок
+                // лишь встал бы в очередь за текущим, а месячные списания
+                // продолжились бы. Кнопки остаются на месте, но заперты.
+                enabled:
+                    state.storeAvailable &&
+                    !state.busy &&
+                    !state.subscription.active,
                 busy: state.purchasingSku == tariff.sku,
               ),
             ),
@@ -1157,45 +1179,47 @@ class _BuyInAppCard extends StatelessWidget {
   }
 }
 
-/// У человека уже идёт автоподписка, а он смотрит на годовой тариф. Отменить
-/// автопродление из приложения нельзя — только в сторе, и сказать об этом надо
-/// до покупки, а не после второго списания.
-class _AlreadyRenewingNote extends StatelessWidget {
-  const _AlreadyRenewingNote();
+/// Низ карточки действующего тарифа: до какого числа он действует (у
+/// автоподписки — день следующего списания) и, если стор продлевает его сам,
+/// кнопка в стор — отменить автопродление умеет только он.
+class _CurrentPlanFooter extends StatelessWidget {
+  const _CurrentPlanFooter({required this.status});
+
+  final SubscriptionStatus status;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final manageUrl = context.select(
-      (SubscriptionBloc bloc) => bloc.state.subscription.manageUrl,
-    );
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.tertiaryContainer,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    final endsAt = status.endsAt;
+    final manageUrl = status.manageUrl;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (endsAt != null)
           Text(
-            LocaleKeys.subscription_alreadyRenewingWarning.tr(),
-            style: theme.textTheme.bodyMedium,
-          ),
-          if (manageUrl != null)
-            Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: TextButton.icon(
-                onPressed: () => launchUrl(
-                  Uri.parse(manageUrl),
-                  mode: LaunchMode.externalApplication,
-                ),
-                icon: const Icon(Icons.open_in_new, size: 16),
-                label: Text(LocaleKeys.subscription_manageInStore.tr()),
-              ),
+            status.autoRenewing
+                ? LocaleKeys.subscription_renewsOn.tr(
+                    args: [formatDate(endsAt)],
+                  )
+                : LocaleKeys.subscription_activeUntil.tr(
+                    args: [formatDate(endsAt)],
+                  ),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
             ),
+          ),
+        if (manageUrl != null) ...[
+          const SizedBox(height: 12),
+          _WideButton(
+            child: OutlinedButton.icon(
+              onPressed: () => getIt<StorePurchaseService>()
+                  .openSubscriptionManagement(manageUrl: manageUrl),
+              icon: const Icon(Icons.open_in_new, size: 18),
+              label: Text(LocaleKeys.subscription_manageInStore.tr()),
+            ),
+          ),
         ],
-      ),
+      ],
     );
   }
 }

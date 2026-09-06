@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:injectable/injectable.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/store_links.dart';
 import '../models/subscription_models.dart';
 
 /// Что случилось с покупкой в сторе.
@@ -87,6 +90,40 @@ class StorePurchaseService {
 
   InAppPurchase get _iap => InAppPurchase.instance;
 
+  /// Канал в Runner (`ios/Runner/AppDelegate.swift`) — нативная шторка
+  /// StoreKit «управление подписками».
+  static const _subscriptionsChannel = MethodChannel(
+    'at.gleb.saobracaj/subscriptions',
+  );
+
+  /// Открыть управление подпиской — там, где её можно отменить или сменить.
+  ///
+  /// На iOS это шторка StoreKit прямо в приложении, открытая сразу на нашей
+  /// группе подписок: ссылка `apps.apple.com/account/subscriptions` умеет
+  /// показать только общий список аккаунта, адреса конкретной подписки у Apple
+  /// нет. Ссылка Google с `sku` и `package` и так ведёт на нужную строку,
+  /// поэтому Android и веб открывают [manageUrl] как есть. Если шторка не
+  /// показалась (StoreKit отказал, нет сцены), запасной путь — та же ссылка.
+  Future<void> openSubscriptionManagement({required String? manageUrl}) async {
+    if (platform == StorePlatform.apple) {
+      try {
+        await _subscriptionsChannel
+            .invokeMethod<void>('showManageSubscriptions', {
+              'subscriptionGroupId': appStoreSubscriptionGroupId.isEmpty
+                  ? null
+                  : appStoreSubscriptionGroupId,
+            });
+        return;
+      } on PlatformException catch (e) {
+        debugPrint('store: showManageSubscriptions failed: $e');
+      } on MissingPluginException catch (e) {
+        debugPrint('store: subscriptions channel missing: $e');
+      }
+    }
+    if (manageUrl == null) return;
+    await launchUrl(Uri.parse(manageUrl), mode: LaunchMode.externalApplication);
+  }
+
   /// Готов ли стор принимать оплату прямо сейчас (в симуляторе, на устройстве
   /// без аккаунта или при запрете покупок — нет).
   Future<bool> isAvailable() async {
@@ -123,18 +160,19 @@ class StorePurchaseService {
   /// другом устройстве.
   Stream<StorePurchaseEvent> get purchases {
     if (!isSupported) return const Stream.empty();
-    return _iap.purchaseStream.expand(
-      (list) => list.map(_toEvent),
-    );
+    return _iap.purchaseStream.expand((list) => list.map(_toEvent));
   }
 
-  /// Открыть окно оплаты. [autoRenewing] выбирает тип покупки: подписка
-  /// (месяц) не потребляется, разовый доступ на 6/12 месяцев — потребляется,
-  /// иначе его нельзя было бы купить второй раз.
-  Future<void> buy({
-    required String productId,
-    required bool autoRenewing,
-  }) async {
+  /// Открыть окно оплаты.
+  ///
+  /// Для стора все три пропуска — подписки: месячная продлевается сама, а 3 и
+  /// 12 месяцев оплачиваются один раз на срок (Apple: non-renewing
+  /// subscription, Google: подписка с prepaid-планом). Ни одна не
+  /// потребляется, поэтому путь один — `buyNonConsumable`; [complete] потом
+  /// подтверждает покупку стору (acknowledge), а не списывает её как расходник.
+  /// На Android у каждой подписки ровно один базовый план, так что плагин
+  /// отдаёт по одной записи на товар и её можно искать по идентификатору.
+  Future<void> buy({required String productId}) async {
     if (!isSupported) return;
     final response = await _iap.queryProductDetails({productId});
     final details = response.productDetails
@@ -143,12 +181,9 @@ class StorePurchaseService {
     if (details == null) {
       throw StateError('store product $productId is not available');
     }
-    final param = PurchaseParam(productDetails: details);
-    if (autoRenewing) {
-      await _iap.buyNonConsumable(purchaseParam: param);
-    } else {
-      await _iap.buyConsumable(purchaseParam: param);
-    }
+    await _iap.buyNonConsumable(
+      purchaseParam: PurchaseParam(productDetails: details),
+    );
   }
 
   /// «Восстановить покупки»: стор перевыдаёт чеки в [purchases].
@@ -171,7 +206,8 @@ class StorePurchaseService {
     // Порядок именно такой: на iOS serverVerificationData у StoreKit 1 — это
     // чек всего приложения, по которому бэкенд ничего не найдёт.
     final receipt = defaultTargetPlatform == TargetPlatform.iOS
-        ? (details.purchaseID ?? details.verificationData.serverVerificationData)
+        ? (details.purchaseID ??
+              details.verificationData.serverVerificationData)
         : details.verificationData.serverVerificationData;
     return StorePurchaseEvent(
       productId: details.productID,
