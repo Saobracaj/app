@@ -90,6 +90,34 @@ abstract class SubscriptionState with _$SubscriptionState {
   }
 
   /// Сколько человек оставляет себе, выбрав [tariff] вместо помесячной оплаты,
+  /// — в тех же деньгах, в которых на витрине показаны цены: по ценам стора,
+  /// когда он их назвал, иначе в справочных динарах ([currencyCode] тогда
+  /// `null`).
+  ///
+  /// Валюта здесь не украшение: на карточке рядом стоят полная сумма, цена за
+  /// месяц и экономия, и сравнивать их можно, только если все три числа в
+  /// одной валюте. Считать экономию в динарах под ценой в евро нельзя.
+  ({double amount, String? currencyCode})? saving(
+    Tariff tariff,
+    StorePlatform? platform,
+  ) {
+    final monthly = monthlyTariff;
+    if (monthly == null || tariff.months <= 1) return null;
+    final monthlyProduct = storeProductFor(monthly, platform);
+    final product = storeProductFor(tariff, platform);
+    if (monthlyProduct != null && product != null) {
+      final amount = monthlyProduct.rawPrice * tariff.months - product.rawPrice;
+      return amount <= 0
+          ? null
+          : (amount: amount, currencyCode: product.currencyCode);
+    }
+    final rsd = savingRsd(tariff);
+    return rsd == null || rsd <= 0
+        ? null
+        : (amount: rsd.toDouble(), currencyCode: null);
+  }
+
+  /// Сколько человек оставляет себе, выбрав [tariff] вместо помесячной оплаты,
   /// в справочных динарах. `null`, когда сравнивать не с чем.
   int? savingRsd(Tariff tariff) {
     final monthly = monthlyTariff;

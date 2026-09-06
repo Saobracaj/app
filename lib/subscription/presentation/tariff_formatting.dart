@@ -52,6 +52,14 @@ String? perMonthLabel(Tariff tariff, StoreProduct? product) {
   ).format(perMonth);
 }
 
+/// Экономия против помесячной оплаты так, как её посчитало состояние: сумму
+/// стора — в его валюте, справочную — в динарах.
+String savingAmountLabel(({double amount, String? currencyCode}) saving) {
+  final currency = saving.currencyCode;
+  if (currency == null) return priceLabel(saving.amount.round());
+  return NumberFormat.simpleCurrency(name: currency).format(saving.amount);
+}
+
 String purchaseStatusLabel(StorePurchaseStatus status) => switch (status) {
   StorePurchaseStatus.active =>
     LocaleKeys.subscription_purchaseStatusActive.tr(),

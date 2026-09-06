@@ -75,4 +75,61 @@ void main() {
       expect(noMonthly.savingPercent(noMonthly.offeredTariffs.single), isNull);
     });
   });
+
+  // Рядом с ценой на карточке стоит сумма экономии, и валюта у них должна быть
+  // одна: экономия в динарах под ценой в евро — три числа, которые не
+  // складываются.
+  group('экономия считается в тех же деньгах, что и цены', () {
+    StoreProduct product(String id, double price) => StoreProduct(
+      id: id,
+      price: '$price',
+      rawPrice: price,
+      currencyCode: 'EUR',
+    );
+
+    final withStore = state.copyWith(
+      storeProducts: {
+        'premium_1m': product('premium_1m', 12.99),
+        'premium_3m': product('premium_3m', 24.99),
+        'premium_12m': product('premium_12m', 37.99),
+      },
+    );
+
+    test('по ценам стора, когда стор их назвал', () {
+      final yearly = withStore.offeredTariffs.last;
+      final saving = withStore.saving(yearly, StorePlatform.google);
+      expect(saving?.currencyCode, 'EUR');
+      expect(saving?.amount, closeTo(12.99 * 12 - 37.99, 1e-9));
+    });
+
+    test('в справочных динарах, когда цен стора нет', () {
+      final yearly = state.offeredTariffs.last;
+      final saving = state.saving(yearly, null);
+      // Валюты нет — значит динары, и подписать сумму надо ими.
+      expect(saving?.currencyCode, isNull);
+      expect(saving?.amount, 1490 * 12 - 4490);
+    });
+
+    test('месячному сравнивать себя не с чем', () {
+      expect(
+        withStore.saving(withStore.offeredTariffs.first, StorePlatform.google),
+        isNull,
+      );
+    });
+
+    // Цены стора живут своей жизнью: если длинный пропуск там дороже, чем те же
+    // месяцы помесячно, «экономию» показывать нельзя.
+    test('отрицательная экономия не показывается', () {
+      final overpriced = state.copyWith(
+        storeProducts: {
+          'premium_1m': product('premium_1m', 1.0),
+          'premium_12m': product('premium_12m', 99.0),
+        },
+      );
+      expect(
+        overpriced.saving(overpriced.offeredTariffs.last, StorePlatform.google),
+        isNull,
+      );
+    });
+  });
 }
