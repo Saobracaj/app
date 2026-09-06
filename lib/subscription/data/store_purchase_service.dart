@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:injectable/injectable.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -190,6 +191,73 @@ class StorePurchaseService {
   Future<void> restore() async {
     if (!isSupported) return;
     await _iap.restorePurchases();
+  }
+
+  /// Действующие покупки аккаунта стора — подписки и пропуска, срок которых
+  /// ещё идёт, — **без единого диалога**. Витрина спрашивает их перед тем, как
+  /// продавать: аккаунт стора мог уже платить за подписку, которую человек
+  /// оформил с другого (например, удалённого) аккаунта приложения, и второй
+  /// пропуск был бы вторым списанием.
+  ///
+  /// Это не [restore]: на iOS плагин работает через StoreKit 1, чей
+  /// `restoreCompletedTransactions` может показать окно входа в App Store, а
+  /// делать это при каждом открытии витрины нельзя. Поэтому там список берётся
+  /// у StoreKit 2 (`Transaction.currentEntitlements`) через свой канал в
+  /// Runner; на Android `queryPurchases` и так тихий. Ошибка стора здесь не
+  /// повод ломать витрину — тогда список просто пуст.
+  Future<List<StorePurchaseEvent>> currentPurchases() async {
+    switch (platform) {
+      case null:
+        return const [];
+      case StorePlatform.apple:
+        return _appleEntitlements();
+      case StorePlatform.google:
+        return _googlePurchases();
+    }
+  }
+
+  Future<List<StorePurchaseEvent>> _appleEntitlements() async {
+    final List<Object?>? raw;
+    try {
+      raw = await _subscriptionsChannel.invokeListMethod<Object?>(
+        'currentEntitlements',
+      );
+    } on PlatformException catch (e) {
+      debugPrint('store: currentEntitlements failed: $e');
+      return const [];
+    } on MissingPluginException catch (e) {
+      debugPrint('store: subscriptions channel missing: $e');
+      return const [];
+    }
+    return [
+      for (final entry in raw ?? const <Object?>[])
+        if (entry is Map)
+          if (entry['productId'] case final String productId)
+            if (entry['transactionId'] case final String transactionId)
+              // Чек без покупки плагина: [complete] ему не нужен — транзакция
+              // у StoreKit 2 уже завершена, иначе её не было бы в списке.
+              StorePurchaseEvent(
+                productId: productId,
+                receipt: transactionId,
+                outcome: StorePurchaseOutcome.restored,
+              ),
+    ];
+  }
+
+  Future<List<StorePurchaseEvent>> _googlePurchases() async {
+    final QueryPurchaseDetailsResponse response;
+    try {
+      response = await _iap
+          .getPlatformAddition<InAppPurchaseAndroidPlatformAddition>()
+          .queryPastPurchases();
+    } catch (e) {
+      debugPrint('store: queryPastPurchases failed: $e');
+      return const [];
+    }
+    if (response.error != null) {
+      debugPrint('store: queryPastPurchases error: ${response.error}');
+    }
+    return [for (final details in response.pastPurchases) _toEvent(details)];
   }
 
   /// Подтвердить стору, что товар выдан. Только после записи права на бэкенде.

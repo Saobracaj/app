@@ -92,6 +92,13 @@ String storePlatformName(StorePlatform platform) => switch (platform) {
   StorePlatform.google => LocaleKeys.subscription_platformGoogle.tr(),
 };
 
+/// «Месячная подписка при этом продолжает продлеваться — следующее списание
+/// …»: строка под разовым пропуском, за которым стор продолжает списывать
+/// деньги за подписку. Без даты, когда стор её не назвал.
+String renewingBehindLabel(DateTime? renewsAt) => renewsAt == null
+    ? LocaleKeys.subscription_renewingBehindNoDate.tr()
+    : LocaleKeys.subscription_renewingBehind.tr(args: [formatDate(renewsAt)]);
+
 /// Дата без времени: срок подписки и срок оплаты — вопрос дня, не минуты.
 String formatDate(DateTime date) => DateFormat.yMMMd().format(date);
 

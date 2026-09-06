@@ -103,9 +103,12 @@ class _CurrentPlanCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final manageUrl = status.manageUrl;
     if (!status.active) {
       // Без подписки экран объясняет, что открыто бесплатно, и ведёт к тарифам
-      // — иначе «подписки нет» читается как «ничего не работает».
+      // — иначе «подписки нет» читается как «ничего не работает». Если стор
+      // при этом продолжает списывать деньги (доступ отозван оператором), —
+      // кнопка в стор всё равно нужна.
       return Card(
         margin: EdgeInsets.zero,
         child: Padding(
@@ -130,12 +133,12 @@ class _CurrentPlanCard extends StatelessWidget {
                   child: Text(LocaleKeys.subscription_toTariffs.tr()),
                 ),
               ),
+              if (manageUrl != null) _ManageInStore(manageUrl: manageUrl),
             ],
           ),
         ),
       );
     }
-    final manageUrl = status.manageUrl;
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -176,28 +179,56 @@ class _CurrentPlanCard extends StatelessWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            if (status.autoRenewing) ...[
-              const SizedBox(height: 8),
-              Text(
-                LocaleKeys.subscription_manageInStoreHint.tr(),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+            // Кнопка в стор — по живой автопродлеваемой покупке, а не по
+            // тому, чем заканчивается цепочка периодов: месячная подписка
+            // продлевается и за разовым пропуском, купленным поверх неё, и
+            // добраться до неё нужно именно отсюда.
+            if (manageUrl != null) ...[
+              if (!status.autoRenewing) ...[
+                const SizedBox(height: 8),
+                Text(
+                  renewingBehindLabel(renewingPurchaseOf(purchases)?.expiresAt),
+                  style: theme.textTheme.bodyMedium,
                 ),
-              ),
-              if (manageUrl != null)
-                Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: TextButton.icon(
-                    onPressed: () => getIt<StorePurchaseService>()
-                        .openSubscriptionManagement(manageUrl: manageUrl),
-                    icon: const Icon(Icons.open_in_new, size: 16),
-                    label: Text(LocaleKeys.subscription_manageInStore.tr()),
-                  ),
-                ),
+              ],
+              _ManageInStore(manageUrl: manageUrl),
             ],
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Подсказка «отменить можно только в сторе» и кнопка туда.
+class _ManageInStore extends StatelessWidget {
+  const _ManageInStore({required this.manageUrl});
+
+  final String manageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        Text(
+          LocaleKeys.subscription_manageInStoreHint.tr(),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+        Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: TextButton.icon(
+            onPressed: () => getIt<StorePurchaseService>()
+                .openSubscriptionManagement(manageUrl: manageUrl),
+            icon: const Icon(Icons.open_in_new, size: 16),
+            label: Text(LocaleKeys.subscription_manageInStore.tr()),
+          ),
+        ),
+      ],
     );
   }
 }

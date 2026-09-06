@@ -113,6 +113,10 @@ dependencies:
   # веб-реализации: обращаться к InAppPurchase.instance можно только на iOS и
   # Android, поэтому сервис за ним и стоит.
   in_app_purchase: ^3.2.3
+  # Android-часть того же плагина — ради queryPastPurchases: тихий список
+  # действующих покупок аккаунта Google Play, которым витрина проверяет, не
+  # платит ли человек уже, прежде чем продать ему второй пропуск.
+  in_app_purchase_android: ^0.5.3
 
 dev_dependencies:
   flutter_test:

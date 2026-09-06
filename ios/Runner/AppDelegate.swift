@@ -19,7 +19,16 @@ import UIKit
 
 /// Канал `at.gleb.saobracaj/subscriptions` — то, чего нет в плагине
 /// `in_app_purchase`: шторка StoreKit «управление подписками» внутри
-/// приложения. Dart-сторона — `StorePurchaseService.openSubscriptionManagement`.
+/// приложения и тихий список действующих покупок аккаунта App Store.
+/// Dart-сторона — `StorePurchaseService.openSubscriptionManagement` и
+/// `StorePurchaseService.currentPurchases`.
+///
+/// `currentEntitlements` — то, чем плагин (StoreKit 1) не располагает: его
+/// `restorePurchases` может показать окно входа в App Store, а StoreKit 2
+/// отдаёт действующие покупки без единого диалога. Витрина спрашивает их
+/// перед продажей, чтобы не продать второй пропуск тому, за кого стор уже
+/// списывает деньги. Каждая запись — `productId`, `transactionId`,
+/// `autoRenewable`.
 ///
 /// С iOS 17 шторка умеет открываться сразу на группе подписок, то есть на
 /// конкретной подписке пользователя, а не на общем списке аккаунта. Группу
@@ -38,6 +47,8 @@ enum SubscriptionsChannel {
         let args = call.arguments as? [String: Any]
         let fallback = args?["subscriptionGroupId"] as? String
         showManageSubscriptions(fallbackGroupID: fallback, result: result)
+      case "currentEntitlements":
+        currentEntitlements(result: result)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -67,6 +78,24 @@ enum SubscriptionsChannel {
       } catch {
         result(FlutterError(code: "storekit", message: error.localizedDescription, details: nil))
       }
+    }
+  }
+
+  /// Действующие покупки аккаунта App Store — подписки и пропуска, срок
+  /// которых ещё идёт. Только проверенные StoreKit транзакции: чек всё равно
+  /// перепроверит бэкенд, но выдумку сюда не пропускаем.
+  private static func currentEntitlements(result: @escaping FlutterResult) {
+    Task {
+      var entitlements: [[String: Any]] = []
+      for await entitlement in StoreKit.Transaction.currentEntitlements {
+        guard case .verified(let transaction) = entitlement else { continue }
+        entitlements.append([
+          "productId": transaction.productID,
+          "transactionId": String(transaction.id),
+          "autoRenewable": transaction.productType == .autoRenewable,
+        ])
+      }
+      result(entitlements)
     }
   }
 

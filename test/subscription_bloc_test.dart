@@ -50,8 +50,12 @@ class _StubRepository extends SubscriptionRepository {
     _tariff('premium_3m', 3),
   ];
 
+  /// Подписка появляется у аккаунта, как только бэкенд принял чек, — как на
+  /// сервере, где принятый чек и есть право.
   @override
-  Future<SubscriptionStatus> mySubscription() async => SubscriptionStatus.none;
+  Future<SubscriptionStatus> mySubscription() async => redeemed.isEmpty
+      ? SubscriptionStatus.none
+      : const SubscriptionStatus(active: true);
 
   @override
   Future<List<StorePurchase>> myPurchases() async => const [];
@@ -88,6 +92,10 @@ class _FakeStore extends StorePurchaseService {
   final completed = <StorePurchaseEvent>[];
   final _events = StreamController<StorePurchaseEvent>.broadcast();
 
+  /// Что стор называет действующими покупками аккаунта — то, с чем витрина
+  /// сверяется перед продажей.
+  var current = <StorePurchaseEvent>[];
+
   @override
   Future<bool> isAvailable() async => true;
 
@@ -110,6 +118,9 @@ class _FakeStore extends StorePurchaseService {
   Future<void> restore() async => restoreCalls++;
 
   @override
+  Future<List<StorePurchaseEvent>> currentPurchases() async => current;
+
+  @override
   Future<void> complete(StorePurchaseEvent event) async => completed.add(event);
 
   void emit(StorePurchaseEvent event) => _events.add(event);
@@ -120,6 +131,10 @@ StorePurchaseEvent _receipt() => StorePurchaseEvent(
   receipt: 'tx-1',
   outcome: StorePurchaseOutcome.restored,
 );
+
+/// Экран открыт и сверка со стором закончена.
+bool ready(SubscriptionState s) =>
+    s.tariffs.isNotEmpty && !s.inProgress && !s.syncingStore;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -140,15 +155,20 @@ void main() {
     bloc = SubscriptionBloc(repo, store);
     states = [];
     bloc.stream.listen(states.add);
-    // Каталог загружен — без него ни купить, ни сопоставить чек с тарифом.
-    await bloc.stream.firstWhere((s) => s.tariffs.isNotEmpty && !s.inProgress);
+    // Каталог загружен — без него ни купить, ни сопоставить чек с тарифом, —
+    // и сверка со стором (пустая) закончена.
+    await bloc.stream.firstWhere(ready);
   });
 
   tearDown(() => bloc.close());
 
+  group('сверка со стором перед продажей', syncTests);
+
   /// Дождаться, пока Bloc закончит с чеком.
   Future<SubscriptionState> settled() => bloc.stream
-      .firstWhere((s) => !s.redeeming && s.purchasingSku == null)
+      .firstWhere(
+        (s) => !s.redeeming && s.purchasingSku == null && !s.syncingStore,
+      )
       .timeout(const Duration(seconds: 5));
 
   test('окончательный отказ бэкенда завершает транзакцию стора', () async {
@@ -257,4 +277,99 @@ void main() {
       expect(store.restoreCalls, 0);
     },
   );
+}
+
+/// Сверка со стором перед продажей: у аккаунта стора может быть живая
+/// подписка, о которой бэкенд не знает (оформлена с удалённого аккаунта —
+/// удаление подписку в сторе не отменяет). Витрина тихо несёт её на бэкенд:
+/// подписка удалённого аккаунта переезжает сюда, чужого живого — запирает
+/// кнопки, а сбой сети ничего не меняет и ничего не показывает.
+void syncTests() {
+  late _StubRepository repo;
+  late _FakeStore store;
+  late SubscriptionBloc bloc;
+
+  setUp(() {
+    repo = _StubRepository();
+    store = _FakeStore()..current = [_receipt()];
+  });
+
+  tearDown(() => bloc.close());
+
+  Future<SubscriptionState> open() {
+    bloc = SubscriptionBloc(repo, store);
+    return bloc.stream.firstWhere(ready).timeout(const Duration(seconds: 5));
+  }
+
+  test('живая покупка стора переезжает на этот аккаунт до продажи', () async {
+    final state = await open();
+
+    expect(repo.redeemed, ['tx-1']);
+    expect(state.subscription.active, isTrue);
+    expect(state.storeSubscriptionElsewhere, isFalse);
+    expect(state.canBuy, isFalse);
+    expect(state.infoMessage, LocaleKeys.subscription_restoreFound.tr());
+    expect(store.completed, [store.current.single]);
+  });
+
+  test('подписка другого живого аккаунта запирает витрину', () async {
+    repo.redeemError = GraphqlException(
+      'this purchase is already tied to another account',
+      code: purchaseOwnedElsewhereCode,
+    );
+    final state = await open();
+
+    expect(state.storeSubscriptionElsewhere, isTrue);
+    expect(state.canBuy, isFalse);
+    expect(state.subscription.active, isFalse);
+    // Не ошибка — человек ничего не нажимал; объяснение даёт сама витрина.
+    expect(state.errorMessage, isNull);
+    // Транзакцию завершаем: повтор ничего не изменит.
+    expect(store.completed, [store.current.single]);
+  });
+
+  test('другой окончательный отказ не запирает, но завершает', () async {
+    repo.redeemError = GraphqlException(
+      'this purchase was refunded',
+      code: purchaseRejectedCode,
+    );
+    final state = await open();
+
+    expect(state.storeSubscriptionElsewhere, isFalse);
+    expect(state.canBuy, isTrue);
+    expect(state.errorMessage, isNull);
+    expect(store.completed, [store.current.single]);
+  });
+
+  test('сбой сети при сверке молчит и продажу не запирает', () async {
+    repo.redeemError = GraphqlException('no route', network: true);
+    final state = await open();
+
+    expect(state.storeSubscriptionElsewhere, isFalse);
+    expect(state.canBuy, isTrue);
+    expect(state.errorMessage, isNull);
+    expect(store.completed, isEmpty);
+  });
+
+  test('чужой чек из очереди стора тоже запирает витрину', () async {
+    store.current = [];
+    await open();
+    repo.redeemError = GraphqlException(
+      'this purchase is already tied to another account',
+      code: purchaseOwnedElsewhereCode,
+    );
+    final receipt = _receipt();
+    final done = bloc.stream
+        .firstWhere((s) => s.storeSubscriptionElsewhere)
+        .timeout(const Duration(seconds: 5));
+    store.emit(receipt);
+    final state = await done;
+
+    expect(
+      state.errorMessage,
+      'this purchase is already tied to another account',
+    );
+    await Future<void>.delayed(Duration.zero);
+    expect(store.completed, [receipt]);
+  });
 }

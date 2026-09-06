@@ -642,6 +642,8 @@ class _PlanCard extends StatelessWidget {
     final authenticated = context.select(
       (AuthBloc bloc) => bloc.state.isAuthenticated,
     );
+    // Локальная копия поля — ради продвижения типа в ветках ниже.
+    final platform = this.platform;
     final product = state.storeProductFor(tariff, platform);
     final total = totalPriceLabel(tariff, product);
     final perMonth = perMonthLabel(tariff, product);
@@ -728,7 +730,10 @@ class _PlanCard extends StatelessWidget {
           else if (state.currentTariff?.sku == tariff.sku)
             // Действующий тариф: покупать его снова нечего, здесь — срок и
             // кнопка в стор, если стор его продлевает.
-            _CurrentPlanFooter(status: state.subscription)
+            _CurrentPlanFooter(
+              status: state.subscription,
+              renewsAt: renewingPurchaseOf(state.purchases)?.expiresAt,
+            )
           else ...[
             _WideButton(
               child: _BuyButton(
@@ -738,14 +743,21 @@ class _PlanCard extends StatelessWidget {
                     : LocaleKeys.subscription_payAmount.tr(args: [total]),
                 // Пока действует подписка, второй пропуск не продаём: его срок
                 // лишь встал бы в очередь за текущим, а месячные списания
-                // продолжились бы. Кнопки остаются на месте, но заперты.
-                enabled:
-                    state.storeAvailable &&
-                    !state.busy &&
-                    !state.subscription.active,
+                // продолжились бы. Кнопки остаются на месте, но заперты. То же
+                // — пока витрина сверяется со стором и когда аккаунт стора
+                // платит за подписку другого аккаунта приложения.
+                enabled: state.canBuy,
                 busy: state.purchasingSku == tariff.sku,
               ),
             ),
+            if (state.storeSubscriptionElsewhere) ...[
+              const SizedBox(height: 10),
+              _PurchaseError(
+                message: LocaleKeys.subscription_subscriptionElsewhere.tr(
+                  args: [storePlatformName(platform)],
+                ),
+              ),
+            ],
             if (state.errorMessage != null) ...[
               const SizedBox(height: 10),
               _PurchaseError(message: state.errorMessage!),
@@ -1180,12 +1192,19 @@ class _BuyInAppCard extends StatelessWidget {
 }
 
 /// Низ карточки действующего тарифа: до какого числа он действует (у
-/// автоподписки — день следующего списания) и, если стор продлевает его сам,
-/// кнопка в стор — отменить автопродление умеет только он.
+/// автоподписки — день следующего списания) и, если у аккаунта есть
+/// подписка, которую стор продлевает сам, кнопка в стор — отменить
+/// автопродление умеет только он. Кнопка стоит и под разовым пропуском,
+/// когда за ним продолжает продлеваться месячная подписка, — тогда об этом
+/// сказано отдельной строкой с датой списания ([renewsAt]).
 class _CurrentPlanFooter extends StatelessWidget {
-  const _CurrentPlanFooter({required this.status});
+  const _CurrentPlanFooter({required this.status, this.renewsAt});
 
   final SubscriptionStatus status;
+
+  /// Следующее списание месячной подписки, продлевающейся за пропуском;
+  /// `null`, когда её нет или стор не назвал дату.
+  final DateTime? renewsAt;
 
   @override
   Widget build(BuildContext context) {
@@ -1209,6 +1228,15 @@ class _CurrentPlanFooter extends StatelessWidget {
             ),
           ),
         if (manageUrl != null) ...[
+          if (!status.autoRenewing) ...[
+            const SizedBox(height: 8),
+            Text(
+              renewingBehindLabel(renewsAt),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           _WideButton(
             child: OutlinedButton.icon(

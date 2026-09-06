@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:injectable/injectable.dart';
@@ -20,6 +21,12 @@ import 'subscription_state.dart';
 /// товар. Повторная попытка ничего не изменит — транзакцию стору надо
 /// завершить, иначе StoreKit будет перевыдавать её при каждом запуске.
 const purchaseRejectedCode = 'purchase_rejected';
+
+/// `extensions.code` окончательного отказа «чек привязан к другому живому
+/// аккаунту». Транзакцию завершаем так же, как при [purchaseRejectedCode], но
+/// витрина ещё и перестаёт продавать: аккаунт стора уже платит за подписку,
+/// и второй пропуск был бы вторым списанием.
+const purchaseOwnedElsewhereCode = 'purchase_owned_elsewhere';
 
 /// Код ошибки плагина на iOS: у StoreKit уже лежит незавершённая транзакция
 /// этого товара, и новую покупку он не начнёт. Лечится восстановлением
@@ -75,17 +82,10 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
       emit(state.copyWith(tariffs: tariffs));
       await _loadStorePrices(tariffs, emit);
       // Личные данные — только для авторизованного; гостю витрины достаточно.
-      final subscription = await _repository.mySubscription();
-      final purchases = await _repository.myPurchases();
-      final periods = await _repository.myPeriods();
-      emit(
-        state.copyWith(
-          inProgress: false,
-          subscription: subscription,
-          purchases: purchases,
-          periods: periods,
-        ),
-      );
+      await _loadPersonal(emit);
+      // Сверка со стором объявляется тем же состоянием, что открывает экран:
+      // ни одного кадра с отпертыми кнопками до её конца.
+      emit(state.copyWith(inProgress: false, syncingStore: _storeSyncNeeded));
     } on GraphqlException catch (e) {
       // Гость: тарифы уже загружены, отсутствие сессии — не ошибка экрана.
       if (e.isAuthError) {
@@ -100,6 +100,79 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
           errorMessage: LocaleKeys.subscription_loadFailed.tr(),
         ),
       );
+      return;
+    }
+    // Экран уже показан; прежде чем разрешить покупку, сверяемся со стором.
+    if (state.syncingStore) await _syncStorePurchases(emit);
+  }
+
+  /// Сверяться со стором есть смысл, только когда есть что продавать: стор на
+  /// месте, а подписки у аккаунта нет.
+  bool get _storeSyncNeeded =>
+      _store.platform != null &&
+      state.storeAvailable &&
+      !state.subscription.active;
+
+  /// Подписка, покупки и история — то, что есть только у авторизованного.
+  Future<void> _loadPersonal(Emitter<SubscriptionState> emit) async {
+    final subscription = await _repository.mySubscription();
+    final purchases = await _repository.myPurchases();
+    final periods = await _repository.myPeriods();
+    emit(
+      state.copyWith(
+        subscription: subscription,
+        purchases: purchases,
+        periods: periods,
+      ),
+    );
+  }
+
+  /// Не продать второй пропуск тому, за кого стор уже списывает деньги.
+  ///
+  /// У аккаунта стора может быть живая подписка, о которой бэкенд не знает:
+  /// оформленная с другого аккаунта приложения — чаще всего удалённого, ведь
+  /// удаление аккаунта подписку в App Store не отменяет. Пока подписки у
+  /// этого аккаунта нет, витрина тихо спрашивает у стора действующие покупки
+  /// и несёт их на бэкенд, как при «восстановить покупки». Дальше три исхода:
+  /// подписка удалённого аккаунта переезжает сюда — и кнопки запираются как
+  /// при действующей подписке; чек принадлежит другому живому аккаунту —
+  /// кнопки заперты с объяснением; стор ничего не знает — продаём.
+  ///
+  /// Сетевые и серверные ошибки здесь молчат: человек ничего не нажимал, а
+  /// транзакцию стор перевыдаст сам.
+  Future<void> _syncStorePurchases(Emitter<SubscriptionState> emit) async {
+    try {
+      final existing = await _store.currentPurchases();
+      var elsewhere = false;
+      var claimed = false;
+      for (final purchase in existing) {
+        switch (await _redeem(purchase, emit, silent: true)) {
+          case _RedeemOutcome.granted:
+            claimed = true;
+          case _RedeemOutcome.ownedElsewhere:
+            elsewhere = true;
+          case _RedeemOutcome.rejected:
+          case _RedeemOutcome.retryLater:
+            break;
+        }
+      }
+      if (elsewhere) {
+        analytics.logCheckoutStep(step: 'store_subscription_elsewhere');
+      }
+      if (claimed) {
+        analytics.logCheckoutStep(step: 'store_purchase_claimed');
+        await _loadPersonal(emit);
+        emit(
+          state.copyWith(
+            infoMessage: LocaleKeys.subscription_restoreFound.tr(),
+          ),
+        );
+      }
+      emit(state.copyWith(storeSubscriptionElsewhere: elsewhere));
+    } catch (e) {
+      debugPrint('store: sync of current purchases failed: $e');
+    } finally {
+      emit(state.copyWith(syncingStore: false));
     }
   }
 
@@ -261,43 +334,25 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     // товару.
     final sku = state.purchasingSku ?? _skuOf(purchase.productId, platform);
     emit(state.copyWith(redeeming: true, purchasingSku: sku));
-    final SubscriptionStatus status;
-    try {
-      status = await _repository.redeemPurchase(
-        platform: platform,
-        productId: purchase.productId,
-        receipt: purchase.receipt,
-      );
-    } on GraphqlException catch (e) {
+    final outcome = await _redeem(purchase, emit, silent: false);
+    if (outcome != _RedeemOutcome.granted) {
       emit(
         state.copyWith(
           redeeming: false,
           purchasingSku: null,
-          errorMessage: describeActionError(e),
+          // Чужой живой аккаунт — это ещё и запрет продавать дальше.
+          storeSubscriptionElsewhere:
+              outcome == _RedeemOutcome.ownedElsewhere ||
+              state.storeSubscriptionElsewhere,
         ),
       );
-      if (e.code == purchaseRejectedCode) {
-        // Окончательный отказ (чужой живой аккаунт, возврат, неизвестный
-        // товар): держать транзакцию в очереди бессмысленно — она бы
-        // всплывала с той же ошибкой при каждом запуске и блокировала новую
-        // покупку того же товара. Право стор и так не выдал.
-        analytics.logCheckoutStep(step: 'purchase_rejected');
-        await _store.complete(purchase);
-      }
-      // Сетевая или серверная ошибка: чек стору не подтверждаем, пусть
-      // покупка останется незакрытой и приложение попробует ещё раз при
-      // следующем запуске.
       return;
     }
-    await _repository.refreshGrants();
-    await _store.complete(purchase);
-    analytics.logCheckoutStep(step: 'purchase_completed');
     final restored = purchase.outcome == StorePurchaseOutcome.restored;
     emit(
       state.copyWith(
         redeeming: false,
         purchasingSku: null,
-        subscription: status,
         // Восстановление тем и отличается от покупки, что ничего нового не
         // произошло — говорить «спасибо за покупку» было бы странно.
         infoMessage: restored
@@ -307,6 +362,51 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
       ),
     );
     add(SubscriptionRequested());
+  }
+
+  /// Отнести чек на бэкенд и, если право записано, открыть фичи и завершить
+  /// транзакцию стору. Ошибку в состояние кладёт только не-[silent] вызов —
+  /// тихой сверке со стором ([_syncStorePurchases]) показывать нечего.
+  Future<_RedeemOutcome> _redeem(
+    StorePurchaseEvent purchase,
+    Emitter<SubscriptionState> emit, {
+    required bool silent,
+  }) async {
+    final platform = _store.platform;
+    if (platform == null) return _RedeemOutcome.retryLater;
+    final SubscriptionStatus status;
+    try {
+      status = await _repository.redeemPurchase(
+        platform: platform,
+        productId: purchase.productId,
+        receipt: purchase.receipt,
+      );
+    } on GraphqlException catch (e) {
+      if (!silent) {
+        emit(state.copyWith(errorMessage: describeActionError(e)));
+      }
+      final ownedElsewhere = e.code == purchaseOwnedElsewhereCode;
+      if (ownedElsewhere || e.code == purchaseRejectedCode) {
+        // Окончательный отказ (чужой живой аккаунт, возврат, неизвестный
+        // товар): держать транзакцию в очереди бессмысленно — она бы
+        // всплывала с той же ошибкой при каждом запуске и блокировала новую
+        // покупку того же товара. Право стор и так не выдал.
+        analytics.logCheckoutStep(step: 'purchase_rejected');
+        await _store.complete(purchase);
+        return ownedElsewhere
+            ? _RedeemOutcome.ownedElsewhere
+            : _RedeemOutcome.rejected;
+      }
+      // Сетевая или серверная ошибка: чек стору не подтверждаем, пусть
+      // покупка останется незакрытой и приложение попробует ещё раз при
+      // следующем запуске.
+      return _RedeemOutcome.retryLater;
+    }
+    await _repository.refreshGrants();
+    await _store.complete(purchase);
+    analytics.logCheckoutStep(step: 'purchase_completed');
+    emit(state.copyWith(subscription: status));
+    return _RedeemOutcome.granted;
   }
 
   /// SKU тарифа, чей товар в [platform] — [productId]; `null`, если каталог
@@ -331,4 +431,21 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     }
     emit(state.copyWith(subscription: status));
   }
+}
+
+/// Чем кончился поход с чеком на бэкенд.
+enum _RedeemOutcome {
+  /// Право записано, транзакция завершена.
+  granted,
+
+  /// Чек принадлежит другому живому аккаунту: транзакция завершена, продавать
+  /// этому аккаунту стора больше нельзя.
+  ownedElsewhere,
+
+  /// Другой окончательный отказ (возврат, неизвестный товар): транзакция
+  /// завершена.
+  rejected,
+
+  /// Сеть или сервер: транзакция остаётся в очереди стора.
+  retryLater,
 }

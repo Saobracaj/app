@@ -191,6 +191,14 @@ StorePurchase? activePurchaseOf(
       active.firstOrNull;
 }
 
+/// Покупка, за которую стор продолжит списывать деньги: живая
+/// автопродлеваемая подписка. Она есть и тогда, когда цепочка периодов
+/// заканчивается разовым пропуском (месячная подписка продлевается за ним) —
+/// в этом случае экран обязан сказать об этом и дать до неё добраться.
+StorePurchase? renewingPurchaseOf(List<StorePurchase> purchases) => purchases
+    .where((p) => p.autoRenewing && p.status == StorePurchaseStatus.active)
+    .firstOrNull;
+
 /// Текущее состояние подписки пользователя.
 class SubscriptionStatus {
   const SubscriptionStatus({
@@ -238,7 +246,9 @@ class SubscriptionStatus {
   final bool autoRenewing;
 
   /// Куда отправить человека управлять подпиской: отменить её можно только в
-  /// сторе, который её продал.
+  /// сторе, который её продал. Есть всегда, когда у аккаунта живая
+  /// автопродлеваемая покупка, — и когда поверх неё куплен разовый пропуск
+  /// ([autoRenewing] тогда `false`), и когда доступ отозван оператором.
   final String? manageUrl;
   final StorePlatform? platform;
   final bool remindersEnabled;

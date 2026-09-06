@@ -38,6 +38,16 @@ abstract class SubscriptionState with _$SubscriptionState {
     /// Идёт «восстановить покупки».
     @Default(false) bool restoring,
 
+    /// Витрина сверяется со стором: не платит ли этот аккаунт стора уже за
+    /// подписку, прежде чем продать ему пропуск. Кнопки покупки заперты.
+    @Default(false) bool syncingStore,
+
+    /// Аккаунт стора платит за подписку, привязанную к **другому** живому
+    /// аккаунту приложения. Продавать такому человеку второй пропуск нельзя —
+    /// это второе списание; витрина держит кнопки запертыми и объясняет
+    /// почему.
+    @Default(false) bool storeSubscriptionElsewhere,
+
     /// Чек уже у бэкенда, ждём подтверждения права.
     @Default(false) bool redeeming,
 
@@ -153,5 +163,14 @@ abstract class SubscriptionState with _$SubscriptionState {
       offeredTariffs.any((tariff) => tariff.autoRenewing);
 
   /// Идёт ли сейчас платёжная операция — на это время кнопки покупки заперты.
-  bool get busy => purchasingSku != null || restoring || redeeming;
+  bool get busy =>
+      purchasingSku != null || restoring || redeeming || syncingStore;
+
+  /// Можно ли сейчас продать пропуск: стор на месте, ничего не идёт, подписки
+  /// нет — ни у этого аккаунта, ни у аккаунта стора на стороне.
+  bool get canBuy =>
+      storeAvailable &&
+      !busy &&
+      !subscription.active &&
+      !storeSubscriptionElsewhere;
 }

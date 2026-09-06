@@ -21,6 +21,7 @@ import 'package:saobracaj/subscription/models/subscription_models.dart';
 import 'package:saobracaj/subscription/presentation/paywall.dart';
 import 'package:saobracaj/subscription/presentation/plan_features.dart';
 import 'package:saobracaj/subscription/presentation/subscription_page.dart';
+import 'package:saobracaj/subscription/presentation/tariff_formatting.dart';
 import 'package:saobracaj/subscription/presentation/tariffs_page.dart';
 import 'package:saobracaj/subscription/state_management/subscription_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -34,18 +35,23 @@ Tariff _tariff(String sku, int months, int priceRsd) => Tariff(
   autoRenewing: months == 1,
 );
 
-StorePurchase _purchase(String sku, int months, {required bool autoRenewing}) =>
-    StorePurchase(
-      id: 'purchase-$sku',
-      platform: StorePlatform.google,
-      sku: sku,
-      months: months,
-      productId: sku,
-      transactionId: 'GPA.$sku',
-      autoRenewing: autoRenewing,
-      status: StorePurchaseStatus.active,
-      purchasedAt: DateTime.now(),
-    );
+StorePurchase _purchase(
+  String sku,
+  int months, {
+  required bool autoRenewing,
+  DateTime? expiresAt,
+}) => StorePurchase(
+  id: 'purchase-$sku',
+  platform: StorePlatform.google,
+  sku: sku,
+  months: months,
+  productId: sku,
+  transactionId: 'GPA.$sku',
+  autoRenewing: autoRenewing,
+  status: StorePurchaseStatus.active,
+  purchasedAt: DateTime.now(),
+  expiresAt: expiresAt,
+);
 
 /// Отдаёт каталог из `TARIFF_SEED` без обращения к серверу; личные данные
 /// пустые — так витрину видит гость.
@@ -62,6 +68,11 @@ class _StubSubscriptionRepository extends SubscriptionRepository {
   final List<StorePurchase> purchases;
   final redeemed = <String>[];
 
+  /// Подписка и покупки появляются у аккаунта только после чека: до него
+  /// бэкенд отвечает «ничего нет» — как у нового аккаунта, чью подписку стор
+  /// ещё не перевыдал.
+  bool claimedOnly = false;
+
   /// Чем бэкенд отвечает на чек вместо права — когда тест проверяет отказ.
   GraphqlException? redeemError;
 
@@ -77,10 +88,12 @@ class _StubSubscriptionRepository extends SubscriptionRepository {
   ];
 
   @override
-  Future<SubscriptionStatus> mySubscription() async => status;
+  Future<SubscriptionStatus> mySubscription() async =>
+      claimedOnly && redeemed.isEmpty ? SubscriptionStatus.none : status;
 
   @override
-  Future<List<StorePurchase>> myPurchases() async => purchases;
+  Future<List<StorePurchase>> myPurchases() async =>
+      claimedOnly && redeemed.isEmpty ? const [] : purchases;
 
   @override
   Future<List<SubscriptionPeriod>> myPeriods() async => const [];
@@ -113,6 +126,10 @@ class _FakeStore extends StorePurchaseService {
   final bought = <String>[];
   var restoreCalls = 0;
   final _events = StreamController<StorePurchaseEvent>.broadcast();
+
+  /// Действующие покупки аккаунта стора — с ними витрина сверяется перед
+  /// продажей.
+  var current = <StorePurchaseEvent>[];
 
   @override
   bool get isSupported => platform != null;
@@ -150,6 +167,9 @@ class _FakeStore extends StorePurchaseService {
 
   @override
   Future<void> restore() async => restoreCalls++;
+
+  @override
+  Future<List<StorePurchaseEvent>> currentPurchases() async => current;
 
   @override
   Future<void> complete(StorePurchaseEvent event) async {}
@@ -793,6 +813,159 @@ void main() {
       find.widgetWithText(FilledButton, 'Оформить подписку'),
     );
     expect(buy.onPressed, isNull);
+  });
+
+  // Разовый пропуск, купленный (или восстановленный) поверх месячной подписки:
+  // цепочка кончается пропуском, но стор продолжает списывать за подписку —
+  // кнопка в стор и строка о следующем списании обязаны остаться.
+  testWidgets('за разовым пропуском продлевается подписка — кнопка в стор есть', (
+    tester,
+  ) async {
+    wide(tester);
+    final renewsAt = DateTime.now().add(const Duration(days: 12));
+    final repo = _StubSubscriptionRepository(
+      status: SubscriptionStatus(
+        active: true,
+        endsAt: DateTime.now().add(const Duration(days: 100)),
+        daysLeft: 100,
+        manageUrl: 'https://play.google.com/store/account/subscriptions',
+        platform: StorePlatform.google,
+      ),
+      purchases: [
+        _purchase('premium_3m', 3, autoRenewing: false),
+        _purchase('premium_1m', 1, autoRenewing: true, expiresAt: renewsAt),
+      ],
+    );
+
+    await tester.pumpWidget(wrap(authenticated: true, repository: repo));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Текущий тариф'), findsOneWidget);
+    expect(find.textContaining('действует до'), findsOneWidget);
+    expect(find.text('Управлять подпиской'), findsOneWidget);
+    expect(
+      find.textContaining(
+        'продолжает продлеваться сама — следующее списание ${formatDate(renewsAt)}',
+      ),
+      findsOneWidget,
+    );
+
+    // И в разделе «Подписка» — то же самое.
+    await getIt.reset();
+    await tester.pumpWidget(
+      wrap(
+        authenticated: true,
+        repository: repo,
+        home: const SubscriptionPage(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Управлять подпиской'), findsOneWidget);
+    expect(find.textContaining('продолжает продлеваться сама'), findsOneWidget);
+  });
+
+  // Доступ отозван оператором, а стор продолжает списывать: кнопка в стор
+  // нужна и без действующей подписки.
+  testWidgets('без подписки, но с живой покупкой в сторе — кнопка в стор', (
+    tester,
+  ) async {
+    wide(tester);
+    final repo = _StubSubscriptionRepository(
+      status: const SubscriptionStatus(
+        active: false,
+        manageUrl: 'https://play.google.com/store/account/subscriptions',
+        platform: StorePlatform.google,
+      ),
+    );
+
+    await tester.pumpWidget(
+      wrap(
+        authenticated: true,
+        repository: repo,
+        home: const SubscriptionContent(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Управлять подпиской'), findsOneWidget);
+  });
+
+  // Аккаунт стора уже платит за подписку, оформленную с другого живого
+  // аккаунта приложения: витрина не продаёт второй пропуск и говорит почему.
+  testWidgets('подписка другого аккаунта в сторе запирает покупку', (
+    tester,
+  ) async {
+    wide(tester);
+    final repo = _StubSubscriptionRepository()
+      ..redeemError = GraphqlException(
+        'this purchase is already tied to another account',
+        code: purchaseOwnedElsewhereCode,
+      );
+    final store = _FakeStore()
+      ..current = [
+        StorePurchaseEvent(
+          productId: 'premium_1m',
+          receipt: 'GPA.elsewhere',
+          outcome: StorePurchaseOutcome.restored,
+        ),
+      ];
+
+    await tester.pumpWidget(
+      wrap(authenticated: true, repository: repo, store: store),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repo.redeemed, ['premium_1m:GPA.elsewhere']);
+    expect(
+      find.textContaining('привязанная к другому аккаунту'),
+      findsOneWidget,
+    );
+    // Строка стоит под кнопкой каждого срока.
+    await pickTerm(tester, '1 месяц');
+    final buy = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Оформить подписку'),
+    );
+    expect(buy.onPressed, isNull);
+    expect(
+      find.textContaining('привязанная к другому аккаунту'),
+      findsOneWidget,
+    );
+  });
+
+  // Подписка удалённого аккаунта: сверка приносит её на этот аккаунт ещё до
+  // того, как человек успеет купить второй пропуск.
+  testWidgets('живая покупка стора переезжает сюда до продажи', (tester) async {
+    wide(tester);
+    // Бэкенд после чека называет подписку действующей — как после restore.
+    final repo = _StubSubscriptionRepository(
+      status: SubscriptionStatus(
+        active: true,
+        endsAt: DateTime.now().add(const Duration(days: 20)),
+        daysLeft: 20,
+        autoRenewing: true,
+        manageUrl: 'https://play.google.com/store/account/subscriptions',
+      ),
+      purchases: [_purchase('premium_1m', 1, autoRenewing: true)],
+    );
+    repo.claimedOnly = true;
+    final store = _FakeStore()
+      ..current = [
+        StorePurchaseEvent(
+          productId: 'premium_1m',
+          receipt: 'GPA.deleted-owner',
+          outcome: StorePurchaseOutcome.restored,
+        ),
+      ];
+
+    await tester.pumpWidget(
+      wrap(authenticated: true, repository: repo, store: store),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repo.redeemed, ['premium_1m:GPA.deleted-owner']);
+    expect(find.text('Текущий тариф'), findsOneWidget);
+    expect(find.text('Управлять подпиской'), findsOneWidget);
+    expect(find.text('Оформить подписку'), findsNothing);
   });
 
   // Тариф один: русские материалы входят в любой пропуск, тумблера и второго
