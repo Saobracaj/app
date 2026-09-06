@@ -106,9 +106,10 @@ abstract class Konspekt with _$Konspekt {
     KonspektDictionary? dictionary,
 
     /// The document is a **preview** — the backend sent the intro, the section
-    /// titles and the first block only, because the reader has no entitlement
-    /// for this category. Not part of the authored JSON; set from the GraphQL
-    /// `locked` field and never cached.
+    /// titles, the first block in full and only the *opening* of every other
+    /// block (the question tab shows it under a blur), because the reader has
+    /// no entitlement for this category. Not part of the authored JSON; set
+    /// from the GraphQL `locked` field and never cached.
     @Default(false)
     @JsonKey(includeFromJson: false, includeToJson: false)
     bool locked,

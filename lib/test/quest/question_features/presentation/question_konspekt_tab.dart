@@ -30,10 +30,11 @@ class QuestionKonspektTab extends StatelessWidget {
   final String categoryId;
   final int? questionId;
 
-  /// The category is behind the pass for this reader: the tab names the
-  /// sections about this question and offers the pass instead of the text.
+  /// The category is behind the subscription for this reader: the tab shows
+  /// the opening of the sections about this question under a blur and offers
+  /// the subscription instead of the text — the same gate as the explanation.
   /// Decided by the flags, not by the document — a cached full copy must not
-  /// leak past an expired entitlement.
+  /// leak past an expired entitlement, so the excerpt is cut here as well.
   final bool locked;
 
   @override
@@ -62,8 +63,20 @@ class QuestionKonspektTab extends StatelessWidget {
               .watch<FeatureFlagsBloc>()
               .state
               .russianContentChosen;
-          final titles = state.sections
-              .map((s) => s.title.select(russian: russian))
+          // The backend's preview keeps the opening of every block mapped to
+          // the question; a section with nothing to show (a document
+          // published before blocks, a block the backend emptied) is named
+          // only. Whatever the source, the text is cut here too.
+          final excerpts = [
+            for (final section in state.sections)
+              (
+                title: section.title.select(russian: russian),
+                text: lockedPreviewOf(section.content.select(russian: russian)),
+              ),
+          ];
+          final hasText = excerpts.any((e) => e.text.isNotEmpty);
+          final titles = excerpts
+              .map((e) => e.title)
               .where((t) => t.isNotEmpty)
               .join(' · ');
           return LockedContentCard(
@@ -71,10 +84,35 @@ class QuestionKonspektTab extends StatelessWidget {
             questionId: questionId,
             categoryId: categoryId,
             title: LocaleKeys.subscription_lockedKonspektTitle.tr(),
-            body: titles.isEmpty
+            body: hasText || titles.isEmpty
                 ? LocaleKeys.subscription_lockedKonspektBody.tr()
                 : '${LocaleKeys.subscription_lockedKonspektBody.tr()}\n'
                       '${LocaleKeys.subscription_lockedSections.tr(args: [titles])}',
+            preview: hasText
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(2, 4, 2, 0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (var i = 0; i < excerpts.length; i++) ...[
+                          if (i > 0) const SizedBox(height: 12),
+                          if (excerpts[i].title.isNotEmpty)
+                            KonspektInlineText(
+                              text: excerpts[i].title,
+                              style: theme.textTheme.titleSmall,
+                            ),
+                          if (excerpts[i].text.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            KonspektMarkdown(
+                              text: excerpts[i].text,
+                              categoryId: categoryId,
+                            ),
+                          ],
+                        ],
+                      ],
+                    ),
+                  )
+                : null,
           );
         }
         final russian = context
