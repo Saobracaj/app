@@ -219,6 +219,19 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
     '$host/konspekt': konspektPage,
     '$host/konspekt/zakon': zakonPage,
   },
+  // Витрина тарифов открывается из точек боли — закрытого объяснения,
+  // конспекта (во вкладке вопроса и на своём экране), анализа, «Спросить AI»,
+  // русского переключателя — и из раздела «Подписка». Она должна лежать
+  // поверх того экрана, где нажали кнопку, чтобы «назад» вернуло ровно туда:
+  // абсолютный '/tariffs' строил стек заново, и «назад» уезжало на главную.
+  // Отсюда '…/tariffs' у каждого экрана с гейтом; сама '/tariffs' ниже
+  // остаётся для прямых ссылок.
+  for (final host in _questionHosts) ...{
+    '$host/tariffs': tariffsPage,
+    '$host/konspekt/tariffs': tariffsPage,
+  },
+  '/konspekt/tariffs': tariffsPage,
+  '/subscription/tariffs': tariffsPage,
   '/login': (_) => const MaterialPage(child: LoginPage()),
   '/register': (_) => const MaterialPage(child: RegisterPage()),
   '/resetPassword': (_) => const MaterialPage(child: ResetPasswordPage()),
@@ -389,6 +402,11 @@ MaterialPage commentEditPage(dynamic data) => MaterialPage(
     questionId: int.tryParse(data.queryParameters['id'] ?? '') ?? 0,
   ),
 );
+
+/// Витрина тарифов; одна и та же страница на своём адресе и поверх любого
+/// экрана с гейтом.
+MaterialPage tariffsPage(RouteData _) =>
+    const MaterialPage(child: TariffsPage());
 
 MaterialPage zakonPage(dynamic params) => MaterialPage(
   child: Zakon(
