@@ -47,6 +47,11 @@ class AccountDeletionRepository {
 
   /// Delete (anonymise) the account. Throws [GraphqlException] with the
   /// server's message on a wrong/expired code or a missing confirmation.
+  ///
+  /// The wire field names follow the server's `DeleteAccountInput` exactly —
+  /// GraphQL rejects the whole mutation on an unknown input field, so a renamed
+  /// key here would surface as `Invalid value for argument "input"` under the
+  /// code field. [deleteChatAttachments] is `deleteSupportAttachments` there.
   Future<bool> deleteAccount({
     required String code,
     required bool deletePublicComments,
@@ -62,7 +67,7 @@ class AccountDeletionRepository {
         'input': {
           'code': code,
           'deletePublicComments': deletePublicComments,
-          'deleteChatAttachments': deleteChatAttachments,
+          'deleteSupportAttachments': deleteChatAttachments,
           'deleteSupportChat': deleteSupportChat,
           'deleteGroupHistory': deleteGroupHistory,
           'acceptIrreversible': acceptIrreversible,
