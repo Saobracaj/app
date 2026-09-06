@@ -8,6 +8,7 @@ import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
 import 'package:saobracaj/feature_flags/data/feature_flags_snapshot.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
+import 'package:saobracaj/zakon/presentation/zakon_panel.dart';
 import 'package:saobracaj/zakon/zakon.dart';
 import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,7 +59,11 @@ void main() {
           localizationsDelegates: context.localizationDelegates,
           supportedLocales: context.supportedLocales,
           locale: context.locale,
-          home: BlocProvider.value(value: flags, child: child),
+          // Провайдер стоит над навигатором: закон открывается и диалогом
+          // (`showZakonPanel`), а роут диалога не видит провайдеров из `home`.
+          builder: (context, child) =>
+              BlocProvider.value(value: flags, child: child!),
+          home: child,
         ),
       ),
     );
@@ -141,5 +146,39 @@ void main() {
       tester.widget<ScrollablePositionedList>(listFinder).padding!.left,
       0,
     );
+  });
+
+  // Регрессия: на широком экране (веб) закон открывается выдвижной панелью
+  // шириной 560, а поля считались от ширины окна — по ~500 с каждой стороны,
+  // и тексту оставалась ширина в один символ. Поля должны считаться от
+  // ширины самой панели: она уже колонки чтения, значит полей нет вовсе.
+  testWidgets('в выдвижной панели поля считаются от ширины панели, а не окна', (
+    tester,
+  ) async {
+    setWindow(tester, const Size(1700, 900));
+    await tester.pumpWidget(
+      wrap(
+        Builder(
+          builder: (context) => Center(
+            child: ElevatedButton(
+              onPressed: () => showZakonPanel(context),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final listFinder = find.byType(ScrollablePositionedList);
+    expect(listFinder, findsOneWidget);
+    expect(tester.getSize(listFinder).width, 560);
+    final padding = tester
+        .widget<ScrollablePositionedList>(listFinder)
+        .padding!;
+    expect(padding.left, 0);
+    expect(padding.right, 0);
   });
 }
