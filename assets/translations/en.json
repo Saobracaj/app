@@ -887,6 +887,7 @@
     "purchaseFailed": "The purchase could not be completed",
     "purchasePending": "The payment is awaiting confirmation. Access opens as soon as it goes through.",
     "purchaseActivated": "Thank you! Your subscription is active.",
+    "processingPayment": "Processing payment…",
     "restore": "Restore purchases",
     "restoreHint": "If you have bought a subscription before — on this device or another one.",
     "restoreDone": "Done. Any purchases you have were restored.",

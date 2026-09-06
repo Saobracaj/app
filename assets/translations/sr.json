@@ -908,6 +908,7 @@
     "purchaseFailed": "Kupovina nije završena",
     "purchasePending": "Uplata čeka potvrdu. Pristup se otvara čim prođe.",
     "purchaseActivated": "Hvala! Pretplata je aktivna.",
+    "processingPayment": "Obrada plaćanja…",
     "restore": "Vrati kupovine",
     "restoreHint": "Ako ste već kupovali pretplatu — na ovom ili na drugom uređaju.",
     "restoreDone": "Gotovo. Ako kupovina postoji, vraćena je.",

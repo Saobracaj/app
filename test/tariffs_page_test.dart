@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/auth/data/auth_repository.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
@@ -44,6 +45,13 @@ class _StubSubscriptionRepository extends SubscriptionRepository {
   final SubscriptionStatus status;
   final redeemed = <String>[];
 
+  /// Чем бэкенд отвечает на чек вместо права — когда тест проверяет отказ.
+  GraphqlException? redeemError;
+
+  /// Пока не завершён, бэкенд «думает» над чеком — так тест видит экран
+  /// между закрытием окна стора и записью права.
+  Completer<void>? redeemGate;
+
   @override
   Future<List<Tariff>> tariffs() async => [
     _tariff('premium_1m', 1, 1490),
@@ -67,6 +75,8 @@ class _StubSubscriptionRepository extends SubscriptionRepository {
     required String receipt,
   }) async {
     redeemed.add('$productId:$receipt');
+    await redeemGate?.future;
+    if (redeemError != null) throw redeemError!;
     return status;
   }
 
@@ -198,11 +208,28 @@ void main() {
         builder: (context) {
           // Как в `main.dart`: без этого `intl` форматирует суммы по en_US.
           Intl.defaultLocale = context.locale.toLanguageTag();
-          return MaterialApp(
+          // Роутер, а не `home`: после покупки витрина закрывает себя и
+          // открывает экран подписки, и это должно быть видно тесту.
+          return MaterialApp.router(
             localizationsDelegates: context.localizationDelegates,
             supportedLocales: context.supportedLocales,
             locale: context.locale,
-            home: BlocProvider<AuthBloc>.value(value: auth, child: home),
+            routerDelegate: RoutemasterDelegate(
+              routesBuilder: (_) => RouteMap(
+                routes: {
+                  '/': (_) => MaterialPage(
+                    child: BlocProvider<AuthBloc>.value(
+                      value: auth,
+                      child: home,
+                    ),
+                  ),
+                  '/subscription': (_) => const MaterialPage(
+                    child: Scaffold(body: Text('экран подписки')),
+                  ),
+                },
+              ),
+            ),
+            routeInformationParser: const RoutemasterParser(),
           );
         },
       ),
@@ -360,7 +387,127 @@ void main() {
     expect(store.bought, ['premium_3m']);
   });
 
-  testWidgets('чек из стора уходит на бэкенд и открывает подписку', (
+  // Между нажатием и записью права проходит окно стора и запрос к бэкенду;
+  // всё это время кнопка заперта и говорит, что происходит.
+  testWidgets('после нажатия кнопка заперта и говорит, что платёж идёт', (
+    tester,
+  ) async {
+    wide(tester);
+    final store = _FakeStore();
+    final repo = _StubSubscriptionRepository()..redeemGate = Completer();
+
+    await tester.pumpWidget(
+      wrap(authenticated: true, repository: repo, store: store),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Оплатить premium_3m price'),
+    );
+    await tester.pump();
+
+    final button = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Обрабатываем платёж…'),
+    );
+    expect(button.onPressed, isNull);
+    expect(find.text('Оплатить premium_3m price'), findsNothing);
+
+    // Окно стора закрыто, чек ушёл на бэкенд, ответа ещё нет — кнопка всё ещё
+    // занята: без этого экран выглядел бы так, будто ничего не происходит.
+    store.emit(
+      StorePurchaseEvent(
+        productId: 'premium_3m',
+        receipt: 'token-1',
+        outcome: StorePurchaseOutcome.purchased,
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(repo.redeemed, ['premium_3m:token-1']);
+    expect(find.text('Обрабатываем платёж…'), findsOneWidget);
+    expect(find.byType(TariffsPage), findsOneWidget);
+
+    // Право записано — витрина закрывается.
+    repo.redeemGate!.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(TariffsPage), findsNothing);
+    expect(find.text('экран подписки'), findsOneWidget);
+  });
+
+  testWidgets('отмена в окне стора возвращает кнопку как была', (tester) async {
+    wide(tester);
+    final store = _FakeStore();
+
+    await tester.pumpWidget(wrap(authenticated: true, store: store));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Оплатить premium_3m price'),
+    );
+    await tester.pump();
+    expect(find.text('Обрабатываем платёж…'), findsOneWidget);
+
+    store.emit(
+      StorePurchaseEvent(
+        productId: 'premium_3m',
+        receipt: '',
+        outcome: StorePurchaseOutcome.canceled,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final button = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Оплатить premium_3m price'),
+    );
+    expect(button.onPressed, isNotNull);
+    expect(find.text('Обрабатываем платёж…'), findsNothing);
+    expect(find.byType(SnackBar), findsNothing);
+    expect(find.byIcon(Icons.error_outline), findsNothing);
+  });
+
+  // Снэкбар гаснет за секунды, и человек, вернувшийся из окна стора, его не
+  // увидит: ошибка стоит под кнопкой, пока не начнётся следующая попытка.
+  testWidgets('отказ стора остаётся под кнопкой', (tester) async {
+    wide(tester);
+    final store = _FakeStore();
+
+    await tester.pumpWidget(wrap(authenticated: true, store: store));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Оплатить premium_3m price'),
+    );
+    await tester.pump();
+    store.emit(
+      StorePurchaseEvent(
+        productId: 'premium_3m',
+        receipt: '',
+        outcome: StorePurchaseOutcome.failed,
+        errorMessage: 'Карта отклонена',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Карта отклонена'), findsOneWidget);
+    expect(find.byType(SnackBar), findsNothing);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Оплатить premium_3m price'),
+          )
+          .onPressed,
+      isNotNull,
+    );
+
+    // Следующая попытка убирает старую ошибку.
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Оплатить premium_3m price'),
+    );
+    await tester.pump();
+    expect(find.text('Карта отклонена'), findsNothing);
+  });
+
+  testWidgets('чек из стора уходит на бэкенд и открывает экран подписки', (
     tester,
   ) async {
     wide(tester);
@@ -382,7 +529,70 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repo.redeemed, ['premium_12m:token-1']);
+    // Витрина закрыта, человек стоит на экране подписки, и благодарность
+    // показана уже там.
+    expect(find.byType(TariffsPage), findsNothing);
+    expect(find.text('экран подписки'), findsOneWidget);
     expect(find.text('Спасибо! Подписка активна.'), findsOneWidget);
+  });
+
+  // Право не записано — покупка не активирована: витрина остаётся, ошибка
+  // под кнопкой, а чек стору не подтверждается (это проверяет Bloc).
+  testWidgets('отказ бэкенда при активации не уводит с витрины', (
+    tester,
+  ) async {
+    wide(tester);
+    final store = _FakeStore();
+    final repo = _StubSubscriptionRepository()
+      ..redeemError = GraphqlException('Чек не принят');
+
+    await tester.pumpWidget(
+      wrap(authenticated: true, repository: repo, store: store),
+    );
+    await tester.pumpAndSettle();
+
+    store.emit(
+      StorePurchaseEvent(
+        productId: 'premium_3m',
+        receipt: 'token-1',
+        outcome: StorePurchaseOutcome.purchased,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TariffsPage), findsOneWidget);
+    expect(find.text('Чек не принят'), findsOneWidget);
+    expect(find.text('Обрабатываем платёж…'), findsNothing);
+    expect(
+      find.widgetWithText(FilledButton, 'Оплатить premium_3m price'),
+      findsOneWidget,
+    );
+  });
+
+  // Восстановление — не покупка: чек `restored` право открывает, но с витрины
+  // никуда не уводит и «спасибо за покупку» не говорит.
+  testWidgets('восстановленный чек не закрывает витрину', (tester) async {
+    wide(tester);
+    final store = _FakeStore();
+    final repo = _StubSubscriptionRepository();
+
+    await tester.pumpWidget(
+      wrap(authenticated: true, repository: repo, store: store),
+    );
+    await tester.pumpAndSettle();
+
+    store.emit(
+      StorePurchaseEvent(
+        productId: 'premium_12m',
+        receipt: 'token-1',
+        outcome: StorePurchaseOutcome.restored,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(repo.redeemed, ['premium_12m:token-1']);
+    expect(find.byType(TariffsPage), findsOneWidget);
+    expect(find.text('Спасибо! Подписка активна.'), findsNothing);
   });
 
   testWidgets('отменённая оплата не ошибка и ничего не показывает', (
