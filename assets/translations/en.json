@@ -282,7 +282,7 @@
     "cancel": "Cancel",
     "displayName": {
       "title": "Display name",
-      "description": "Choose a name other users will see next to your comments.",
+      "description": "Choose the name others will see next to your messages and comments. Without one the message is not sent.",
       "hint": "Your name",
       "cancel": "Cancel",
       "save": "Save",
