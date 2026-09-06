@@ -33,7 +33,7 @@ enum PaywallSource {
 
 /// Открыть экран пейволла — витрину тарифов — из точки боли [source].
 ///
-/// Экран один и тот же для всех входов: три пропуска, якорь и обещание
+/// Экран один и тот же для всех входов: три срока подписки, якорь и обещание
 /// продления. Гость попадает на ту же витрину, где вместо «Оформить» стоит
 /// «Войдите» — отдельного экрана для него нет.
 void openPaywall(
@@ -58,7 +58,37 @@ void openTariffs(BuildContext context) {
   pushScreen(context, path: 'tariffs', screen: () => const TariffsPage());
 }
 
-/// Карточка закрытого контента: то, что видно без пропуска.
+/// Сколько символов закрытого текста показывает превью — столько же, сколько
+/// бэкенд оставляет от запертого объяснения (`PREVIEW_CHARS` в
+/// `comments/model.rs`): видно, что текст настоящий и про этот вопрос, но
+/// ответить по нему на следующий вопрос нельзя.
+const lockedPreviewChars = 220;
+
+/// Начало [text] для превью под пейволлом: первый абзац, обрезанный по
+/// последнему пробелу до [lockedPreviewChars] символов, с многоточием, если
+/// что-то отброшено. Повторяет правило бэкенда, но на клиенте: то, что
+/// показывается под размытием, не должно зависеть от того, откуда пришёл
+/// документ — полная копия из кэша, пережившая право, режется так же.
+String lockedPreviewOf(String text) {
+  final whole = text.trim();
+  final firstParagraph = whole.split('\n\n').first.trim();
+  final cutHere = firstParagraph.length < whole.length;
+  final runes = firstParagraph.runes.toList();
+  if (runes.length <= lockedPreviewChars) {
+    return cutHere ? '$firstParagraph…' : firstParagraph;
+  }
+  final head = String.fromCharCodes(runes.take(lockedPreviewChars));
+  var cut = head.length;
+  for (var i = head.length - 1; i >= 0; i--) {
+    if (head[i].trim().isEmpty) {
+      cut = i;
+      break;
+    }
+  }
+  return '${head.substring(0, cut).trimRight()}…';
+}
+
+/// Карточка закрытого контента: то, что видно без подписки.
 ///
 /// [preview] — кусок настоящего контента (первые строки объяснения, первый
 /// блок конспекта), который показывается под затуханием и размытием, чтобы
