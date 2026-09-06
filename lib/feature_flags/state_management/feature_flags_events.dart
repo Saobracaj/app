@@ -19,3 +19,13 @@ class FeatureToggled extends FeatureFlagsEvent {
   final AppFeature feature;
   final bool enabled;
 }
+
+/// The «РУ» translation was switched on for free on a question where the
+/// feature is locked — one of the free tries (`russianTranslationTrialUses`)
+/// is spent.
+class RussianTranslationTrialUsed extends FeatureFlagsEvent {
+  RussianTranslationTrialUsed({this.questionId});
+
+  /// The question the translation was opened on — for analytics only.
+  final int? questionId;
+}

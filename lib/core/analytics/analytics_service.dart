@@ -95,6 +95,15 @@ class AnalyticsService {
   void logTranslationToggled({required bool enabled}) =>
       _track('translation_toggled', {'enabled': enabled});
 
+  /// The «РУ» translation was opened for free on a question where the Russian
+  /// content is locked — one of the free tries spent; [usesLeft] is what
+  /// remains after this one.
+  void logTranslationTrialUsed({required int usesLeft, int? questionId}) =>
+      _track('translation_trial_used', {
+        'uses_left': usesLeft,
+        'question_id': ?questionId,
+      });
+
   /// A category konspekt was successfully loaded and shown. [section] is the
   /// section slug the page was opened at — from the question's konspekt tab or
   /// a deep link; null when the konspekt was opened from its beginning.

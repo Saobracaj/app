@@ -21,6 +21,13 @@ const freeCategoryIds = <String>{'25', '26', '28'};
 bool isFreeCategory(String? categoryId) =>
     categoryId != null && freeCategoryIds.contains(categoryId.trim());
 
+/// How many times the «РУ» translation of a question from a *paid* category
+/// opens for free before the toggle starts leading to the paywall. A taste of
+/// the feature rather than a demo mode: each switch-on on a locked question
+/// spends one, the count is kept on the device
+/// (`FeatureFlagsRepository.consumeRussianTranslationTrial`).
+const russianTranslationTrialUses = 3;
+
 /// How a feature becomes available to the user.
 enum FeatureAccess {
   /// Available to everyone, even signed-out guests.

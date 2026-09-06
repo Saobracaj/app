@@ -7,6 +7,7 @@ import 'package:saobracaj/core/deep_links.dart';
 import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/core/presentation/translation_chip.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
+import 'package:saobracaj/feature_flags/state_management/feature_flags_events.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_state.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/subscription/presentation/paywall.dart';
@@ -74,8 +75,9 @@ class QuestAppBar extends StatelessWidget implements PreferredSizeWidget {
       ),
       actions: [
         // The «РУ» chip: live with the entitlement (or in a free category),
-        // and still on screen — leading to the offer — when the Russian text
-        // is behind the pass for this question. Hidden only when the person
+        // and still on screen when the Russian text is behind the pass for
+        // this question — the first few taps there open the translation for
+        // free, the rest lead to the offer. Hidden only when the person
         // turned the Russian materials off themselves.
         BlocBuilder<FeatureFlagsBloc, FeatureFlagsState>(
           builder: (context, flags) {
@@ -89,13 +91,9 @@ class QuestAppBar extends StatelessWidget implements PreferredSizeWidget {
               AppFeature.russianContent,
               categoryId,
             )) {
-              return TranslationChip(
-                on: false,
-                onTap: () => openPaywall(
-                  context,
-                  source: PaywallSource.russianToggle,
-                  questionId: questionId,
-                ),
+              return _LockedTranslationChip(
+                questionId: questionId,
+                triesLeft: flags.russianTranslationTriesLeft,
               );
             }
             return const SizedBox.shrink();
@@ -139,5 +137,69 @@ class _TranslationChip extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+/// The «РУ» toggle on a question where the Russian content is locked behind
+/// the pass.
+///
+/// A taste before the gate: the first [russianTranslationTrialUses]
+/// switch-ons on such questions open the translation as if it were paid for
+/// (each one spends a try and says how many remain), and only once they are
+/// gone does the tap lead to the paywall. A translation that is already open
+/// — the last try was just spent on it — is still the person's to close, so
+/// the chip keeps toggling until the question changes.
+class _LockedTranslationChip extends StatelessWidget {
+  const _LockedTranslationChip({
+    required this.questionId,
+    required this.triesLeft,
+  });
+
+  final int questionId;
+  final int triesLeft;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<TranslationsBloc, TranslationsState>(
+      builder: (context, state) {
+        if (state.showTranslation) {
+          return TranslationChip(
+            on: true,
+            onTap: () =>
+                context.read<TranslationsBloc>().add(ToggleShowTranslation()),
+          );
+        }
+        if (triesLeft > 0) {
+          return TranslationChip(on: false, onTap: () => _spendTry(context));
+        }
+        return TranslationChip(
+          on: false,
+          onTap: () => openPaywall(
+            context,
+            source: PaywallSource.russianToggle,
+            questionId: questionId,
+          ),
+        );
+      },
+    );
+  }
+
+  void _spendTry(BuildContext context) {
+    final left = triesLeft - 1;
+    context.read<TranslationsBloc>().add(ToggleShowTranslation());
+    context.read<FeatureFlagsBloc>().add(
+      RussianTranslationTrialUsed(questionId: questionId),
+    );
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            left == 0
+                ? LocaleKeys.quest_ruTrialLast.tr()
+                : LocaleKeys.quest_ruTrialLeft.tr(args: ['$left']),
+          ),
+        ),
+      );
   }
 }

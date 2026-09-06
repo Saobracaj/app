@@ -51,6 +51,7 @@
 | `simulation_finished` | финиш симуляции (рукой или таймером) | `duration_seconds`, `points`, `mistakes` |
 | `definition_opened` | тап по определению в тексте вопроса | `term` |
 | `translation_toggled` | чип «РУ» на вопросе | `enabled` |
+| `translation_trial_used` | перевод открыт бесплатно на вопросе платной категории без подписки (первые три раза) | `uses_left`, `question_id` |
 | `konspekt_opened` | открытие конспекта | `category`, `section` (слаг секции, если открыт по ссылке — с вкладки вопроса или по deep link) |
 | `konspekt_section_opened` | переход к секции рукой: по содержанию или по ссылке внутри текста | `category`, `section` |
 | `zakon_opened` | открытие закона (или правилника) по ссылке | `chlan`, `paragraph`, `chapter`, `document` (`zakon`/`pravilnik`) |
