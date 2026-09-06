@@ -82,20 +82,31 @@ class _TariffsScaffoldState extends State<_TariffsScaffold> {
     return Scaffold(
       appBar: AppBar(title: Text(LocaleKeys.subscription_tariffsTitle.tr())),
       body: BlocConsumer<SubscriptionBloc, SubscriptionState>(
-        // Снэкбары — только про действия (покупка, восстановление); ошибка
-        // загрузки рендерится инлайном ниже.
+        // Снэкбар — только про то, что случилось без ошибки (отложенный платёж,
+        // активация). Ошибки покупки стоят строкой под кнопкой: снэкбар гаснет
+        // за секунды, а человек, вернувшийся из окна стора, его и не увидит.
+        // Ошибка загрузки рендерится инлайном ниже.
         listenWhen: (prev, curr) =>
             curr.tariffs.isNotEmpty &&
-            ((curr.errorMessage != null &&
-                    curr.errorMessage != prev.errorMessage) ||
-                (curr.infoMessage != null &&
-                    curr.infoMessage != prev.infoMessage)),
+            ((curr.infoMessage != null &&
+                    curr.infoMessage != prev.infoMessage) ||
+                (curr.activatedSku != null &&
+                    curr.activatedSku != prev.activatedSku)),
         listener: (context, state) {
-          final message = state.errorMessage ?? state.infoMessage;
-          if (message == null) return;
-          ScaffoldMessenger.of(context)
-            ..hideCurrentSnackBar()
-            ..showSnackBar(SnackBar(content: Text(message)));
+          final message = state.infoMessage;
+          if (message != null) {
+            // Мессенджер корневой: снэкбар переживёт уход с витрины и
+            // покажется уже над экраном подписки.
+            ScaffoldMessenger.of(context)
+              ..hideCurrentSnackBar()
+              ..showSnackBar(SnackBar(content: Text(message)));
+          }
+          // Купленный пропуск активирован: витрина своё сделала, показываем
+          // человеку, что он получил, — и закрываем витрину, чтобы «назад» не
+          // возвращало к кнопке «оплатить».
+          if (state.activatedSku != null) {
+            Routemaster.of(context).replace('/subscription');
+          }
         },
         builder: (context, state) {
           if (state.inProgress && state.tariffs.isEmpty) {
@@ -456,7 +467,7 @@ class _PlanCard extends StatelessWidget {
                 child: Text(LocaleKeys.subscription_signInToBuy.tr()),
               ),
             )
-          else
+          else ...[
             _WideButton(
               child: _BuyButton(
                 tariff: tariff,
@@ -467,6 +478,11 @@ class _PlanCard extends StatelessWidget {
                 busy: state.purchasingSku == tariff.sku,
               ),
             ),
+            if (state.errorMessage != null) ...[
+              const SizedBox(height: 10),
+              _PurchaseError(message: state.errorMessage!),
+            ],
+          ],
         ],
       ),
     );
@@ -603,13 +619,51 @@ class _BuyButton extends StatelessWidget {
           context,
         ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
+      // Пока идёт оплата — окно стора, потом запись права на бэкенде, — кнопка
+      // заперта и говорит, что происходит: один только спиннер после
+      // закрывшегося окна стора читается как «зависло».
       child: busy
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2),
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 10),
+                Text(LocaleKeys.subscription_processingPayment.tr()),
+              ],
             )
           : Text(label),
+    );
+  }
+}
+
+/// Ошибка покупки под кнопкой: стор отказал, бэкенд не записал право, стор
+/// недоступен. Остаётся на экране до следующей попытки.
+class _PurchaseError extends StatelessWidget {
+  const _PurchaseError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.error_outline, size: 18, color: theme.colorScheme.error),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            message,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.error,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

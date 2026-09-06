@@ -225,7 +225,12 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     }
     if (platform == null) return;
 
-    emit(state.copyWith(redeeming: true, purchasingSku: null));
+    // Кнопка продолжает показывать «обрабатываем платёж», пока право не
+    // записано: окно стора уже закрылось, и без этого экран выглядел бы так,
+    // будто ничего не происходит. Чек без нажатия привязываем к тарифу по
+    // товару.
+    final sku = state.purchasingSku ?? _skuOf(purchase.productId, platform);
+    emit(state.copyWith(redeeming: true, purchasingSku: sku));
     final SubscriptionStatus status;
     try {
       status = await _repository.redeemPurchase(
@@ -237,25 +242,41 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
       // Чек стору не подтверждаем: пусть покупка останется незакрытой и
       // приложение попробует ещё раз при следующем запуске.
       emit(
-        state.copyWith(redeeming: false, errorMessage: describeActionError(e)),
+        state.copyWith(
+          redeeming: false,
+          purchasingSku: null,
+          errorMessage: describeActionError(e),
+        ),
       );
       return;
     }
     await _repository.refreshGrants();
     await _store.complete(purchase);
     analytics.logCheckoutStep(step: 'purchase_completed');
+    final restored = purchase.outcome == StorePurchaseOutcome.restored;
     emit(
       state.copyWith(
         redeeming: false,
+        purchasingSku: null,
         subscription: status,
         // Восстановление тем и отличается от покупки, что ничего нового не
         // произошло — говорить «спасибо за покупку» было бы странно.
-        infoMessage: purchase.outcome == StorePurchaseOutcome.restored
+        infoMessage: restored
             ? LocaleKeys.subscription_restoreFound.tr()
             : LocaleKeys.subscription_purchaseActivated.tr(),
+        activatedSku: restored ? null : (sku ?? purchase.productId),
       ),
     );
     add(SubscriptionRequested());
+  }
+
+  /// SKU тарифа, чей товар в [platform] — [productId]; `null`, если каталог
+  /// такого товара не знает.
+  String? _skuOf(String productId, StorePlatform platform) {
+    for (final tariff in state.tariffs) {
+      if (tariff.productIdFor(platform) == productId) return tariff.sku;
+    }
+    return null;
   }
 
   Future<void> _onRemindersToggled(
