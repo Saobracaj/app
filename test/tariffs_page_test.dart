@@ -18,6 +18,7 @@ import 'package:saobracaj/subscription/data/store_purchase_service.dart';
 import 'package:saobracaj/subscription/data/subscription_repository.dart';
 import 'package:saobracaj/subscription/models/subscription_models.dart';
 import 'package:saobracaj/subscription/presentation/plan_features.dart';
+import 'package:saobracaj/subscription/presentation/subscription_page.dart';
 import 'package:saobracaj/subscription/presentation/tariffs_page.dart';
 import 'package:saobracaj/subscription/state_management/subscription_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -92,13 +93,22 @@ class _FakeStore extends StorePurchaseService {
   @override
   Future<bool> isAvailable() async => available;
 
+  /// Цены стора — те же суммы, что в справочном каталоге: иначе проценты
+  /// экономии на витрине разошлись бы с арифметикой каталога, и тест ловил бы
+  /// не витрину, а выдумку фейка.
+  static const _rawPrices = {
+    'premium_1m': 1490.0,
+    'premium_3m': 2990.0,
+    'premium_12m': 4490.0,
+  };
+
   @override
   Future<List<StoreProduct>> products(Set<String> ids) async => [
     for (final id in ids)
       StoreProduct(
         id: id,
         price: '$id price',
-        rawPrice: 1000,
+        rawPrice: _rawPrices[id] ?? 1000,
         currencyCode: 'RSD',
       ),
   ];
@@ -158,6 +168,7 @@ void main() {
     bool authenticated = false,
     _StubSubscriptionRepository? repository,
     StorePurchaseService? store,
+    Widget home = const TariffsPage(),
   }) {
     getIt.registerFactory<SubscriptionBloc>(
       () => SubscriptionBloc(
@@ -174,6 +185,9 @@ void main() {
         : _GuestAuthBloc(authRepository, subscriptions);
     return EasyLocalization(
       useOnlyLangCode: true,
+      // Как в `main.dart`: без этого easy_localization склоняет по одному лишь
+      // числу, и «12 месяцев» в переключателе становится «12 месяца».
+      ignorePluralRules: false,
       supportedLocales: const [Locale('sr'), Locale('ru'), Locale('en')],
       fallbackLocale: const Locale('ru'),
       startLocale: locale ?? const Locale('ru'),
@@ -188,10 +202,7 @@ void main() {
             localizationsDelegates: context.localizationDelegates,
             supportedLocales: context.supportedLocales,
             locale: context.locale,
-            home: BlocProvider<AuthBloc>.value(
-              value: auth,
-              child: const TariffsPage(),
-            ),
+            home: BlocProvider<AuthBloc>.value(value: auth, child: home),
           );
         },
       ),
@@ -204,6 +215,13 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
+  /// Переключить срок: подпись сегмента — это тот же `monthsLabel`, что и в
+  /// каталоге.
+  Future<void> pickTerm(WidgetTester tester, String label) async {
+    await tester.tap(find.text(label));
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('цены приходят из стора, а не из справочных динаров', (
     tester,
   ) async {
@@ -212,11 +230,30 @@ void main() {
     await tester.pumpWidget(wrap(authenticated: true));
     await tester.pumpAndSettle();
 
-    // Стор назвал цену для каждого товара — витрина показывает именно её.
-    expect(find.text('К оплате premium_1m price'), findsOneWidget);
-    expect(find.text('К оплате premium_12m price'), findsOneWidget);
-    // Справочная цена в динарах при живом сторе на карточках не всплывает.
-    expect(find.textContaining('4\u00A0490 RSD'), findsNothing);
+    // Открыт рекомендованный срок, и цена на нём — та, что назвал стор.
+    expect(find.text('premium_3m price'), findsOneWidget);
+    // Справочная цена в динарах при живом сторе не всплывает.
+    expect(find.textContaining('2 990 RSD'), findsNothing);
+  });
+
+  // Ради этого переключатель и заводился: сроков три, а карточка одна, и
+  // экран не растёт вместе с каталогом.
+  testWidgets('переключатель срока меняет карточку, а не длину экрана', (
+    tester,
+  ) async {
+    wide(tester);
+
+    await tester.pumpWidget(wrap(authenticated: true));
+    await tester.pumpAndSettle();
+
+    expect(find.text('К оплате сейчас'), findsOneWidget);
+    expect(find.text('premium_3m price'), findsOneWidget);
+
+    await pickTerm(tester, '12 месяцев');
+
+    expect(find.text('К оплате сейчас'), findsOneWidget);
+    expect(find.text('premium_12m price'), findsOneWidget);
+    expect(find.text('premium_3m price'), findsNothing);
   });
 
   testWidgets('без стора витрина не продаёт, а отправляет в приложение', (
@@ -229,13 +266,40 @@ void main() {
 
     expect(find.text('Подписка оформляется в приложении'), findsOneWidget);
     // Ни одной кнопки покупки — из веба к оплате мы не ведём вовсе.
-    expect(find.text('Оформить'), findsNothing);
+    expect(find.textContaining('Оплатить'), findsNothing);
+    expect(find.text('Оформить подписку'), findsNothing);
     expect(find.text('Восстановить покупки'), findsNothing);
     // Зато цены видны — справочные, в динарах.
-    expect(find.text('К оплате 4\u00A0490 RSD'), findsOneWidget);
+    expect(find.text('2 990 RSD'), findsOneWidget);
   });
 
-  testWidgets('месячный подписан автопродлением, а годовой — экономией', (
+  // Разница между «спишется ещё раз через месяц» и «больше не спишется» —
+  // единственная содержательная разница между сроками, и названа она словами,
+  // а не выведена из мелкой подписи.
+  testWidgets('тип платежа назван словами на самой карточке', (tester) async {
+    wide(tester);
+
+    await tester.pumpWidget(wrap(authenticated: true));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Разовый платёж · без автопродления'), findsOneWidget);
+    expect(
+      find.textContaining('Ничего не продлевается и не списывается повторно'),
+      findsOneWidget,
+    );
+
+    await pickTerm(tester, '1 месяц');
+
+    expect(find.text('Подписка · автопродление'), findsOneWidget);
+    expect(
+      find.textContaining('Продлевается автоматически каждый месяц'),
+      findsOneWidget,
+    );
+  });
+
+  // Кнопка называет ту же сумму, что и карточка: окно стора не должно
+  // показывать ничего нового.
+  testWidgets('кнопка повторяет сумму, а подписка называется подпиской', (
     tester,
   ) async {
     wide(tester);
@@ -244,29 +308,55 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('Продлевается автоматически каждый месяц, пока вы не отмените'),
+      find.widgetWithText(FilledButton, 'Оплатить premium_3m price'),
       findsOneWidget,
     );
+
+    await pickTerm(tester, '1 месяц');
+
+    // У автопродлеваемого пропуска «оплатить N» соврало бы: платежей будет
+    // много.
     expect(
-      find.text('Экономия 13\u00A0390 RSD против помесячной оплаты'),
+      find.widgetWithText(FilledButton, 'Оформить подписку'),
       findsOneWidget,
     );
   });
 
-  testWidgets('нажатие «Оформить» открывает окно оплаты стора', (tester) async {
+  // Экономия стоит рядом с ценой, и считать её надо в тех же деньгах. Без
+  // стора это справочные динары — их и проверяем: сумму стора отформатировал
+  // бы `intl`, и тест сверял бы форматтер сам с собой.
+  testWidgets('экономия названа в тех же деньгах, что и цены', (tester) async {
+    wide(tester);
+
+    await tester.pumpWidget(wrap(authenticated: true, store: _NoStore()));
+    await tester.pumpAndSettle();
+    await pickTerm(tester, '12 месяцев');
+
+    expect(
+      find.text('Экономия 13 390 RSD против помесячной оплаты'),
+      findsOneWidget,
+    );
+
+    // Месячному сравнивать себя не с чем — строки экономии у него нет.
+    await pickTerm(tester, '1 месяц');
+    expect(find.textContaining('Экономия'), findsNothing);
+  });
+
+  testWidgets('нажатие кнопки открывает окно оплаты стора', (tester) async {
     wide(tester);
     final store = _FakeStore();
 
     await tester.pumpWidget(wrap(authenticated: true, store: store));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Оформить'));
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Оплатить premium_3m price'),
+    );
     // Не pumpAndSettle: пока стор не ответил, на кнопке крутится индикатор —
     // «устаканиться» этой странице теперь и не положено.
     await tester.pump();
 
-    // Рекомендованная карточка — трёхмесячная: покупается её товар в этом
-    // сторе.
+    // Открыт рекомендованный срок — покупается его товар в этом сторе.
     expect(store.bought, ['premium_3m']);
   });
 
@@ -320,13 +410,21 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
   });
 
-  testWidgets('«Восстановить покупки» просит стор перевыдать чеки', (
+  // «Восстановить покупки» ушло с витрины, но никуда не делось: стор требует
+  // этот путь, и он живёт в разделе «Подписка».
+  testWidgets('«Восстановить покупки» живёт в разделе «Подписка»', (
     tester,
   ) async {
     wide(tester);
     final store = _FakeStore();
 
-    await tester.pumpWidget(wrap(authenticated: true, store: store));
+    await tester.pumpWidget(
+      wrap(
+        authenticated: true,
+        store: store,
+        home: const SubscriptionContent(),
+      ),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Восстановить покупки'));
@@ -363,8 +461,9 @@ void main() {
   );
 
   // Тариф один: русские материалы входят в любой пропуск, тумблера и второго
-  // ряда цен нет, а выделен трёхмесячный — обычное окно подготовки.
-  testWidgets('один Premium: без тумблера, с якорем и «самым популярным»', (
+  // ряда цен нет. Значок «Популярный» стоит на рекомендованном сроке, процент
+  // экономии — на длинном.
+  testWidgets('один Premium: без тумблера, со значками на сроках', (
     tester,
   ) async {
     wide(tester);
@@ -373,16 +472,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(Switch), findsNothing);
-    expect(find.text('Самый популярный'), findsOneWidget);
-    expect(find.text('Входят в любой пропуск'), findsOneWidget);
-    // Якорь — цена ошибки, а не цена конкурента.
-    expect(find.textContaining('5 800 RSD'), findsOneWidget);
-    // Обещание продления стоит на витрине, но без кнопки запроса — она в
-    // разделе «Подписка».
-    expect(find.textContaining('продлим пропуск на месяц'), findsOneWidget);
-    expect(find.text('Не сдал экзамен'), findsNothing);
-    // «Не входит» — только у чата с AI бесплатно и в легенде.
-    expect(find.text('не входит'), findsNWidgets(2));
+    expect(find.text('Популярный'), findsOneWidget);
+    expect(find.text('−75%'), findsOneWidget);
+    expect(find.text('Материалы на русском'), findsOneWidget);
+    // Якорь про пересдачу и обещание продления с витрины убраны — они не
+    // помогали выбрать срок, а места занимали больше, чем цены.
+    expect(find.textContaining('5 800 RSD'), findsNothing);
+    expect(find.textContaining('продлим пропуск на месяц'), findsNothing);
   });
 
   testWidgets('гостю предлагают войти вместо покупки', (tester) async {
@@ -391,44 +487,106 @@ void main() {
     await tester.pumpWidget(wrap());
     await tester.pumpAndSettle();
 
-    expect(find.text('Войдите, чтобы оформить подписку'), findsNWidgets(3));
-    expect(find.text('Оформить'), findsNothing);
+    // Карточка одна — и приглашение войти на ней одно.
+    expect(find.text('Войдите, чтобы оформить подписку'), findsOneWidget);
+    expect(find.textContaining('Оплатить'), findsNothing);
   });
-  testWidgets('на телефоне сроки идут стопкой, самый выгодный первым', (
+
+  testWidgets('на телефоне сроки идут по возрастанию в переключателе', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 3600);
+    tester.view.physicalSize = const Size(390, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(wrap(authenticated: true));
     await tester.pumpAndSettle();
 
-    // Порядок сверху вниз: рекомендованные 3 месяца, потом 1 и 12. На узком
-    // экране порядок и есть рекомендация.
-    final prices = tester
-        .widgetList<Text>(find.byType(Text))
-        .map((t) => t.data)
-        .where((t) => t != null && t.startsWith('К оплате premium_'))
-        .toList();
-    expect(prices, [
-      'К оплате premium_3m price',
-      'К оплате premium_1m price',
-      'К оплате premium_12m price',
-    ]);
-    // Таблица на такой ширине не показывается — вместо неё карточки-списки.
+    // Сравнивать сроки человек будет слева направо, и «12 месяцев» должно
+    // стоять после «1 месяц», а не первым как рекомендация.
+    final terms = ['1 месяц', '3 месяца', '12 месяцев'];
+    final xs = [for (final t in terms) tester.getCenter(find.text(t)).dx];
+    expect(xs[0], lessThan(xs[1]));
+    expect(xs[1], lessThan(xs[2]));
+
+    // Таблица сравнения на самой витрине больше не стоит — она за ссылкой.
     expect(find.byType(Table), findsNothing);
   });
 
-  // Сербский и английский длиннее русского в подписях тарифов, а планшетная
-  // ширина — самая тесная для трёхколоночной таблицы: и то и другое ловит
+  // Подробное сравнение нужно единицам, поэтому оно за ссылкой. Но дойти до
+  // него должно быть можно, и звёздочка с её сноской обязаны ехать вместе.
+  testWidgets('сравнение с бесплатным открывается шторкой', (tester) async {
+    wide(tester);
+
+    await tester.pumpWidget(wrap());
+    await tester.pumpAndSettle();
+
+    // На самой витрине «Объяснения к вопросам» есть — строкой перечня, но
+    // без сравнения с бесплатным уровнем.
+    expect(find.byType(Table), findsNothing);
+    expect(find.text('Почему верен именно этот ответ'), findsNothing);
+
+    await tester.tapOnText(
+      find.textRange.ofSubstring('Что доступно без подписки'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Table), findsOneWidget);
+    expect(find.text('Почему верен именно этот ответ'), findsOneWidget);
+    // Бесплатный уровень — те же функции на трёх категориях.
+    expect(find.text('3 категории$freeCategoriesFootnoteMark'), findsWidgets);
+    expect(find.text('все категории'), findsWidgets);
+    // Ни одной ячейки «3 категории» без звёздочки, и сноска на месте.
+    expect(find.text('3 категории'), findsNothing);
+    expect(find.text(freeCategoriesFootnoteTitle()), findsOneWidget);
+  });
+
+  testWidgets('кружки столбца стоят на одной вертикали с его заголовком', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(wrap());
+    await tester.pumpAndSettle();
+    await tester.tapOnText(
+      find.textRange.ofSubstring('Что доступно без подписки'),
+    );
+    await tester.pumpAndSettle();
+
+    final marks = find.descendant(
+      of: find.byType(Table),
+      matching: find.byType(AccessMark),
+    );
+    final count = marks.evaluate().length;
+    expect(count, planFeatureRows().length * 2);
+
+    // Ровно две вертикали — по одной на столбец значений. Центрирование давало
+    // столько же разных отступов, сколько разной длины подписей.
+    final lefts = <double>{
+      for (var i = 0; i < count; i++) tester.getTopLeft(marks.at(i)).dx,
+    };
+    expect(lefts.length, 2);
+
+    // Заголовок столбца стоит над кружками, а не над серединой подписей.
+    final sorted = lefts.toList()..sort();
+    expect(tester.getTopLeft(find.text('БЕСПЛАТНО')).dx, closeTo(sorted[0], 1));
+    expect(
+      tester.getTopLeft(find.text('ПО ПОДПИСКЕ')).dx,
+      closeTo(sorted[1], 1),
+    );
+  });
+
+  // Сербский и английский длиннее русского в подписях сроков, а узкий экран —
+  // самое тесное место для переключателя из трёх кнопок: и то и другое ловит
   // переполнения, которых не видно на русском десктопе.
   for (final locale in const [Locale('sr'), Locale('en')]) {
     for (final width in const [390.0, 700.0]) {
       testWidgets(
         'вёрстка держится: ${locale.languageCode}, ширина ${width.toInt()}',
         (tester) async {
-          tester.view.physicalSize = Size(width, 3600);
+          tester.view.physicalSize = Size(width, 2400);
           tester.view.devicePixelRatio = 1;
           addTearDown(tester.view.reset);
 
@@ -454,97 +612,11 @@ void main() {
     // Список во всю ширину окна: полоса прокрутки у правого края, колесо мыши
     // работает и над боковыми полями.
     expect(tester.getSize(find.byType(ListView)).width, 1600);
-    // Содержимое при этом не растянуто — поля отданы в padding.
-    expect(tester.getSize(find.byType(Table)).width, lessThanOrEqualTo(900));
-  });
-
-  testWidgets('таблица объясняет разницу объёмом, а не галочками', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1280, 2400);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(wrap());
-    await tester.pumpAndSettle();
-
-    expect(find.text('Объяснения к вопросам'), findsOneWidget);
-    // Бесплатный уровень — те же функции на трёх категориях.
-    expect(find.text('3 категории$freeCategoriesFootnoteMark'), findsWidgets);
-    expect(find.text('все категории'), findsWidgets);
-  });
-
-  // «3 категории» без пояснения — загадка: какие именно? Звёздочка в ячейке и
-  // такая же звёздочка у заголовка карточки, где категории названы поимённо,
-  // связывают одно с другим.
-  testWidgets('«N категорий» помечено звёздочкой, и сноска её объясняет', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1280, 2400);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(wrap());
-    await tester.pumpAndSettle();
-
-    // Ни одной ячейки «3 категории» без звёздочки не осталось.
-    expect(find.text('3 категории'), findsNothing);
-    expect(find.text('3 категории$freeCategoriesFootnoteMark'), findsWidgets);
-
-    // Сноска — заголовок карточки с названиями бесплатных категорий.
-    final title = freeCategoriesFootnoteTitle();
-    expect(title.startsWith(freeCategoriesFootnoteMark), isTrue);
-    expect(find.text(title), findsOneWidget);
-    expect(find.text('Что доступно бесплатно'), findsNothing);
-  });
-
-  // На узком экране таблица превращается в список — звёздочка нужна и там.
-  testWidgets('в списочной вёрстке звёздочка тоже на месте', (tester) async {
-    tester.view.physicalSize = const Size(390, 3600);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(wrap());
-    await tester.pumpAndSettle();
-
-    expect(find.byType(Table), findsNothing);
+    // Содержимое при этом не растянуто — поля отданы в padding: колонка
+    // шириной 1000 в окне 1600 начинается не раньше 300-й точки.
     expect(
-      find.textContaining('3 категории$freeCategoriesFootnoteMark'),
-      findsWidgets,
-    );
-    expect(find.text(freeCategoriesFootnoteTitle()), findsOneWidget);
-  });
-
-  testWidgets('кружки столбца стоят на одной вертикали с его заголовком', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(1280, 2400);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-
-    await tester.pumpWidget(wrap());
-    await tester.pumpAndSettle();
-
-    final marks = find.descendant(
-      of: find.byType(Table),
-      matching: find.byType(AccessMark),
-    );
-    final count = marks.evaluate().length;
-    expect(count, planFeatureRows().length * 2);
-
-    // Ровно две вертикали — по одной на столбец значений. Центрирование давало
-    // столько же разных отступов, сколько разной длины подписей.
-    final lefts = <double>{
-      for (var i = 0; i < count; i++) tester.getTopLeft(marks.at(i)).dx,
-    };
-    expect(lefts.length, 2);
-
-    // Заголовок столбца стоит над кружками, а не над серединой подписей.
-    final sorted = lefts.toList()..sort();
-    expect(tester.getTopLeft(find.text('БЕСПЛАТНО')).dx, closeTo(sorted[0], 1));
-    expect(
-      tester.getTopLeft(find.text('ПО ПОДПИСКЕ')).dx,
-      closeTo(sorted[1], 1),
+      tester.getTopLeft(find.text('К оплате сейчас')).dx,
+      greaterThanOrEqualTo(300),
     );
   });
 }
