@@ -34,16 +34,32 @@ Tariff _tariff(String sku, int months, int priceRsd) => Tariff(
   autoRenewing: months == 1,
 );
 
+StorePurchase _purchase(String sku, int months, {required bool autoRenewing}) =>
+    StorePurchase(
+      id: 'purchase-$sku',
+      platform: StorePlatform.google,
+      sku: sku,
+      months: months,
+      productId: sku,
+      transactionId: 'GPA.$sku',
+      autoRenewing: autoRenewing,
+      status: StorePurchaseStatus.active,
+      purchasedAt: DateTime.now(),
+    );
+
 /// Отдаёт каталог из `TARIFF_SEED` без обращения к серверу; личные данные
 /// пустые — так витрину видит гость.
 class _StubSubscriptionRepository extends SubscriptionRepository {
-  _StubSubscriptionRepository({this.status = SubscriptionStatus.none})
-    : super(
-        GraphqlClient(TokenStorage()),
-        FeatureFlagsRepository(GraphqlClient(TokenStorage()), TokenStorage()),
-      );
+  _StubSubscriptionRepository({
+    this.status = SubscriptionStatus.none,
+    this.purchases = const [],
+  }) : super(
+         GraphqlClient(TokenStorage()),
+         FeatureFlagsRepository(GraphqlClient(TokenStorage()), TokenStorage()),
+       );
 
   final SubscriptionStatus status;
+  final List<StorePurchase> purchases;
   final redeemed = <String>[];
 
   /// Чем бэкенд отвечает на чек вместо права — когда тест проверяет отказ.
@@ -64,7 +80,7 @@ class _StubSubscriptionRepository extends SubscriptionRepository {
   Future<SubscriptionStatus> mySubscription() async => status;
 
   @override
-  Future<List<StorePurchase>> myPurchases() async => const [];
+  Future<List<StorePurchase>> myPurchases() async => purchases;
 
   @override
   Future<List<SubscriptionPeriod>> myPeriods() async => const [];
@@ -377,10 +393,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Разовый платёж · без автопродления'), findsOneWidget);
-    expect(
-      find.textContaining('Ничего не продлевается и не списывается повторно'),
-      findsOneWidget,
-    );
+    // Значок уже сказал «без автопродления», срок назван в строке цены —
+    // подписи под ценой у разового платежа нет.
+    expect(find.textContaining('не списывается'), findsNothing);
+    expect(find.textContaining('Доступ на'), findsNothing);
 
     await pickTerm(tester, '1 месяц');
 
@@ -427,7 +443,7 @@ void main() {
     await pickTerm(tester, '12 месяцев');
 
     expect(
-      find.text('Экономия 13 390 RSD против помесячной оплаты'),
+      find.text('Экономия 13 390 RSD по сравнению с помесячной оплатой'),
       findsOneWidget,
     );
 
@@ -755,7 +771,110 @@ void main() {
     // Якорь про пересдачу и обещание продления с витрины убраны — они не
     // помогали выбрать срок, а места занимали больше, чем цены.
     expect(find.textContaining('5 800 RSD'), findsNothing);
-    expect(find.textContaining('продлим пропуск на месяц'), findsNothing);
+    expect(find.textContaining('ещё один месяц доступа'), findsNothing);
+  });
+
+  // Строка о бесплатном уровне свелась к одной ссылке: «3 категории открыты
+  // бесплатно и полностью» на витрине ничего не решало, а сравнение за
+  // ссылкой называет их полностью.
+  testWidgets('о бесплатном уровне — только ссылка на сравнение', (
+    tester,
+  ) async {
+    wide(tester);
+
+    await tester.pumpWidget(wrap(authenticated: true));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textRange.ofSubstring('Что доступно без подписки'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('открыты бесплатно'), findsNothing);
+    expect(find.textContaining('3 категории'), findsNothing);
+  });
+
+  // Раздел «Подписка» называет тариф полностью — со сроком и типом платежа:
+  // «Premium» без них не говорит, за что заплачено и продлится ли оно само.
+  testWidgets('текущий тариф назван со сроком и типом платежа', (tester) async {
+    wide(tester);
+    final oneOff = _StubSubscriptionRepository(
+      status: SubscriptionStatus(
+        active: true,
+        endsAt: DateTime.now().add(const Duration(days: 80)),
+        daysLeft: 80,
+      ),
+      purchases: [_purchase('premium_3m', 3, autoRenewing: false)],
+    );
+
+    await tester.pumpWidget(
+      wrap(
+        authenticated: true,
+        repository: oneOff,
+        home: const SubscriptionPage(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Premium, 3 месяца'), findsOneWidget);
+    // Разовый платёж никто не продлит — тумблер писем-напоминаний на месте,
+    // и подпись под ним не рассуждает про автопродление.
+    expect(find.text('Письма-напоминания'), findsOneWidget);
+    expect(find.byType(Switch), findsOneWidget);
+    expect(find.textContaining('Автопродлеваемую'), findsNothing);
+  });
+
+  testWidgets('автопродлеваемая подписка названа подпиской, без напоминаний', (
+    tester,
+  ) async {
+    wide(tester);
+    final renewing = _StubSubscriptionRepository(
+      status: SubscriptionStatus(
+        active: true,
+        endsAt: DateTime.now().add(const Duration(days: 20)),
+        daysLeft: 20,
+        autoRenewing: true,
+      ),
+      purchases: [_purchase('premium_1m', 1, autoRenewing: true)],
+    );
+    await tester.pumpWidget(
+      wrap(
+        authenticated: true,
+        repository: renewing,
+        home: const SubscriptionPage(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Premium, подписка на 1 месяц'), findsOneWidget);
+    // Подписку продлит стор — напоминания о конце срока ей не нужны.
+    expect(find.text('Письма-напоминания'), findsNothing);
+    expect(find.byType(Switch), findsNothing);
+  });
+
+  // Право, выданное оператором, покупкой не подкреплено — срока у него нет,
+  // и название остаётся коротким, а не выдуманным.
+  testWidgets('тариф без покупки в сторе называется просто Premium', (
+    tester,
+  ) async {
+    wide(tester);
+    final repo = _StubSubscriptionRepository(
+      status: SubscriptionStatus(
+        active: true,
+        endsAt: DateTime.now().add(const Duration(days: 30)),
+        daysLeft: 30,
+      ),
+    );
+
+    await tester.pumpWidget(
+      wrap(
+        authenticated: true,
+        repository: repo,
+        home: const SubscriptionPage(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Premium'), findsOneWidget);
   });
 
   testWidgets('гостю предлагают войти вместо покупки', (tester) async {

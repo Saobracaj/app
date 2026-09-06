@@ -54,7 +54,10 @@ class SubscriptionContent extends StatelessWidget {
                   _ErrorLine(message: state.errorMessage!),
                   const SizedBox(height: 12),
                 ],
-                _CurrentPlanCard(status: state.subscription),
+                _CurrentPlanCard(
+                  status: state.subscription,
+                  purchases: state.purchases,
+                ),
                 if (state.subscription.shouldOfferRenewal) ...[
                   const SizedBox(height: 12),
                   _RenewalBanner(status: state.subscription),
@@ -92,9 +95,10 @@ class SubscriptionContent extends StatelessWidget {
 }
 
 class _CurrentPlanCard extends StatelessWidget {
-  const _CurrentPlanCard({required this.status});
+  const _CurrentPlanCard({required this.status, required this.purchases});
 
   final SubscriptionStatus status;
+  final List<StorePurchase> purchases;
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +148,12 @@ class _CurrentPlanCard extends StatelessWidget {
               style: theme.textTheme.labelLarge,
             ),
             const SizedBox(height: 4),
-            Text(planName(), style: theme.textTheme.headlineSmall),
+            // Полное название — со сроком и типом платежа: «Premium» без них
+            // не говорит, за что заплачено и продлится ли оно само.
+            Text(
+              activePlanLabel(status, purchases),
+              style: theme.textTheme.headlineSmall,
+            ),
             const SizedBox(height: 4),
             if (status.endsAt != null)
               // Дата у автоподписки — день следующего списания, а не день, в
