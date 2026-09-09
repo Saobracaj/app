@@ -1,8 +1,13 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/di.dart';
+import '../../../../core/vertical_scroll.dart';
 import '../../../../feature_flags/domain/app_feature.dart';
 import '../../../../generated/locale_keys.g.dart';
 import '../../../../feature_flags/state_management/feature_flags_bloc.dart';
@@ -30,9 +35,11 @@ import 'question_konspekt_tab.dart';
 /// [FeatureFlagsBloc] — so the bar renders only the tabs the current user has
 /// access to, and hides entirely when none are available.
 ///
-/// The content of the selected tab is rendered as a normal child of the
-/// surrounding scroll view (no [TabBarView]), so it grows to fit its content
-/// and scrolls with the rest of the question instead of needing a bounded box.
+/// The tabs' content lives in a [PageView] ([_TabPages]): a tap slides the
+/// pages over, a horizontal swipe on the content switches the tab. The pager
+/// sizes itself to the open tab, so the panel still grows to fit its content
+/// and scrolls with the rest of the question instead of needing a bounded box
+/// (which is why it is not a [TabBarView]).
 ///
 /// The chrome is adaptive: with a single visible section the tab row collapses
 /// into a plain header.
@@ -170,14 +177,18 @@ class QuestionFeaturesTabs extends StatelessWidget {
                     )
                   else
                     _PillTabs(features: visible, selected: selected),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: _TabContent(
-                      feature: selected,
-                      questionId: questionId,
-                      categoryId: categoryId,
-                      chatMessageId: chatMessageId,
-                      locked: locked.contains(selected),
+                  _TabPages(
+                    features: visible,
+                    selected: selected,
+                    pageBuilder: (feature) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: _TabContent(
+                        feature: feature,
+                        questionId: questionId,
+                        categoryId: categoryId,
+                        chatMessageId: chatMessageId,
+                        locked: locked.contains(feature),
+                      ),
                     ),
                   ),
                 ],
@@ -423,6 +434,258 @@ class _TabContent extends StatelessWidget {
   }
 }
 
+/// Страницы вкладок — [PageView], который сам подстраивает высоту под
+/// содержимое открытой вкладки: панель по-прежнему растёт вместе с ним и
+/// прокручивается вместе с вопросом, а не живёт в коробке заданной высоты
+/// (без неё [TabBarView] не работает).
+///
+/// Кто хозяин выбранной вкладки — по-прежнему [QuestionFeaturesBloc]:
+/// [selected] приходит снаружи, и расхождение с реальной страницей
+/// выправляется анимацией ([PageController.animateToPage]) — так переключают
+/// пилюли. Обратный путь — свайп: палец перевёл страницу, блоку сообщают
+/// [TabSelected]. Страницы, которые программная анимация проходит транзитом,
+/// не докладываются — блок принял бы доклад за новую цель (та же логика, что в
+/// `QuestionPager`). Сменился состав вкладок (подъехал конспект, читатель
+/// вышел из аккаунта) — номера страниц поехали, и листалка переставляется на
+/// выбранную без анимации.
+///
+/// Высота: каждая страница лежит в [OverflowBox] без ограничения снизу и
+/// сообщает свой размер ([_MeasuredPage]); листалка получает высоту текущей
+/// страницы, а во время протяжки — промежуточную между соседями, так что низ
+/// карточки едет за пальцем. Соседние страницы заранее не строятся (у
+/// [PageView] нулевой cacheExtent), поэтому содержимое вкладки, как и раньше,
+/// грузится только когда её открыли.
+///
+/// StatefulWidget сознательно: здесь нет ни состояния интерфейса, ни
+/// бизнес-логики — только контроллер листалки и измеренные высоты (то же
+/// исключение, что у [_EnsureVisibleOnce]).
+class _TabPages extends StatefulWidget {
+  const _TabPages({
+    required this.features,
+    required this.selected,
+    required this.pageBuilder,
+  });
+
+  /// Вкладки в порядке страниц.
+  final List<AppFeature> features;
+
+  /// Открытая вкладка по мнению блока.
+  final AppFeature selected;
+
+  final Widget Function(AppFeature feature) pageBuilder;
+
+  /// Длительность и кривая программного перехода — те же, что у листалки
+  /// вопросов, чтобы движения экрана не спорили друг с другом.
+  static const Duration duration = Duration(milliseconds: 280);
+  static const Curve curve = Curves.easeOutCubic;
+
+  @override
+  State<_TabPages> createState() => _TabPagesState();
+}
+
+class _TabPagesState extends State<_TabPages> {
+  late final PageController _controller = PageController(initialPage: _index);
+
+  /// Измеренные высоты страниц — по вкладке, а не по номеру: номера ездят
+  /// вместе с составом вкладок.
+  final _heights = <AppFeature, double>{};
+
+  /// Ведёт ли текущую прокрутку палец — программный переход блоку не
+  /// докладывается (он его и заказал).
+  bool _dragged = false;
+
+  /// Последняя выданная высота: пока нужную страницу не измерили, держим её,
+  /// чтобы карточка не схлопывалась на кадр.
+  double _height = 0;
+
+  int get _index => widget.features.indexOf(widget.selected);
+
+  double? get _page {
+    if (!_controller.hasClients) return null;
+    final position = _controller.position;
+    if (!position.hasPixels || !position.hasContentDimensions) return null;
+    return _controller.page;
+  }
+
+  @override
+  void didUpdateWidget(_TabPages oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final moved = !listEquals(oldWidget.features, widget.features);
+    if (!moved && oldWidget.selected == widget.selected) return;
+    if (!_controller.hasClients) {
+      // Вкладка сменилась раньше, чем страницы разложились: анимировать
+      // нечего, переставляем первым же кадром.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_controller.hasClients) return;
+        if (_page?.round() == _index) return;
+        _controller.jumpToPage(_index);
+      });
+      return;
+    }
+    // Страница уже там — так приходит вкладка, которую сам палец и перевёл.
+    if (_page?.round() == _index) return;
+    if (moved) {
+      // Не [PageController.jumpToPage]: новая страница может лежать за
+      // прежним краем прокрутки (конспект встал перед открытой последней
+      // вкладкой), и прыжок туда отпружинил бы назад по старому extent ещё до
+      // раскладки. Пиксели ставятся напрямую, а раскладка, которая идёт
+      // следом за этой перестройкой, уже знает новый состав страниц.
+      final position = _controller.position;
+      if (position.hasViewportDimension && position.hasPixels) {
+        position.correctPixels(
+          _index * position.viewportDimension * _controller.viewportFraction,
+        );
+      } else {
+        _controller.jumpToPage(_index);
+      }
+      return;
+    }
+    _controller.animateToPage(
+      _index,
+      duration: _TabPages.duration,
+      curve: _TabPages.curve,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _select(int index) {
+    if (index < 0 || index >= widget.features.length) return;
+    final feature = widget.features[index];
+    if (feature == widget.selected) return;
+    context.read<QuestionFeaturesBloc>().add(TabSelected(feature));
+  }
+
+  bool _onScroll(ScrollNotification notification) {
+    // Прокрутка внутри страницы — не наше дело.
+    if (notification.depth != 0) return false;
+    if (notification is ScrollStartNotification) {
+      _dragged = notification.dragDetails != null;
+    } else if (notification is ScrollEndNotification) {
+      _dragged = false;
+      // Прокрутка встала не на вкладке блока — доложить: так в блок попадает
+      // исход перехода, о котором [PageView.onPageChanged] промолчал
+      // (трекпад, оборванная на полпути анимация).
+      final settled = _page?.round();
+      if (settled != null && settled != _index) _select(settled);
+    }
+    return false;
+  }
+
+  void _onMeasured(AppFeature feature, double height) {
+    if (!mounted || _heights[feature] == height) return;
+    setState(() => _heights[feature] = height);
+  }
+
+  /// Высота листалки в положении [page]: между соседями — промежуточная,
+  /// неизмеренный сосед берёт высоту измеренного.
+  double _heightAt(double page) {
+    double? at(int index) => index >= 0 && index < widget.features.length
+        ? _heights[widget.features[index]]
+        : null;
+    final lower = page.floor();
+    final upper = page.ceil();
+    final from = at(lower);
+    final to = at(upper);
+    final height = switch ((from, to)) {
+      (null, null) => null,
+      (final a?, null) => a,
+      (null, final b?) => b,
+      (final a?, final b?) => lerpDouble(a, b, page - lower),
+    };
+    if (height != null) _height = height;
+    return _height;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final features = widget.features;
+    final pager = NotificationListener<ScrollNotification>(
+      onNotification: _onScroll,
+      child: PageView.custom(
+        controller: _controller,
+        onPageChanged: (index) {
+          // Докладывать блоку — только страницы, переведённые пальцем (и прямо
+          // под ним, не дожидаясь остановки): пилюля подсвечивается в такт
+          // свайпу.
+          if (_dragged) _select(index);
+        },
+        childrenDelegate: SliverChildBuilderDelegate(
+          (context, index) {
+            final feature = features[index];
+            return KeyedSubtree(
+              key: ValueKey(feature),
+              child: OverflowBox(
+                alignment: Alignment.topCenter,
+                minHeight: 0,
+                maxHeight: double.infinity,
+                child: _MeasuredPage(
+                  onHeight: (height) => _onMeasured(feature, height),
+                  child: widget.pageBuilder(feature),
+                ),
+              ),
+            );
+          },
+          childCount: features.length,
+          // Страница узнаётся по вкладке, а не по номеру, — открытая вкладка
+          // переживает сдвиг номеров без пересборки.
+          findChildIndexCallback: (key) {
+            final index = features.indexOf((key as ValueKey<AppFeature>).value);
+            return index < 0 ? null : index;
+          },
+        ),
+      ),
+    );
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) =>
+          SizedBox(height: _heightAt(_page ?? _index.toDouble()), child: child),
+      child: pager,
+    );
+  }
+}
+
+/// Сообщает высоту своего ребёнка после раскладки — [_TabPages] подгоняет по
+/// ней высоту листалки. Сообщение уходит после кадра: `setState` во время
+/// раскладки запрещён.
+class _MeasuredPage extends SingleChildRenderObjectWidget {
+  const _MeasuredPage({required this.onHeight, required super.child});
+
+  final ValueChanged<double> onHeight;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderMeasuredPage(onHeight);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderMeasuredPage renderObject,
+  ) => renderObject.onHeight = onHeight;
+}
+
+class _RenderMeasuredPage extends RenderProxyBox {
+  _RenderMeasuredPage(this.onHeight);
+
+  ValueChanged<double> onHeight;
+  double? _reported;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final height = size.height;
+    if (_reported == height) return;
+    _reported = height;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (attached) onHeight(height);
+    });
+  }
+}
+
 /// Содержимое вкладки с кнопкой «Сообщить об ошибке» под ним.
 class _WithReportButton extends StatelessWidget {
   const _WithReportButton({
@@ -470,7 +733,9 @@ class _EnsureVisibleOnceState extends State<_EnsureVisibleOnce> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_done || !mounted) return;
       _done = true;
-      Scrollable.ensureVisible(
+      // Только вертикальная прокрутка: панель лежит внутри листалки вопросов,
+      // и [Scrollable.ensureVisible] прокрутил бы и её.
+      revealVertically(
         context,
         duration: const Duration(milliseconds: 400),
         alignment: 0.1,
