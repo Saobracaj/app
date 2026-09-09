@@ -392,7 +392,7 @@ class _TabContent extends StatelessWidget {
         return _WithReportButton(
           questionId: questionId,
           source: QuestionFeedbackSource.explanation,
-          child: CommentWidget(questionId: questionId),
+          child: CommentWidget(questionId: questionId, categoryId: categoryId),
         );
       case AppFeature.categorySummaries:
         return _WithReportButton(

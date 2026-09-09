@@ -7,6 +7,7 @@ import 'package:saobracaj/test/quest/presentation/quest_markdown.dart';
 import '../../../../auth/state_management/auth/auth_bloc.dart';
 import '../../../../core/di.dart';
 import '../../../../core/presentation/load_failed_view.dart';
+import '../../../../feature_flags/state_management/feature_flags_bloc.dart';
 import '../../../../generated/locale_keys.g.dart';
 import '../../../../subscription/presentation/paywall.dart';
 import '../state_management/comment_bloc.dart';
@@ -15,12 +16,30 @@ import 'comment_editor_panel.dart';
 class CommentWidget extends StatelessWidget {
   final int questionId;
 
-  const CommentWidget({super.key, required this.questionId});
+  /// The question's category: in the free categories (25/26/28) the Russian
+  /// text is open to everybody who chose it, elsewhere it needs the pass.
+  /// Unknown → the global flag alone.
+  final String? categoryId;
+
+  const CommentWidget({super.key, required this.questionId, this.categoryId});
 
   @override
   Widget build(BuildContext context) {
+    // The language is picked when the comment is fetched, so a flip of the
+    // «РУ» chip (or of the Russian materials in the settings) has to fetch it
+    // again: the key remounts the Bloc whenever the decision for this
+    // question changes — the resolved one for the full text, the reader's
+    // own choice for a locked preview.
+    final (russian, chosen) = context.select<FeatureFlagsBloc, (bool, bool)>(
+      (b) => (
+        b.state.russianContentForCategory(categoryId),
+        b.state.russianContentChosen,
+      ),
+    );
     return BlocProvider(
-      create: (_) => getIt<CommentBloc>(param1: questionId),
+      key: ValueKey('comment-$questionId-$russian-$chosen'),
+      create: (_) =>
+          getIt<CommentBloc>(param1: questionId, param2: categoryId),
       child: BlocConsumer<CommentBloc, CommentState>(
         listenWhen: (prev, curr) =>
             curr.publishError != null && prev.publishError != curr.publishError,

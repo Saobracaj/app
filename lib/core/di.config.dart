@@ -238,13 +238,6 @@ extension GetItInjectableX on _i174.GetIt {
       ),
       dispose: (i) => i.dispose(),
     );
-    gh.factoryParam<_i213.CommentBloc, int, dynamic>(
-      (questionId, _) => _i213.CommentBloc(
-        gh<_i359.CommentRepository>(),
-        gh<_i958.NetworkStatus>(),
-        questionId,
-      ),
-    );
     gh.lazySingleton<_i299.ChatRepository>(
       () => _i299.ChatRepository(
         gh<_i483.GraphqlClient>(),
@@ -290,6 +283,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factoryParam<_i658.CommentEditorBloc, int, dynamic>(
       (questionId, _) =>
           _i658.CommentEditorBloc(gh<_i359.CommentRepository>(), questionId),
+    );
+    gh.factoryParam<_i213.CommentBloc, int, String?>(
+      (questionId, categoryId) => _i213.CommentBloc(
+        gh<_i359.CommentRepository>(),
+        gh<_i958.NetworkStatus>(),
+        questionId,
+        categoryId,
+      ),
     );
     gh.factory<_i667.SupportChatsBloc>(
       () => _i667.SupportChatsBloc(gh<_i299.ChatRepository>()),
