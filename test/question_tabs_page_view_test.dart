@@ -131,13 +131,14 @@ void main() {
       QuizPreferencesRepository.new,
     );
     getIt.registerFactoryParam<CommentBloc, int, String?>(
-      (questionId, _) => CommentBloc(
+      (questionId, categoryId) => CommentBloc(
         _StubCommentRepository(
           client,
           _StubFeatureFlagsRepository(client, storage),
         ),
         NetworkStatus(),
         questionId,
+        categoryId,
       ),
     );
     getIt.registerFactoryParam<QuestionFeaturesBloc, AppFeature?, int?>(
