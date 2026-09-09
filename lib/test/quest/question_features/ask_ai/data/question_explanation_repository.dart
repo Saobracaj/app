@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
+import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/models/question_explanation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,9 +20,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// is the ready entry point whenever they get a place of their own.
 ///
 /// The display language follows the study-content language: Russian when the
-/// `russian_content` feature is resolved on, Serbian otherwise — falling back
-/// to the other language while the preferred one has no document yet (only the
-/// Russian ones exist until the Serbian generation catches up).
+/// `russian_content` feature is resolved on for the question's category (in
+/// the free categories the reader's own choice is enough, like the konspekt),
+/// Serbian otherwise — falling back to the other language while the preferred
+/// one has no document yet (only the Russian ones exist until the Serbian
+/// generation catches up).
 ///
 /// Like the konspekts, a downloaded document is cached in shared preferences
 /// and kept in memory for the session, so an already-opened explanation still
@@ -43,12 +46,16 @@ class QuestionExplanationRepository {
 
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
 
-  /// The explanation to show for [questionId], or `null` when neither language
-  /// has one. Throws whatever [GraphqlClient] throws when the document had to
-  /// be downloaded and that failed with nothing usable cached — the caller
-  /// turns it into a retryable message.
-  Future<QuestionExplanation?> load(int questionId) async {
-    final preferred = _flags.snapshot.russianContent ? 'ru' : 'sr';
+  /// The explanation to show for [questionId] of [categoryId], or `null` when
+  /// neither language has one. Throws whatever [GraphqlClient] throws when the
+  /// document had to be downloaded and that failed with nothing usable cached
+  /// — the caller turns it into a retryable message.
+  Future<QuestionExplanation?> load(int questionId, {String? categoryId}) async {
+    final russian = _flags.snapshot.isEnabledForCategory(
+      AppFeature.russianContent,
+      categoryId,
+    );
+    final preferred = russian ? 'ru' : 'sr';
     final fallback = preferred == 'ru' ? 'sr' : 'ru';
     return await _load(questionId, preferred) ?? await _load(questionId, fallback);
   }

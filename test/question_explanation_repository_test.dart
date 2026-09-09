@@ -42,18 +42,20 @@ class _FakeAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-/// Fixes the study-content language: Russian on or off.
+/// Fixes the study-content language: [russian] is the resolved flag (the
+/// user's choice plus the grant), [chosenOnly] the choice without the grant —
+/// the free-category case.
 class _StubFlags extends FeatureFlagsRepository {
-  _StubFlags({required this.russian})
+  _StubFlags({required this.russian, this.chosenOnly = false})
       : super(GraphqlClient(TokenStorage()), TokenStorage());
 
   final bool russian;
+  final bool chosenOnly;
 
   @override
-  FeatureFlagsSnapshot get snapshot => FeatureFlagsSnapshot(
-        enabled: {AppFeature.russianContent: russian},
-        localOverrides: const {},
-        grants: const {},
+  FeatureFlagsSnapshot get snapshot => FeatureFlagsSnapshot.resolve(
+        localOverrides: {AppFeature.russianContent.key: russian || chosenOnly},
+        grants: russian ? {AppFeature.russianContent.key} : const {},
         authenticated: true,
       );
 }
@@ -85,11 +87,15 @@ DioException get _offline => DioException(
   type: DioExceptionType.connectionError,
 );
 
-QuestionExplanationRepository _repository(_FakeAdapter adapter, {bool russian = true}) {
+QuestionExplanationRepository _repository(
+  _FakeAdapter adapter, {
+  bool russian = true,
+  bool chosenOnly = false,
+}) {
   final dio = Dio()..httpClientAdapter = adapter;
   return QuestionExplanationRepository(
     GraphqlClient(TokenStorage(), dio: dio),
-    _StubFlags(russian: russian),
+    _StubFlags(russian: russian, chosenOnly: chosenOnly),
   );
 }
 
@@ -125,6 +131,24 @@ void main() {
     // Оба ответа запомнены на сессию: и «sr нет», и русский документ.
     expect(await repository.load(7921), isNotNull);
     expect(adapter.langs, ['sr', 'ru']);
+  });
+
+  test('без подписки, но с выбранным русским: в бесплатной категории сначала ru',
+      () async {
+    final adapter = _FakeAdapter([_response(_document())]);
+    final repository = _repository(adapter, russian: false, chosenOnly: true);
+
+    expect(await repository.load(7921, categoryId: '25'), isNotNull);
+    expect(adapter.langs, ['ru'], reason: 'гейт — свойство вопроса, как у конспекта');
+  });
+
+  test('без подписки, но с выбранным русским: в платной категории сначала sr',
+      () async {
+    final adapter = _FakeAdapter([_response(_document(lang: 'sr'))]);
+    final repository = _repository(adapter, russian: false, chosenOnly: true);
+
+    expect(await repository.load(7921, categoryId: '27'), isNotNull);
+    expect(adapter.langs, ['sr']);
   });
 
   test('кэшированное объяснение открывается офлайн', () async {

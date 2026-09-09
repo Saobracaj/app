@@ -36,17 +36,22 @@ class _FakeAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-/// Feature flags pinned to a fixed answer for `russian_content`.
+/// Feature flags pinned for `russian_content`: [chosen] is the user's own
+/// toggle (the start-up question / settings), [granted] the backend grant of
+/// the pass. `russian` sets both at once.
 class _StubFlags extends FeatureFlagsRepository {
-  _StubFlags({required this.russian})
-      : super(GraphqlClient(TokenStorage()), TokenStorage());
+  _StubFlags({bool russian = false, bool? chosen, bool? granted})
+      : chosen = chosen ?? russian,
+        granted = granted ?? russian,
+        super(GraphqlClient(TokenStorage()), TokenStorage());
 
-  final bool russian;
+  final bool chosen;
+  final bool granted;
 
   @override
   FeatureFlagsSnapshot get snapshot => FeatureFlagsSnapshot.resolve(
-        localOverrides: {AppFeature.russianContent.key: russian},
-        grants: russian ? {AppFeature.russianContent.key} : const {},
+        localOverrides: {AppFeature.russianContent.key: chosen},
+        grants: granted ? {AppFeature.russianContent.key} : const {},
         authenticated: true,
       );
 }
@@ -62,13 +67,15 @@ Map<String, dynamic> _commentResponse(List<Map<String, String>> items) => {
     };
 
 CommentRepository _repository({
-  required bool russian,
+  bool russian = false,
+  bool? chosen,
+  bool? granted,
   required List<Map<String, String>> items,
 }) {
   final dio = Dio()..httpClientAdapter = _FakeAdapter(_commentResponse(items));
   return CommentRepository(
     GraphqlClient(TokenStorage(), dio: dio),
-    _StubFlags(russian: russian),
+    _StubFlags(russian: russian, chosen: chosen, granted: granted),
   );
 }
 
@@ -114,6 +121,63 @@ void main() {
           {'lang': 'SR', 'text': 'Српско објашњење'},
         ],
       ).fetchComment(1);
+      expect(details!.text, 'Српско објашњење');
+    });
+  });
+
+  // Гейт — свойство вопроса: в бесплатной категории русский контент открыт
+  // всем, кто его выбрал, и объяснение обязано следовать тому же правилу, что
+  // и конспект рядом с ним. Раньше репозиторий смотрел на глобальный флаг,
+  // который без подписки всегда выключен, — и в бесплатных категориях
+  // объяснение показывалось по-сербски при включённом русском контенте.
+  group('CommentRepository учитывает категорию вопроса', () {
+    test('русский выбран, подписки нет, бесплатная категория → русский текст',
+        () async {
+      final details = await _repository(
+        chosen: true,
+        granted: false,
+        items: both,
+      ).fetchComment(1, categoryId: '25');
+      expect(details!.text, 'Русское объяснение');
+    });
+
+    test('русский выбран, подписки нет, платная категория → сербский текст',
+        () async {
+      final details = await _repository(
+        chosen: true,
+        granted: false,
+        items: both,
+      ).fetchComment(1, categoryId: '27');
+      expect(details!.text, 'Српско објашњење');
+    });
+
+    test('без категории — только глобальный флаг', () async {
+      final details = await _repository(
+        chosen: true,
+        granted: false,
+        items: both,
+      ).fetchComment(1);
+      expect(details!.text, 'Српско објашњење');
+    });
+
+    test('русский выключен самим пользователем → сербский и в бесплатной',
+        () async {
+      final details = await _repository(
+        chosen: false,
+        granted: true,
+        items: both,
+      ).fetchComment(1, categoryId: '25');
+      expect(details!.text, 'Српско објашњење');
+    });
+
+    test('в бесплатной категории без русского фрагмента — сербский', () async {
+      final details = await _repository(
+        chosen: true,
+        granted: false,
+        items: const [
+          {'lang': 'SR', 'text': 'Српско објашњење'},
+        ],
+      ).fetchComment(1, categoryId: '25');
       expect(details!.text, 'Српско објашњење');
     });
   });

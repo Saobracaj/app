@@ -46,6 +46,7 @@ class CommentBloc extends Bloc<CommentEvent, CommentState> {
     this._repository,
     this._network,
     @factoryParam this.questionId,
+    @factoryParam this.categoryId,
   ) : super(const CommentState()) {
     on<_LoadComment>(_onLoadComment);
     on<CommentReloadRequested>(_onLoadComment);
@@ -60,12 +61,19 @@ class CommentBloc extends Bloc<CommentEvent, CommentState> {
   final CommentRepository _repository;
   final NetworkStatus _network;
   final int questionId;
+
+  /// The question's category — it decides the language of the explanation
+  /// (Russian is open to everybody in the free categories).
+  final String? categoryId;
   StreamSubscription<void>? _reconnectSubscription;
 
   Future<void> _onLoadComment(CommentEvent event, Emitter<CommentState> emit) async {
     emit(state.copyWith(isBusy: true, errorMessage: null, offline: false));
     try {
-      final details = await _repository.fetchComment(questionId);
+      final details = await _repository.fetchComment(
+        questionId,
+        categoryId: categoryId,
+      );
       emit(state.copyWith(isBusy: false, details: details, errorMessage: null));
     } catch (e) {
       emit(
@@ -85,7 +93,10 @@ class CommentBloc extends Bloc<CommentEvent, CommentState> {
     if (state.isPublishing) return;
     emit(state.copyWith(isPublishing: true, publishError: null));
     try {
-      final details = await _repository.publish(questionId);
+      final details = await _repository.publish(
+        questionId,
+        categoryId: categoryId,
+      );
       emit(state.copyWith(isPublishing: false, details: details));
     } catch (e) {
       emit(

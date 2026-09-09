@@ -43,8 +43,10 @@ class _StubCommentRepository extends CommentRepository {
   _StubCommentRepository(super.client, super.flags);
 
   @override
-  Future<QuestionCommentDetails> fetchComment(int questionId) async =>
-      const QuestionCommentDetails(status: 'READY', text: 'Објашњење.');
+  Future<QuestionCommentDetails> fetchComment(
+    int questionId, {
+    String? categoryId,
+  }) async => const QuestionCommentDetails(status: 'READY', text: 'Објашњење.');
 }
 
 /// Конспект категории с одним разделом, привязанным к вопросу 7001, — чтобы
@@ -115,11 +117,12 @@ void main() {
     getIt.registerLazySingleton<QuizPreferencesRepository>(
       QuizPreferencesRepository.new,
     );
-    getIt.registerFactoryParam<CommentBloc, int, void>(
-      (questionId, _) => CommentBloc(
+    getIt.registerFactoryParam<CommentBloc, int, String?>(
+      (questionId, categoryId) => CommentBloc(
         _StubCommentRepository(client, _StubFeatureFlagsRepository(client, storage)),
         NetworkStatus(),
         questionId,
+        categoryId,
       ),
     );
     getIt.registerFactoryParam<QuestionFeaturesBloc, AppFeature?, void>(
