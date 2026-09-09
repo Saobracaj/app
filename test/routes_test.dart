@@ -40,6 +40,11 @@ const _externalLinks = [
   'https://saobracaj.gleb.at/lists/my-list',
   'https://saobracaj.gleb.at/statistics',
   'https://saobracaj.gleb.at/about',
+  // Задача 1203867458890016: ссылки из мессенджера, которые открывались в
+  // браузере, пока платформы перехватывали только шесть префиксов.
+  'https://saobracaj.gleb.at/questPractice?showRightAnswers=false&showStats=false&buttonsLikeInExam=false',
+  'https://saobracaj.gleb.at/settings/profile',
+  'https://saobracaj.gleb.at/konspekt?category=25',
   'saobracaj://question/10913',
   'saobracaj://support/threads/t1',
 ];

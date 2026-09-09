@@ -167,6 +167,39 @@ void main() {
       );
     });
 
+    test('ссылки из мессенджера доходят до экрана с параметрами', () {
+      // Задача 1203867458890016: /question/8038 открывал приложение, а эти
+      // три адреса — браузер (платформы перехватывали шесть префиксов, а
+      // маппинг держал свой белый список). Путь и строка запроса обязаны
+      // дойти до роутера как есть: параметры тренировки читаются из query.
+      expect(
+        deepLinkPathFor(
+          Uri.parse(
+            'https://saobracaj.gleb.at/questPractice'
+            '?showRightAnswers=false&showStats=false&buttonsLikeInExam=false',
+          ),
+        ),
+        '/questPractice'
+        '?showRightAnswers=false&showStats=false&buttonsLikeInExam=false',
+      );
+      expect(
+        deepLinkPathFor(
+          Uri.parse('https://saobracaj.gleb.at/settings/profile'),
+        ),
+        '/settings/profile',
+      );
+      expect(
+        deepLinkPathFor(
+          Uri.parse('https://saobracaj.gleb.at/konspekt?category=25'),
+        ),
+        '/konspekt?category=25',
+      );
+      expect(
+        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/question/8038')),
+        '/question/8038',
+      );
+    });
+
     test('a code with characters worth escaping is escaped once', () {
       final path = deepLinkPathFor(
         Uri.parse('https://saobracaj.gleb.at/lists/my%20list'),
