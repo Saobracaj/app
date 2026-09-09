@@ -50,7 +50,7 @@ class _TabsSeenReporterState extends State<TabsSeenReporter> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final position = Scrollable.maybeOf(context)?.position;
+    final position = Scrollable.maybeOf(context, axis: Axis.vertical)?.position;
     if (!identical(position, _position)) {
       _position?.removeListener(_check);
       _position = position;
