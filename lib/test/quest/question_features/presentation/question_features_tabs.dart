@@ -530,9 +530,21 @@ class _TabPagesState extends State<_TabPages> {
       // вкладкой), и прыжок туда отпружинил бы назад по старому extent ещё до
       // раскладки. Пиксели ставятся напрямую, а раскладка, которая идёт
       // следом за этой перестройкой, уже знает новый состав страниц.
+      //
+      // Именно [ScrollPosition.forcePixels], а не `correctPixels`: тот меняет
+      // позицию молча, и viewport перекладывается лишь если что-то другое
+      // его заставит. Когда открытая вкладка сама и появилась (запомнен
+      // конспект, а он у нового вопроса подгрузился позже), страница ещё не
+      // построена, и ничего другого нет — листалка оставалась на первой
+      // странице при раскрытой пилюле конспекта. `forcePixels` уведомляет
+      // viewport, но баллистику не запускает — назад по старому краю не
+      // отпружинит. Метод защищённый (Flutter держит его для своих
+      // ScrollPosition), а публичной замены нет: `jumpTo` — это тот же
+      // `forcePixels` плюс баллистика, `jumpToWithoutSettling` — deprecated.
       final position = _controller.position;
       if (position.hasViewportDimension && position.hasPixels) {
-        position.correctPixels(
+        // ignore: invalid_use_of_protected_member
+        position.forcePixels(
           _index * position.viewportDimension * _controller.viewportFraction,
         );
       } else {

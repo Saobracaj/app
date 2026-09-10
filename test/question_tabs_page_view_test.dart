@@ -254,4 +254,30 @@ void main() {
       AppFeature.questionAnalysis,
     );
   });
+
+  /// Читатель ушёл с вопроса на вкладке «Конспект» и открыл следующий: панель
+  /// строится заново, а конспект нового вопроса ещё грузится. Когда он подъехал,
+  /// на панели должен быть именно он — не пустая страница, которую приходилось
+  /// «оживлять» переключением на соседнюю вкладку и обратно.
+  testWidgets('запомненный конспект показывается, когда подгрузился', (
+    tester,
+  ) async {
+    await getIt<QuizPreferencesRepository>().setQuestionTab(
+      AppFeature.categorySummaries,
+    );
+    konspekt.release = Completer();
+    await tester.pumpWidget(wrap());
+    await tester.pumpAndSettle();
+    // Пока конспекта нет — открыта первая вкладка, объяснение.
+    expect(explanation, findsOneWidget);
+    expect(find.byTooltip('questionTabs.konspekt'), findsNothing);
+
+    konspekt.release.complete();
+    await tester.pumpAndSettle();
+
+    expect(find.text('questionTabs.konspekt'), findsOneWidget);
+    expect(konspektText, findsOneWidget);
+    expect(explanation, findsNothing);
+    expectFitsContent(tester);
+  });
 }
