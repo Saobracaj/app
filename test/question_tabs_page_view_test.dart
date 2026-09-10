@@ -43,14 +43,21 @@ class _FakeClient extends GraphqlClient {
   }) async => const {};
 }
 
+/// Объяснение отдаётся, когда тест решит ([release]); по умолчанию — сразу.
+/// Completer заводит сам тест — см. [_StubKonspektRepository].
 class _StubCommentRepository extends CommentRepository {
   _StubCommentRepository(super.client, super.flags);
+
+  static Completer<void>? release;
 
   @override
   Future<QuestionCommentDetails> fetchComment(
     int questionId, {
     String? categoryId,
-  }) async => const QuestionCommentDetails(status: 'READY', text: 'Објашњење.');
+  }) async {
+    await release?.future;
+    return const QuestionCommentDetails(status: 'READY', text: 'Објашњење.');
+  }
 }
 
 /// Конспект с одним разделом про вопрос 7001; отдаётся, когда тест решит
@@ -155,7 +162,10 @@ void main() {
     );
   });
 
-  tearDown(() => getIt.reset());
+  tearDown(() {
+    _StubCommentRepository.release = null;
+    return getIt.reset();
+  });
 
   Widget wrap() => MaterialApp(
     home: MultiBlocProvider(
@@ -276,6 +286,38 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('questionTabs.konspekt'), findsOneWidget);
+    expect(konspektText, findsOneWidget);
+    expect(explanation, findsNothing);
+    expectFitsContent(tester);
+  });
+
+  /// Скриншот из задачи: запомнен «Конспект», у нового вопроса конспект
+  /// подъехал раньше объяснения. Пилюля конспекта раскрыта, а на панели —
+  /// объяснение, обрезанное по высоте, которую листалка запомнила до его
+  /// загрузки. Должен быть конспект, и листалка — по его содержимому.
+  testWidgets('запомненный конспект не обрезается, если объяснение отстало', (
+    tester,
+  ) async {
+    await getIt<QuizPreferencesRepository>().setQuestionTab(
+      AppFeature.categorySummaries,
+    );
+    konspekt.release = Completer();
+    _StubCommentRepository.release = Completer();
+    await tester.pumpWidget(wrap());
+    // Не pumpAndSettle: пока объяснение грузится, крутится его индикатор.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(explanation, findsNothing);
+    expect(find.byTooltip('questionTabs.konspekt'), findsNothing);
+
+    konspekt.release.complete();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.text('questionTabs.konspekt'), findsOneWidget);
+
+    _StubCommentRepository.release!.complete();
+    await tester.pumpAndSettle();
+
     expect(konspektText, findsOneWidget);
     expect(explanation, findsNothing);
     expectFitsContent(tester);
