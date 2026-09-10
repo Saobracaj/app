@@ -1,7 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
 import '../../generated/locale_keys.g.dart';
@@ -9,6 +8,7 @@ import '../state_management/firebase_login/firebase_login_bloc.dart';
 import '../state_management/login/login_bloc.dart';
 import '../state_management/login/login_events.dart';
 import '../state_management/login/login_state.dart';
+import 'auth_flow.dart';
 import 'error_field.dart';
 import 'social_login.dart';
 import 'validators.dart';
@@ -62,11 +62,12 @@ class LoginView extends StatelessWidget {
                       p.needsConfirmationFor != c.needsConfirmationFor,
                   listener: (context, state) {
                     if (state.loggedIn) {
-                      Routemaster.of(context).pop();
+                      finishAuthFlow(context);
                     } else if (state.needsConfirmationFor != null) {
-                      final email =
-                          Uri.encodeComponent(state.needsConfirmationFor!);
-                      Routemaster.of(context).replace('/confirmCode?email=$email');
+                      authFlowToConfirmCode(
+                        context,
+                        email: state.needsConfirmationFor!,
+                      );
                     }
                   },
                   builder: (context, state) {
@@ -106,7 +107,8 @@ class LoginView extends StatelessWidget {
                               suffixIcon: IconButton(
                                 onPressed: locked
                                     ? null
-                                    : () => bloc.add(TogglePasswordVisibility()),
+                                    : () =>
+                                          bloc.add(TogglePasswordVisibility()),
                                 icon: Icon(
                                   state.obscurePassword
                                       ? Icons.visibility_outlined
@@ -125,8 +127,7 @@ class LoginView extends StatelessWidget {
                             child: TextButton(
                               onPressed: locked
                                   ? null
-                                  : () => Routemaster.of(context)
-                                      .push('/resetPassword'),
+                                  : () => authFlowToResetPassword(context),
                               child: Text(LocaleKeys.auth_forgotPassword.tr()),
                             ),
                           ),
@@ -143,7 +144,8 @@ class LoginView extends StatelessWidget {
                                     height: 22,
                                     width: 22,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2),
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : Text(LocaleKeys.auth_loginSubmit.tr()),
                           ),
@@ -157,8 +159,7 @@ class LoginView extends StatelessWidget {
                               TextButton(
                                 onPressed: locked
                                     ? null
-                                    : () => Routemaster.of(context)
-                                        .replace('/register'),
+                                    : () => authFlowToRegister(context),
                                 child: Text(LocaleKeys.auth_toRegister.tr()),
                               ),
                             ],
