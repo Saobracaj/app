@@ -271,9 +271,6 @@ class AnalyticsService {
   void logPaywallOpened({required String source, int? questionId}) =>
       _track('paywall_opened', {'source': source, 'question_id': ?questionId});
 
-  /// «Не сдал экзамен» — the free-extension request went to the support chat.
-  void logExtensionRequested() => _track('extension_requested', const {});
-
   /// A question search was run; only the length of the query is reported —
   /// what exactly a person types is theirs.
   void logQuestionSearch({required int queryLength, required int results}) =>

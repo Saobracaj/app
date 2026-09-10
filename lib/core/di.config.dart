@@ -64,7 +64,6 @@ import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
 import '../question_lists/state_management/shared_list_bloc.dart' as _i718;
 import '../subscription/data/store_purchase_service.dart' as _i1058;
 import '../subscription/data/subscription_repository.dart' as _i731;
-import '../subscription/state_management/extension_request_bloc.dart' as _i662;
 import '../subscription/state_management/subscription_bloc.dart' as _i335;
 import '../test/data/quiz_preferences_repository.dart' as _i442;
 import '../test/practice/state_management/practice_page_bloc.dart' as _i790;
@@ -347,12 +346,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i880.AuthRepository>(),
         gh<_i388.AuthBloc>(),
         gh<_i426.NotificationPermissions>(),
-      ),
-    );
-    gh.factory<_i662.ExtensionRequestBloc>(
-      () => _i662.ExtensionRequestBloc(
-        gh<_i299.ChatRepository>(),
-        gh<_i388.AuthBloc>(),
       ),
     );
     gh.factoryParam<_i718.SharedListBloc, String, dynamic>(

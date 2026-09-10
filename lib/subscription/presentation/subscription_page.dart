@@ -11,7 +11,6 @@ import '../state_management/subscription_bloc.dart';
 import 'paywall.dart';
 import '../state_management/subscription_events.dart';
 import '../state_management/subscription_state.dart';
-import 'extension_promise_card.dart';
 import 'tariff_formatting.dart';
 
 /// Раздел аккаунта «Подписка»: текущий тариф, срок действия, покупки и
@@ -68,12 +67,6 @@ class SubscriptionContent extends StatelessWidget {
                     !state.subscription.autoRenewing) ...[
                   const SizedBox(height: 12),
                   _RemindersSwitch(status: state.subscription),
-                ],
-                // Обещание продления — тому, у кого подписка есть или была:
-                // просить продлить пропуск, которого не было, некому.
-                if (state.subscription.active || state.periods.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  const ExtensionPromiseCard(withRequestButton: true),
                 ],
                 if (state.periods.isNotEmpty) ...[
                   const SizedBox(height: 24),

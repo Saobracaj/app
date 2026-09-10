@@ -66,7 +66,6 @@
 | `checkout_step` | шаг покупки | `step` (`purchase_started`/`purchase_completed`/`purchase_cancelled`/`purchase_failed`/`purchases_restored`/`purchase_rejected` — бэкенд отказал окончательно, транзакция завершена/`purchase_stuck_in_queue` — StoreKit не даёт купить, пока висит старая транзакция, запущен restore/`store_purchase_claimed` — тихая сверка со стором перед продажей нашла живую покупку и записала её на этот аккаунт/`store_subscription_elsewhere` — аккаунт стора платит за подписку другого живого аккаунта, кнопки покупки заперты), `sku` |
 | `paywall_shown` | пейволл на экране: замок объяснения / конспекта / анализа / AI или переключатель «РУ» вне бесплатных разделов | `source` (`explanation`/`konspekt`/`analysis`/`ask_ai`/`russian_toggle`/`konspekt_page`), `question_id`, `category_id` |
 | `paywall_opened` | нажатие на кнопку пейволла — открылись тарифы | `source`, `question_id` |
-| `extension_requested` | «Не сдал экзамен»: запрос бесплатного продления ушёл в чат с разработчиком | — |
 
 «Сколько прошло с регистрации» отдельным свойством не едет: у персоны в
 PostHog есть дата первого события и `$set`-время, разница считается прямо в
