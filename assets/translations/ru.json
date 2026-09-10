@@ -215,9 +215,9 @@
     "localSection": "Доступные функции",
     "localSectionSubtitle": "Можно включить или отключить в любой момент",
     "accountSection": "Для авторизованных",
-    "accountSectionSubtitle": "Доступны после входа в аккаунт",
+    "accountSectionSubtitle": "Работают после входа в аккаунт; включать и отключать можно уже сейчас",
     "premiumSection": "Премиум-функции",
-    "premiumSectionSubtitle": "Определяются вашей подпиской",
+    "premiumSectionSubtitle": "Работают по подписке; включать и отключать можно уже сейчас",
     "russianSection": "Русский язык",
     "russianPrompt": {
       "title": "Материалы на русском",

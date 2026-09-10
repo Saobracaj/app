@@ -207,9 +207,9 @@
     "localSection": "Available features",
     "localSectionSubtitle": "Can be turned on or off at any time",
     "accountSection": "For signed-in users",
-    "accountSectionSubtitle": "Available after you sign in",
+    "accountSectionSubtitle": "Work after you sign in; you can turn them on or off already",
     "premiumSection": "Premium features",
-    "premiumSectionSubtitle": "Determined by your subscription",
+    "premiumSectionSubtitle": "Work with a subscription; you can turn them on or off already",
     "russianSection": "Russian language",
     "russianPrompt": {
       "title": "Russian materials",

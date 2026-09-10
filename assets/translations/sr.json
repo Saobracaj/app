@@ -211,9 +211,9 @@
     "localSection": "Доступне функције",
     "localSectionSubtitle": "Могу се укључити или искључити у сваком тренутку",
     "accountSection": "За пријављене кориснике",
-    "accountSectionSubtitle": "Доступне након пријаве",
+    "accountSectionSubtitle": "Раде након пријаве; укључивати и искључивати можете већ сада",
     "premiumSection": "Премијум функције",
-    "premiumSectionSubtitle": "Одређује их ваша претплата",
+    "premiumSectionSubtitle": "Раде уз претплату; укључивати и искључивати можете већ сада",
     "russianSection": "Руски језик",
     "russianPrompt": {
       "title": "Материјали на руском",
