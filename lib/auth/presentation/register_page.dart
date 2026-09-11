@@ -1,7 +1,6 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
 import '../../generated/locale_keys.g.dart';
@@ -9,6 +8,7 @@ import '../state_management/firebase_login/firebase_login_bloc.dart';
 import '../state_management/register/register_bloc.dart';
 import '../state_management/register/register_events.dart';
 import '../state_management/register/register_state.dart';
+import 'auth_flow.dart';
 import 'error_field.dart';
 import 'social_login.dart';
 import 'validators.dart';
@@ -40,9 +40,9 @@ class RegisterView extends StatelessWidget {
     if (_formKey.currentState!.validate()) {
       FocusScope.of(context).unfocus();
       _formKey.currentState!.save();
-      context
-          .read<RegisterBloc>()
-          .add(SubmitPressed(context.locale.languageCode));
+      context.read<RegisterBloc>().add(
+        SubmitPressed(context.locale.languageCode),
+      );
     }
   }
 
@@ -65,11 +65,12 @@ class RegisterView extends StatelessWidget {
                       p.needsConfirmationFor != c.needsConfirmationFor,
                   listener: (context, state) {
                     if (state.loggedIn) {
-                      Routemaster.of(context).pop();
+                      finishAuthFlow(context);
                     } else if (state.needsConfirmationFor != null) {
-                      final email =
-                          Uri.encodeComponent(state.needsConfirmationFor!);
-                      Routemaster.of(context).replace('/confirmCode?email=$email');
+                      authFlowToConfirmCode(
+                        context,
+                        email: state.needsConfirmationFor!,
+                      );
                     }
                   },
                   builder: (context, state) {
@@ -110,7 +111,8 @@ class RegisterView extends StatelessWidget {
                               suffixIcon: IconButton(
                                 onPressed: locked
                                     ? null
-                                    : () => bloc.add(TogglePasswordVisibility()),
+                                    : () =>
+                                          bloc.add(TogglePasswordVisibility()),
                                 icon: Icon(
                                   state.obscurePassword
                                       ? Icons.visibility_outlined
@@ -148,7 +150,8 @@ class RegisterView extends StatelessWidget {
                                     height: 22,
                                     width: 22,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2),
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : Text(LocaleKeys.auth_registerSubmit.tr()),
                           ),
@@ -162,8 +165,7 @@ class RegisterView extends StatelessWidget {
                               TextButton(
                                 onPressed: locked
                                     ? null
-                                    : () =>
-                                        Routemaster.of(context).replace('/login'),
+                                    : () => authFlowToLogin(context),
                                 child: Text(LocaleKeys.auth_toLogin.tr()),
                               ),
                             ],

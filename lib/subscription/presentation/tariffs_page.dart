@@ -19,6 +19,7 @@ import '../state_management/subscription_events.dart';
 import '../state_management/subscription_state.dart';
 import 'plan_features.dart';
 import 'tariff_formatting.dart';
+import '../../auth/presentation/auth_flow.dart';
 
 /// Витрина тарифов — она же экран пейволла: один пропуск Premium, срок
 /// выбирается переключателем.
@@ -723,7 +724,7 @@ class _PlanCard extends StatelessWidget {
           else if (!authenticated)
             _WideButton(
               child: OutlinedButton(
-                onPressed: () => Routemaster.of(context).push('/login'),
+                onPressed: () => openLogin(context),
                 child: Text(LocaleKeys.subscription_signInToBuy.tr()),
               ),
             )

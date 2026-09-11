@@ -2,7 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:routemaster/routemaster.dart';
 
 import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../core/di.dart';
@@ -19,6 +18,7 @@ import 'chat_attach_menu.dart';
 import 'linked_text.dart';
 import 'shared_list_chip.dart';
 import 'chat_attachment_views.dart';
+import '../../auth/presentation/auth_flow.dart';
 
 /// Один разговор.
 ///
@@ -1181,7 +1181,7 @@ class _GuestComposerPrompt extends StatelessWidget {
               ),
             ),
             FilledButton.tonal(
-              onPressed: () => Routemaster.of(context).push('/login'),
+              onPressed: () => openLogin(context),
               child: Text(LocaleKeys.questionChat_guestSignIn.tr()),
             ),
           ],

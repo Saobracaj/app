@@ -6,6 +6,7 @@ import 'package:routemaster/routemaster.dart';
 import '../../generated/locale_keys.g.dart';
 import '../state_management/auth/auth_bloc.dart';
 import '../state_management/auth/auth_state.dart';
+import 'auth_flow.dart';
 
 /// App-bar action that shows a "Log in" button while signed out and a round
 /// profile avatar once authenticated. Both route to the settings/profile screen
@@ -34,7 +35,8 @@ class AuthButton extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: IconButton(
               tooltip: LocaleKeys.auth_profileTooltip.tr(),
-              onPressed: () => Routemaster.of(context).push('/settings/profile'),
+              onPressed: () =>
+                  Routemaster.of(context).push('/settings/profile'),
               icon: CircleAvatar(
                 radius: 16,
                 backgroundColor: Theme.of(context).colorScheme.primary,
@@ -52,7 +54,7 @@ class AuthButton extends StatelessWidget {
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: TextButton.icon(
-            onPressed: () => Routemaster.of(context).push('/login'),
+            onPressed: () => openLogin(context),
             icon: const Icon(Icons.login),
             label: Text(LocaleKeys.auth_loginNav.tr()),
           ),

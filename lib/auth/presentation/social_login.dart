@@ -11,7 +11,6 @@ import 'package:firebase_ui_oauth_google/firebase_ui_oauth_google.dart'
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
 import '../../generated/locale_keys.g.dart';
@@ -19,6 +18,7 @@ import '../data/firebase_init.dart';
 import '../state_management/firebase_login/firebase_login_bloc.dart';
 import '../state_management/firebase_login/firebase_login_events.dart';
 import '../state_management/firebase_login/firebase_login_state.dart';
+import 'auth_flow.dart';
 import 'error_field.dart';
 import 'widgets/social_sign_in_buttons.dart';
 
@@ -46,7 +46,7 @@ class SocialLoginScope extends StatelessWidget {
       child: BlocListener<FirebaseLoginBloc, FirebaseLoginState>(
         listener: (context, state) {
           if (state.shouldLogOut) firebaseSignOut(context);
-          if (state.success) Routemaster.of(context).pop();
+          if (state.success) finishAuthFlow(context);
         },
         child: child,
       ),
@@ -129,8 +129,8 @@ class SocialLogin extends StatelessWidget {
       // необработанное исключение при каждом rebuild.
       VoidCallback? onPressed(SocialAuthProvider provider) =>
           (!enabled || state.isBusy)
-              ? null
-              : () => bloc.add(SocialSignInPressed(provider));
+          ? null
+          : () => bloc.add(SocialSignInPressed(provider));
       return [
         GoogleSignInButton(
           onPressed: onPressed(SocialAuthProvider.google),
@@ -217,7 +217,8 @@ class _OAuthButtonScaffold extends StatelessWidget {
           // ID token for our session: keep the tapped button spinning either
           // way. Обе проверки относятся только к этому провайдеру, поэтому
           // спиннер никогда не появляется на двух кнопках сразу.
-          final busy = authState is fb_ui_auth.SigningIn ||
+          final busy =
+              authState is fb_ui_auth.SigningIn ||
               authState is fb_ui_auth.CredentialReceived ||
               state.isBusyWith(socialProvider);
           final locked = busy || state.isBusy || !pageEnabled;

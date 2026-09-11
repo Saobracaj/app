@@ -20,6 +20,7 @@ import '../state_management/shared_list_bloc.dart';
 import '../state_management/shared_list_events.dart';
 import '../state_management/shared_list_state.dart';
 import 'question_lists_section.dart';
+import '../../auth/presentation/auth_flow.dart';
 
 /// How many of the list's questions the preview lists before "and N more".
 const int kSharedListPreviewQuestions = 5;
@@ -58,7 +59,7 @@ class SharedListPage extends StatelessWidget {
             Routemaster.of(context).replace('/lists/$id');
           } else if (state.signInRequired) {
             bloc.add(SharedListImportHandled());
-            Routemaster.of(context).push('/login');
+            openLogin(context);
           } else if (state.importFailed) {
             bloc.add(SharedListImportHandled());
             ScaffoldMessenger.of(context).showSnackBar(

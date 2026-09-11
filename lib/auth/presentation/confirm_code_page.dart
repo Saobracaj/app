@@ -1,13 +1,13 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
 import '../../generated/locale_keys.g.dart';
 import '../state_management/confirm_code/confirm_code_bloc.dart';
 import '../state_management/confirm_code/confirm_code_events.dart';
 import '../state_management/confirm_code/confirm_code_state.dart';
+import 'auth_flow.dart';
 
 /// Confirms the 6-digit email code sent after registration. Auto-verifies once
 /// all six characters are entered; on success the user is logged in and returned
@@ -49,10 +49,12 @@ class ConfirmCodeView extends StatelessWidget {
                       p.loggedIn != c.loggedIn || p.resentTick != c.resentTick,
                   listener: (context, state) {
                     if (state.loggedIn) {
-                      Routemaster.of(context).replace('/');
+                      finishAuthFlow(context);
                     } else if (state.resentTick > 0) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(LocaleKeys.auth_codeResent.tr())),
+                        SnackBar(
+                          content: Text(LocaleKeys.auth_codeResent.tr()),
+                        ),
                       );
                     }
                   },
@@ -92,8 +94,9 @@ class ConfirmCodeView extends StatelessWidget {
                               ? const SizedBox(
                                   height: 22,
                                   width: 22,
-                                  child:
-                                      CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
                               : Text(LocaleKeys.auth_confirmSubmit.tr()),
                         ),

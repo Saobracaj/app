@@ -25,6 +25,7 @@ import '../domain/settings_section.dart';
 import '../state_management/auth/auth_bloc.dart';
 import '../state_management/auth/auth_events.dart';
 import '../state_management/auth/auth_state.dart';
+import 'auth_flow.dart';
 
 /// Один пункт меню настроек: раздел и его строка в списке.
 class _SettingsEntry {
@@ -169,7 +170,7 @@ class ProfilePage extends StatelessWidget {
       title: Text(LocaleKeys.settings_notAuthorized.tr()),
       subtitle: Text(LocaleKeys.settings_loginPrompt.tr()),
       trailing: FilledButton(
-        onPressed: () => Routemaster.of(context).push('/login'),
+        onPressed: () => openLogin(context),
         child: Text(LocaleKeys.settings_loginButton.tr()),
       ),
     );
@@ -530,7 +531,7 @@ class _AccountPanel extends StatelessWidget {
                 )
               else
                 FilledButton(
-                  onPressed: () => Routemaster.of(context).push('/login'),
+                  onPressed: () => openLogin(context),
                   child: Text(LocaleKeys.settings_loginButton.tr()),
                 ),
             ],

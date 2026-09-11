@@ -18,11 +18,13 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'auth/data/auth_repository.dart';
 import 'auth/data/firebase_init.dart';
+import 'auth/presentation/auth_flow.dart';
 import 'auth/state_management/auth/auth_bloc.dart';
 import 'auth/state_management/auth/auth_events.dart';
 import 'auth/state_management/auth/auth_state.dart';
 import 'core/analytics/analytics_event_sink.dart';
 import 'core/analytics/analytics_service.dart';
+import 'core/navigation.dart';
 import 'core/app_language.dart';
 import 'core/deep_links/deep_link_path.dart';
 import 'core/deep_links/deep_link_service.dart';
@@ -250,9 +252,17 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final RoutemasterDelegate _routerDelegate = RoutemasterDelegate(
+  /// Что лежит в корневом навигаторе поверх страниц routemaster'а — для
+  /// системной кнопки «назад» и для аналитики экранов без адреса.
+  final RootRoutesObserver _rootRoutes = RootRoutesObserver();
+
+  late final RoutemasterDelegate _routerDelegate = RoutemasterDelegate(
     routesBuilder: (context) => routes,
+    observers: [_rootRoutes, _ImperativeScreenObserver(_logScreenView)],
   );
+
+  late final AppBackButtonDispatcher _backButtonDispatcher =
+      AppBackButtonDispatcher(_rootRoutes);
 
   /// Held for the lifetime of the app: it stamps the browser history entries
   /// with the session that wrote them, so it must not be rebuilt with the tree.
@@ -327,7 +337,9 @@ class _MyAppState extends State<MyApp> {
       return;
     }
     unawaited(
-      launchUrl(uri, mode: LaunchMode.externalApplication).catchError((Object e) {
+      launchUrl(uri, mode: LaunchMode.externalApplication).catchError((
+        Object e,
+      ) {
         debugPrint('Push link could not be opened: $uri ($e)');
         return false;
       }),
@@ -346,6 +358,7 @@ class _MyAppState extends State<MyApp> {
       ),
     );
   }
+
   void _onAuthChanged(AuthState auth) {
     final signedIn = auth.isAuthenticated;
     if (signedIn && !_wasAuthenticated) unawaited(_resumeSharedListImport());
@@ -360,8 +373,7 @@ class _MyAppState extends State<MyApp> {
     final code = await getIt<SharedListsRepository>().peekPendingImport();
     if (code == null) return;
     for (var i = 0; i < 30; i++) {
-      final path = _routerDelegate.currentConfiguration?.path ?? '';
-      if (!_isSignInPath(path)) break;
+      if (!_signingIn) break;
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
     if (!mounted) return;
@@ -372,11 +384,11 @@ class _MyAppState extends State<MyApp> {
     _routerDelegate.push('/shared/${Uri.encodeComponent(code)}');
   }
 
-  static bool _isSignInPath(String path) =>
-      path.startsWith('/login') ||
-      path.startsWith('/register') ||
-      path.startsWith('/confirmCode') ||
-      path.startsWith('/resetPassword');
+  /// Открыт какой-то экран потока входа — поверх текущего экрана (обычный
+  /// путь, см. `auth_flow.dart`) или по своему адресу (прямая ссылка).
+  bool get _signingIn =>
+      _rootRoutes.topPagelessRoute is AuthFlowRoute ||
+      isAuthFlowPath(_routerDelegate.currentConfiguration?.path ?? '');
 
   @override
   void dispose() {
@@ -472,6 +484,7 @@ class _MyAppState extends State<MyApp> {
             ),
             routerDelegate: _routerDelegate,
             routeInformationParser: _routeInformationParser,
+            backButtonDispatcher: _backButtonDispatcher,
             title: 'Saobraćaj',
             themeMode: themeState.mode,
             theme: buildAppTheme(lightScheme),
@@ -481,4 +494,45 @@ class _MyAppState extends State<MyApp> {
       ),
     );
   }
+}
+
+/// Экраны, открытые императивно поверх страниц routemaster'а, в адресе не
+/// отражаются, и слушатель делегата их не видит. Роут с именем (поток входа:
+/// `/login`, `/register`, …) записывается как экран по этому имени; когда он
+/// закрывается, экраном снова становится адрес под ним.
+class _ImperativeScreenObserver extends NavigatorObserver {
+  _ImperativeScreenObserver(this._logRouterScreen);
+
+  final VoidCallback _logRouterScreen;
+
+  void _log(Route<dynamic>? route) {
+    final name = route?.settings.name;
+    if (route == null || route.settings is Page || name == null) return;
+    analytics.logScreenView(name);
+  }
+
+  void _left(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route.settings is Page || route.settings.name == null) return;
+    if (previousRoute != null && previousRoute.settings is! Page) {
+      _log(previousRoute);
+    } else {
+      _logRouterScreen();
+    }
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _log(route);
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) =>
+      _log(newRoute);
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _left(route, previousRoute);
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _left(route, previousRoute);
 }

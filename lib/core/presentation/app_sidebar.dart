@@ -8,6 +8,7 @@ import '../../auth/state_management/auth/auth_state.dart';
 import '../../generated/locale_keys.g.dart';
 import '../../theme/state_management/theme_bloc.dart';
 import '../../theme/state_management/theme_events.dart';
+import '../../auth/presentation/auth_flow.dart';
 
 /// Боковая навигация веб-версии: логотип, разделы приложения и блок аккаунта
 /// внизу с переключателем темы.
@@ -186,9 +187,9 @@ class _AccountBlock extends StatelessWidget {
             Divider(color: theme.colorScheme.outlineVariant, height: 17),
             const SizedBox(height: 8),
             InkWell(
-              onTap: () => Routemaster.of(
-                context,
-              ).push(auth.isAuthenticated ? '/settings/profile' : '/login'),
+              onTap: () => auth.isAuthenticated
+                  ? Routemaster.of(context).push('/settings/profile')
+                  : openLogin(context),
               borderRadius: BorderRadius.circular(12),
               child: Padding(
                 padding: const EdgeInsets.all(10),

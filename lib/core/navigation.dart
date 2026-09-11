@@ -33,9 +33,10 @@ Future<void> pushScreen(
   }
   // Root navigator, for the same reason [showQuestionPreview] uses it: a screen
   // pushed into a home-screen tab's own navigator opens under the bottom bar.
-  return Navigator.of(context, rootNavigator: true).push<void>(
-    MaterialPageRoute(builder: (_) => screen()),
-  );
+  return Navigator.of(
+    context,
+    rootNavigator: true,
+  ).push<void>(MaterialPageRoute(builder: (_) => screen()));
 }
 
 /// Whether pushing [path] relative to the screen at [context] resolves to a
@@ -50,4 +51,71 @@ bool isRoutable(BuildContext context, String path) {
   if (base == null) return false;
   final target = base == '/' ? '/$path' : '$base/$path';
   return routes.get(target) != null;
+}
+
+/// Роуты корневого навигатора, как они лежат сейчас, — чтобы знать, что
+/// наверху: страница routemaster'а или роут, открытый императивно (запасная
+/// ветка [pushScreen], поток входа, диалог).
+///
+/// Routemaster не подключает переданные ему наблюдатели к навигатору напрямую
+/// (у них нет `navigator`), поэтому навигатор берётся у самого роута.
+class RootRoutesObserver extends NavigatorObserver {
+  final _routes = <Route<dynamic>>[];
+
+  /// Верхний роут корневого навигатора, если он открыт не routemaster'ом.
+  Route<dynamic>? get topPagelessRoute {
+    final top = _routes.lastOrNull;
+    return top != null && top.settings is! Page ? top : null;
+  }
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _routes.add(route);
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _routes.remove(route);
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _routes.remove(route);
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    final at = oldRoute == null ? -1 : _routes.indexOf(oldRoute);
+    if (at >= 0) {
+      if (newRoute == null) {
+        _routes.removeAt(at);
+      } else {
+        _routes[at] = newRoute;
+      }
+    } else if (newRoute != null) {
+      _routes.add(newRoute);
+    }
+  }
+}
+
+/// Системная кнопка «назад» (Android), которая сначала закрывает то, что
+/// открыто императивно.
+///
+/// Routemaster отвечает на неё шагом назад по истории адресов — и не видит
+/// роутов, которых в адресе нет: экран входа, открытый поверх вопроса, при
+/// нажатии «назад» оставался на месте, а под ним менялся экран (или вместе с
+/// экраном под ним исчезал и он сам). Пока наверху такой роут, «назад»
+/// закрывает его, как и стрелка в шапке; дальше — routemaster, как раньше.
+class AppBackButtonDispatcher extends RootBackButtonDispatcher {
+  AppBackButtonDispatcher(this._rootRoutes);
+
+  final RootRoutesObserver _rootRoutes;
+
+  @override
+  Future<bool> didPopRoute() async {
+    final pageless = _rootRoutes.topPagelessRoute;
+    final navigator = pageless?.navigator;
+    if (navigator == null) return super.didPopRoute();
+    // Роут мог запретить закрытие (PopScope) — кнопка всё равно обработана,
+    // выходить из приложения нельзя.
+    await navigator.maybePop();
+    return true;
+  }
 }
