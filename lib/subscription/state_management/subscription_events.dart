@@ -1,31 +1,29 @@
+import '../data/store_purchase_service.dart';
+
 /// События раздела подписки и витрины тарифов.
 sealed class SubscriptionEvent {}
 
-/// Загрузить каталог, подписку, заказы и историю (при открытии экрана и после
-/// «повторить» на ошибке).
+/// Загрузить каталог, цены стора, подписку и историю (при открытии экрана и
+/// после «повторить» на ошибке).
 class SubscriptionRequested extends SubscriptionEvent {}
 
-/// Оформить заказ на выбранный тариф.
-class OrderRequested extends SubscriptionEvent {
-  OrderRequested(this.sku);
+/// Купить выбранный тариф — открывает окно оплаты стора.
+class PurchaseRequested extends SubscriptionEvent {
+  PurchaseRequested(this.sku);
 
   final String sku;
 }
 
-/// Отменить свой неоплаченный заказ.
-class OrderCancelled extends SubscriptionEvent {
-  OrderCancelled(this.orderId);
+/// «Восстановить покупки»: попросить стор перевыдать чеки. Нужно после
+/// переустановки и при входе в аккаунт на новом устройстве.
+class PurchasesRestoreRequested extends SubscriptionEvent {}
 
-  final String orderId;
-}
+/// Стор прислал чек (в ответ на покупку, восстановление или сам). Событие
+/// внутреннее — его добавляет подписка Bloc'а на очередь покупок.
+class StorePurchaseReceived extends SubscriptionEvent {
+  StorePurchaseReceived(this.event);
 
-/// Включить/выключить надбавку за русские материалы на витрине. Меняет только
-/// то, какие SKU показаны, — ничего не покупает и не трогает локальный флаг
-/// `russian_content`.
-class RussianAddonToggled extends SubscriptionEvent {
-  RussianAddonToggled(this.enabled);
-
-  final bool enabled;
+  final StorePurchaseEvent event;
 }
 
 /// Переключить письма-напоминания об окончании подписки.
@@ -34,16 +32,3 @@ class RemindersToggled extends SubscriptionEvent {
 
   final bool enabled;
 }
-
-/// Набор текста в поле промокода (сама проверка — [PromoCodeApplied]).
-class PromoCodeDraftChanged extends SubscriptionEvent {
-  PromoCodeDraftChanged(this.text);
-
-  final String text;
-}
-
-/// Проверить набранный промокод и применить скидку к витрине.
-class PromoCodeApplied extends SubscriptionEvent {}
-
-/// Убрать применённый промокод.
-class PromoCodeCleared extends SubscriptionEvent {}

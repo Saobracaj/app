@@ -14,7 +14,10 @@ void main() {
 
     test('числовой id вопроса заменяется на плейсхолдер', () {
       expect(analyticsScreenName('/question/7923'), '/question/:id');
-      expect(analyticsScreenName('/question/7923/zakon'), '/question/:id/zakon');
+      expect(
+        analyticsScreenName('/question/7923/zakon'),
+        '/question/:id/zakon',
+      );
       expect(
         analyticsScreenName('/konspekt/question/7921'),
         '/konspekt/question/:id',
@@ -62,6 +65,12 @@ void main() {
       expect(analyticsScreenTitle('/zakon'), 'Закон');
       expect(analyticsScreenTitle('/quest/q/zakon'), 'Закон');
       expect(analyticsScreenTitle('/lists/:id/q/zakon'), 'Закон');
+    });
+
+    test('тарифы одни для всех экранов с гейтом', () {
+      expect(analyticsScreenTitle('/quest/q/tariffs'), 'Тарифы');
+      expect(analyticsScreenTitle('/konspekt/tariffs'), 'Тарифы');
+      expect(analyticsScreenTitle('/subscription/tariffs'), 'Тарифы');
     });
 
     test('незнакомый шаблон возвращается как есть', () {

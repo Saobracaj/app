@@ -120,6 +120,35 @@ to announce. The building blocks live in `lib/core/network/`:
 - The home screen shows `OfflineHomeCard` (links to questions / simulation)
   instead of per-block retries while offline.
 
+## The subscription is sold in-app, through the stores
+
+`lib/subscription/` sells one thing, and it sells it through the App Store and
+Google Play — never through a web checkout, and never by linking to one from
+inside the app (both stores forbid it).
+
+- **`StorePurchaseService` is the only place that touches `in_app_purchase`.**
+  There is no web implementation of that plugin: `InAppPurchase.instance`
+  throws in the browser, so every method of the service checks `isSupported`
+  first, and the rest of the app asks `bloc.storePlatform` (`null` in the web
+  build) rather than `kIsWeb`. In the web build the tariffs screen shows the
+  same prices as reference figures and points at the app.
+- **The result of a purchase arrives on the purchase *stream*, not from
+  `buy()`.** A store also hands over receipts nobody asked for right now — a
+  restore, a deferred payment that finally cleared, a purchase made on another
+  device — so `SubscriptionBloc` listens for the whole time it is alive.
+- **Confirm to the store last.** The order is: receipt → `redeemStorePurchase`
+  on the backend → `refreshGrants()` → `complete()`. An unconfirmed purchase is
+  refunded by Google after three days, which is the right outcome when the
+  entitlement could not be written; confirming first would eat the money.
+- **Prices come from the store.** `Tariff.priceRsd` is the *reference* price
+  for the web shop window; on a phone the localised `StoreProduct.price` is
+  what is shown. The two are kept in step by hand — see
+  `saobracaj_backend/BILLING.md`, which also lists the store console setup.
+- Only the monthly tariffs auto-renew. Everything the UI says about renewal
+  hangs off `Tariff.autoRenewing` / `SubscriptionStatus.autoRenewing`: a date
+  on an auto-renewing subscription is the next charge, not the end of access,
+  and cancelling is only possible in the store (`manageUrl`).
+
 ## GraphQL queries are batched — a fake server must not assume one operation per request
 
 `GraphqlClient` merges the *queries* that pile up while another request is in

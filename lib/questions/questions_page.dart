@@ -33,16 +33,21 @@ class QuestionsPage extends StatelessWidget {
                 actions: const [AuthButton()],
               ),
         backgroundColor: widePageBackground(context),
-        body: BlocProvider(
-          create: (_) => getIt<KonspektCatalogBloc>(),
-          child: searchEnabled
-              ? SearchableQuestions(wide: true, showTitle: withSidebar)
-              : Column(
-                  children: [
-                    if (withSidebar) const QuestionsWideHeader(),
-                    const Expanded(child: Categories(wide: true)),
-                  ],
-                ),
+        // Без AppBar верхний системный отступ (статус-бар планшета) никто
+        // не учитывает — закреплённая шапка налезала бы на часы.
+        body: SafeArea(
+          bottom: false,
+          child: BlocProvider(
+            create: (_) => getIt<KonspektCatalogBloc>(),
+            child: searchEnabled
+                ? SearchableQuestions(wide: true, showTitle: withSidebar)
+                : Column(
+                    children: [
+                      if (withSidebar) const QuestionsWideHeader(),
+                      const Expanded(child: Categories(wide: true)),
+                    ],
+                  ),
+          ),
         ),
       );
     }

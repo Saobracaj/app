@@ -42,15 +42,18 @@
 | `question_list_opened` | открытие своего списка вопросов | `question_count` |
 | `test_started` | начало прогона вопросов | `question_count`, `subcategory` |
 | `question_viewed` | показ вопроса (и каждое перелистывание) | `question_id` |
-| `question_answered` | ответ на вопрос | `question_id`, `correct`, `seconds_since_shown` |
+| `question_answered` | ответ на вопрос — в прогоне и в экзамене | `question_id`, `correct`, `mode` (`quiz`/`exam`), `seconds_since_shown` (только `quiz`) |
 | `question_tabs_viewed` | домотал до вкладок под вопросом (телефон) | `question_id` |
-| `question_tab_opened` | переключение вкладки под вопросом | `tab`, `question_id` |
+| `question_tab_shown` | содержимое вкладки оказалось на экране — раз на вопрос и вкладку (см. «Чтение объяснений и конспектов») | `tab`, `question_id` |
+| `question_tab_opened` | переключение вкладки под вопросом рукой | `tab`, `question_id` |
 | `test_finished` | завершение прогона | `question_count`, `right_answers`, `score`, `possible_score`, `subcategory`, `duration_seconds` |
 | `simulation_started` | старт симуляции экзамена | — |
 | `simulation_finished` | финиш симуляции (рукой или таймером) | `duration_seconds`, `points`, `mistakes` |
 | `definition_opened` | тап по определению в тексте вопроса | `term` |
 | `translation_toggled` | чип «РУ» на вопросе | `enabled` |
-| `konspekt_opened` | открытие конспекта | `category` |
+| `translation_trial_used` | перевод открыт бесплатно на вопросе платной категории без подписки (первые три раза) | `uses_left`, `question_id` |
+| `konspekt_opened` | открытие конспекта | `category`, `section` (слаг секции, если открыт по ссылке — с вкладки вопроса или по deep link) |
+| `konspekt_section_opened` | переход к секции рукой: по содержанию или по ссылке внутри текста | `category`, `section` |
 | `zakon_opened` | открытие закона (или правилника) по ссылке | `chlan`, `paragraph`, `chapter`, `document` (`zakon`/`pravilnik`) |
 | `question_shared` | копирование ссылки на вопрос | `question_id` |
 | `question_list_shared` | первый шаринг списка | `question_count` |
@@ -60,13 +63,40 @@
 | `chat_message_sent` | сообщение в чате (в т.ч. комментарий к вопросу) | `kind` (`support`/`question`/`group`/`thread`/`chat`) |
 | `ask_ai_question` | вопрос AI в живом чате | `scope`, `scope_id` |
 | `question_search` | поиск по вопросам | `query_length`, `results` |
-| `checkout_step` | шаг покупки на web | `step` (`order_created`/`order_cancelled`), `sku` |
-| `russian_addon_toggled` | галочка русского контента на тарифах | `enabled` (+ персона `russian_addon_chosen`) |
-| `promo_code_applied` | ввод промокода | `valid` |
+| `checkout_step` | шаг покупки | `step` (`purchase_started`/`purchase_completed`/`purchase_cancelled`/`purchase_failed`/`purchases_restored`/`purchase_rejected` — бэкенд отказал окончательно, транзакция завершена/`purchase_stuck_in_queue` — StoreKit не даёт купить, пока висит старая транзакция, запущен restore/`store_purchase_claimed` — тихая сверка со стором перед продажей нашла живую покупку и записала её на этот аккаунт/`store_subscription_elsewhere` — аккаунт стора платит за подписку другого живого аккаунта, кнопки покупки заперты), `sku` |
+| `paywall_shown` | пейволл на экране: замок объяснения / конспекта / анализа / AI или переключатель «РУ» вне бесплатных разделов | `source` (`explanation`/`konspekt`/`analysis`/`ask_ai`/`russian_toggle`/`konspekt_page`), `question_id`, `category_id` |
+| `paywall_opened` | нажатие на кнопку пейволла — открылись тарифы | `source`, `question_id` |
 
 «Сколько прошло с регистрации» отдельным свойством не едет: у персоны в
 PostHog есть дата первого события и `$set`-время, разница считается прямо в
 инсайтах.
+
+## Чтение объяснений и конспектов
+
+Вкладка под вопросом (объяснение, конспект, обсуждение, анализ, AI) сама по
+себе не «читается» — она просто есть. Поэтому чтение считается по факту показа:
+`question_tab_shown` уходит, когда содержимое вкладки оказалось на экране —
+на телефоне после прокрутки к панели, на широком экране сразу, как открылась
+боковая панель, и при каждом переключении вкладки на видимой панели. Одно
+событие на вопрос и вкладку за показ вопроса; выбранная вкладка запоминается
+между вопросами, так что «просто открыл следующий вопрос с объяснением» тоже
+считается показом объяснения.
+
+- **Какие объяснения читают:** `question_tab_shown` с `tab = question_comments`,
+  разбивка по `question_id`. Язык текста — свойство `russian_content` на том
+  же событии (в бесплатных категориях объяснение видно и без подписки).
+- **Какие конспекты читают из вопроса:** `tab = category_summaries` — вкладка
+  показывает только секции (блоки) конспекта, привязанные к этому вопросу,
+  так что секции восстанавливаются из `question_id` по документу конспекта
+  (`sections[].questionIds` / `blocks[].questionIds`). Вкладка скрыта, если
+  привязанных секций нет, — пустой показ не считается.
+- **Полный конспект:** `konspekt_opened` (`category`, `section` — откуда
+  открыли: вкладка вопроса всегда передаёт первую релевантную секцию, deep
+  link — свою) и `konspekt_section_opened` для переходов по содержанию и
+  внутренним ссылкам. Дочитывание при прокрутке не отслеживается.
+
+`question_tab_opened` при этом остаётся событием ручного переключения (что
+ищут сами), `question_tabs_viewed` — «домотал ли до панели» на телефоне.
 
 ## Новое событие
 

@@ -40,6 +40,11 @@ const _externalLinks = [
   'https://saobracaj.gleb.at/lists/my-list',
   'https://saobracaj.gleb.at/statistics',
   'https://saobracaj.gleb.at/about',
+  // Задача 1203867458890016: ссылки из мессенджера, которые открывались в
+  // браузере, пока платформы перехватывали только шесть префиксов.
+  'https://saobracaj.gleb.at/questPractice?showRightAnswers=false&showStats=false&buttonsLikeInExam=false',
+  'https://saobracaj.gleb.at/settings/profile',
+  'https://saobracaj.gleb.at/konspekt?category=25',
   'saobracaj://question/10913',
   'saobracaj://support/threads/t1',
 ];
@@ -48,7 +53,11 @@ RouteSettings? _build(String path) {
   final result = routes.get(path);
   if (result == null) return null;
   return result.builder(
-    RouteData(path, pathTemplate: result.pathTemplate, pathParameters: result.pathParameters),
+    RouteData(
+      path,
+      pathTemplate: result.pathTemplate,
+      pathParameters: result.pathParameters,
+    ),
   );
 }
 
@@ -68,6 +77,36 @@ void main() {
         reason: '$host/commentEdit',
       );
     }
+  });
+
+  test('каждый экран с гейтом умеет открыть поверх себя тарифы', () {
+    // Задача 1218209972696841: «назад» с витрины тарифов, открытой из гейта,
+    // должно вернуть ровно на предыдущий экран. Витрина открывается
+    // относительным путём, поэтому '…/tariffs' обязан существовать у вопроса,
+    // у конспекта внутри вопроса, у конспекта и у раздела «Подписка».
+    for (final host in _questionPaths) {
+      expect(routes.get('$host/tariffs'), isNotNull, reason: '$host/tariffs');
+      expect(
+        routes.get('$host/konspekt/tariffs'),
+        isNotNull,
+        reason: '$host/konspekt/tariffs',
+      );
+    }
+    expect(routes.get('/konspekt/tariffs'), isNotNull);
+    expect(routes.get('/subscription/tariffs'), isNotNull);
+    // Прямая ссылка на витрину живёт по-прежнему.
+    expect(routes.get('/tariffs'), isNotNull);
+  });
+
+  test('тарифы, открытые из вопроса и конспекта, лежат поверх них', () {
+    final fromQuestion = routes
+        .getAll('/quest/q/tariffs')!
+        .map((r) => r.pathTemplate);
+    expect(fromQuestion, ['/', '/quest', '/quest/q', '/quest/q/tariffs']);
+    final fromKonspekt = routes
+        .getAll('/konspekt/tariffs')!
+        .map((r) => r.pathTemplate);
+    expect(fromKonspekt, ['/', '/konspekt', '/konspekt/tariffs']);
   });
 
   test('конспект, открытый из вопроса, лежит поверх вопроса', () {
@@ -110,20 +149,23 @@ void main() {
     expect(_build('/question/8084'), isA<MaterialPage>());
   });
 
-  test('группа: адрес без /feed редиректит в ленту, «назад» из неё — домой', () {
-    // Redirect-родитель выпадает из стека, поэтому под лентой не остаётся
-    // промежуточного экрана группы (раньше «назад» уводил на экран с QR).
-    expect(_build('/groups/g1'), isA<Redirect>());
-    final stack = routes
-        .getAll('/groups/g1/feed/members')!
-        .map((r) => r.pathTemplate);
-    expect(stack, [
-      '/',
-      '/groups/:id',
-      '/groups/:id/feed',
-      '/groups/:id/feed/members',
-    ]);
-  });
+  test(
+    'группа: адрес без /feed редиректит в ленту, «назад» из неё — домой',
+    () {
+      // Redirect-родитель выпадает из стека, поэтому под лентой не остаётся
+      // промежуточного экрана группы (раньше «назад» уводил на экран с QR).
+      expect(_build('/groups/g1'), isA<Redirect>());
+      final stack = routes
+          .getAll('/groups/g1/feed/members')!
+          .map((r) => r.pathTemplate);
+      expect(stack, [
+        '/',
+        '/groups/:id',
+        '/groups/:id/feed',
+        '/groups/:id/feed/members',
+      ]);
+    },
+  );
 
   test('экран группы — две вкладки: чат и события', () {
     // Вкладки — настоящие адреса (TabPage), поэтому ссылка на разговор
@@ -155,6 +197,25 @@ void main() {
       final path = deepLinkPathFor(Uri.parse(link));
       expect(path, isNotNull, reason: 'ссылка не распознана: $link');
       expect(routes.get(path!), isNotNull, reason: 'нет маршрута для $path');
+    }
+  });
+
+  test('каждый верхнеуровневый маршрут открывается диплинком', () {
+    // Задача 1218209898661514: любая ссылка на saobracaj.gleb.at должна
+    // открываться в приложении. Платформы перехватывают весь домен, а здесь
+    // проверяется, что маппинг ссылок не отбрасывает ни один из корней
+    // routes.dart — иначе новый экран тихо остался бы только в браузере.
+    final roots = routeBuilders.keys
+        .map((p) => p.split('/').where((s) => s.isNotEmpty).firstOrNull)
+        .whereType<String>()
+        .toSet();
+    expect(roots, isNotEmpty);
+    for (final root in roots) {
+      expect(
+        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/$root')),
+        '/$root',
+        reason: 'корень $root не открывается ссылкой',
+      );
     }
   });
 

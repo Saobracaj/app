@@ -70,8 +70,13 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
 
     final question = data.questions.firstWhere((element) => element.id == event.qid);
     final correctAnswers = question.choices.where((element) => element.isCorrect).toSet();
+    final correct = setEquals(correctAnswers, event.answer);
 
-    repository.addAnswer(event.qid, !setEquals(correctAnswers, event.answer));
+    // Same event as a quiz run's answer, so PostHog's answer counts match the
+    // local history (`answer_records`), which stores exam answers too.
+    analytics.logQuestionAnswered(questionId: event.qid, correct: correct, mode: 'exam');
+
+    repository.addAnswer(event.qid, !correct);
   }
 
   void _recalculateState(Map<int, Set<Choice>> answers, Emitter<PracticeState> emit) {

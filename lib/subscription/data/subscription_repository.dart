@@ -1,17 +1,14 @@
-// `show` — injectable тоже экспортирует `Order` (порядок регистрации), а тут
-// Order — это заказ пользователя.
-import 'package:injectable/injectable.dart' show lazySingleton;
+import 'package:injectable/injectable.dart';
 
 import '../../auth/data/graphql_client.dart';
 import '../../feature_flags/data/feature_flags_repository.dart';
 import '../models/subscription_models.dart';
 
-/// Тарифы, заказы и подписка пользователя.
+/// Тарифы, покупки и подписка пользователя.
 ///
-/// Продажа идёт **только через веб** (в мобильных сборках эти экраны не
-/// зарегистрированы — требование App Store 3.1.3(b)), оплата на этой итерации
-/// ручная: пользователь создаёт заказ, получает позив на број и переводит
-/// деньги, оператор подтверждает платёж в панели.
+/// Продажа идёт **через сторы**: приложение получает чек от App Store или
+/// Google Play и приносит его сюда, а бэкенд спрашивает у стора, что этот чек
+/// купил. Веб только показывает состояние подписки — оформить её там нельзя.
 @lazySingleton
 class SubscriptionRepository {
   SubscriptionRepository(this._client, this._flags);
@@ -19,12 +16,10 @@ class SubscriptionRepository {
   final GraphqlClient _client;
   final FeatureFlagsRepository _flags;
 
-  static const _orderFields = Order.fields;
-
   /// Витрина: активные тарифы. Запрос публичный — цены видно и без входа.
   Future<List<Tariff>> tariffs() async {
     final data = await _client.run(
-      r'query Tariffs { tariffs { sku kind months priceRsd } }',
+      'query Tariffs { tariffs { ${Tariff.fields} } }',
     );
     final list = data['tariffs'] as List? ?? const [];
     return [
@@ -35,11 +30,7 @@ class SubscriptionRepository {
   /// Текущая подписка вызывающего.
   Future<SubscriptionStatus> mySubscription() async {
     final data = await _client.run(
-      r'''
-        query MySubscription {
-          mySubscription { active tariffKind endsAt daysLeft remindersEnabled }
-        }
-      ''',
+      'query MySubscription { mySubscription { ${SubscriptionStatus.fields} } }',
       authenticated: true,
     );
     final raw = data['mySubscription'] as Map<String, dynamic>?;
@@ -48,26 +39,24 @@ class SubscriptionRepository {
         : SubscriptionStatus.fromJson(raw);
   }
 
-  /// Заказы вызывающего, новые сверху.
-  Future<List<Order>> myOrders() async {
+  /// Покупки вызывающего, новые сверху.
+  Future<List<StorePurchase>> myPurchases() async {
     final data = await _client.run(
-      'query MyOrders { myOrders { $_orderFields } }',
+      'query MyStorePurchases { myStorePurchases { ${StorePurchase.fields} } }',
       authenticated: true,
     );
-    final list = data['myOrders'] as List? ?? const [];
+    final list = data['myStorePurchases'] as List? ?? const [];
     return [
-      for (final raw in list) Order.fromJson(raw as Map<String, dynamic>),
+      for (final raw in list)
+        StorePurchase.fromJson(raw as Map<String, dynamic>),
     ];
   }
 
   /// История периодов подписки.
   Future<List<SubscriptionPeriod>> myPeriods() async {
     final data = await _client.run(
-      r'''
-        query MySubscriptionPeriods {
-          mySubscriptionPeriods { startsAt endsAt tariffKind revokedAt }
-        }
-      ''',
+      'query MySubscriptionPeriods '
+      '{ mySubscriptionPeriods { ${SubscriptionPeriod.fields} } }',
       authenticated: true,
     );
     final list = data['mySubscriptionPeriods'] as List? ?? const [];
@@ -77,54 +66,44 @@ class SubscriptionRepository {
     ];
   }
 
-  /// Оформить заказ на [sku], опционально с промокодом. Повторный вызов с тем
-  /// же кодом, пока заказ ещё оплачиваем, возвращает тот же заказ — второй
-  /// позив на број не выпускается; смена кода заменяет неоплаченный заказ.
-  /// При стопроцентном промокоде заказ возвращается уже оплаченным.
-  Future<Order> createOrder(String sku, {String? promoCode}) async {
+  /// Отдать бэкенду чек стора и получить новое состояние подписки.
+  ///
+  /// Вызывать можно сколько угодно раз: право записывается один раз на платёж,
+  /// поэтому и повтор после обрыва связи, и «восстановить покупки» безопасны.
+  Future<SubscriptionStatus> redeemPurchase({
+    required StorePlatform platform,
+    required String productId,
+    required String receipt,
+  }) async {
     final data = await _client.run(
-      'mutation CreateOrder(\$sku: String!, \$promoCode: String) '
-      '{ createOrder(sku: \$sku, promoCode: \$promoCode) { $_orderFields } }',
-      variables: {'sku': sku, 'promoCode': promoCode},
-      authenticated: true,
-    );
-    return Order.fromJson(data['createOrder'] as Map<String, dynamic>);
-  }
-
-  /// Проверить промокод: скидка и тариф, к которому он привязан. Неизвестный,
-  /// использованный или истёкший код — [GraphqlException] с точной причиной.
-  Future<PromoCodeInfo> checkPromoCode(String code) async {
-    final data = await _client.run(
-      r'''
-        query CheckPromoCode($code: String!) {
-          checkPromoCode(code: $code) { code discountPercent sku validUntil }
+      '''
+        mutation RedeemStorePurchase(
+          \$platform: StorePlatform!, \$productId: String!, \$receipt: String!
+        ) {
+          redeemStorePurchase(
+            platform: \$platform, productId: \$productId, receipt: \$receipt
+          ) { ${SubscriptionStatus.fields} }
         }
       ''',
-      variables: {'code': code},
+      variables: {
+        'platform': platform.wire,
+        'productId': productId,
+        'receipt': receipt,
+      },
       authenticated: true,
     );
-    return PromoCodeInfo.fromJson(
-      data['checkPromoCode'] as Map<String, dynamic>,
+    return SubscriptionStatus.fromJson(
+      data['redeemStorePurchase'] as Map<String, dynamic>,
     );
-  }
-
-  /// Отменить свой неоплаченный заказ.
-  Future<Order> cancelOrder(String id) async {
-    final data = await _client.run(
-      'mutation CancelMyOrder(\$id: ID!) { cancelMyOrder(id: \$id) { $_orderFields } }',
-      variables: {'id': id},
-      authenticated: true,
-    );
-    return Order.fromJson(data['cancelMyOrder'] as Map<String, dynamic>);
   }
 
   /// Включить/выключить письма-напоминания (транзакционные не отключаются).
   Future<SubscriptionStatus> setReminders(bool enabled) async {
     final data = await _client.run(
-      r'''
-        mutation SetSubscriptionReminders($enabled: Boolean!) {
-          setSubscriptionReminders(enabled: $enabled) {
-            active tariffKind endsAt daysLeft remindersEnabled
+      '''
+        mutation SetSubscriptionReminders(\$enabled: Boolean!) {
+          setSubscriptionReminders(enabled: \$enabled) {
+            ${SubscriptionStatus.fields}
           }
         }
       ''',
@@ -136,7 +115,7 @@ class SubscriptionRepository {
     );
   }
 
-  /// Перечитать премиум-гранты: подтверждённая оплата открывает фичи, и без
+  /// Перечитать премиум-гранты: оплаченная покупка открывает фичи, и без
   /// этого экран подписки показывал бы новый тариф, а сам контент оставался бы
   /// закрытым до перезапуска.
   Future<void> refreshGrants() => _flags.refreshFromBackend();

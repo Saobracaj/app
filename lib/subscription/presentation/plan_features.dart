@@ -1,9 +1,7 @@
 /// Что человек получает бесплатно и что открывает подписка — одним списком.
 ///
-/// Экран тарифов существует только в вебе (App Store 3.1.3(b) не разрешает ни
-/// цен, ни ссылок на внешнюю оплату), поэтому объяснение «что вообще бывает
-/// платного» живёт **отдельно от цен**: этот виджет можно показать и там, где
-/// цену называть нельзя, — у замка, в настройках.
+/// Объяснение «что вообще бывает платного» живёт **отдельно от цен**: этот
+/// виджет можно показать и там, где цены рядом нет, — у замка, в настройках.
 ///
 /// Ключевое отличие бесплатного уровня от платного — не набор функций, а объём
 /// контента: те же объяснения, конспекты и анализ либо в трёх бесплатных
@@ -29,9 +27,6 @@ enum PlanAccess {
   /// Не входит.
   none,
 
-  /// Входит по выбору — надбавка за русские материалы.
-  optional,
-
   /// Открыто всегда и всем, срока и категорий не касается.
   always,
 }
@@ -52,13 +47,9 @@ class PlanFeatureRow {
 }
 
 /// Строки витрины. Порядок — от того, что человек уже трогает каждый день, к
-/// тому, ради чего платят.
-///
-/// [withRussian] — состояние тумблера надбавки, если он на экране есть. Пока
-/// выбор не сделан (`null`), русские материалы стоят «по выбору»; как только
-/// человек решил, строка называет результат его решения, а не сам факт выбора:
-/// иначе тумблер говорит «включено», а таблица под ним — «по выбору».
-List<PlanFeatureRow> planFeatureRows({bool? withRussian}) => [
+/// тому, ради чего платят. Тариф один, поэтому русские материалы стоят в нём
+/// как всё остальное: открыты во всех категориях.
+List<PlanFeatureRow> planFeatureRows() => [
   PlanFeatureRow(
     title: LocaleKeys.subscription_featureQuestions.tr(),
     hint: LocaleKeys.subscription_featureQuestionsHint.tr(),
@@ -96,11 +87,7 @@ List<PlanFeatureRow> planFeatureRows({bool? withRussian}) => [
     title: LocaleKeys.subscription_featureRussian.tr(),
     hint: LocaleKeys.subscription_featureRussianHint.tr(),
     free: PlanAccess.freeCategories,
-    paid: switch (withRussian) {
-      null => PlanAccess.optional,
-      true => PlanAccess.all,
-      false => PlanAccess.none,
-    },
+    paid: PlanAccess.all,
   ),
   PlanFeatureRow(
     title: LocaleKeys.subscription_featureCommunity.tr(),
@@ -126,22 +113,17 @@ String planAccessLabel(PlanAccess access) => switch (access) {
     '${LocaleKeys.subscription_valueFreeCategories.plural(freeCategoryIds.length)}'
         '$freeCategoriesFootnoteMark',
   PlanAccess.none => LocaleKeys.subscription_valueNone.tr(),
-  PlanAccess.optional => LocaleKeys.subscription_valueOption.tr(),
   PlanAccess.always => LocaleKeys.subscription_valueAlways.tr(),
 };
 
 /// Сравнение «бесплатно / по подписке». На узком экране таблица из трёх колонок
 /// нечитаема, поэтому там — те же строки списком.
 class PlanFeaturesComparison extends StatelessWidget {
-  const PlanFeaturesComparison({super.key, this.withRussian});
-
-  /// Состояние тумблера русской надбавки на этом экране; `null` — тумблера
-  /// рядом нет (у замка, в настройках), и выбор ещё не сделан.
-  final bool? withRussian;
+  const PlanFeaturesComparison({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final rows = planFeatureRows(withRussian: withRussian);
+    final rows = planFeatureRows();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -445,7 +427,7 @@ class _FeatureListRow extends StatelessWidget {
 }
 
 /// Кружок слева от значения: закрашенный — всё открыто, половина — только
-/// бесплатные категории, контур — не входит, полупрозрачный — надбавка.
+/// бесплатные категории, контур — не входит.
 /// Уровень доступа не должен читаться одним лишь текстом.
 class AccessMark extends StatelessWidget {
   const AccessMark({super.key, required this.access});
@@ -461,8 +443,10 @@ class AccessMark extends StatelessWidget {
     final border = switch (access) {
       PlanAccess.all || PlanAccess.always => null,
       PlanAccess.none => Border.all(color: scheme.outline, width: 1.5),
-      PlanAccess.freeCategories ||
-      PlanAccess.optional => Border.all(color: scheme.primary, width: 1.5),
+      PlanAccess.freeCategories => Border.all(
+        color: scheme.primary,
+        width: 1.5,
+      ),
     };
     return SizedBox(
       width: 13,
@@ -474,7 +458,6 @@ class AccessMark extends StatelessWidget {
               ? null
               : switch (access) {
                   PlanAccess.all || PlanAccess.always => scheme.primary,
-                  PlanAccess.optional => scheme.primary.withValues(alpha: .22),
                   PlanAccess.none => Colors.transparent,
                   PlanAccess.freeCategories => Colors.transparent,
                 },
@@ -499,16 +482,14 @@ class _Legend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Легенда объясняет только те кружки, что в таблице есть: с решённой
-    // надбавкой строки «по выбору» не остаётся, и подпись к ней повисает над
-    // пустотой. У `always` кружок общий с `all` — и подпись тоже.
+    // Легенда объясняет только те кружки, что в таблице есть. У `always`
+    // кружок общий с `all` — и подпись тоже.
     final shown = {
       for (final row in rows) ...[row.free, row.paid],
     }.map((a) => a == PlanAccess.always ? PlanAccess.all : a).toSet();
     final items = <(PlanAccess, String)>[
       (PlanAccess.all, LocaleKeys.subscription_legendFull.tr()),
       (PlanAccess.freeCategories, LocaleKeys.subscription_legendPart.tr()),
-      (PlanAccess.optional, LocaleKeys.subscription_legendOption.tr()),
       (PlanAccess.none, LocaleKeys.subscription_legendNone.tr()),
     ].where((item) => shown.contains(item.$1));
     return LayoutBuilder(

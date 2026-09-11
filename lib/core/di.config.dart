@@ -62,6 +62,7 @@ import '../question_lists/data/question_lists_repository.dart' as _i206;
 import '../question_lists/data/shared_lists_repository.dart' as _i742;
 import '../question_lists/state_management/question_lists_bloc.dart' as _i1000;
 import '../question_lists/state_management/shared_list_bloc.dart' as _i718;
+import '../subscription/data/store_purchase_service.dart' as _i1058;
 import '../subscription/data/subscription_repository.dart' as _i731;
 import '../subscription/state_management/subscription_bloc.dart' as _i335;
 import '../test/data/quiz_preferences_repository.dart' as _i442;
@@ -125,6 +126,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i468.PushMessageService>(
       () => _i468.PushMessageService(),
       dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i1058.StorePurchaseService>(
+      () => _i1058.StorePurchaseService(),
     );
     gh.lazySingleton<_i442.QuizPreferencesRepository>(
       () => _i442.QuizPreferencesRepository(),
@@ -233,13 +237,6 @@ extension GetItInjectableX on _i174.GetIt {
       ),
       dispose: (i) => i.dispose(),
     );
-    gh.factoryParam<_i213.CommentBloc, int, dynamic>(
-      (questionId, _) => _i213.CommentBloc(
-        gh<_i359.CommentRepository>(),
-        gh<_i958.NetworkStatus>(),
-        questionId,
-      ),
-    );
     gh.lazySingleton<_i299.ChatRepository>(
       () => _i299.ChatRepository(
         gh<_i483.GraphqlClient>(),
@@ -282,18 +279,17 @@ extension GetItInjectableX on _i174.GetIt {
       (questionId, _) =>
           _i67.QuestionChatCountBloc(gh<_i299.ChatRepository>(), questionId),
     );
-    gh.factoryParam<_i373.ChatBloc, _i329.ChatTarget?, dynamic>(
-      (target, _) => _i373.ChatBloc(
-        gh<_i299.ChatRepository>(),
-        gh<_i426.NotificationPermissions>(),
-        gh<_i880.AuthRepository>(),
-        gh<_i742.SharedListsRepository>(),
-        target,
-      ),
-    );
     gh.factoryParam<_i658.CommentEditorBloc, int, dynamic>(
       (questionId, _) =>
           _i658.CommentEditorBloc(gh<_i359.CommentRepository>(), questionId),
+    );
+    gh.factoryParam<_i213.CommentBloc, int, String?>(
+      (questionId, categoryId) => _i213.CommentBloc(
+        gh<_i359.CommentRepository>(),
+        gh<_i958.NetworkStatus>(),
+        questionId,
+        categoryId,
+      ),
     );
     gh.factory<_i667.SupportChatsBloc>(
       () => _i667.SupportChatsBloc(gh<_i299.ChatRepository>()),
@@ -339,6 +335,12 @@ extension GetItInjectableX on _i174.GetIt {
         groupId,
       ),
     );
+    gh.factory<_i335.SubscriptionBloc>(
+      () => _i335.SubscriptionBloc(
+        gh<_i731.SubscriptionRepository>(),
+        gh<_i1058.StorePurchaseService>(),
+      ),
+    );
     gh.factory<_i618.NotificationsBloc>(
       () => _i618.NotificationsBloc(
         gh<_i880.AuthRepository>(),
@@ -363,12 +365,6 @@ extension GetItInjectableX on _i174.GetIt {
         questionId,
       ),
     );
-    gh.factory<_i335.SubscriptionBloc>(
-      () => _i335.SubscriptionBloc(
-        gh<_i731.SubscriptionRepository>(),
-        gh<_i389.FeatureFlagsRepository>(),
-      ),
-    );
     gh.factory<_i246.TestPushBloc>(
       () => _i246.TestPushBloc(
         gh<_i548.PushTestRepository>(),
@@ -387,6 +383,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i388.AuthBloc>(),
         target,
         source,
+      ),
+    );
+    gh.factoryParam<_i373.ChatBloc, _i329.ChatTarget?, dynamic>(
+      (target, _) => _i373.ChatBloc(
+        gh<_i299.ChatRepository>(),
+        gh<_i426.NotificationPermissions>(),
+        gh<_i880.AuthRepository>(),
+        gh<_i742.SharedListsRepository>(),
+        gh<_i311.ProfileRepository>(),
+        target,
       ),
     );
     gh.factoryParam<_i1064.GroupBloc, String, dynamic>(

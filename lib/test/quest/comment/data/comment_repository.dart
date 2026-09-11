@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import '../../../../auth/data/graphql_client.dart';
 import '../../../../feature_flags/data/feature_flags_repository.dart';
+import '../../../../feature_flags/domain/app_feature.dart';
 
 /// The editorial comment of one question as the app needs it: the applied
 /// [text], the unapplied [draft] and the moderation [status]. Editors (the
@@ -15,14 +16,21 @@ class QuestionCommentDetails {
     this.draft,
     this.textRu,
     this.draftRu,
+    this.locked = false,
   });
 
   /// `PENDING` | `DRAFT` | `MODERATION` | `READY`.
   final String status;
 
+  /// The caller may not read this explanation in full: [text] is only its
+  /// first lines (the backend cut them at a word boundary), shown under a blur
+  /// with the offer of the pass. Outside the free categories and without the
+  /// entitlement — a guest included.
+  final bool locked;
+
   /// The live, applied text in the study-content language — Serbian unless the
-  /// `russian_content` feature is resolved on (falls back to the other
-  /// language, then to the first non-empty fragment).
+  /// `russian_content` feature is resolved on *for the question's category*
+  /// (falls back to the other language, then to the first non-empty fragment).
   final String? text;
 
   /// The unapplied draft in the study-content language (same fallbacks).
@@ -76,12 +84,17 @@ class CommentRepository {
   final GraphqlClient _client;
 
   /// Decides the display language: Russian only when `russian_content` is
-  /// resolved on (backend grant + the user's popup/settings opt-in), Serbian
-  /// otherwise.
+  /// resolved on for the question's category — the backend grant plus the
+  /// user's popup/settings opt-in, or a free category (25/26/28) plus the
+  /// opt-in alone — Serbian otherwise. The same rule the konspekt follows
+  /// (`FeatureFlagsState.russianContentForCategory`): without it a learner
+  /// who chose Russian read the free explanations in Serbian while the
+  /// konspekt next to them was in Russian.
   final FeatureFlagsRepository _flags;
 
   static const _fields = r'''
     status
+    locked
     text { items { lang text } }
     draft { items { lang text } }
   ''';
@@ -108,24 +121,34 @@ class CommentRepository {
   ''';
 
   /// Returns the comment for [questionId], or `null` when none exists yet.
-  Future<QuestionCommentDetails?> fetchComment(int questionId) async {
+  /// [categoryId] is the question's category: it decides whether the Russian
+  /// fragment is open to this reader (see [_flags]); unknown → the global
+  /// flag alone.
+  Future<QuestionCommentDetails?> fetchComment(
+    int questionId, {
+    String? categoryId,
+  }) async {
     final data = await _client.run(
       _query,
       variables: {'id': questionId},
       authenticated: true,
     );
-    return _parse(data['questionComment']);
+    return _parse(data['questionComment'], categoryId: categoryId);
   }
 
   /// Saves (replaces) the RU draft for [questionId] and returns the updated
   /// comment. Requires the `edit_comments` permission.
-  Future<QuestionCommentDetails?> saveDraft(int questionId, String draft) async {
+  Future<QuestionCommentDetails?> saveDraft(
+    int questionId,
+    String draft, {
+    String? categoryId,
+  }) async {
     final data = await _client.run(
       _saveDraftMutation,
       variables: {'id': questionId, 'draft': draft},
       authenticated: true,
     );
-    return _parse(data['saveCommentDraft']);
+    return _parse(data['saveCommentDraft'], categoryId: categoryId);
   }
 
   /// Moves the comment to `READY`; the backend applies the pending draft over
@@ -133,39 +156,66 @@ class CommentRepository {
   /// `history`). A comment that is already `READY` stays `READY` — the call is
   /// then a "publish the draft over the published text" action, which is how an
   /// editor republishes an edited comment. Requires `edit_comments`.
-  Future<QuestionCommentDetails?> publish(int questionId) async {
+  Future<QuestionCommentDetails?> publish(
+    int questionId, {
+    String? categoryId,
+  }) async {
     final data = await _client.run(
       _publishMutation,
       variables: {'id': questionId},
       authenticated: true,
     );
-    return _parse(data['setCommentStatus']);
+    return _parse(data['setCommentStatus'], categoryId: categoryId);
   }
 
-  QuestionCommentDetails? _parse(dynamic comment) {
+  /// The text block with the comment's `locked` flag folded in, so the
+  /// language pick knows it is choosing for a preview.
+  dynamic _withLock(dynamic block, dynamic locked) {
+    if (block is! Map || locked != true) return block;
+    return {...block, 'locked': true};
+  }
+
+  QuestionCommentDetails? _parse(dynamic comment, {String? categoryId}) {
     if (comment is! Map) return null;
     return QuestionCommentDetails(
       status: comment['status']?.toString() ?? 'PENDING',
-      text: _pick(comment['text'], forDisplay: true),
-      draft: _pick(comment['draft'], forDisplay: true),
+      text: _pick(
+        _withLock(comment['text'], comment['locked']),
+        forDisplay: true,
+        categoryId: categoryId,
+      ),
+      draft: _pick(comment['draft'], forDisplay: true, categoryId: categoryId),
       textRu: _pick(comment['text'], forDisplay: false),
       draftRu: _pick(comment['draft'], forDisplay: false),
+      locked: comment['locked'] == true,
     );
   }
 
   /// Picks one fragment out of a `{ items: [{lang, text}] }` block.
   ///
   /// [forDisplay] picks the study-content language — `RU` when the
-  /// `russian_content` feature is resolved on, `SR` otherwise — falling back to
-  /// the other language while the preferred one has no fragment yet, then to
-  /// the first non-empty item. The non-display variant is the RU-first editing
+  /// `russian_content` feature is resolved on for a question of [categoryId]
+  /// (in a free category the reader's own choice is enough) **or** merely
+  /// chosen (a locked preview shows the reader the language they asked for,
+  /// which is the point of the preview), `SR` otherwise — falling back to the
+  /// other language while the preferred one has no fragment yet, then to the
+  /// first non-empty item. The non-display variant is the RU-first editing
   /// source (drafts are edited in RU in the app).
-  String? _pick(dynamic block, {required bool forDisplay}) {
+  String? _pick(
+    dynamic block, {
+    required bool forDisplay,
+    String? categoryId,
+  }) {
     if (block is! Map) return null;
     final items = block['items'];
     if (items is! List || items.isEmpty) return null;
 
-    final preferred = _flags.snapshot.russianContent ? 'RU' : 'SR';
+    final snapshot = _flags.snapshot;
+    final russian =
+        snapshot.isEnabledForCategory(AppFeature.russianContent, categoryId) ||
+        (block['locked'] == true &&
+            snapshot.localEnabled(AppFeature.russianContent));
+    final preferred = russian ? 'RU' : 'SR';
     String? byPreferred;
     String? ru;
     String? sr;

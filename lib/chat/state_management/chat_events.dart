@@ -46,6 +46,18 @@ class ChatAttachmentRemoved extends ChatEvent {
 /// если сейчас правится уже отправленное сообщение.
 class ChatSendPressed extends ChatEvent {}
 
+/// Имя, которым пользователь согласился подписывать свои сообщения, — ответ на
+/// диалог, вызванный [ChatSendPressed] у безымянного автора. Имя сохраняется в
+/// профиле, после чего отправка продолжается сама.
+class ChatDisplayNameSubmitted extends ChatEvent {
+  ChatDisplayNameSubmitted(this.name);
+  final String name;
+}
+
+/// Диалог с просьбой указать имя закрыли, ничего не введя: сообщение не
+/// уходит, но и строка ввода не очищается — написанное остаётся на месте.
+class ChatDisplayNameCancelled extends ChatEvent {}
+
 /// «Изменить» в меню сообщения: текст и вложения переезжают в строку ввода.
 class ChatEditStarted extends ChatEvent {
   ChatEditStarted(this.message);

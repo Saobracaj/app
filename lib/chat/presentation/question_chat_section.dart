@@ -1,10 +1,10 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
+import '../../core/vertical_scroll.dart';
 import '../../core/presentation/load_failed_view.dart';
 import '../../generated/locale_keys.g.dart';
 import '../models/chat_target.dart';
@@ -234,7 +234,10 @@ class _AnchoredState extends State<_Anchored> {
     _shown = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      Scrollable.ensureVisible(
+      // Только вертикальная прокрутка: обсуждение лежит на странице вкладок
+      // (горизонтальный PageView), и [Scrollable.ensureVisible] считал бы
+      // смещение по ней.
+      revealVertically(
         context,
         duration: const Duration(milliseconds: 400),
         alignment: 0.3,
@@ -290,7 +293,8 @@ class _LoadOlderWhenReachedState extends State<_LoadOlderWhenReached> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final position = Scrollable.maybeOf(context)?.position;
+    // Именно вертикальная: ближайшая прокрутка — листалка вкладок.
+    final position = verticalScrollableOf(context)?.position;
     if (position == _position) return;
     _position?.removeListener(_check);
     _position = position?..addListener(_check);
@@ -317,7 +321,7 @@ class _LoadOlderWhenReachedState extends State<_LoadOlderWhenReached> {
     final box = context.findRenderObject();
     if (position == null || box is! RenderBox || !box.hasSize) return;
     if (!position.hasPixels || !position.hasContentDimensions) return;
-    final viewport = RenderAbstractViewport.maybeOf(box);
+    final viewport = verticalViewportOf(box);
     if (viewport == null) return;
     // Смещение, на котором низ этого блока совпадёт с низом окна: пока до него
     // дальше, чем [_lookahead], читателю ещё есть что читать.

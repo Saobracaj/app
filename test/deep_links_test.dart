@@ -13,36 +13,53 @@ void main() {
         '/shared/ABCDEFGH',
       );
       expect(
-        deepLinkPathFor(Uri.parse('saobracaj://saobracaj.gleb.at/shared/ABCDEFGH')),
+        deepLinkPathFor(
+          Uri.parse('saobracaj://saobracaj.gleb.at/shared/ABCDEFGH'),
+        ),
         '/shared/ABCDEFGH',
       );
     });
 
     test('an invite link becomes the invite route', () {
       expect(
-        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/invite/ABC-DEF-GHI')),
+        deepLinkPathFor(
+          Uri.parse('https://saobracaj.gleb.at/invite/ABC-DEF-GHI'),
+        ),
         '/invite/ABC-DEF-GHI',
       );
       // The same address under the app's own scheme.
       expect(
-        deepLinkPathFor(Uri.parse('saobracaj://saobracaj.gleb.at/invite/ABC-DEF-GHI')),
+        deepLinkPathFor(
+          Uri.parse('saobracaj://saobracaj.gleb.at/invite/ABC-DEF-GHI'),
+        ),
         '/invite/ABC-DEF-GHI',
       );
     });
 
     test('the query survives, so a link can point at a comment thread', () {
       expect(
-        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/question/11?comments=1&thread=7')),
+        deepLinkPathFor(
+          Uri.parse(
+            'https://saobracaj.gleb.at/question/11?comments=1&thread=7',
+          ),
+        ),
         '/question/11?comments=1&thread=7',
       );
       expect(
-        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/konspekt?category=25&section=manevri')),
+        deepLinkPathFor(
+          Uri.parse(
+            'https://saobracaj.gleb.at/konspekt?category=25&section=manevri',
+          ),
+        ),
         '/konspekt?category=25&section=manevri',
       );
     });
 
     test('the scheme-only form keeps working (saobracaj://question/123)', () {
-      expect(deepLinkPathFor(Uri.parse('saobracaj://question/123')), '/question/123');
+      expect(
+        deepLinkPathFor(Uri.parse('saobracaj://question/123')),
+        '/question/123',
+      );
     });
 
     test('the site root opens the app at home', () {
@@ -59,25 +76,69 @@ void main() {
 
     test('links that are not ours are ignored', () {
       // Someone else's domain, however similar.
-      expect(deepLinkPathFor(Uri.parse('https://saobracaj.example.com/invite/A')), isNull);
-      expect(deepLinkPathFor(Uri.parse('https://evil.gleb.at/invite/A')), isNull);
+      expect(
+        deepLinkPathFor(Uri.parse('https://saobracaj.example.com/invite/A')),
+        isNull,
+      );
+      expect(
+        deepLinkPathFor(Uri.parse('https://evil.gleb.at/invite/A')),
+        isNull,
+      );
       // The API host is not the app.
-      expect(deepLinkPathFor(Uri.parse('https://api.saobracaj.gleb.at/graphql')), isNull);
+      expect(
+        deepLinkPathFor(Uri.parse('https://api.saobracaj.gleb.at/graphql')),
+        isNull,
+      );
       // A scheme we never registered.
       expect(deepLinkPathFor(Uri.parse('mailto:someone@example.com')), isNull);
     });
 
-    test('a route that only exists as a child of a screen is not linkable', () {
-      // '/quest' and '/start' need state the link cannot carry; opening them
-      // cold would land on a broken screen.
-      expect(deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/quest')), isNull);
-      expect(deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/nonsense')), isNull);
+    test('любой адрес сайта — адрес приложения, даже незнакомый', () {
+      // Экраны у веб-версии и приложения одни и те же (routes.dart общий),
+      // поэтому путь отдаётся роутеру как есть. '/quest' без вопросов сам
+      // уводит на главную, а незнакомый путь показывает «страница не найдена»
+      // с кнопкой домой — ровно то, что видит браузер. Раньше такие ссылки
+      // молча игнорировались, и приложение открывалось «где было».
+      expect(
+        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/quest')),
+        '/quest',
+      );
+      expect(
+        deepLinkPathFor(
+          Uri.parse('https://saobracaj.gleb.at/quest?q=1,2,3&random=true'),
+        ),
+        '/quest?q=1,2,3&random=true',
+      );
+      expect(
+        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/nonsense')),
+        '/nonsense',
+      );
     });
 
-    test('страницы оплаты — не наши на мобильном, но наши в вебе', () {
-      // Продажа живёт только в вебе (App Store 3.1.3(b)): в мобильном
-      // приложении такую ссылку должен открыть браузер, поэтому все три
-      // адреса денег для него «чужие» — во всех формах, какими они приходят.
+    test('файлы сайта — не экраны', () {
+      // Бандл и файлы проверки платформ живут на том же домене; ссылка на них
+      // приложению не нужна (в AASA они исключены той же логикой).
+      const files = [
+        'https://saobracaj.gleb.at/.well-known/assetlinks.json',
+        'https://saobracaj.gleb.at/assets/assets/img/42.jpeg',
+        'https://saobracaj.gleb.at/canvaskit/canvaskit.wasm',
+        'https://saobracaj.gleb.at/robots.txt',
+        'https://saobracaj.gleb.at/flutter_bootstrap.js',
+      ];
+      for (final link in files) {
+        expect(deepLinkPathFor(Uri.parse(link)), isNull, reason: link);
+      }
+      // Точка внутри параметра пути — не расширение файла.
+      expect(
+        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/thread/msg.1')),
+        '/thread/msg.1',
+      );
+    });
+
+    test('страницы подписки открываются ссылкой на любой платформе', () {
+      // Подписка продаётся внутри приложения, поэтому её адреса — обычные
+      // экраны и на мобильном: ссылка из письма ведёт на витрину, а не в
+      // браузер.
       const money = [
         'https://saobracaj.gleb.at/tariffs',
         'https://saobracaj.gleb.at/subscription',
@@ -86,29 +147,63 @@ void main() {
         'saobracaj://saobracaj.gleb.at/settings/subscription',
       ];
       for (final link in money) {
-        expect(deepLinkPathFor(Uri.parse(link)), isNull, reason: link);
+        expect(deepLinkPathFor(Uri.parse(link)), isNotNull, reason: link);
       }
-      // В вебе это обычные экраны — ссылка внутри приложения открывает их же.
       expect(
-        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/tariffs'), isWeb: true),
+        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/tariffs')),
         '/tariffs',
       );
       expect(
         deepLinkPathFor(
           Uri.parse('https://saobracaj.gleb.at/settings/subscription'),
-          isWeb: true,
         ),
         '/settings/subscription',
       );
-      // Остальные разделы настроек мобильному по-прежнему доступны.
       expect(
-        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/settings/profile')),
+        deepLinkPathFor(
+          Uri.parse('https://saobracaj.gleb.at/settings/profile'),
+        ),
         '/settings/profile',
       );
     });
 
+    test('ссылки из мессенджера доходят до экрана с параметрами', () {
+      // Задача 1203867458890016: /question/8038 открывал приложение, а эти
+      // три адреса — браузер (платформы перехватывали шесть префиксов, а
+      // маппинг держал свой белый список). Путь и строка запроса обязаны
+      // дойти до роутера как есть: параметры тренировки читаются из query.
+      expect(
+        deepLinkPathFor(
+          Uri.parse(
+            'https://saobracaj.gleb.at/questPractice'
+            '?showRightAnswers=false&showStats=false&buttonsLikeInExam=false',
+          ),
+        ),
+        '/questPractice'
+        '?showRightAnswers=false&showStats=false&buttonsLikeInExam=false',
+      );
+      expect(
+        deepLinkPathFor(
+          Uri.parse('https://saobracaj.gleb.at/settings/profile'),
+        ),
+        '/settings/profile',
+      );
+      expect(
+        deepLinkPathFor(
+          Uri.parse('https://saobracaj.gleb.at/konspekt?category=25'),
+        ),
+        '/konspekt?category=25',
+      );
+      expect(
+        deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/question/8038')),
+        '/question/8038',
+      );
+    });
+
     test('a code with characters worth escaping is escaped once', () {
-      final path = deepLinkPathFor(Uri.parse('https://saobracaj.gleb.at/lists/my%20list'));
+      final path = deepLinkPathFor(
+        Uri.parse('https://saobracaj.gleb.at/lists/my%20list'),
+      );
       expect(path, '/lists/my%20list');
     });
   });
@@ -160,55 +255,70 @@ void main() {
       expect(data.pathParameters['id'], 'my-list');
     });
 
-    test('запись чужого сеанса открывается по адресу, а не по индексу', () async {
-      // Так выглядит запись, оставленная прошлым запуском приложения: индекс
-      // в ней указывает на несуществующую запись хронологической истории, и
-      // «назад» либо ничего не делал, либо уезжал на посторонний экран.
-      final stale = RouteInformation(
-        uri: Uri.parse('/lists/my-list'),
-        state: const {
-          'isReplacement': false,
-          'internalPath': '/lists/my-list',
-          'requestSource': 'RequestSource.internal',
-          'pathTemplate': '/lists/:id',
-          'pathParameters': {'id': 'my-list'},
-          'historyIndex': 7,
-          'appSession': 'какой-то прошлый запуск',
-        },
-      );
-      final data = await AppRouteInformationParser().parseRouteInformation(stale);
-      expect(data.path, '/lists/my-list');
-      // Состояние прошлого сеанса отброшено: маршрут разобран из адреса.
-      expect(data.pathTemplate, '/lists/my-list');
-    });
+    test(
+      'запись чужого сеанса открывается по адресу, а не по индексу',
+      () async {
+        // Так выглядит запись, оставленная прошлым запуском приложения: индекс
+        // в ней указывает на несуществующую запись хронологической истории, и
+        // «назад» либо ничего не делал, либо уезжал на посторонний экран.
+        final stale = RouteInformation(
+          uri: Uri.parse('/lists/my-list'),
+          state: const {
+            'isReplacement': false,
+            'internalPath': '/lists/my-list',
+            'requestSource': 'RequestSource.internal',
+            'pathTemplate': '/lists/:id',
+            'pathParameters': {'id': 'my-list'},
+            'historyIndex': 7,
+            'appSession': 'какой-то прошлый запуск',
+          },
+        );
+        final data = await AppRouteInformationParser().parseRouteInformation(
+          stale,
+        );
+        expect(data.path, '/lists/my-list');
+        // Состояние прошлого сеанса отброшено: маршрут разобран из адреса.
+        expect(data.pathTemplate, '/lists/my-list');
+      },
+    );
   });
 
   group('DeepLinkService', () {
-    test('a link that arrives before the app is built is kept, then consumed', () async {
-      final service = DeepLinkService();
-      addTearDown(service.dispose);
+    test(
+      'a link that arrives before the app is built is kept, then consumed',
+      () async {
+        final service = DeepLinkService();
+        addTearDown(service.dispose);
 
-      service.handleLink(Uri.parse('https://saobracaj.gleb.at/invite/ABC-DEF-GHI'));
+        service.handleLink(
+          Uri.parse('https://saobracaj.gleb.at/invite/ABC-DEF-GHI'),
+        );
 
-      expect(service.takePending(), '/invite/ABC-DEF-GHI');
-      // Only once — a rebuild must not reopen the invitation.
-      expect(service.takePending(), isNull);
-    });
+        expect(service.takePending(), '/invite/ABC-DEF-GHI');
+        // Only once — a rebuild must not reopen the invitation.
+        expect(service.takePending(), isNull);
+      },
+    );
 
-    test('a link that arrives while the app is running goes to the listener', () async {
-      final service = DeepLinkService();
-      addTearDown(service.dispose);
-      final opened = <String>[];
-      service.paths.listen(opened.add);
-      // Give the broadcast stream a turn to register the listener.
-      await Future<void>.delayed(Duration.zero);
+    test(
+      'a link that arrives while the app is running goes to the listener',
+      () async {
+        final service = DeepLinkService();
+        addTearDown(service.dispose);
+        final opened = <String>[];
+        service.paths.listen(opened.add);
+        // Give the broadcast stream a turn to register the listener.
+        await Future<void>.delayed(Duration.zero);
 
-      service.handleLink(Uri.parse('https://saobracaj.gleb.at/invite/ABC-DEF-GHI'));
-      service.handleLink(Uri.parse('https://example.com/invite/OTHER'));
-      await Future<void>.delayed(Duration.zero);
+        service.handleLink(
+          Uri.parse('https://saobracaj.gleb.at/invite/ABC-DEF-GHI'),
+        );
+        service.handleLink(Uri.parse('https://example.com/invite/OTHER'));
+        await Future<void>.delayed(Duration.zero);
 
-      expect(opened, ['/invite/ABC-DEF-GHI']);
-      expect(service.takePending(), isNull);
-    });
+        expect(opened, ['/invite/ABC-DEF-GHI']);
+        expect(service.takePending(), isNull);
+      },
+    );
   });
 }

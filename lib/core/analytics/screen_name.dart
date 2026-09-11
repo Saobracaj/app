@@ -48,6 +48,10 @@ String analyticsScreenTitle(String template) {
   // The law opens as a child of many routes ('/quest/zakon',
   // '/lists/:id/q/zakon', …) — one name for all of them.
   if (template == '/zakon' || template.endsWith('/zakon')) return 'Закон';
+  // Витрина тарифов лежит поверх экрана с гейтом ('/quest/q/tariffs',
+  // '/konspekt/tariffs', …) — тоже одно имя на все входы; откуда пришли,
+  // говорит `paywall_opened.source`.
+  if (template.endsWith('/tariffs')) return 'Тарифы';
   return template;
 }
 

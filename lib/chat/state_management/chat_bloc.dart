@@ -11,6 +11,7 @@ import '../../auth/data/auth_repository.dart';
 import '../../core/analytics/analytics_service.dart';
 import '../../core/network/error_messages.dart';
 import '../../notifications/data/notification_permissions.dart';
+import '../../profile/data/profile_repository.dart';
 import '../../question_lists/data/shared_lists_repository.dart';
 import '../data/chat_repository.dart';
 import '../data/photo_compressor.dart';
@@ -47,6 +48,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     this._permissions,
     this._authRepo,
     this._sharedLists,
+    this._profile,
     @factoryParam ChatTarget? target,
   ) : target = target ?? const SupportChatTarget(),
       super(const ChatState()) {
@@ -61,6 +63,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     on<ChatAttachmentRemoved>(_onAttachmentRemoved);
     on<ChatListShared>(_onListShared);
     on<ChatSendPressed>(_onSendPressed);
+    on<ChatDisplayNameSubmitted>(_onDisplayNameSubmitted);
+    on<ChatDisplayNameCancelled>(
+      (_, emit) => emit(state.copyWith(displayNamePrompt: false)),
+    );
     on<ChatEditStarted>(_onEditStarted);
     on<ChatEditCancelled>(_onEditCancelled);
     on<ChatNotificationsToggled>(_onNotificationsToggled);
@@ -90,6 +96,13 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   /// Ссылки шаринга на списки вопросов — единственный способ приложить список
   /// к сообщению.
   final SharedListsRepository _sharedLists;
+
+  /// Профиль автора — нужен ровно за одним: есть ли у него отображаемое имя.
+  final ProfileRepository _profile;
+
+  /// Отображаемое имя автора: пустая строка — имени нет, `null` — профиль ещё
+  /// не читали (или прочитать не удалось).
+  String? _displayName;
 
   /// Какой разговор показывает экран.
   final ChatTarget target;
@@ -171,6 +184,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     if (!_isModerator && target is! QuestionChatTarget) {
       await _maybeOfferNotifications(emit);
     }
+
+    // Имя автора читается последним и заранее: решение «просить ли имя перед
+    // отправкой» должно быть готово раньше, чем допишут первое сообщение, —
+    // иначе за него платила бы задержкой сама отправка. Последним — чтобы
+    // запрос не merge'ился в общий батч с чтением самой переписки.
+    if (!_isModerator) await _readDisplayName();
   }
 
   /// Go live. A failure here is silent on purpose: a chat that cannot subscribe
@@ -710,6 +729,73 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     Emitter<ChatState> emit,
   ) async {
     if (!state.canSend) return;
+    // Безымянного автора собеседник видит как «Без имени» — поэтому сообщение
+    // не уходит, пока имени нет: экран показывает диалог, а отправку
+    // продолжает [ChatDisplayNameSubmitted]. Отказ отправку отменяет.
+    if (!await _hasDisplayName()) {
+      if (!emit.isDone) emit(state.copyWith(displayNamePrompt: true));
+      return;
+    }
+    if (emit.isDone) return;
+    await _send(emit);
+  }
+
+  /// Имя, введённое в диалоге: сохраняется в профиле, и отправка продолжается
+  /// сама — пользователь нажал «отправить» один раз, а не два.
+  Future<void> _onDisplayNameSubmitted(
+    ChatDisplayNameSubmitted event,
+    Emitter<ChatState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        displayNamePrompt: false,
+        sending: true,
+        errorMessage: null,
+      ),
+    );
+    try {
+      final profile = await _profile.setDisplayName(event.name);
+      _displayName = profile.displayName ?? event.name;
+    } catch (e) {
+      if (!emit.isDone) {
+        emit(state.copyWith(sending: false, errorMessage: _message(e)));
+      }
+      return;
+    }
+    if (emit.isDone) return;
+    emit(state.copyWith(sending: false));
+    if (!state.canSend) return;
+    await _send(emit);
+  }
+
+  /// Есть ли у автора отображаемое имя. Профиль перечитывается, только пока
+  /// имени нет: его могли поставить в настройках, не закрывая разговор.
+  ///
+  /// Прочитать не удалось (нет связи, сервер молчит) — считаем, что имя есть:
+  /// отказ в отправке из-за неудавшейся проверки был бы хуже, чем ещё одно
+  /// «Без имени», а сама отправка в этот момент всё равно не пройдёт.
+  Future<bool> _hasDisplayName() async {
+    // Ответ со стороны поддержки подписан «Разработчик», а не именем аккаунта:
+    // просить имя у отвечающего не за чем.
+    if (_isModerator) return true;
+    if ((_displayName ?? '').trim().isNotEmpty) return true;
+    return await _readDisplayName() ?? true;
+  }
+
+  /// Перечитать имя из профиля. Возвращает `null`, если профиль недоступен.
+  Future<bool?> _readDisplayName() async {
+    try {
+      final profile = await _profile.myProfile();
+      _displayName = profile.displayName ?? '';
+      return _displayName!.trim().isNotEmpty;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Сама отправка — общая для нажатия «отправить» и для продолжения после
+  /// диалога с именем.
+  Future<void> _send(Emitter<ChatState> emit) async {
     final chatId = _chatId;
     if (chatId == null) return;
     final body = state.body.trim();

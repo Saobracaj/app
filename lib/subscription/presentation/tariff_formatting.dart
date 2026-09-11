@@ -4,19 +4,31 @@ import '../../generated/locale_keys.g.dart';
 import '../models/subscription_models.dart';
 
 /// Общие для витрины и раздела аккаунта формулировки.
-///
-/// Тариф с русским описан через объём контента («конспекты и объяснения на
-/// русском»), а не как наценка за язык — это осознанная формулировка, а не
-/// оборот речи.
-String tariffKindName(TariffKind kind) => switch (kind) {
-  TariffKind.basic => LocaleKeys.subscription_kindBasic.tr(),
-  TariffKind.russian => LocaleKeys.subscription_kindRussian.tr(),
-};
 
-String tariffKindSummary(TariffKind kind) => switch (kind) {
-  TariffKind.basic => LocaleKeys.subscription_kindBasicSummary.tr(),
-  TariffKind.russian => LocaleKeys.subscription_kindRussianSummary.tr(),
-};
+/// Название единственного тарифа. Русские материалы в него входят — отдельного
+/// «русского» плана больше нет, и называть его нечем, кроме как «Premium».
+String planName() => LocaleKeys.subscription_planName.tr();
+
+/// «Premium, 3 месяца» — пропуск с его сроком.
+String passLabel(int months) => '${planName()}, ${monthsLabel(months)}';
+
+/// Полное название действующего тарифа для раздела «Подписка»: «Premium,
+/// 3 месяца» у разового платежа и «Premium, подписка на 1 месяц» у
+/// автопродлеваемой. Срок берётся из активной покупки в сторе; у права,
+/// выданного оператором, покупки нет — тогда просто «Premium».
+String activePlanLabel(
+  SubscriptionStatus status,
+  List<StorePurchase> purchases,
+) {
+  final purchase = activePurchaseOf(status, purchases);
+  if (purchase == null) return planName();
+  if (purchase.autoRenewing) {
+    return LocaleKeys.subscription_activePlanSubscription.tr(
+      namedArgs: {'plan': planName(), 'term': monthsLabel(purchase.months)},
+    );
+  }
+  return passLabel(purchase.months);
+}
 
 String monthsLabel(int months) => LocaleKeys.subscription_months.plural(months);
 
@@ -39,12 +51,53 @@ String payTotalLabel(int rsd) =>
 String pricePerMonthLabel(Tariff tariff) =>
     priceLabel(tariff.pricePerMonth.round());
 
-String orderStatusLabel(OrderStatus status) => switch (status) {
-  OrderStatus.pending => LocaleKeys.subscription_statusPending.tr(),
-  OrderStatus.paid => LocaleKeys.subscription_statusPaid.tr(),
-  OrderStatus.cancelled => LocaleKeys.subscription_statusCancelled.tr(),
-  OrderStatus.expired => LocaleKeys.subscription_statusExpired.tr(),
+/// Полная цена тарифа так, как её надо показать: цену стора — как есть (там
+/// валюта покупателя и его налоги), а без стора — справочную в динарах.
+String totalPriceLabel(Tariff tariff, StoreProduct? product) =>
+    product?.price ?? priceLabel(tariff.priceRsd);
+
+/// Цена за месяц: у товара стора делим его же сумму, иначе справочную.
+///
+/// Валюту при делении не пересчитываем — берём готовую строку стора и меняем
+/// в ней только число, поэтому для многомесячных тарифов цена за месяц
+/// показывается лишь тогда, когда стор дал разбираемую сумму.
+String? perMonthLabel(Tariff tariff, StoreProduct? product) {
+  if (product == null) return pricePerMonthLabel(tariff);
+  if (tariff.months <= 1) return product.price;
+  final perMonth = product.rawPrice / tariff.months;
+  return NumberFormat.simpleCurrency(
+    name: product.currencyCode,
+  ).format(perMonth);
+}
+
+/// Экономия против помесячной оплаты так, как её посчитало состояние: сумму
+/// стора — в его валюте, справочную — в динарах.
+String savingAmountLabel(({double amount, String? currencyCode}) saving) {
+  final currency = saving.currencyCode;
+  if (currency == null) return priceLabel(saving.amount.round());
+  return NumberFormat.simpleCurrency(name: currency).format(saving.amount);
+}
+
+String purchaseStatusLabel(StorePurchaseStatus status) => switch (status) {
+  StorePurchaseStatus.active =>
+    LocaleKeys.subscription_purchaseStatusActive.tr(),
+  StorePurchaseStatus.expired =>
+    LocaleKeys.subscription_purchaseStatusExpired.tr(),
+  StorePurchaseStatus.refunded =>
+    LocaleKeys.subscription_purchaseStatusRefunded.tr(),
 };
+
+String storePlatformName(StorePlatform platform) => switch (platform) {
+  StorePlatform.apple => LocaleKeys.subscription_platformApple.tr(),
+  StorePlatform.google => LocaleKeys.subscription_platformGoogle.tr(),
+};
+
+/// «Месячная подписка при этом продолжает продлеваться — следующее списание
+/// …»: строка под разовым пропуском, за которым стор продолжает списывать
+/// деньги за подписку. Без даты, когда стор её не назвал.
+String renewingBehindLabel(DateTime? renewsAt) => renewsAt == null
+    ? LocaleKeys.subscription_renewingBehindNoDate.tr()
+    : LocaleKeys.subscription_renewingBehind.tr(args: [formatDate(renewsAt)]);
 
 /// Дата без времени: срок подписки и срок оплаты — вопрос дня, не минуты.
 String formatDate(DateTime date) => DateFormat.yMMMd().format(date);

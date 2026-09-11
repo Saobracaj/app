@@ -2,7 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
 import '../../feature_flags/domain/app_feature.dart';
@@ -13,6 +12,7 @@ import '../domain/question_feedback_target.dart';
 import '../state_management/question_feedback_bloc.dart';
 import '../state_management/question_feedback_events.dart';
 import '../state_management/question_feedback_state.dart';
+import '../../auth/presentation/auth_flow.dart';
 
 /// Кнопка «Сообщить об ошибке» внизу вкладки вопроса — объяснения или
 /// конспекта. Открывает диалог, который отправляет жалобу в чат пользователя
@@ -67,13 +67,14 @@ Future<void> showQuestionFeedbackDialog(
   return showDialog<void>(
     context: context,
     builder: (_) => BlocProvider(
-      create: (_) => getIt<QuestionFeedbackBloc>(param1: target, param2: source)
-        ..add(QuestionFeedbackOpened()),
+      create: (_) =>
+          getIt<QuestionFeedbackBloc>(param1: target, param2: source)
+            ..add(QuestionFeedbackOpened()),
       child: _QuestionFeedbackDialog(
         messenger: messenger,
         onSignIn: () {
           if (!context.mounted) return;
-          Routemaster.of(context).push('/login');
+          openLogin(context);
         },
       ),
     ),

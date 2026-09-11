@@ -121,7 +121,11 @@ class _CategoriesState extends State<Categories> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text(
-                            'Вопросов: ${state.subCategoriesCount[subCategory.id]} ',
+                            LocaleKeys.questionLists_questionsCount.tr(
+                              args: [
+                                '${state.subCategoriesCount[subCategory.id]}',
+                              ],
+                            ),
                           ),
                           leading: SizedBox(
                             width: 48,

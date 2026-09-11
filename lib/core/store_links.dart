@@ -1,0 +1,31 @@
+/// Ссылки на приложение в сторах — их показывает веб-версия там, где раньше
+/// была оплата.
+///
+/// Android-ссылка собирается из applicationId (`android/app/build.gradle.kts`).
+/// Apple-ссылке нужен числовой идентификатор приложения — bundle id для неё
+/// не годится; без него [appStoreUrl] возвращает `null` и кнопка App Store
+/// просто не показывается.
+library;
+
+/// applicationId Android-сборки.
+const androidApplicationId = 'at.gleb.saobracaj';
+
+/// Числовой Apple ID приложения (App Store Connect → App Information →
+/// General Information → Apple ID; он же в адресе карточки в App Store).
+/// Пустая строка — ссылка неизвестна и кнопка App Store не показывается.
+const appStoreAppId = '6744607772';
+
+Uri get googlePlayUrl => Uri.parse(
+  'https://play.google.com/store/apps/details?id=$androidApplicationId',
+);
+
+Uri? get appStoreUrl => appStoreAppId.isEmpty
+    ? null
+    : Uri.parse('https://apps.apple.com/app/id$appStoreAppId');
+
+/// Группа подписок в App Store Connect (Features → Subscriptions →
+/// «Saobracaj Pretplata» → Group ID). С iOS 17 нативная шторка управления
+/// подписками умеет открываться сразу на группе — это и есть «конкретная
+/// подписка», а не общий список аккаунта. Runner сначала берёт группу из
+/// текущей покупки в StoreKit и только без неё — эту константу.
+const appStoreSubscriptionGroupId = '22350509';

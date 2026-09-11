@@ -51,10 +51,7 @@ class AnalyticsService {
   /// A feature tab under the question was opened by hand; [tab] is the
   /// [AppFeature] key (`public_question_comments`, `category_summaries`, …).
   void logQuestionTabOpened({required String tab, int? questionId}) =>
-      _track('question_tab_opened', {
-        'tab': tab,
-        'question_id': ?questionId,
-      });
+      _track('question_tab_opened', {'tab': tab, 'question_id': ?questionId});
 
   /// The user scrolled the question page down to the feature tabs (the phone
   /// layout; on the wide screen the tabs are always on screen). Once per
@@ -62,15 +59,28 @@ class AnalyticsService {
   void logQuestionTabsViewed({int? questionId}) =>
       _track('question_tabs_viewed', {'question_id': ?questionId});
 
+  /// The content of feature tab [tab] is actually on screen for question
+  /// [questionId] — the tab was selected while the panel was in view, whether
+  /// the panel got there by scrolling (phone), appeared in its pane (wide
+  /// screen) or the tab was switched to by hand. Once per question per tab.
+  /// This is the "which explanations / konspekt excerpts get read" event:
+  /// `tab = question_comments` is the explanation, `category_summaries` the
+  /// konspekt excerpt (its sections follow from the question id).
+  void logQuestionTabShown({required String tab, required int questionId}) =>
+      _track('question_tab_shown', {'tab': tab, 'question_id': questionId});
+
   /// An answer was given; [secondsSinceShown] counts from the moment the
-  /// question appeared on screen.
+  /// question appeared on screen. [mode] is `quiz` for a question run and
+  /// `exam` for the exam simulation (there the thinking time is not tracked).
   void logQuestionAnswered({
     required int questionId,
     required bool correct,
     int? secondsSinceShown,
+    String mode = 'quiz',
   }) => _track('question_answered', {
     'question_id': questionId,
     'correct': correct,
+    'mode': mode,
     'seconds_since_shown': ?secondsSinceShown,
   });
 
@@ -85,9 +95,34 @@ class AnalyticsService {
   void logTranslationToggled({required bool enabled}) =>
       _track('translation_toggled', {'enabled': enabled});
 
-  /// A category konspekt was successfully loaded and shown.
-  void logKonspektOpened({required String categoryId}) =>
-      _track('konspekt_opened', {'category': categoryId});
+  /// The «РУ» translation was opened for free on a question where the Russian
+  /// content is locked — one of the free tries spent; [usesLeft] is what
+  /// remains after this one.
+  void logTranslationTrialUsed({required int usesLeft, int? questionId}) =>
+      _track('translation_trial_used', {
+        'uses_left': usesLeft,
+        'question_id': ?questionId,
+      });
+
+  /// A category konspekt was successfully loaded and shown. [section] is the
+  /// section slug the page was opened at — from the question's konspekt tab or
+  /// a deep link; null when the konspekt was opened from its beginning.
+  void logKonspektOpened({required String categoryId, String? section}) =>
+      _track('konspekt_opened', {
+        'category': categoryId,
+        'section': ?section,
+      });
+
+  /// The user jumped to a konspekt section by hand — from the table of
+  /// contents or an inline cross-section link (the opening jump is part of
+  /// `konspekt_opened`).
+  void logKonspektSectionOpened({
+    required String categoryId,
+    required String section,
+  }) => _track('konspekt_section_opened', {
+    'category': categoryId,
+    'section': section,
+  });
 
   /// A subcategory was picked on the categories screen (that is how a
   /// category's questions are opened — the screen has no whole-category
@@ -212,24 +247,29 @@ class AnalyticsService {
   void logSharedListImported({required int questionCount}) =>
       _track('shared_list_imported', {'question_count': questionCount});
 
-  /// The web-only money conversation reached a step: `tariffs_opened`,
-  /// `subscription_opened`, `order_created`, `order_cancelled` — everything
-  /// after that (payment, activation) happens outside the app.
+  /// The money conversation reached a step: `tariffs_opened`,
+  /// `subscription_opened`, `purchase_started`, `purchase_completed`,
+  /// `purchase_cancelled`, `purchase_failed`, `purchases_restored`. The
+  /// payment itself happens in the store and is invisible from here.
   void logCheckoutStep({required String step, String? sku}) =>
       _track('checkout_step', {'step': step, 'sku': ?sku});
 
-  /// The «русскоязычный контент» add-on checkbox on the tariffs screen. Also
-  /// updates the person, so "кто включал русский контент" is one filter.
-  void logRussianAddonToggled({required bool enabled}) =>
-      _track('russian_addon_toggled', {
-        'enabled': enabled,
-        r'$set': {'russian_addon_chosen': enabled},
-      });
+  /// The paywall came on screen: a locked explanation / konspekt / analysis /
+  /// AI card, or the Russian toggle outside the free categories. [source]
+  /// names the point of pain, so the funnel can be read per entry.
+  void logPaywallShown({
+    required String source,
+    int? questionId,
+    String? categoryId,
+  }) => _track('paywall_shown', {
+    'source': source,
+    'question_id': ?questionId,
+    'category_id': ?categoryId,
+  });
 
-  /// A promo code was submitted on the tariffs screen; [valid] — whether the
-  /// backend accepted it. The code itself is not reported.
-  void logPromoCodeApplied({required bool valid}) =>
-      _track('promo_code_applied', {'valid': valid});
+  /// The paywall's call to action was tapped — the tariffs screen opens.
+  void logPaywallOpened({required String source, int? questionId}) =>
+      _track('paywall_opened', {'source': source, 'question_id': ?questionId});
 
   /// A question search was run; only the length of the query is reported —
   /// what exactly a person types is theirs.

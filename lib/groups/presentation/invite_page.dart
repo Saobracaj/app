@@ -9,6 +9,7 @@ import '../../generated/locale_keys.g.dart';
 import '../domain/invite_code.dart';
 import '../state_management/groups_bloc.dart';
 import '../state_management/groups_events.dart';
+import '../../auth/presentation/auth_flow.dart';
 
 /// Where an invite link lands: `https://saobracaj.gleb.at/invite/ABC-DEF-GHI`.
 ///
@@ -43,7 +44,7 @@ class InvitePage extends StatelessWidget {
           AuthStatus.unauthenticated => _InviteMessage(
             message: LocaleKeys.groups_invite_signInToJoin.tr(args: [code]),
             action: LocaleKeys.groups_invite_signIn.tr(),
-            onPressed: () => Routemaster.of(context).push('/login'),
+            onPressed: () => openLogin(context),
           ),
           AuthStatus.authenticated => _AcceptInvite(code: code),
         };
@@ -100,8 +101,7 @@ class _InviteMessage extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (message == null) const CircularProgressIndicator(),
-              if (message != null)
-                Text(message!, textAlign: TextAlign.center),
+              if (message != null) Text(message!, textAlign: TextAlign.center),
               if (action != null) ...[
                 const SizedBox(height: 16),
                 FilledButton(onPressed: onPressed, child: Text(action!)),

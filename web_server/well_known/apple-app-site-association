@@ -4,12 +4,19 @@
       {
         "appIDs": ["BHH5379JU2.at.gleb.saobracaj.saobracaj"],
         "components": [
-          { "/": "/invite/*", "comment": "Group invitations" },
-          { "/": "/shared/*", "comment": "Shared question lists" },
-          { "/": "/question/*", "comment": "A single question and its discussion" },
-          { "/": "/groups/*", "comment": "A group and its activity feed" },
-          { "/": "/konspekt*", "comment": "Category study notes" },
-          { "/": "/zakon*", "comment": "The road-safety law" }
+          { "/": "/.well-known/*", "exclude": true, "comment": "Platform verification files, not screens" },
+          { "/": "/assets/*", "exclude": true, "comment": "The Flutter bundle" },
+          { "/": "/canvaskit/*", "exclude": true, "comment": "The Flutter bundle" },
+          { "/": "/icons/*", "exclude": true, "comment": "The Flutter bundle" },
+          { "/": "/packages/*", "exclude": true, "comment": "The Flutter bundle" },
+          { "/": "*.js", "exclude": true, "comment": "Top-level files of the bundle: the bootstrap script, the service worker" },
+          { "/": "*.wasm", "exclude": true, "comment": "Top-level files of the bundle" },
+          { "/": "*.json", "exclude": true, "comment": "manifest.json, version.json" },
+          { "/": "*.html", "exclude": true, "comment": "index.html" },
+          { "/": "*.png", "exclude": true, "comment": "favicon.png" },
+          { "/": "/robots.txt", "exclude": true },
+          { "/": "/sitemap.xml", "exclude": true },
+          { "/": "*", "comment": "Every screen of the web version is a screen of the app" }
         ]
       }
     ]

@@ -9,7 +9,10 @@ import '../../auth/state_management/auth/auth_state.dart';
 import '../../core/di.dart';
 import '../../core/responsive.dart';
 import '../../generated/locale_keys.g.dart';
+import '../../subscription/data/store_purchase_service.dart';
+import '../../subscription/models/subscription_models.dart';
 import '../../subscription/presentation/tariff_formatting.dart';
+import '../models/account_deletion_preview.dart';
 import '../state_management/account_deletion_bloc.dart';
 import '../state_management/account_deletion_events.dart';
 import '../state_management/account_deletion_state.dart';
@@ -290,6 +293,10 @@ class _OptionsStep extends StatelessWidget {
               ),
             ),
           ),
+        if (preview.subscriptionAutoRenewing) ...[
+          const SizedBox(height: 8),
+          _AutoRenewWarning(preview: preview),
+        ],
         if (state.errorMessage != null) ...[
           const SizedBox(height: 8),
           Text(
@@ -316,6 +323,65 @@ class _OptionsStep extends StatelessWidget {
           label: Text(LocaleKeys.accountDeletion_sendCode.tr()),
         ),
       ],
+    );
+  }
+}
+
+/// The store keeps renewing the subscription whatever happens to the account.
+/// For the App Store only the buyer can stop that, so the warning says so and
+/// opens the subscriptions page; a Play subscription is cancelled by the
+/// backend at deletion time, and the card says that instead.
+class _AutoRenewWarning extends StatelessWidget {
+  const _AutoRenewWarning({required this.preview});
+
+  final AccountDeletionPreview preview;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final apple = preview.subscriptionPlatform != StorePlatform.google;
+    final manageUrl = preview.subscriptionManageUrl;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.autorenew, color: scheme.onErrorContainer),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  apple
+                      ? LocaleKeys.accountDeletion_autoRenewWarningApple.tr()
+                      : LocaleKeys.accountDeletion_autoRenewWarningGoogle.tr(),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: scheme.onErrorContainer,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (manageUrl != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: () => getIt<StorePurchaseService>()
+                    .openSubscriptionManagement(manageUrl: manageUrl),
+                icon: const Icon(Icons.open_in_new),
+                label: Text(LocaleKeys.accountDeletion_manageSubscription.tr()),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

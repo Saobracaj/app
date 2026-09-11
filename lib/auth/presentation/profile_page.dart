@@ -1,5 +1,4 @@
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
@@ -26,6 +25,7 @@ import '../domain/settings_section.dart';
 import '../state_management/auth/auth_bloc.dart';
 import '../state_management/auth/auth_events.dart';
 import '../state_management/auth/auth_state.dart';
+import 'auth_flow.dart';
 
 /// Один пункт меню настроек: раздел и его строка в списке.
 class _SettingsEntry {
@@ -170,7 +170,7 @@ class ProfilePage extends StatelessWidget {
       title: Text(LocaleKeys.settings_notAuthorized.tr()),
       subtitle: Text(LocaleKeys.settings_loginPrompt.tr()),
       trailing: FilledButton(
-        onPressed: () => Routemaster.of(context).push('/login'),
+        onPressed: () => openLogin(context),
         child: Text(LocaleKeys.settings_loginButton.tr()),
       ),
     );
@@ -190,9 +190,9 @@ class ProfilePage extends StatelessWidget {
           title: 'settings.profile'.tr(),
           subtitle: 'settings.profileSubtitle'.tr(),
         ),
-      // Подписка — только веб и только для вошедшего: заказ привязан к
-      // аккаунту, а в мобильных сборках о подписке не говорим вовсе.
-      if (kIsWeb && auth.isAuthenticated)
+      // Подписка — для вошедшего: она привязана к аккаунту, а не к устройству
+      // и не к аккаунту стора.
+      if (auth.isAuthenticated)
         _SettingsEntry(
           section: SettingsSection.subscription,
           icon: Icons.card_membership_outlined,
@@ -531,7 +531,7 @@ class _AccountPanel extends StatelessWidget {
                 )
               else
                 FilledButton(
-                  onPressed: () => Routemaster.of(context).push('/login'),
+                  onPressed: () => openLogin(context),
                   child: Text(LocaleKeys.settings_loginButton.tr()),
                 ),
             ],

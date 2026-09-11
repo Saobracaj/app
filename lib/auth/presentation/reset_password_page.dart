@@ -1,13 +1,13 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:routemaster/routemaster.dart';
 
 import '../../core/di.dart';
 import '../../generated/locale_keys.g.dart';
 import '../state_management/reset_password/reset_password_bloc.dart';
 import '../state_management/reset_password/reset_password_events.dart';
 import '../state_management/reset_password/reset_password_state.dart';
+import 'auth_flow.dart';
 import 'error_field.dart';
 import 'validators.dart';
 
@@ -64,7 +64,7 @@ class ResetPasswordView extends StatelessWidget {
                 child: BlocConsumer<ResetPasswordBloc, ResetPasswordState>(
                   listenWhen: (p, c) => p.loggedIn != c.loggedIn,
                   listener: (context, state) {
-                    if (state.loggedIn) Routemaster.of(context).replace('/');
+                    if (state.loggedIn) finishAuthFlow(context);
                   },
                   builder: (context, state) {
                     final bloc = context.read<ResetPasswordBloc>();
@@ -144,8 +144,8 @@ class ResetPasswordView extends StatelessWidget {
                             onPressed: state.inProgress
                                 ? null
                                 : () => state.codeSent
-                                    ? _confirm(context)
-                                    : _sendCode(context),
+                                      ? _confirm(context)
+                                      : _sendCode(context),
                             style: FilledButton.styleFrom(
                               minimumSize: const Size.fromHeight(48),
                             ),
@@ -154,7 +154,8 @@ class ResetPasswordView extends StatelessWidget {
                                     height: 22,
                                     width: 22,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2),
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : Text(
                                     state.codeSent

@@ -2,141 +2,134 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/subscription/models/subscription_models.dart';
 import 'package:saobracaj/subscription/state_management/subscription_state.dart';
 
-/// Арифметика витрины: какие тарифы показаны, во сколько раз длинный срок
-/// дешевле помесячной оплаты и сколько стоит надбавка за русский.
+/// Тариф каталога — с идентификаторами товаров сторов, как их отдаёт бэкенд.
+/// Автопродление ровно у месячного: 3 и 12 месяцев платятся один раз.
+Tariff tariff(String sku, int months, int priceRsd) => Tariff(
+  sku: sku,
+  months: months,
+  priceRsd: priceRsd,
+  appleProductId: 'at.gleb.saobracaj.$sku',
+  googleProductId: sku,
+  autoRenewing: months == 1,
+);
+
+/// Арифметика витрины: какие пропуска показаны, какой выделен и во сколько
+/// раз длинный срок дешевле помесячной оплаты.
 void main() {
   // Каталог из `TARIFF_SEED` (saobracaj_backend/src/billing/model.rs).
-  const catalog = [
-    Tariff(sku: 'basic_1m', kind: TariffKind.basic, months: 1, priceRsd: 990),
-    Tariff(sku: 'basic_6m', kind: TariffKind.basic, months: 6, priceRsd: 1990),
-    Tariff(
-      sku: 'basic_12m',
-      kind: TariffKind.basic,
-      months: 12,
-      priceRsd: 3490,
-    ),
-    Tariff(
-      sku: 'russian_1m',
-      kind: TariffKind.russian,
-      months: 1,
-      priceRsd: 1490,
-    ),
-    Tariff(
-      sku: 'russian_6m',
-      kind: TariffKind.russian,
-      months: 6,
-      priceRsd: 2990,
-    ),
-    Tariff(
-      sku: 'russian_12m',
-      kind: TariffKind.russian,
-      months: 12,
-      priceRsd: 4990,
-    ),
+  final catalog = [
+    tariff('premium_12m', 12, 4490),
+    tariff('premium_1m', 1, 1490),
+    tariff('premium_3m', 3, 2990),
   ];
 
-  const basic = SubscriptionState(tariffs: catalog, inProgress: false);
-  const russian = SubscriptionState(
-    tariffs: catalog,
-    inProgress: false,
-    withRussian: true,
-  );
+  final state = SubscriptionState(tariffs: catalog, inProgress: false);
 
   group('offeredTariffs', () {
     test('показывает один ряд сроков по возрастанию', () {
-      expect(basic.offeredTariffs.map((t) => t.sku), [
-        'basic_1m',
-        'basic_6m',
-        'basic_12m',
+      expect(state.offeredTariffs.map((t) => t.sku), [
+        'premium_1m',
+        'premium_3m',
+        'premium_12m',
       ]);
     });
 
-    test('надбавка переключает семейство, а не добавляет колонку', () {
-      expect(russian.offeredTariffs.map((t) => t.sku), [
-        'russian_1m',
-        'russian_6m',
-        'russian_12m',
-      ]);
+    test('выделен трёхмесячный, а без него — самый длинный', () {
+      expect(state.recommendedTariff?.sku, 'premium_3m');
+      final noQuarter = SubscriptionState(
+        inProgress: false,
+        tariffs: [
+          tariff('premium_1m', 1, 1490),
+          tariff('premium_12m', 12, 4490),
+        ],
+      );
+      expect(noQuarter.recommendedTariff?.sku, 'premium_12m');
+      expect(const SubscriptionState().recommendedTariff, isNull);
     });
   });
 
   group('экономия против помесячной оплаты', () {
-    test('годовой базовый дешевле на 71%', () {
-      final yearly = basic.offeredTariffs.last;
-      expect(basic.savingPercent(yearly), 71);
-      expect(basic.savingRsd(yearly), 11880 - 3490);
+    test('три месяца стоят как два месячных', () {
+      final quarter = state.offeredTariffs[1];
+      expect(state.savingPercent(quarter), 33);
+      expect(state.savingRsd(quarter), 1490 * 3 - 2990);
     });
 
-    test('годовой с русским считается от своего же месячного', () {
-      final yearly = russian.offeredTariffs.last;
-      expect(russian.savingPercent(yearly), 72);
-      expect(russian.savingRsd(yearly), 17880 - 4990);
+    test('годовой дешевле на 75%', () {
+      final yearly = state.offeredTariffs.last;
+      expect(state.savingPercent(yearly), 75);
+      expect(state.savingRsd(yearly), 1490 * 12 - 4490);
     });
 
     test('месячному сравнивать себя не с чем', () {
-      final monthly = basic.offeredTariffs.first;
-      expect(basic.savingPercent(monthly), isNull);
-      expect(basic.savingRsd(monthly), isNull);
+      final monthly = state.offeredTariffs.first;
+      expect(state.savingPercent(monthly), isNull);
+      expect(state.savingRsd(monthly), isNull);
     });
 
     test('без месячного тарифа экономия не выдумывается', () {
-      const noMonthly = SubscriptionState(
+      final noMonthly = SubscriptionState(
         inProgress: false,
-        tariffs: [
-          Tariff(
-            sku: 'basic_12m',
-            kind: TariffKind.basic,
-            months: 12,
-            priceRsd: 3490,
-          ),
-        ],
+        tariffs: [tariff('premium_12m', 12, 4490)],
       );
       expect(noMonthly.savingPercent(noMonthly.offeredTariffs.single), isNull);
     });
   });
 
-  group('надбавка за русский', () {
-    test('считается на самом длинном сроке', () {
-      expect(basic.russianAddonRsd, 4990 - 3490);
-      // Цифра одна и та же независимо от того, включён тумблер или нет —
-      // иначе выключенный тумблер называл бы одну цену, а включённый другую.
-      expect(russian.russianAddonRsd, basic.russianAddonRsd);
+  // Рядом с ценой на карточке стоит сумма экономии, и валюта у них должна быть
+  // одна: экономия в динарах под ценой в евро — три числа, которые не
+  // складываются.
+  group('экономия считается в тех же деньгах, что и цены', () {
+    StoreProduct product(String id, double price) => StoreProduct(
+      id: id,
+      price: '$price',
+      rawPrice: price,
+      currencyCode: 'EUR',
+    );
+
+    final withStore = state.copyWith(
+      storeProducts: {
+        'premium_1m': product('premium_1m', 12.99),
+        'premium_3m': product('premium_3m', 24.99),
+        'premium_12m': product('premium_12m', 37.99),
+      },
+    );
+
+    test('по ценам стора, когда стор их назвал', () {
+      final yearly = withStore.offeredTariffs.last;
+      final saving = withStore.saving(yearly, StorePlatform.google);
+      expect(saving?.currencyCode, 'EUR');
+      expect(saving?.amount, closeTo(12.99 * 12 - 37.99, 1e-9));
     });
 
-    test('без пары тарифов цена надбавки не показывается', () {
-      const onlyBasic = SubscriptionState(
-        inProgress: false,
-        tariffs: [
-          Tariff(
-            sku: 'basic_12m',
-            kind: TariffKind.basic,
-            months: 12,
-            priceRsd: 3490,
-          ),
-        ],
-      );
-      expect(onlyBasic.russianAddonRsd, isNull);
+    test('в справочных динарах, когда цен стора нет', () {
+      final yearly = state.offeredTariffs.last;
+      final saving = state.saving(yearly, null);
+      // Валюты нет — значит динары, и подписать сумму надо ими.
+      expect(saving?.currencyCode, isNull);
+      expect(saving?.amount, 1490 * 12 - 4490);
     });
 
-    test('сроки разной длины не сравниваются между собой', () {
-      const mismatched = SubscriptionState(
-        inProgress: false,
-        tariffs: [
-          Tariff(
-            sku: 'basic_12m',
-            kind: TariffKind.basic,
-            months: 12,
-            priceRsd: 3490,
-          ),
-          Tariff(
-            sku: 'russian_6m',
-            kind: TariffKind.russian,
-            months: 6,
-            priceRsd: 2990,
-          ),
-        ],
+    test('месячному сравнивать себя не с чем', () {
+      expect(
+        withStore.saving(withStore.offeredTariffs.first, StorePlatform.google),
+        isNull,
       );
-      expect(mismatched.russianAddonRsd, isNull);
+    });
+
+    // Цены стора живут своей жизнью: если длинный пропуск там дороже, чем те же
+    // месяцы помесячно, «экономию» показывать нельзя.
+    test('отрицательная экономия не показывается', () {
+      final overpriced = state.copyWith(
+        storeProducts: {
+          'premium_1m': product('premium_1m', 1.0),
+          'premium_12m': product('premium_12m', 99.0),
+        },
+      );
+      expect(
+        overpriced.saving(overpriced.offeredTariffs.last, StorePlatform.google),
+        isNull,
+      );
     });
   });
 }

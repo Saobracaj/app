@@ -2,12 +2,12 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:routemaster/routemaster.dart';
 
 import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../core/di.dart';
 import '../../core/navigation.dart';
 import '../../generated/locale_keys.g.dart';
+import '../../profile/presentation/display_name_dialog.dart';
 import '../../core/presentation/relative_time.dart';
 import '../models/chat.dart';
 import '../models/chat_target.dart';
@@ -18,6 +18,7 @@ import 'chat_attach_menu.dart';
 import 'linked_text.dart';
 import 'shared_list_chip.dart';
 import 'chat_attachment_views.dart';
+import '../../auth/presentation/auth_flow.dart';
 
 /// Один разговор.
 ///
@@ -1019,6 +1020,29 @@ class ChatComposer extends StatelessWidget {
       if (state.canSend) bloc.add(ChatSendPressed());
     }
 
+    // Одно место на все разговоры: композер стоит и в чате с разработчиком, и в
+    // чате группы, и в обсуждении вопроса, — значит, имя спрашивается везде
+    // одинаково, а не отдельно на каждом экране.
+    return BlocListener<ChatBloc, ChatState>(
+      listenWhen: (a, b) => !a.displayNamePrompt && b.displayNamePrompt,
+      listener: (context, _) => _askDisplayName(context),
+      child: _composer(context, bloc, send),
+    );
+  }
+
+  /// Имя обязательно: без него сообщение не подписать, поэтому закрытый диалог
+  /// означает «не отправлять» — написанное остаётся в поле ввода.
+  Future<void> _askDisplayName(BuildContext context) async {
+    final bloc = context.read<ChatBloc>();
+    final name = await showDisplayNameDialog(context);
+    bloc.add(
+      name == null
+          ? ChatDisplayNameCancelled()
+          : ChatDisplayNameSubmitted(name),
+    );
+  }
+
+  Widget _composer(BuildContext context, ChatBloc bloc, VoidCallback send) {
     return Material(
       elevation: 2,
       child: Padding(
@@ -1157,7 +1181,7 @@ class _GuestComposerPrompt extends StatelessWidget {
               ),
             ),
             FilledButton.tonal(
-              onPressed: () => Routemaster.of(context).push('/login'),
+              onPressed: () => openLogin(context),
               child: Text(LocaleKeys.questionChat_guestSignIn.tr()),
             ),
           ],

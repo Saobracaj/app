@@ -13,6 +13,10 @@
     <uses-permission
         android:name="com.google.android.gms.permission.AD_ID"
         tools:node="remove"/>
+    <!-- Покупка подписки внутри приложения (in_app_purchase). Play Billing
+         объявляет это разрешение и сам, но здесь оно видно тому, кто читает
+         манифест, а не зависимости. -->
+    <uses-permission android:name="com.android.vending.BILLING"/>
     <application
         android:label="saobracaj"
         android:name="${applicationName}"
@@ -49,7 +53,14 @@
             </intent-filter>
 
             <!-- App Links: https://saobracaj.gleb.at/... opens the app instead
-                 of the browser. android:autoVerify makes Android fetch
+                 of the browser. The whole host is claimed, not a list of path
+                 prefixes: the web version and the app have the same screens
+                 (DeepLinkService turns the URL into a router path, and a path
+                 the app has no screen for lands on "page not found" with a
+                 way home, same as in the browser). Listing prefixes here used
+                 to mean every new screen quietly stayed browser-only.
+
+                 android:autoVerify makes Android fetch
                  https://saobracaj.gleb.at/.well-known/assetlinks.json (served
                  by web_server/) and check this app's signing certificate
                  against it — until that file is live, the links keep opening
@@ -58,12 +69,7 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="https" android:host="saobracaj.gleb.at" android:pathPrefix="/invite"/>
-                <data android:scheme="https" android:host="saobracaj.gleb.at" android:pathPrefix="/shared"/>
-                <data android:scheme="https" android:host="saobracaj.gleb.at" android:pathPrefix="/question"/>
-                <data android:scheme="https" android:host="saobracaj.gleb.at" android:pathPrefix="/groups"/>
-                <data android:scheme="https" android:host="saobracaj.gleb.at" android:pathPrefix="/konspekt"/>
-                <data android:scheme="https" android:host="saobracaj.gleb.at" android:pathPrefix="/zakon"/>
+                <data android:scheme="https" android:host="saobracaj.gleb.at"/>
             </intent-filter>
 
             <!-- The same addresses under the app's own scheme

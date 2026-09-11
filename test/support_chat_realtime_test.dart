@@ -9,6 +9,7 @@ import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/notifications/data/notification_permissions.dart';
+import 'package:saobracaj/profile/data/profile_repository.dart';
 import 'package:saobracaj/question_lists/data/shared_lists_repository.dart';
 import 'package:saobracaj/chat/data/chat_repository.dart';
 import 'package:saobracaj/chat/models/chat_target.dart';
@@ -65,6 +66,12 @@ class _FakeApi implements HttpClientAdapter {
       case 'Me':
         data = {
           'me': const {'id': 'u1', 'email': 'u@e', 'permissions': []},
+        };
+      // Имя у автора есть — значит, диалог «укажите имя» перед отправкой не
+      // возникает и проверяется именно то, ради чего написан тест.
+      case 'MyProfile':
+        data = {
+          'myProfile': const {'displayName': 'Я', 'commentBan': false},
         };
       case 'ChatMessages':
         data = {'chatMessages': _page(variables)};
@@ -216,6 +223,7 @@ Map<String, dynamic> _message(
       const NotificationPermissions(),
       AuthRepository(client, storage, AnalyticsService()),
       SharedListsRepository(client),
+      ProfileRepository(client),
       target,
     ),
     api: api,

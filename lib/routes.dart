@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:routemaster/routemaster.dart';
 import 'package:saobracaj/auth/domain/settings_section.dart';
@@ -65,232 +64,245 @@ final routes = RouteMap(
   // A mistyped or outdated address gets a designed screen with a way home
   // instead of routemaster's bare default one.
   onUnknownRoute: (path) => MaterialPage(child: NotFoundPage(path: path)),
-  routes: _withPravilnik({
-    // «История» ('/statistics') временно скрыта из нижней навигации; сам
-    // маршрут ниже остаётся рабочим для прямых ссылок.
-    // Switching a tab has to leave a browser history entry, otherwise the
-    // back button is dead for the app's main navigation: the four tabs are
-    // where a web user spends most of their clicks, and by routemaster's
-    // default (`TabBackBehavior.none`) every switch only *replaces* the
-    // address, so "back" from the fourth tab throws the user off the site
-    // instead of walking them back through the tabs they visited.
-    '/': (_) => IndexedPage(
-      child: HomePage(),
-      paths: ['/home', '/questions', '/practice', '/settings'],
-      backBehavior: TabBackBehavior.history,
-    ),
-    '/home': (_) => MaterialPage(child: HomeContentPage()),
-    '/questions': (_) => MaterialPage(child: QuestionsPage()),
-    '/statistics': (_) => MaterialPage(child: StatisticsPage()),
-    '/practice': (_) => MaterialPage(child: PracticePage()),
-    '/start': (data) {
-      final ids = _questionIdsParam(data.queryParameters['q']);
-      if (ids.isEmpty) return const Redirect('/home');
-      return MaterialPage(
-        child: StartTest(
-          questionIds: ids,
-          subcategory: _subcategoryParam(data.queryParameters['subcategory']),
-        ),
-      );
-    },
-    '/quest': questPage,
-    // Deep link to a single question's discussion:
-    // saobracaj://question/{id}?chat=1&message={chatMessageId}
-    '/question/:id': questCommentsPage,
-    '/question/:id/zakon': zakonPage,
-    '/quest/zakon': zakonPage,
-    '/quest/q': questPage,
-    '/quest/q/zakon': zakonPage,
-    '/statistics/q': questPage,
-    '/statistics/q/zakon': zakonPage,
-    // A single question list (automatic or custom) and the questions opened from it.
-    '/lists/:id': (data) => MaterialPage(
-      child: QuestionListPage(
-        listId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
-      ),
-    ),
-    // A group's main screen is '/feed' (its two tabs). The bare address
-    // redirects there — and because a Redirect parent is dropped from the
-    // stack, "back" from the group returns to wherever the user came from (the
-    // home screen), not to an intermediate group page.
-    '/groups/:id': (data) =>
-        Redirect('/groups/${data.pathParameters['id']}/feed'),
-    // Where an invite link lands: https://saobracaj.gleb.at/invite/ABC-DEF-GHI
-    '/invite/:token': (data) => MaterialPage(
-      child: InvitePage(
-        token: Uri.decodeComponent(data.pathParameters['token'] ?? ''),
-      ),
-    ),
-    // Экран группы: две вкладки, «Чат» и «События». Чат идёт первым и
-    // открывается по умолчанию — в группу заходят разговаривать, а лента
-    // событий это сводка, за которой возвращаются реже. Вкладки — настоящие
-    // маршруты, поэтому ссылка из пуша ('/groups/:id/feed/chat') открывает
-    // разговор прямо на своей вкладке, а адрес в вебе всегда говорит, что
-    // именно открыто. Переключение оставляет запись в истории — иначе «назад»
-    // в вебе выбрасывает с сайта (та же причина, что и в нижней навигации).
-    '/groups/:id/feed': (data) => TabPage(
-      child: GroupPage(
-        groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
-      ),
-      paths: const ['chat', 'events'],
-      backBehavior: TabBackBehavior.history,
-    ),
-    // Вкладка «События»: страницы истории, живая, пока экран открыт. Шапка
-    // общая, у самой вкладки её нет.
-    '/groups/:id/feed/events': (data) => MaterialPage(
-      child: GroupFeedPage(
-        groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
-      ),
-    ),
-    // Management, split off the feed's app-bar menu: the roster (everyone) and
-    // the invite (owner only). Children of the feed so "back" returns to it.
-    '/groups/:id/feed/members': (data) => MaterialPage(
-      child: GroupMembersPage(
-        groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
-      ),
-    ),
-    '/groups/:id/feed/invite': (data) => MaterialPage(
-      child: GroupInvitePage(
-        groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
-      ),
-    ),
-    // Вкладка «Чат» — тот же самый разговор, что и переписка с разработчиком,
-    // только целью ему дана группа; чат создаётся на бэкенде при первом
-    // открытии вкладки. ChatBloc для него держит GroupPage над вкладками,
-    // отсюда только тело разговора.
-    '/groups/:id/feed/chat': (_) =>
-        const MaterialPage(child: SafeArea(top: false, child: ChatBodyView())),
-    // Questions opened from a feed event sit under the feed, so finishing the
-    // run (or pressing back) returns to the feed rather than to the home tab.
-    '/groups/:id/feed/q': questPage,
-    '/groups/:id/feed/q/zakon': zakonPage,
-    '/lists/:id/q': questPage,
-    '/lists/:id/q/zakon': zakonPage,
-    // Where a shared-list link lands: https://saobracaj.gleb.at/shared/ABCDEFGH
-    // — the preview of somebody else's list with "save to my lists". Open to
-    // guests. Questions opened from the preview sit under it.
-    '/shared/:code': (data) => MaterialPage(
-      child: SharedListPage(
-        code: Uri.decodeComponent(data.pathParameters['code'] ?? ''),
-      ),
-    ),
-    '/shared/:code/q': questPage,
-    '/shared/:code/q/zakon': zakonPage,
-    '/questPractice/q': questPage,
-    '/questPractice/q/zakon': zakonPage,
-    '/questPractice': (data) => MaterialPage(
-      child: Practice(
-        params: PracticeParams(
-          showRightAnswers: data.queryParameters['showRightAnswers'] == 'true',
-          showStats: data.queryParameters['showStats'] == 'true',
-          buttonsLikeInExam:
-              data.queryParameters['buttonsLikeInExam'] == 'true',
-        ),
-      ),
-    ),
-    '/about': (_) => MaterialPage(child: AboutPage()),
-    '/zakon': zakonPage,
-    // «Правилник о саобраћајној сигнализацији» — тот же просмотрщик, что и у
-    // закона, со ссылками вида /pravilnik?chlan=…&paragraph=….
-    '/pravilnik': pravilnikPage,
-    // Deep link to a category konspekt, optionally straight to one section:
-    // /konspekt?category=25&section=manevri
-    '/konspekt': konspektPage,
-    // Law links inside a konspekt open as its children, so "back" returns to
-    // the konspekt (same pattern as '/quest/zakon'). A question link opens the
-    // preview sheet over the text instead — the full-screen route stays for the
-    // links that are already out there.
-    '/konspekt/question/:id': questCommentsPage,
-    '/konspekt/question/:id/zakon': zakonPage,
-    '/konspekt/zakon': zakonPage,
-    // Everything a question screen can open sits under it, so "back" (and the
-    // pop after saving a draft) returns to the question instead of dropping the
-    // stack: the admin draft editor with its own '/zakon' child for law links
-    // in the preview, and the full konspekt reached from the konspekt tab.
-    for (final host in _questionHosts) ...{
-      '$host/commentEdit': commentEditPage,
-      '$host/commentEdit/zakon': zakonPage,
-      '$host/konspekt': konspektPage,
-      '$host/konspekt/zakon': zakonPage,
-    },
-    '/login': (_) => const MaterialPage(child: LoginPage()),
-    '/register': (_) => const MaterialPage(child: RegisterPage()),
-    '/resetPassword': (_) => const MaterialPage(child: ResetPasswordPage()),
-    '/confirmCode': (data) => MaterialPage(
-      child: ConfirmCodePage(email: data.queryParameters['email'] ?? ''),
-    ),
-    '/settings': (_) => const MaterialPage(child: ProfilePage()),
-    // Каждый раздел настроек — свой адрес: на широком экране он выбирает
-    // раздел в правой панели (меню слева остаётся) и открывается без анимации
-    // перехода — это смена панели, а не экрана ([PanelPage]); на телефоне
-    // открывает его отдельным экраном. Сам '/settings' на широком экране сразу
-    // уходит на '/settings/profile' (см. [ProfilePage]). Незнакомый сегмент —
-    // обратно к настройкам; отдельного '/profile' больше нет, профиль это
-    // '/settings/profile'.
-    '/settings/:section': (data) {
-      final section = SettingsSection.bySlug(data.pathParameters['section']);
-      if (section == null) return const Redirect('/settings');
-      // Раздел подписки существует только в вебе — на мобильных прямая ссылка
-      // ведёт обратно в настройки, а не открывает разговор о деньгах.
-      if (section == SettingsSection.subscription && !kIsWeb) {
-        return const Redirect('/settings');
-      }
-      return PanelPage(child: ProfilePage(section: section));
-    },
-    // Продажа подписки живёт только в вебе: в мобильных сборках маршрутов нет
-    // вовсе, поэтому ни витрины, ни раздела аккаунта там не существует даже по
-    // прямой ссылке (App Store 3.1.3(b) — о подписке в приложении не говорим).
-    if (kIsWeb) '/tariffs': (_) => const MaterialPage(child: TariffsPage()),
-    if (kIsWeb)
-      '/subscription': (_) => const MaterialPage(child: SubscriptionPage()),
-    '/appearance': (_) => const MaterialPage(child: AppearancePage()),
-    '/features': (_) => const MaterialPage(child: FeatureFlagsPage()),
-    '/notifications': (_) => const MaterialPage(child: NotificationsPage()),
-    '/displayName': (_) => const MaterialPage(child: DisplayNamePage()),
-    // Удаление аккаунта: чек-лист контента, согласия, код из письма.
-    '/deleteAccount': (_) => const MaterialPage(child: AccountDeletionPage()),
-    // Денежный стол оператора (право `manage_billing` проверяет бэкенд).
-    '/billing': (_) => const MaterialPage(child: BillingAdminPage()),
-    // Инструмент администратора: ставит один тестовый пуш в очередь. Пункт в
-    // настройках виден только с правом `send_test_push`, право же проверяет
-    // бэкенд — по прямой ссылке экран открывается кому угодно.
-    '/testPush': (_) => const MaterialPage(child: TestPushPage()),
-    // The support chat ("чат с разработчиком"). The user's own conversation
-    // needs no id — the backend resolves it from the token; the moderator's
-    // list and the conversations opened from it sit under it, so "back" from a
-    // conversation returns to the list.
-    '/support': (_) => const MaterialPage(child: ChatPage()),
-    '/support/threads': (_) => const MaterialPage(child: SupportChatsPage()),
-    '/support/threads/:id': (data) => MaterialPage(
-      child: ChatPage(
-        target: ChatIdTarget(
-          Uri.decodeComponent(data.pathParameters['id'] ?? ''),
-        ),
-      ),
-    ),
-    // Любой разговор по идентификатору — сюда ведут пуши про тред, и отсюда же
-    // откроется чат группы, когда такие появятся.
-    '/chat/:id': (data) => MaterialPage(
-      child: ChatPage(
-        target: ChatIdTarget(
-          Uri.decodeComponent(data.pathParameters['id'] ?? ''),
-        ),
-        focusComposer: data.queryParameters['focus'] == '1',
-      ),
-    ),
-    // Тред на сообщение: чата может ещё не быть, бэкенд создаёт его при первом
-    // открытии, поэтому в адресе стоит сообщение. `focus=1` — тред открыт
-    // свайпом «ответить», и курсор сразу стоит в поле ввода.
-    '/thread/:messageId': (data) => MaterialPage(
-      child: ChatPage(
-        target: MessageThreadTarget(
-          Uri.decodeComponent(data.pathParameters['messageId'] ?? ''),
-        ),
-        focusComposer: data.queryParameters['focus'] == '1',
-      ),
-    ),
-  }),
+  routes: routeBuilders,
 );
+
+/// The routing table itself, by path template.
+///
+/// Kept separately from [routes] because [RouteMap] does not list its paths
+/// back, and the deep-link test needs to check that every top-level screen
+/// here is reachable by a link to the site.
+final Map<String, PageBuilder> routeBuilders = _withPravilnik({
+  // «История» ('/statistics') временно скрыта из нижней навигации; сам
+  // маршрут ниже остаётся рабочим для прямых ссылок.
+  // Switching a tab has to leave a browser history entry, otherwise the
+  // back button is dead for the app's main navigation: the four tabs are
+  // where a web user spends most of their clicks, and by routemaster's
+  // default (`TabBackBehavior.none`) every switch only *replaces* the
+  // address, so "back" from the fourth tab throws the user off the site
+  // instead of walking them back through the tabs they visited.
+  '/': (_) => IndexedPage(
+    child: HomePage(),
+    paths: ['/home', '/questions', '/practice', '/settings'],
+    backBehavior: TabBackBehavior.history,
+  ),
+  '/home': (_) => MaterialPage(child: HomeContentPage()),
+  '/questions': (_) => MaterialPage(child: QuestionsPage()),
+  '/statistics': (_) => MaterialPage(child: StatisticsPage()),
+  '/practice': (_) => MaterialPage(child: PracticePage()),
+  '/start': (data) {
+    final ids = _questionIdsParam(data.queryParameters['q']);
+    if (ids.isEmpty) return const Redirect('/home');
+    return MaterialPage(
+      child: StartTest(
+        questionIds: ids,
+        subcategory: _subcategoryParam(data.queryParameters['subcategory']),
+      ),
+    );
+  },
+  '/quest': questPage,
+  // Deep link to a single question's discussion:
+  // saobracaj://question/{id}?chat=1&message={chatMessageId}
+  '/question/:id': questCommentsPage,
+  '/question/:id/zakon': zakonPage,
+  '/quest/zakon': zakonPage,
+  '/quest/q': questPage,
+  '/quest/q/zakon': zakonPage,
+  '/statistics/q': questPage,
+  '/statistics/q/zakon': zakonPage,
+  // A single question list (automatic or custom) and the questions opened from it.
+  '/lists/:id': (data) => MaterialPage(
+    child: QuestionListPage(
+      listId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+    ),
+  ),
+  // A group's main screen is '/feed' (its two tabs). The bare address
+  // redirects there — and because a Redirect parent is dropped from the
+  // stack, "back" from the group returns to wherever the user came from (the
+  // home screen), not to an intermediate group page.
+  '/groups/:id': (data) =>
+      Redirect('/groups/${data.pathParameters['id']}/feed'),
+  // Where an invite link lands: https://saobracaj.gleb.at/invite/ABC-DEF-GHI
+  '/invite/:token': (data) => MaterialPage(
+    child: InvitePage(
+      token: Uri.decodeComponent(data.pathParameters['token'] ?? ''),
+    ),
+  ),
+  // Экран группы: две вкладки, «Чат» и «События». Чат идёт первым и
+  // открывается по умолчанию — в группу заходят разговаривать, а лента
+  // событий это сводка, за которой возвращаются реже. Вкладки — настоящие
+  // маршруты, поэтому ссылка из пуша ('/groups/:id/feed/chat') открывает
+  // разговор прямо на своей вкладке, а адрес в вебе всегда говорит, что
+  // именно открыто. Переключение оставляет запись в истории — иначе «назад»
+  // в вебе выбрасывает с сайта (та же причина, что и в нижней навигации).
+  '/groups/:id/feed': (data) => TabPage(
+    child: GroupPage(
+      groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+    ),
+    paths: const ['chat', 'events'],
+    backBehavior: TabBackBehavior.history,
+  ),
+  // Вкладка «События»: страницы истории, живая, пока экран открыт. Шапка
+  // общая, у самой вкладки её нет.
+  '/groups/:id/feed/events': (data) => MaterialPage(
+    child: GroupFeedPage(
+      groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+    ),
+  ),
+  // Management, split off the feed's app-bar menu: the roster (everyone) and
+  // the invite (owner only). Children of the feed so "back" returns to it.
+  '/groups/:id/feed/members': (data) => MaterialPage(
+    child: GroupMembersPage(
+      groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+    ),
+  ),
+  '/groups/:id/feed/invite': (data) => MaterialPage(
+    child: GroupInvitePage(
+      groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+    ),
+  ),
+  // Вкладка «Чат» — тот же самый разговор, что и переписка с разработчиком,
+  // только целью ему дана группа; чат создаётся на бэкенде при первом
+  // открытии вкладки. ChatBloc для него держит GroupPage над вкладками,
+  // отсюда только тело разговора.
+  '/groups/:id/feed/chat': (_) =>
+      const MaterialPage(child: SafeArea(top: false, child: ChatBodyView())),
+  // Questions opened from a feed event sit under the feed, so finishing the
+  // run (or pressing back) returns to the feed rather than to the home tab.
+  '/groups/:id/feed/q': questPage,
+  '/groups/:id/feed/q/zakon': zakonPage,
+  '/lists/:id/q': questPage,
+  '/lists/:id/q/zakon': zakonPage,
+  // Where a shared-list link lands: https://saobracaj.gleb.at/shared/ABCDEFGH
+  // — the preview of somebody else's list with "save to my lists". Open to
+  // guests. Questions opened from the preview sit under it.
+  '/shared/:code': (data) => MaterialPage(
+    child: SharedListPage(
+      code: Uri.decodeComponent(data.pathParameters['code'] ?? ''),
+    ),
+  ),
+  '/shared/:code/q': questPage,
+  '/shared/:code/q/zakon': zakonPage,
+  '/questPractice/q': questPage,
+  '/questPractice/q/zakon': zakonPage,
+  '/questPractice': (data) => MaterialPage(
+    child: Practice(
+      params: PracticeParams(
+        showRightAnswers: data.queryParameters['showRightAnswers'] == 'true',
+        showStats: data.queryParameters['showStats'] == 'true',
+        buttonsLikeInExam: data.queryParameters['buttonsLikeInExam'] == 'true',
+      ),
+    ),
+  ),
+  '/about': (_) => MaterialPage(child: AboutPage()),
+  '/zakon': zakonPage,
+  // «Правилник о саобраћајној сигнализацији» — тот же просмотрщик, что и у
+  // закона, со ссылками вида /pravilnik?chlan=…&paragraph=….
+  '/pravilnik': pravilnikPage,
+  // Deep link to a category konspekt, optionally straight to one section:
+  // /konspekt?category=25&section=manevri
+  '/konspekt': konspektPage,
+  // Law links inside a konspekt open as its children, so "back" returns to
+  // the konspekt (same pattern as '/quest/zakon'). A question link opens the
+  // preview sheet over the text instead — the full-screen route stays for the
+  // links that are already out there.
+  '/konspekt/question/:id': questCommentsPage,
+  '/konspekt/question/:id/zakon': zakonPage,
+  '/konspekt/zakon': zakonPage,
+  // Everything a question screen can open sits under it, so "back" (and the
+  // pop after saving a draft) returns to the question instead of dropping the
+  // stack: the admin draft editor with its own '/zakon' child for law links
+  // in the preview, and the full konspekt reached from the konspekt tab.
+  for (final host in _questionHosts) ...{
+    '$host/commentEdit': commentEditPage,
+    '$host/commentEdit/zakon': zakonPage,
+    '$host/konspekt': konspektPage,
+    '$host/konspekt/zakon': zakonPage,
+  },
+  // Витрина тарифов открывается из точек боли — закрытого объяснения,
+  // конспекта (во вкладке вопроса и на своём экране), анализа, «Спросить AI»,
+  // русского переключателя — и из раздела «Подписка». Она должна лежать
+  // поверх того экрана, где нажали кнопку, чтобы «назад» вернуло ровно туда:
+  // абсолютный '/tariffs' строил стек заново, и «назад» уезжало на главную.
+  // Отсюда '…/tariffs' у каждого экрана с гейтом; сама '/tariffs' ниже
+  // остаётся для прямых ссылок.
+  for (final host in _questionHosts) ...{
+    '$host/tariffs': tariffsPage,
+    '$host/konspekt/tariffs': tariffsPage,
+  },
+  '/konspekt/tariffs': tariffsPage,
+  '/subscription/tariffs': tariffsPage,
+  '/login': (_) => const MaterialPage(child: LoginPage()),
+  '/register': (_) => const MaterialPage(child: RegisterPage()),
+  '/resetPassword': (_) => const MaterialPage(child: ResetPasswordPage()),
+  '/confirmCode': (data) => MaterialPage(
+    child: ConfirmCodePage(email: data.queryParameters['email'] ?? ''),
+  ),
+  '/settings': (_) => const MaterialPage(child: ProfilePage()),
+  // Каждый раздел настроек — свой адрес: на широком экране он выбирает
+  // раздел в правой панели (меню слева остаётся) и открывается без анимации
+  // перехода — это смена панели, а не экрана ([PanelPage]); на телефоне
+  // открывает его отдельным экраном. Сам '/settings' на широком экране сразу
+  // уходит на '/settings/profile' (см. [ProfilePage]). Незнакомый сегмент —
+  // обратно к настройкам; отдельного '/profile' больше нет, профиль это
+  // '/settings/profile'.
+  '/settings/:section': (data) {
+    final section = SettingsSection.bySlug(data.pathParameters['section']);
+    if (section == null) return const Redirect('/settings');
+    return PanelPage(child: ProfilePage(section: section));
+  },
+  // Подписка продаётся внутри приложения, через стор, поэтому витрина и
+  // раздел аккаунта есть везде. В вебе покупать нечем: там та же витрина
+  // показывает справочные цены и отправляет за приложением.
+  '/tariffs': (_) => const MaterialPage(child: TariffsPage()),
+  '/subscription': (_) => const MaterialPage(child: SubscriptionPage()),
+  '/appearance': (_) => const MaterialPage(child: AppearancePage()),
+  '/features': (_) => const MaterialPage(child: FeatureFlagsPage()),
+  '/notifications': (_) => const MaterialPage(child: NotificationsPage()),
+  '/displayName': (_) => const MaterialPage(child: DisplayNamePage()),
+  // Удаление аккаунта: чек-лист контента, согласия, код из письма.
+  '/deleteAccount': (_) => const MaterialPage(child: AccountDeletionPage()),
+  // Денежный стол оператора (право `manage_billing` проверяет бэкенд).
+  '/billing': (_) => const MaterialPage(child: BillingAdminPage()),
+  // Инструмент администратора: ставит один тестовый пуш в очередь. Пункт в
+  // настройках виден только с правом `send_test_push`, право же проверяет
+  // бэкенд — по прямой ссылке экран открывается кому угодно.
+  '/testPush': (_) => const MaterialPage(child: TestPushPage()),
+  // The support chat ("чат с разработчиком"). The user's own conversation
+  // needs no id — the backend resolves it from the token; the moderator's
+  // list and the conversations opened from it sit under it, so "back" from a
+  // conversation returns to the list.
+  '/support': (_) => const MaterialPage(child: ChatPage()),
+  '/support/threads': (_) => const MaterialPage(child: SupportChatsPage()),
+  '/support/threads/:id': (data) => MaterialPage(
+    child: ChatPage(
+      target: ChatIdTarget(
+        Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+      ),
+    ),
+  ),
+  // Любой разговор по идентификатору — сюда ведут пуши про тред, и отсюда же
+  // откроется чат группы, когда такие появятся.
+  '/chat/:id': (data) => MaterialPage(
+    child: ChatPage(
+      target: ChatIdTarget(
+        Uri.decodeComponent(data.pathParameters['id'] ?? ''),
+      ),
+      focusComposer: data.queryParameters['focus'] == '1',
+    ),
+  ),
+  // Тред на сообщение: чата может ещё не быть, бэкенд создаёт его при первом
+  // открытии, поэтому в адресе стоит сообщение. `focus=1` — тред открыт
+  // свайпом «ответить», и курсор сразу стоит в поле ввода.
+  '/thread/:messageId': (data) => MaterialPage(
+    child: ChatPage(
+      target: MessageThreadTarget(
+        Uri.decodeComponent(data.pathParameters['messageId'] ?? ''),
+      ),
+      focusComposer: data.queryParameters['focus'] == '1',
+    ),
+  ),
+});
 
 /// У каждого адреса «…/zakon» есть близнец «…/pravilnik».
 ///
@@ -390,6 +402,11 @@ MaterialPage commentEditPage(dynamic data) => MaterialPage(
     questionId: int.tryParse(data.queryParameters['id'] ?? '') ?? 0,
   ),
 );
+
+/// Витрина тарифов; одна и та же страница на своём адресе и поверх любого
+/// экрана с гейтом.
+MaterialPage tariffsPage(RouteData _) =>
+    const MaterialPage(child: TariffsPage());
 
 MaterialPage zakonPage(dynamic params) => MaterialPage(
   child: Zakon(

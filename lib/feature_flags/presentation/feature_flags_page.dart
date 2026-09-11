@@ -10,10 +10,12 @@ import '../state_management/feature_flags_state.dart';
 
 /// Settings screen listing every product feature grouped by access tier.
 ///
-/// Guest features (and any unlocked authenticated/premium one) carry a local
-/// on/off toggle stored in shared preferences; locked features show why they
-/// are unavailable (sign in / subscription). Premium availability comes from the
-/// backend `featureFlags` query.
+/// Every feature carries a local on/off toggle stored in shared preferences —
+/// the toggle is the user's own choice for *this device* and does not depend
+/// on a session or a subscription. A feature whose tier is not satisfied keeps
+/// its toggle (the choice survives signing in / subscribing) and additionally
+/// explains what unlocks it (sign in / subscription). Premium availability
+/// comes from the backend `featureFlags` query.
 class FeatureFlagsPage extends StatelessWidget {
   const FeatureFlagsPage({super.key});
 
@@ -79,8 +81,10 @@ class FeatureFlagsContent extends StatelessWidget {
       AppFeature.values.where((f) => f.access == access).toList();
 }
 
-/// One feature row: a switch when the tier is satisfied (bound to the local
-/// toggle), or a lock hint explaining what unlocks it.
+/// One feature row: a switch bound to the local toggle — always interactive,
+/// whatever the tier — plus, while the tier is not satisfied, a lock hint
+/// explaining what unlocks the feature. Switching a locked feature off only
+/// records the user's choice; it takes effect once the tier is satisfied.
 class _FeatureTile extends StatelessWidget {
   const _FeatureTile({required this.feature, required this.snapshot});
 
@@ -96,21 +100,17 @@ class _FeatureTile extends StatelessWidget {
         snapshot.authenticated && snapshot.grants.contains(feature.key),
     };
     final title = tr('featureFlags.features.${feature.key}');
-
-    if (!tierSatisfied) {
-      final hint = feature.access == FeatureAccess.premium
-          ? 'featureFlags.lockedPremium'.tr()
-          : 'featureFlags.lockedAuth'.tr();
-      return ListTile(
-        enabled: false,
-        leading: const Icon(Icons.lock_outline),
-        title: Text(title),
-        subtitle: Text(hint),
-      );
-    }
+    final hint = switch (feature.access) {
+      _ when tierSatisfied => null,
+      FeatureAccess.premium => 'featureFlags.lockedPremium'.tr(),
+      _ => 'featureFlags.lockedAuth'.tr(),
+    };
 
     return SwitchListTile(
+      key: ValueKey('feature_tile_${feature.key}'),
+      secondary: tierSatisfied ? null : const Icon(Icons.lock_outline),
       title: Text(title),
+      subtitle: hint == null ? null : Text(hint),
       value: snapshot.localEnabled(feature),
       onChanged: (value) =>
           context.read<FeatureFlagsBloc>().add(FeatureToggled(feature, value)),

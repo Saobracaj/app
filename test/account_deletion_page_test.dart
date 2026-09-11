@@ -15,6 +15,7 @@ import 'package:saobracaj/auth/state_management/auth/auth_state.dart';
 import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
+import 'package:saobracaj/subscription/models/subscription_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Экран удаления аккаунта: чек-лист с двумя обязательными пунктами, согласия,
@@ -156,5 +157,63 @@ void main() {
     await tester.tap(find.textContaining('деньги за неё не возвращаются'));
     await tester.pumpAndSettle();
     expect(tester.widget<FilledButton>(button).onPressed, isNotNull);
+    // Подписка не автопродлеваемая — предупреждения про стор нет.
+    expect(find.textContaining('продлевается автоматически'), findsNothing);
   });
+
+  testWidgets('автопродление через App Store: предупреждение и ссылка в стор', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    final repo = _StubRepository(
+      AccountDeletionPreview(
+        email: 'a@b.c',
+        hasActiveSubscription: true,
+        subscriptionUntil: DateTime(2027, 3, 1),
+        subscriptionAutoRenewing: true,
+        subscriptionPlatform: StorePlatform.apple,
+        subscriptionManageUrl: 'https://apps.apple.com/account/subscriptions',
+      ),
+    );
+    await tester.pumpWidget(wrap(repo._preview, repo));
+    await tester.pumpAndSettle();
+
+    // Apple: удаление не остановит списания — отменять самому.
+    expect(
+      find.textContaining('удаление аккаунта её не остановит'),
+      findsOneWidget,
+    );
+    expect(find.text('Открыть подписки в сторе'), findsOneWidget);
+    expect(find.byIcon(Icons.open_in_new), findsOneWidget);
+    // Согласие про потерю подписки по-прежнему требуется.
+    expect(
+      find.textContaining('деньги за неё не возвращаются'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets(
+    'автопродление через Google Play: обещание отменить, без ссылки',
+    (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      final repo = _StubRepository(
+        AccountDeletionPreview(
+          email: 'a@b.c',
+          hasActiveSubscription: true,
+          subscriptionUntil: DateTime(2027, 3, 1),
+          subscriptionAutoRenewing: true,
+          subscriptionPlatform: StorePlatform.google,
+        ),
+      );
+      await tester.pumpWidget(wrap(repo._preview, repo));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('мы отменим автопродление'), findsOneWidget);
+      expect(find.text('Открыть подписки в сторе'), findsNothing);
+    },
+  );
 }
