@@ -93,8 +93,9 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
   '/start': (data) {
     final ids = _questionIdsParam(data.queryParameters['q']);
     if (ids.isEmpty) return const Redirect('/home');
-    return MaterialPage(
-      child: StartTest(
+    return keyedPage(
+      data,
+      StartTest(
         questionIds: ids,
         subcategory: _subcategoryParam(data.queryParameters['subcategory']),
       ),
@@ -111,8 +112,9 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
   '/statistics/q': questPage,
   '/statistics/q/zakon': zakonPage,
   // A single question list (automatic or custom) and the questions opened from it.
-  '/lists/:id': (data) => MaterialPage(
-    child: QuestionListPage(
+  '/lists/:id': (data) => keyedPage(
+    data,
+    QuestionListPage(
       listId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
     ),
   ),
@@ -123,10 +125,9 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
   '/groups/:id': (data) =>
       Redirect('/groups/${data.pathParameters['id']}/feed'),
   // Where an invite link lands: https://saobracaj.gleb.at/invite/ABC-DEF-GHI
-  '/invite/:token': (data) => MaterialPage(
-    child: InvitePage(
-      token: Uri.decodeComponent(data.pathParameters['token'] ?? ''),
-    ),
+  '/invite/:token': (data) => keyedPage(
+    data,
+    InvitePage(token: Uri.decodeComponent(data.pathParameters['token'] ?? '')),
   ),
   // Экран группы: две вкладки, «Чат» и «События». Чат идёт первым и
   // открывается по умолчанию — в группу заходят разговаривать, а лента
@@ -139,25 +140,29 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
     child: GroupPage(
       groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
     ),
+    pageBuilder: (child) => keyedPage(data, child),
     paths: const ['chat', 'events'],
     backBehavior: TabBackBehavior.history,
   ),
   // Вкладка «События»: страницы истории, живая, пока экран открыт. Шапка
   // общая, у самой вкладки её нет.
-  '/groups/:id/feed/events': (data) => MaterialPage(
-    child: GroupFeedPage(
+  '/groups/:id/feed/events': (data) => keyedPage(
+    data,
+    GroupFeedPage(
       groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
     ),
   ),
   // Management, split off the feed's app-bar menu: the roster (everyone) and
   // the invite (owner only). Children of the feed so "back" returns to it.
-  '/groups/:id/feed/members': (data) => MaterialPage(
-    child: GroupMembersPage(
+  '/groups/:id/feed/members': (data) => keyedPage(
+    data,
+    GroupMembersPage(
       groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
     ),
   ),
-  '/groups/:id/feed/invite': (data) => MaterialPage(
-    child: GroupInvitePage(
+  '/groups/:id/feed/invite': (data) => keyedPage(
+    data,
+    GroupInvitePage(
       groupId: Uri.decodeComponent(data.pathParameters['id'] ?? ''),
     ),
   ),
@@ -176,8 +181,9 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
   // Where a shared-list link lands: https://saobracaj.gleb.at/shared/ABCDEFGH
   // — the preview of somebody else's list with "save to my lists". Open to
   // guests. Questions opened from the preview sit under it.
-  '/shared/:code': (data) => MaterialPage(
-    child: SharedListPage(
+  '/shared/:code': (data) => keyedPage(
+    data,
+    SharedListPage(
       code: Uri.decodeComponent(data.pathParameters['code'] ?? ''),
     ),
   ),
@@ -185,8 +191,9 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
   '/shared/:code/q/zakon': zakonPage,
   '/questPractice/q': questPage,
   '/questPractice/q/zakon': zakonPage,
-  '/questPractice': (data) => MaterialPage(
-    child: Practice(
+  '/questPractice': (data) => keyedPage(
+    data,
+    Practice(
       params: PracticeParams(
         showRightAnswers: data.queryParameters['showRightAnswers'] == 'true',
         showStats: data.queryParameters['showStats'] == 'true',
@@ -235,8 +242,9 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
   '/login': (_) => const MaterialPage(child: LoginPage()),
   '/register': (_) => const MaterialPage(child: RegisterPage()),
   '/resetPassword': (_) => const MaterialPage(child: ResetPasswordPage()),
-  '/confirmCode': (data) => MaterialPage(
-    child: ConfirmCodePage(email: data.queryParameters['email'] ?? ''),
+  '/confirmCode': (data) => keyedPage(
+    data,
+    ConfirmCodePage(email: data.queryParameters['email'] ?? ''),
   ),
   '/settings': (_) => const MaterialPage(child: ProfilePage()),
   // Каждый раздел настроек — свой адрес: на широком экране он выбирает
@@ -274,8 +282,9 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
   // conversation returns to the list.
   '/support': (_) => const MaterialPage(child: ChatPage()),
   '/support/threads': (_) => const MaterialPage(child: SupportChatsPage()),
-  '/support/threads/:id': (data) => MaterialPage(
-    child: ChatPage(
+  '/support/threads/:id': (data) => keyedPage(
+    data,
+    ChatPage(
       target: ChatIdTarget(
         Uri.decodeComponent(data.pathParameters['id'] ?? ''),
       ),
@@ -283,8 +292,9 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
   ),
   // Любой разговор по идентификатору — сюда ведут пуши про тред, и отсюда же
   // откроется чат группы, когда такие появятся.
-  '/chat/:id': (data) => MaterialPage(
-    child: ChatPage(
+  '/chat/:id': (data) => keyedPage(
+    data,
+    ChatPage(
       target: ChatIdTarget(
         Uri.decodeComponent(data.pathParameters['id'] ?? ''),
       ),
@@ -294,8 +304,9 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
   // Тред на сообщение: чата может ещё не быть, бэкенд создаёт его при первом
   // открытии, поэтому в адресе стоит сообщение. `focus=1` — тред открыт
   // свайпом «ответить», и курсор сразу стоит в поле ввода.
-  '/thread/:messageId': (data) => MaterialPage(
-    child: ChatPage(
+  '/thread/:messageId': (data) => keyedPage(
+    data,
+    ChatPage(
       target: MessageThreadTarget(
         Uri.decodeComponent(data.pathParameters['messageId'] ?? ''),
       ),
@@ -317,6 +328,24 @@ Map<String, PageBuilder> _withPravilnik(Map<String, PageBuilder> routes) => {
         pravilnikPage,
 };
 
+/// A page whose identity is its address.
+///
+/// Routemaster rebuilds the page list from the URL on every navigation, and
+/// the Navigator matches the old list against the new one with
+/// [Page.canUpdate]: two [MaterialPage]s of the same type and no key count as
+/// the same route, so a second link to `/question/7922` over an open
+/// `/question/7921` only swapped the widget under the live element — the
+/// `BlocProvider(create:)` inside never ran again, and the screen kept showing
+/// the first question whichever link was tapped next (task 1203867458890041).
+/// The same held for every screen built from a path or query parameter: a
+/// second invite, another chat from a notification, another list.
+///
+/// Keyed by the full address (path and query) every distinct address gets its
+/// own screen with its own state, while the same address stays the same
+/// screen and is not rebuilt for nothing.
+MaterialPage<T> keyedPage<T>(RouteData data, Widget child) =>
+    MaterialPage<T>(key: ValueKey(data.fullPath), child: child);
+
 /// Deep link into a single question opened straight on its discussion tab.
 ///
 /// Path: `/question/{id}`; query `chat=1` opens the discussion tab and scrolls
@@ -329,8 +358,9 @@ Map<String, PageBuilder> _withPravilnik(Map<String, PageBuilder> routes) => {
 MaterialPage questCommentsPage(dynamic data) {
   final id = int.tryParse(data.pathParameters['id'] as String? ?? '');
   final chat = data.queryParameters['chat'] ?? data.queryParameters['comments'];
-  return MaterialPage(
-    child: Quest(
+  return keyedPage(
+    data as RouteData,
+    Quest(
       options: StartTestState(random: false, randomOptionsOrder: false),
       questions: id != null ? [id] : const <int>[],
       openChat: chat == '1' || chat == 'true',
@@ -361,8 +391,9 @@ List<int> _questionIdsParam(String? q) =>
 RouteSettings questPage(RouteData data) {
   final ids = _questionIdsParam(data.queryParameters['q']);
   if (ids.isEmpty) return const Redirect('/home');
-  return MaterialPage(
-    child: Quest(
+  return keyedPage(
+    data,
+    Quest(
       options: StartTestState(
         random: data.queryParameters['random'] == 'true',
         randomOptionsOrder:
@@ -388,8 +419,9 @@ RouteSettings questPage(RouteData data) {
 RouteSettings konspektPage(RouteData params) {
   final categoryId = params.queryParameters['category'] ?? '';
   if (categoryId.isEmpty) return const Redirect('/questions');
-  return MaterialPage(
-    child: KonspektPage(
+  return keyedPage(
+    params,
+    KonspektPage(
       categoryId: categoryId,
       section: params.queryParameters['section'],
     ),
@@ -397,8 +429,9 @@ RouteSettings konspektPage(RouteData params) {
 }
 
 /// The admin-only comment draft editor; `id` is the question id.
-MaterialPage commentEditPage(dynamic data) => MaterialPage(
-  child: CommentEditorPage(
+MaterialPage commentEditPage(dynamic data) => keyedPage(
+  data as RouteData,
+  CommentEditorPage(
     questionId: int.tryParse(data.queryParameters['id'] ?? '') ?? 0,
   ),
 );
@@ -408,16 +441,18 @@ MaterialPage commentEditPage(dynamic data) => MaterialPage(
 MaterialPage tariffsPage(RouteData _) =>
     const MaterialPage(child: TariffsPage());
 
-MaterialPage zakonPage(dynamic params) => MaterialPage(
-  child: Zakon(
+MaterialPage zakonPage(dynamic params) => keyedPage(
+  params as RouteData,
+  Zakon(
     paragraph: params.queryParameters['paragraph'],
     chapter: params.queryParameters['chapter'],
     chlan: params.queryParameters['chlan'],
   ),
 );
 
-MaterialPage pravilnikPage(dynamic params) => MaterialPage(
-  child: Zakon(
+MaterialPage pravilnikPage(dynamic params) => keyedPage(
+  params as RouteData,
+  Zakon(
     document: LawDocument.pravilnik,
     paragraph: params.queryParameters['paragraph'],
     chapter: params.queryParameters['chapter'],
