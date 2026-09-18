@@ -14,6 +14,7 @@ use tower_http::services::ServeDir;
 use tower_http::trace::TraceLayer;
 
 use crate::config::Config;
+use crate::dates::ContentDates;
 use crate::fingerprint::Fingerprints;
 use crate::index_html;
 use crate::meta::{self, Lang};
@@ -56,7 +57,8 @@ impl AppState {
         let fingerprints = Fingerprints::scan(&config.web_root);
         tracing::info!(files = fingerprints.len(), "fingerprinted the bundle");
         let robots = sitemap::robots(&config.public_origin);
-        let sitemap = sitemap::sitemap(&config.public_origin, &questions, &law);
+        let dates = ContentDates::load(&config.web_root);
+        let sitemap = sitemap::sitemap(&config.public_origin, &questions, &law, &dates);
         tracing::info!(
             questions = questions.ids().len(),
             articles = law.articles().len(),
@@ -86,6 +88,10 @@ pub fn app(state: Arc<AppState>) -> Router {
         .route("/healthz", get(healthz))
         .route("/robots.txt", get(robots))
         .route("/sitemap.xml", get(sitemap_xml))
+        .route(
+            &format!("/{GOOGLE_SITE_VERIFICATION}"),
+            get(google_site_verification),
+        )
         .route("/.well-known/assetlinks.json", get(well_known::assetlinks))
         .route(
             "/.well-known/apple-app-site-association",
@@ -103,6 +109,19 @@ pub fn app(state: Arc<AppState>) -> Router {
         .layer(CompressionLayer::new())
         .layer(TraceLayer::new_for_http())
         .with_state(state)
+}
+
+/// The file Google Search Console asks for to prove the site is ours. Not a
+/// secret — it is meant to be public — and it must stay in place after the
+/// verification, or the property is lost.
+pub const GOOGLE_SITE_VERIFICATION: &str = "googlea7f87da7fe58eafd.html";
+
+async fn google_site_verification() -> Response {
+    (
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        format!("google-site-verification: {GOOGLE_SITE_VERIFICATION}"),
+    )
+        .into_response()
 }
 
 async fn healthz() -> &'static str {
@@ -126,11 +145,7 @@ async fn sitemap_xml(State(state): State<Arc<AppState>>) -> Response {
 }
 
 /// Serves `index.html` with the metadata of the requested route.
-async fn single_page(
-    State(state): State<Arc<AppState>>,
-    uri: Uri,
-    headers: HeaderMap,
-) -> Response {
+async fn single_page(State(state): State<Arc<AppState>>, uri: Uri, headers: HeaderMap) -> Response {
     let path = uri.path();
     // A request for a file that isn't there is a mistake, not a route: answering
     // it with the app's HTML would turn a broken `<img>` into a silent 200 and
@@ -176,7 +191,9 @@ fn looks_like_a_missing_asset(path: &str) -> bool {
     }
     // A dot in the last segment means an extension: `main.dart.js`, `a.png`.
     // App routes never have one (`/invite/ABC-DEF-GHI`, `/question/11`).
-    path.rsplit('/').next().is_some_and(|last| last.contains('.'))
+    path.rsplit('/')
+        .next()
+        .is_some_and(|last| last.contains('.'))
 }
 
 /// Caching and security headers for every response.
@@ -312,7 +329,11 @@ mod tests {
         write(dir.path(), "index.html", INDEX);
         write(dir.path(), "flutter_bootstrap.js", "// bootstrap");
         write(dir.path(), "main.dart.wasm", "\0asm");
-        write(dir.path(), "assets/assets/img/42.jpeg", "\u{ff}\u{d8}\u{ff}");
+        write(
+            dir.path(),
+            "assets/assets/img/42.jpeg",
+            "\u{ff}\u{d8}\u{ff}",
+        );
         write(
             dir.path(),
             "assets/assets/allQuestions.json",
@@ -382,8 +403,8 @@ mod tests {
         assert_eq!(status, StatusCode::OK);
         assert_eq!(headers[header::CONTENT_TYPE], "text/html; charset=utf-8");
         assert_eq!(headers[header::CACHE_CONTROL], "no-cache");
-        assert!(body.contains("<title>Питање бр. 11 — Saobraćaj</title>"));
-        assert!(body.contains("Пешак је приказан:"));
+        assert!(body.contains("<title>Пешак је приказан: — Saobraćaj</title>"));
+        assert!(body.contains("Испитно питање бр. 11"));
         assert!(body.contains("/assets/assets/img/42.jpeg"));
         // The bundle's own body is still there — this is the real app, not a
         // stand-in page.
@@ -516,7 +537,7 @@ mod tests {
 
         assert_eq!(status, StatusCode::OK);
         // The app draws itself on a canvas, so the words have to be in the HTML.
-        assert!(body.contains("<h1>Питање бр. 11</h1>"));
+        assert!(body.contains("<h1>Пешак је приказан:</h1>"));
         assert!(body.contains("на слици А"));
         assert!(body.contains(r#"<script type="application/ld+json">"#));
         // Built per language — a shared cache must know that.
@@ -532,7 +553,9 @@ mod tests {
 
         assert!(body.contains("<h1>Члан 2.</h1>"));
         assert!(body.contains("Контролу саобраћаја врши Министарство."));
-        assert!(body.contains(r#"<link rel="canonical" href="https://saobracaj.gleb.at/zakon?chapter=I&amp;chlan=2">"#));
+        assert!(body.contains(
+            r#"<link rel="canonical" href="https://saobracaj.gleb.at/zakon?chapter=I&amp;chlan=2">"#
+        ));
     }
 
     #[tokio::test]
@@ -543,7 +566,10 @@ mod tests {
         for path in ["/invite/ABC-DEF-GHI", "/settings/profile", "/groups/7/feed"] {
             let (status, _, body) = get_path(&router, path).await;
             assert_eq!(status, StatusCode::OK, "{path}");
-            assert!(body.contains(r#"<meta name="robots" content="noindex, follow">"#), "{path}");
+            assert!(
+                body.contains(r#"<meta name="robots" content="noindex, follow">"#),
+                "{path}"
+            );
             assert!(!body.contains("seo-prerender"), "{path}");
         }
     }
@@ -560,9 +586,24 @@ mod tests {
 
         let (status, headers, body) = get_path(&router, "/sitemap.xml").await;
         assert_eq!(status, StatusCode::OK);
-        assert_eq!(headers[header::CONTENT_TYPE], "application/xml; charset=utf-8");
+        assert_eq!(
+            headers[header::CONTENT_TYPE],
+            "application/xml; charset=utf-8"
+        );
         assert!(body.contains("<loc>https://saobracaj.gleb.at/question/11</loc>"));
         assert!(body.contains("<loc>https://saobracaj.gleb.at/zakon?chapter=I&amp;chlan=2</loc>"));
+    }
+
+    #[tokio::test]
+    async fn the_google_verification_file_is_served_from_the_binary() {
+        let dir = bundle();
+        let (status, _, body) =
+            get_path(&router(&dir), &format!("/{GOOGLE_SITE_VERIFICATION}")).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(
+            body,
+            "google-site-verification: googlea7f87da7fe58eafd.html"
+        );
     }
 
     #[tokio::test]

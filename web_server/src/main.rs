@@ -13,6 +13,7 @@
 //!     plus `robots.txt` and a `sitemap.xml` of every public address.
 
 mod config;
+mod dates;
 mod fingerprint;
 mod index_html;
 mod meta;
@@ -21,6 +22,7 @@ mod route;
 mod seo;
 mod server;
 mod sitemap;
+mod translit;
 mod well_known;
 mod zakon;
 
