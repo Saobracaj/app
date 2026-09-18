@@ -112,18 +112,16 @@ pub fn decode(value: &str) -> String {
     let mut at = 0;
     while at < bytes.len() {
         match bytes[at] {
-            b'%' if at + 2 < bytes.len() => {
-                match u8::from_str_radix(&value[at + 1..at + 3], 16) {
-                    Ok(byte) => {
-                        out.push(byte);
-                        at += 3;
-                    }
-                    Err(_) => {
-                        out.push(b'%');
-                        at += 1;
-                    }
+            b'%' if at + 2 < bytes.len() => match u8::from_str_radix(&value[at + 1..at + 3], 16) {
+                Ok(byte) => {
+                    out.push(byte);
+                    at += 3;
                 }
-            }
+                Err(_) => {
+                    out.push(b'%');
+                    at += 1;
+                }
+            },
             b'+' => {
                 out.push(b' ');
                 at += 1;
@@ -216,10 +214,7 @@ mod tests {
             }
         );
         // The app redirects it to the catalog, so that is where it points.
-        assert_eq!(
-            Route::parse("/konspekt", "").canonical_path(),
-            "/questions"
-        );
+        assert_eq!(Route::parse("/konspekt", "").canonical_path(), "/questions");
     }
 
     #[test]

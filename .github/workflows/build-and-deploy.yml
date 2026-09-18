@@ -536,6 +536,10 @@ jobs:
       image: ${{ steps.meta.outputs.image }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          # The whole history: the sitemap's <lastmod> is the date of the last
+          # commit that touched each content file (tool/sitemap_dates.sh).
+          fetch-depth: 0
 
       - uses: subosito/flutter-action@v2
         with:
@@ -555,6 +559,9 @@ jobs:
             --build-name "${{ needs.preflight.outputs.version_name }}" \
             --build-number "${{ needs.preflight.outputs.build_number }}" \
             --dart-define=FCM_VAPID_KEY="${{ secrets.FCM_VAPID_KEY }}"
+
+      - name: Write the content dates for the sitemap
+        run: tool/sitemap_dates.sh build/web/sitemap-dates.json
 
       - name: Compute the image name (GHCR requires a lowercase owner)
         id: meta

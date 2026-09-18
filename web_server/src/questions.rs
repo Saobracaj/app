@@ -8,7 +8,7 @@
 //! nothing has to be duplicated or kept in sync — the server just reads them
 //! once on boot.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use serde::Deserialize;
@@ -107,6 +107,10 @@ pub struct Questions {
     by_category: HashMap<String, Vec<i64>>,
     /// Question ids per block, in the bank's own order.
     by_subcategory: HashMap<i64, Vec<i64>>,
+    /// Questions whose text is word for word another question's — 250 of them
+    /// read «Саобраћајни знак приказан на слици означава:» and differ only in
+    /// the picture and the answer.
+    shared_text: HashSet<i64>,
 }
 
 impl Questions {
@@ -132,9 +136,25 @@ impl Questions {
                     .push(question.id);
             }
             if let Some(subcategory) = question.subcategory_id {
-                by_subcategory.entry(subcategory).or_default().push(question.id);
+                by_subcategory
+                    .entry(subcategory)
+                    .or_default()
+                    .push(question.id);
             }
         }
+
+        let mut by_text: HashMap<&str, Vec<i64>> = HashMap::new();
+        for question in serbian.values() {
+            by_text
+                .entry(question.text.trim())
+                .or_default()
+                .push(question.id);
+        }
+        let shared_text = by_text
+            .into_values()
+            .filter(|ids| ids.len() > 1)
+            .flatten()
+            .collect();
 
         Self {
             serbian,
@@ -142,6 +162,37 @@ impl Questions {
             categories,
             by_category,
             by_subcategory,
+            shared_text,
+        }
+    }
+
+    /// The line that names this question where one line is all there is —
+    /// `<title>`, a link in a list, a breadcrumb.
+    ///
+    /// Usually the question's text. When the same text belongs to several
+    /// questions (every road-sign question asks «Саобраћајни знак приказан на
+    /// слици означава:»), the correct answer is added: that is what tells the
+    /// questions apart, and it is the words a person would search for — the
+    /// name of the sign.
+    pub fn headline(&self, question: &Question) -> String {
+        let text = question.text.trim();
+        if !self.shared_text.contains(&question.id) {
+            return text.to_string();
+        }
+        let correct: Vec<&str> = question
+            .choices
+            .iter()
+            .filter(|c| c.is_correct)
+            .map(|c| c.text.trim())
+            .collect();
+        if correct.is_empty() {
+            return text.to_string();
+        }
+        let answer = correct.join("; ");
+        if text.ends_with(':') {
+            format!("{text} {answer}")
+        } else {
+            format!("{text} — {answer}")
         }
     }
 
