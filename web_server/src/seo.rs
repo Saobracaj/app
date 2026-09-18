@@ -72,7 +72,12 @@ pub fn prerender(
     let (body, json_ld) = match route {
         Route::Home => (
             home(lang, questions),
-            vec![website(meta), software_application(origin), faq_json_ld(lang, questions)],
+            vec![
+                website(meta),
+                organization(origin),
+                mobile_application(origin),
+                faq_json_ld(lang, questions),
+            ],
         ),
         Route::Questions => (catalog(lang, questions), vec![]),
         Route::Question { id } => question_page(*id, lang, origin, questions)?,
@@ -1045,17 +1050,44 @@ fn breadcrumb_json_ld(name: &str, lang: Lang, origin: &str) -> String {
     .unwrap_or_default()
 }
 
-fn software_application(origin: &str) -> String {
+/// The publisher — what a knowledge panel for «Saobraćaj app» is built from:
+/// the logo, and the same-entity links that tie the site to the store
+/// listings and the source.
+pub const GITHUB_URL: &str = "https://github.com/Saobracaj";
+
+fn organization(origin: &str) -> String {
     serde_json::to_string(&json!({
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
+        "@type": "Organization",
+        "@id": format!("{origin}/#organization"),
+        "name": SITE_NAME,
+        "url": format!("{origin}/"),
+        // 512 px, square: Google asks for at least 112 px and a logo that
+        // reads on white.
+        "logo": format!("{origin}/icons/Icon-512.png"),
+        "sameAs": [PLAY_STORE_URL, APP_STORE_URL, GITHUB_URL],
+    }))
+    .unwrap_or_default()
+}
+
+/// The app card (Google's «Software app» rich result — the one type of card
+/// still shown for a site like this). Free, so `offers` carries a zero
+/// price; a rating is deliberately absent — an `aggregateRating` has to be
+/// backed by real reviews on the page, and inventing one is a manual action.
+fn mobile_application(origin: &str) -> String {
+    serde_json::to_string(&json!({
+        "@context": "https://schema.org",
+        "@type": "MobileApplication",
         "name": SITE_NAME,
         "url": format!("{origin}/"),
         "applicationCategory": "EducationalApplication",
-        "operatingSystem": "Web, Android, iOS",
+        "operatingSystem": "Android, iOS",
         "inLanguage": ["sr", "ru", "en"],
         "installUrl": [PLAY_STORE_URL, APP_STORE_URL],
+        "downloadUrl": [PLAY_STORE_URL, APP_STORE_URL],
+        "image": format!("{origin}/icons/Icon-512.png"),
         "offers": {"@type": "Offer", "price": "0", "priceCurrency": "RSD"},
+        "publisher": {"@id": format!("{origin}/#organization")},
     }))
     .unwrap_or_default()
 }
@@ -1231,16 +1263,21 @@ mod tests {
         assert!(sr
             .body
             .contains("href=\"/konspekt?category=25\">Основе безбедности</a> — 2 питања"));
-        assert_eq!(sr.json_ld.len(), 3);
-        assert!(sr.json_ld[1].contains("SoftwareApplication"));
-        assert!(sr.json_ld[2].contains("FAQPage"));
+        assert_eq!(sr.json_ld.len(), 4);
+        assert!(sr.json_ld[1].contains("\"Organization\""));
+        assert!(sr.json_ld[1].contains("https://saobracaj.gleb.at/icons/Icon-512.png"));
+        assert!(sr.json_ld[1].contains(GITHUB_URL));
+        assert!(sr.json_ld[2].contains("\"MobileApplication\""));
+        assert!(sr.json_ld[2].contains("\"price\":\"0\""));
+        assert!(!sr.json_ld[2].contains("aggregateRating"));
+        assert!(sr.json_ld[3].contains("FAQPage"));
 
         // …and a Russian reader gets the Russian page first, Serbian after.
         let ru = render("/", "", Lang::Ru).unwrap();
         assert!(ru
             .body
             .contains("<h1>Экзамен на водительские права в Сербии"));
-        assert!(ru.json_ld[2].contains("\"inLanguage\":\"ru\""));
+        assert!(ru.json_ld[3].contains("\"inLanguage\":\"ru\""));
         assert!(ru.body.contains("<section lang=\"sr\">"));
         assert!(!ru.body.contains("lang=\"sr-Latn\""));
     }
