@@ -175,12 +175,18 @@ mod tests {
 
     #[test]
     fn writes_the_pages_own_title_and_description() {
-        let html = render(TEMPLATE, &meta("Питање бр. 11", "Пешак је приказан:", None), None);
+        let html = render(
+            TEMPLATE,
+            &meta("Питање бр. 11", "Пешак је приказан:", None),
+            None,
+        );
 
         assert!(html.contains("<title>Питање бр. 11</title>"));
         assert!(html.contains(r#"<meta property="og:title" content="Питање бр. 11">"#));
         assert!(html.contains(r#"<meta property="og:description" content="Пешак је приказан:">"#));
-        assert!(html.contains(r#"<link rel="canonical" href="https://saobracaj.gleb.at/question/11">"#));
+        assert!(
+            html.contains(r#"<link rel="canonical" href="https://saobracaj.gleb.at/question/11">"#)
+        );
         assert!(html.contains(r#"<html lang="sr">"#));
         // The template's own description is gone — exactly one remains.
         assert!(!html.contains("Стандардни опис."));
@@ -197,7 +203,8 @@ mod tests {
             &meta("Питање", "Опис", Some("https://saobracaj.gleb.at/a.jpeg")),
             None,
         );
-        assert!(with_image.contains(r#"<meta property="og:image" content="https://saobracaj.gleb.at/a.jpeg">"#));
+        assert!(with_image
+            .contains(r#"<meta property="og:image" content="https://saobracaj.gleb.at/a.jpeg">"#));
         assert!(with_image.contains(r#"content="summary_large_image""#));
 
         let without = render(TEMPLATE, &meta("Питање", "Опис", None), None);
@@ -207,7 +214,11 @@ mod tests {
 
     #[test]
     fn quotes_in_a_question_cannot_break_out_of_the_attribute() {
-        let html = render(TEMPLATE, &meta(r#"A "quoted" <title>"#, "1 & 2", None), None);
+        let html = render(
+            TEMPLATE,
+            &meta(r#"A "quoted" <title>"#, "1 & 2", None),
+            None,
+        );
 
         assert!(html.contains(r#"content="A &quot;quoted&quot; &lt;title&gt;""#));
         assert!(html.contains(r#"content="1 &amp; 2""#));

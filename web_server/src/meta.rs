@@ -24,9 +24,16 @@ impl Lang {
     /// Picks a language from `Accept-Language`. Crawlers usually send nothing,
     /// and the content itself is Serbian — so Serbian is the default.
     pub fn from_accept_language(header: Option<&str>) -> Self {
-        let Some(header) = header else { return Lang::Sr };
+        let Some(header) = header else {
+            return Lang::Sr;
+        };
         for entry in header.split(',') {
-            let tag = entry.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+            let tag = entry
+                .split(';')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_ascii_lowercase();
             match tag.split(['-', '_']).next().unwrap_or("") {
                 "sr" | "hr" | "bs" => return Lang::Sr,
                 "ru" | "uk" | "be" => return Lang::Ru,
@@ -91,6 +98,39 @@ pub fn default_description(lang: Lang) -> String {
     )
 }
 
+/// The keyword-bearing title of the home page — what the site is, in the
+/// words people search with. Cyrillic in the title, Latin in the description
+/// ([`home_description`]): a Serbian search is typed in either script.
+pub fn home_title(lang: Lang) -> String {
+    pick(
+        lang,
+        "Тест за возачки испит: испитна питања са одговорима и симулација испита",
+        "Экзамен на водительские права в Сербии: вопросы теста ПДД на русском",
+        "Serbian driving theory test: exam questions with answers in English",
+    )
+}
+
+pub fn home_description(lang: Lang, question_count: usize) -> String {
+    pick(
+        lang,
+        &format!(
+            "Testovi za vozački ispit (B kategorija): {question_count} zvaničnih ispitnih pitanja \
+             sa tačnim odgovorima, simulacija teorijskog ispita od 41 pitanja, saobraćajni znakovi \
+             i Zakon o bezbednosti saobraćaja. Besplatno, bez registracije."
+        ),
+        &format!(
+            "Подготовка к теоретическому экзамену на права в Сербии: {question_count} официальных \
+             вопросов с ответами и переводом на русский, симуляция экзамена (41 вопрос, 45 минут), \
+             дорожные знаки и закон о безопасности движения. Автошкола в Белграде, Нови-Саде, Нише."
+        ),
+        &format!(
+            "Prepare for the Serbian driving licence theory exam: {question_count} official \
+             questions with answers translated into English, a mock exam (41 questions, 45 minutes), \
+             road signs and the road-traffic safety law. Free, no sign-up."
+        ),
+    )
+}
+
 /// Builds the meta for a parsed route.
 pub fn resolve(
     route: &Route,
@@ -100,16 +140,32 @@ pub fn resolve(
     law: &Law,
 ) -> PageMeta {
     let url = format!("{origin}{}", route.canonical_path());
+    let question_count = questions.ids().len();
 
     let (title, description, image) = match route {
         Route::Question { id } => question_meta(*id, lang, origin, questions),
         Route::Questions => (
-            pick(lang, "Питања", "Вопросы", "Questions"),
             pick(
                 lang,
-                "Све категорије испитних питања са теоријског испита.",
-                "Все категории вопросов теоретического экзамена.",
-                "Every category of the theory exam's questions.",
+                "Испитна питања за возачки испит по категоријама",
+                "Вопросы экзамена на права в Сербии по категориям",
+                "Serbian driving test questions by category",
+            ),
+            pick(
+                lang,
+                &format!(
+                    "Свих {question_count} питања са теоријског испита за возачку дозволу, по \
+                     категоријама и областима, са тачним одговорима. Ispitna pitanja za vozački \
+                     ispit sa odgovorima."
+                ),
+                &format!(
+                    "Все {question_count} вопросов теоретического экзамена на водительские права \
+                     в Сербии по категориям и темам, с правильными ответами."
+                ),
+                &format!(
+                    "All {question_count} questions of the Serbian driving theory exam, by category \
+                     and topic, with the correct answers."
+                ),
             ),
             None,
         ),
@@ -129,17 +185,30 @@ pub fn resolve(
             None,
         ),
         Route::Practice => (
-            pick(lang, "Симулација испита", "Симуляция экзамена", "Exam simulation"),
             pick(
                 lang,
-                "Пробни испит по правилима правог испита.",
-                "Пробный экзамен по правилам настоящего.",
-                "A mock exam that follows the real rules.",
+                "Симулација теоријског испита за возачку дозволу",
+                "Симуляция теоретического экзамена на права в Сербии",
+                "Serbian driving theory exam simulation",
+            ),
+            pick(
+                lang,
+                "Пробни испит по правилима правог: 41 питање, 45 минута, за пролаз треба 85 од \
+                 100 поена. Simulacija teorijskog ispita za vozački ispit — besplatno, bez registracije.",
+                "Пробный экзамен по правилам настоящего: 41 вопрос, 45 минут, для сдачи нужно 85 из \
+                 100 баллов. Бесплатно, без регистрации.",
+                "A mock exam that follows the real rules: 41 questions, 45 minutes, 85 of 100 points \
+                 to pass. Free, no sign-up.",
             ),
             None,
         ),
         Route::About => (
-            pick(lang, "О апликацији", "О приложении", "About"),
+            pick(
+                lang,
+                "О апликацији Saobraćaj — тестови за возачки испит",
+                "О приложении Saobraćaj — тесты на права в Сербии",
+                "About Saobraćaj — Serbian driving test practice",
+            ),
             default_description(lang),
             None,
         ),
@@ -153,7 +222,8 @@ pub fn resolve(
             ),
             None,
         ),
-        Route::Home | Route::Private => (SITE_NAME.to_string(), default_description(lang), None),
+        Route::Home => (home_title(lang), home_description(lang, question_count), None),
+        Route::Private => (SITE_NAME.to_string(), default_description(lang), None),
     };
 
     PageMeta {
@@ -204,6 +274,12 @@ pub fn content_language(id: i64, lang: Lang, questions: &Questions) -> Lang {
     }
 }
 
+/// The longest a question may be in `<title>`. Google shows about the first
+/// 60 characters but ranks on the whole title, and for the road-sign
+/// questions the part that matters — the name of the sign — comes after the
+/// shared stem, so the cut is generous.
+const TITLE_LIMIT: usize = 120;
+
 fn question_meta(
     id: i64,
     lang: Lang,
@@ -217,23 +293,87 @@ fn question_meta(
     // translated bank.
     let question = questions.get(id, content_language(id, lang, questions));
 
-    let title = pick(
+    let Some(question) = question else {
+        return (
+            pick(
+                lang,
+                &format!("Питање бр. {id}"),
+                &format!("Вопрос № {id}"),
+                &format!("Question #{id}"),
+            ),
+            default_description(lang),
+            None,
+        );
+    };
+
+    // The question itself is the title: that is the text a person searches
+    // for, and «Питање бр. 7921» is not. The number stays in the description
+    // for the people who have it from the official list.
+    let title = shorten(&questions.headline(&question), TITLE_LIMIT);
+
+    let correct: Vec<&str> = question
+        .choices
+        .iter()
+        .filter(|c| c.is_correct)
+        .map(|c| c.text.as_str())
+        .collect();
+    let category = question
+        .category_id
+        .as_deref()
+        .and_then(|id| questions.category(id))
+        .map(|c| c.name.trim().to_string());
+    let mut description = String::new();
+    if !correct.is_empty() {
+        description.push_str(&pick(
+            lang,
+            "Тачан одговор: ",
+            "Правильный ответ: ",
+            "Correct answer: ",
+        ));
+        description.push_str(&correct.join("; "));
+        if !description.ends_with(['.', '!', '?']) {
+            description.push('.');
+        }
+        description.push(' ');
+    }
+    description.push_str(&pick(
         lang,
-        &format!("Питање бр. {id}"),
-        &format!("Вопрос № {id}"),
-        &format!("Question #{id}"),
-    );
-    let description = question
-        .as_ref()
-        .map(|q| q.text.clone())
-        .unwrap_or_else(|| default_description(lang));
+        &format!("Испитно питање бр. {id} за теоријски испит за возачку дозволу (Б категорија)"),
+        &format!("Вопрос № {id} теоретического экзамена на водительские права в Сербии"),
+        &format!("Question #{id} of the Serbian driving licence theory exam"),
+    ));
+    if let Some(category) = category {
+        description.push_str(&pick(
+            lang,
+            " — категорија: ",
+            " — категория: ",
+            " — category: ",
+        ));
+        description.push_str(&category);
+    }
+    description.push('.');
+    let description = truncate(&description);
+
     // Flutter serves the app's assets one level deeper than they sit in the
     // repository: `assets/img/7935.jpeg` -> `/assets/assets/img/7935.jpeg`.
     let image = question
-        .and_then(|q| q.image_id)
+        .image_id
         .map(|image_id| format!("{origin}/assets/assets/img/{image_id}.jpeg"));
 
     (title, description, image)
+}
+
+/// Cuts on a word boundary, with an ellipsis, when the text is longer than
+/// `limit` characters.
+pub fn shorten(value: &str, limit: usize) -> String {
+    if value.chars().count() <= limit {
+        return value.trim().to_string();
+    }
+    let cut: String = value.chars().take(limit).collect();
+    let cut = cut
+        .rsplit_once(' ')
+        .map_or(cut.clone(), |(head, _)| head.to_string());
+    format!("{}…", cut.trim_end_matches([' ', ',', ':', ';']))
 }
 
 fn zakon_meta(chlan: Option<&str>, lang: Lang, law: &Law) -> (String, String, Option<String>) {
@@ -382,10 +522,17 @@ mod tests {
     #[test]
     fn the_root_gets_the_app_card() {
         let meta = meta_for("/", "", Lang::Sr, &Questions::default());
-        assert_eq!(meta.title, "Saobraćaj");
+        assert!(meta.title.starts_with("Тест за возачки испит"));
+        assert!(meta.title.ends_with("— Saobraćaj"));
+        assert!(meta.description.contains("vozački ispit"));
         assert_eq!(meta.url, "https://saobracaj.gleb.at/");
         assert!(meta.image.is_none());
         assert!(meta.indexable);
+
+        // The same address in the reader's language.
+        let ru = meta_for("/", "", Lang::Ru, &Questions::default());
+        assert!(ru.title.contains("Сербии"));
+        assert_eq!(ru.url, "https://saobracaj.gleb.at/");
     }
 
     #[test]
@@ -403,8 +550,9 @@ mod tests {
         let questions = bank();
         let meta = meta_for("/question/11", "", Lang::Sr, &questions);
 
-        assert_eq!(meta.title, "Питање бр. 11 — Saobraćaj");
-        assert_eq!(meta.description, "Пешак је приказан:");
+        assert_eq!(meta.title, "Пешак је приказан: — Saobraćaj");
+        assert!(meta.description.starts_with("Испитно питање бр. 11"));
+        assert!(meta.description.contains("Основе безбедности"));
         assert_eq!(
             meta.image.as_deref(),
             Some("https://saobracaj.gleb.at/assets/assets/img/42.jpeg"),
@@ -432,20 +580,24 @@ mod tests {
 
         // Category 25 is free — translations and all.
         let free = meta_for("/question/11", "", Lang::Ru, &questions);
-        assert_eq!(free.description, "Пешеход показан:");
+        assert_eq!(free.title, "Пешеход показан: — Saobraćaj");
 
         // Category 27 is not: `Accept-Language: ru` must not turn the crawler
         // into a way of walking out with the translated bank.
         let paid = meta_for("/question/13", "", Lang::Ru, &questions);
-        assert_eq!(paid.description, "Плаћено питање");
+        assert_eq!(paid.title, "Плаћено питање — Saobraćaj");
+        assert!(!paid.description.contains("Платный"));
         // The interface language still follows the reader.
-        assert_eq!(paid.title, "Вопрос № 13 — Saobraćaj");
+        assert!(paid.description.contains("Вопрос № 13"));
     }
 
     #[test]
     fn private_screens_are_kept_out_of_the_index() {
         for path in ["/settings/profile", "/groups/7/feed", "/login", "/support"] {
-            assert!(!meta_for(path, "", Lang::Sr, &Questions::default()).indexable, "{path}");
+            assert!(
+                !meta_for(path, "", Lang::Sr, &Questions::default()).indexable,
+                "{path}"
+            );
         }
     }
 
@@ -482,10 +634,78 @@ mod tests {
             &law,
         );
 
-        assert_eq!(meta.title, "Члан 2. Закона о безбедности саобраћаја — Saobraćaj");
+        assert_eq!(
+            meta.title,
+            "Члан 2. Закона о безбедности саобраћаја — Saobraćaj"
+        );
         assert_eq!(meta.description, "Контролу саобраћаја врши Министарство.");
-        assert_eq!(meta.url, "https://saobracaj.gleb.at/zakon?chapter=I&chlan=2");
+        assert_eq!(
+            meta.url,
+            "https://saobracaj.gleb.at/zakon?chapter=I&chlan=2"
+        );
         assert!(meta.indexable);
+    }
+
+    #[test]
+    fn the_correct_answer_leads_the_description() {
+        let dir = tempfile::tempdir().unwrap();
+        let assets = dir.path().join("assets").join("assets");
+        std::fs::create_dir_all(&assets).unwrap();
+        std::fs::write(
+            assets.join("allQuestions.json"),
+            r#"[{"qcId": 7921, "qId": 7921, "Text": "Непосредно регулисање саобраћаја на путевима врше:", "categoryId": "25",
+                 "Choices": [{"Text": "инспектори", "isCorrect": false}, {"Text": "униформисани полицијски службеници", "isCorrect": true}]},
+                {"qcId": 2, "qId": 2, "Text": "Веома дугачко питање које се протеже далеко преко границе наслова, наставља се и наставља без краја, и мора бити скраћено на реч а не на слог, зар не?",
+                 "Choices": []}]"#,
+        )
+        .unwrap();
+        let questions = Questions::load(dir.path());
+
+        let meta = meta_for("/question/7921", "", Lang::Sr, &questions);
+        assert_eq!(
+            meta.title,
+            "Непосредно регулисање саобраћаја на путевима врше: — Saobraćaj"
+        );
+        assert_eq!(
+            meta.description,
+            "Тачан одговор: униформисани полицијски службеници. Испитно питање бр. 7921 за теоријски испит за возачку дозволу (Б категорија)."
+        );
+
+        let long = meta_for("/question/2", "", Lang::En, &questions);
+        assert!(long.title.chars().count() <= TITLE_LIMIT + " — Saobraćaj".chars().count() + 1);
+        assert!(long.title.contains("…"));
+        assert_eq!(
+            long.description,
+            "Question #2 of the Serbian driving licence theory exam."
+        );
+    }
+
+    #[test]
+    fn questions_that_share_a_text_are_told_apart_by_their_answer() {
+        let dir = tempfile::tempdir().unwrap();
+        let assets = dir.path().join("assets").join("assets");
+        std::fs::create_dir_all(&assets).unwrap();
+        std::fs::write(
+            assets.join("allQuestions.json"),
+            r#"[{"qcId": 1, "qId": 1, "Text": "Саобраћајни знак приказан на слици означава:", "HasImage": true,
+                 "Choices": [{"Text": "забрану саобраћаја у оба смера", "isCorrect": true}, {"Text": "пут са првенством пролаза", "isCorrect": false}]},
+                {"qcId": 2, "qId": 2, "Text": "Саобраћајни знак приказан на слици означава:", "HasImage": true,
+                 "Choices": [{"Text": "забрану саобраћаја у оба смера", "isCorrect": false}, {"Text": "пут са првенством пролаза", "isCorrect": true}]},
+                {"qcId": 3, "qId": 3, "Text": "Једино питање са овим текстом", "Choices": [{"Text": "да", "isCorrect": true}]}]"#,
+        )
+        .unwrap();
+        let questions = Questions::load(dir.path());
+
+        let first = meta_for("/question/1", "", Lang::Sr, &questions);
+        let second = meta_for("/question/2", "", Lang::Sr, &questions);
+        assert_eq!(
+            first.title,
+            "Саобраћајни знак приказан на слици означава: забрану саобраћаја у оба смера — Saobraćaj"
+        );
+        assert_ne!(first.title, second.title);
+        // A question of its own keeps its plain text.
+        let alone = meta_for("/question/3", "", Lang::Sr, &questions);
+        assert_eq!(alone.title, "Једино питање са овим текстом — Saobraćaj");
     }
 
     #[test]
