@@ -89,6 +89,7 @@ const _screenTitles = {
   '/settings': 'Настройки',
   '/settings/profile': 'Профиль',
   '/tariffs': 'Тарифы',
+  '/tariffs/lava': 'Оплата lava.top',
   '/subscription': 'Подписка',
   '/appearance': 'Оформление',
   '/features': 'Функции',

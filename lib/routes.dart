@@ -9,6 +9,7 @@ import 'package:saobracaj/auth/presentation/reset_password_page.dart';
 import 'package:saobracaj/feature_flags/presentation/feature_flags_page.dart';
 import 'package:saobracaj/statistics/phantom_subcategory.dart';
 import 'package:saobracaj/subscription/presentation/subscription_page.dart';
+import 'package:saobracaj/subscription/presentation/lava_return_page.dart';
 import 'package:saobracaj/subscription/presentation/tariffs_page.dart';
 import 'package:saobracaj/theme/presentation/appearance_page.dart';
 import 'package:saobracaj/notifications/presentation/notifications_page.dart';
@@ -255,6 +256,20 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
   // раздел аккаунта есть везде. В вебе покупать нечем: там та же витрина
   // показывает справочные цены и отправляет за приложением.
   '/tariffs': (_) => const MaterialPage(child: TariffsPage()),
+  // Возврат со страницы оплаты lava.top (веб, оплата рублями): lava.top
+  // дописывает invoiceId и status к адресу, который назвал бэкенд.
+  '/tariffs/lava': (data) {
+    final invoiceId = data.queryParameters['invoiceId'];
+    if (invoiceId == null || invoiceId.isEmpty) {
+      return const Redirect('/tariffs');
+    }
+    return MaterialPage(
+      child: LavaReturnPage(
+        invoiceId: invoiceId,
+        status: data.queryParameters['status'],
+      ),
+    );
+  },
   '/subscription': (_) => const MaterialPage(child: SubscriptionPage()),
   '/appearance': (_) => const MaterialPage(child: AppearancePage()),
   '/features': (_) => const MaterialPage(child: FeatureFlagsPage()),

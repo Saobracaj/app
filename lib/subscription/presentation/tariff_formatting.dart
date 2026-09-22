@@ -37,6 +37,10 @@ String monthsLabel(int months) => LocaleKeys.subscription_months.plural(months);
 /// их приходится пересчитывать глазами.
 String amountLabel(int rsd) => NumberFormat.decimalPattern().format(rsd);
 
+/// «1 190 ₽» — цена оплаты российской картой (lava.top).
+String rubLabel(int rub) =>
+    LocaleKeys.subscription_priceRub.tr(args: [amountLabel(rub)]);
+
 String priceLabel(int rsd) =>
     LocaleKeys.subscription_price.tr(args: [amountLabel(rsd)]);
 
@@ -90,6 +94,7 @@ String purchaseStatusLabel(StorePurchaseStatus status) => switch (status) {
 String storePlatformName(StorePlatform platform) => switch (platform) {
   StorePlatform.apple => LocaleKeys.subscription_platformApple.tr(),
   StorePlatform.google => LocaleKeys.subscription_platformGoogle.tr(),
+  StorePlatform.lava => LocaleKeys.subscription_platformLava.tr(),
 };
 
 /// «Месячная подписка при этом продолжает продлеваться — следующее списание
