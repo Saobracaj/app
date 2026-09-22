@@ -11,7 +11,10 @@ import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/practice/finalize_practice.dart';
 import 'package:saobracaj/test/practice/practice.dart' show formatDuration;
+import 'package:saobracaj/test/practice/state_management/paused_simulation_bloc.dart';
+import 'package:saobracaj/test/practice/state_management/paused_simulation_events.dart';
 import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
+import 'package:saobracaj/test/practice/widgets/paused_simulation_banner.dart';
 import 'package:saobracaj/test/practice/exam_strings.dart';
 import 'package:saobracaj/test/practice/widgets/quest_button.dart';
 import 'package:saobracaj/theme/exam_theme.dart';
@@ -52,6 +55,11 @@ class PracticePage extends StatelessWidget {
                             title: LocaleKeys.simulation_title.tr(),
                             subtitle: LocaleKeys.simulation_subtitle.tr(),
                           ),
+                        // Незавершённая симуляция — «продолжить» вместо
+                        // нового запуска.
+                        const PausedSimulationBanner(
+                          padding: EdgeInsets.only(bottom: 24),
+                        ),
                         MainWithSide(
                           sideWidth: 320,
                           main: _WideOptions(state: state),
@@ -74,6 +82,11 @@ class PracticePage extends StatelessWidget {
             body: ReadableWidth(
               child: ListView(
                 children: [
+                  // Незавершённая симуляция — «продолжить» вместо нового
+                  // запуска.
+                  const PausedSimulationBanner(
+                    padding: EdgeInsets.fromLTRB(12, 8, 12, 4),
+                  ),
                   CheckboxListTile(
                     title: Text(
                       LocaleKeys.simulation_options_showErrorsImmediately.tr(),
@@ -165,6 +178,30 @@ class PracticePage extends StatelessWidget {
   }
 
   void onPressed(BuildContext context, PracticeParams state) async {
+    // Новая симуляция поверх незавершённой стирает её — только после
+    // явного согласия: иначе прогресс пропал бы одним случайным тапом.
+    final paused = context.read<PausedSimulationBloc>();
+    if (paused.state.snapshot != null) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(LocaleKeys.simulation_pause_startNewTitle.tr()),
+          content: Text(LocaleKeys.simulation_pause_startNewBody.tr()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(LocaleKeys.simulation_pause_cancel.tr()),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(LocaleKeys.simulation_pause_startNewConfirm.tr()),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !context.mounted) return;
+      paused.add(PausedSimulationDiscarded());
+    }
     await Routemaster.of(context)
         .push(
           '/questPractice?'

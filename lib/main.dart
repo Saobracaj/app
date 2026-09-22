@@ -47,6 +47,9 @@ import 'question_lists/data/shared_lists_repository.dart';
 import 'question_lists/presentation/question_lists_error_listener.dart';
 import 'question_lists/state_management/question_lists_bloc.dart';
 import 'test/data/quiz_preferences_repository.dart';
+import 'test/practice/data/paused_simulation_repository.dart';
+import 'test/practice/state_management/paused_simulation_bloc.dart';
+import 'test/practice/state_management/paused_simulation_events.dart';
 import 'question_lists/state_management/question_lists_events.dart';
 import 'generated/codegen_loader.g.dart';
 import 'theme/app_theme.dart';
@@ -112,6 +115,9 @@ void main() async {
   // Load the run options and the per-question tab the user picked last time, so
   // the setup screens and the question tabs render them on their first frame.
   await getIt<QuizPreferencesRepository>().bootstrap();
+  // Незавершённая симуляция экзамена (если есть) — чтобы главная показала
+  // баннер «на паузе» первым же кадром.
+  await getIt<PausedSimulationRepository>().bootstrap();
   // Start syncing the device's FCM push token once a session is available.
   getIt<PushTokenService>().start();
   // And listen for the notifications themselves: the ones tapped in the tray
@@ -443,6 +449,12 @@ class _MyAppState extends State<MyApp> {
         // list, and membership changes have to reach both.
         BlocProvider(
           create: (context) => getIt<GroupsBloc>()..add(const GroupsStarted()),
+        ),
+        // Снимок незавершённой симуляции: баннер «на паузе» стоит и на
+        // главной, и на странице запуска симуляции.
+        BlocProvider(
+          create: (context) =>
+              getIt<PausedSimulationBloc>()..add(PausedSimulationStarted()),
         ),
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(

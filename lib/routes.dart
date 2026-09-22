@@ -185,6 +185,8 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
   '/shared/:code/q/zakon': zakonPage,
   '/questPractice/q': questPage,
   '/questPractice/q/zakon': zakonPage,
+  // `resume=true` — переход по кнопке «продолжить» из баннера: таймер
+  // незавершённой симуляции идёт сразу, без экрана паузы.
   '/questPractice': (data) => MaterialPage(
     child: Practice(
       params: PracticeParams(
@@ -192,6 +194,7 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
         showStats: data.queryParameters['showStats'] == 'true',
         buttonsLikeInExam: data.queryParameters['buttonsLikeInExam'] == 'true',
       ),
+      resume: data.queryParameters['resume'] == 'true',
     ),
   ),
   '/about': (_) => MaterialPage(child: AboutPage()),

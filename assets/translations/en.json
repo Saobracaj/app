@@ -46,6 +46,24 @@
       "errors": "Mistakes",
       "time": "Time",
       "when": "When"
+    },
+    "pause": {
+      "title": "Paused",
+      "subtitle": "The timer is stopped. Time left: {}",
+      "resume": "Resume",
+      "finish": "Finish",
+      "home": "Home",
+      "finishTitle": "Finish the simulation?",
+      "finishBody": "The simulation will end; the result and statistics will not be saved.",
+      "finishConfirm": "Finish",
+      "cancel": "Cancel",
+      "bannerTitle": "Exam simulation is paused",
+      "bannerStarted": "Started {}",
+      "bannerProgress": "Question {} of {}, {} left",
+      "continue": "Continue",
+      "startNewTitle": "Start a new simulation?",
+      "startNewBody": "The paused, unfinished simulation will be lost.",
+      "startNewConfirm": "Start new"
     }
   },
   "info": {

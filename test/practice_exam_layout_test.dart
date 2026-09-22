@@ -6,12 +6,14 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
+import 'package:saobracaj/test/practice/data/paused_simulation_repository.dart';
 import 'package:saobracaj/test/practice/practice.dart';
 import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
 import 'package:saobracaj/theme/app_theme.dart';
@@ -120,6 +122,15 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     await EasyLocalization.ensureInitialized();
   });
+
+  setUp(() {
+    // Симуляция пишет снимок хода в репозиторий из getIt.
+    getIt.registerLazySingleton<PausedSimulationRepository>(
+      PausedSimulationRepository.new,
+    );
+  });
+
+  tearDown(() => getIt.reset());
 
   setUp(() {
     // Запись ответа идёт в Drift, а Drift спрашивает у path_provider, куда

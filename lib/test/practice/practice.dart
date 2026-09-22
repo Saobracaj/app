@@ -4,6 +4,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/core/keyboard_hints.dart';
 import 'package:saobracaj/core/swipe_pagination.dart';
 import 'package:saobracaj/core/keyboard_pagination.dart';
@@ -13,11 +14,13 @@ import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/question_lists/state_management/question_lists_bloc.dart';
 import 'package:saobracaj/question_lists/state_management/question_lists_events.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
+import 'package:saobracaj/test/practice/data/paused_simulation_repository.dart';
 import 'package:saobracaj/test/practice/state_management/practice_bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
 import 'package:saobracaj/test/practice/state_management/practice_content_bloc.dart';
 import 'package:saobracaj/test/practice/widgets/custom_checkbox.dart';
+import 'package:saobracaj/test/practice/widgets/pause_screen.dart';
 import 'package:saobracaj/test/practice/widgets/quest_button.dart';
 import 'package:saobracaj/test/practice/widgets/question_tries.dart';
 import 'package:saobracaj/theme/exam_theme.dart';
@@ -27,10 +30,15 @@ import 'exam_strings.dart';
 import 'finalize_practice.dart';
 import 'izvestai.dart';
 
+/// Экран идущей симуляции. Если на устройстве лежит снимок незавершённой
+/// симуляции, экран продолжает её (с её же настройками), а не начинает новую;
+/// [resume] — сразу пустить таймер (кнопка «продолжить»), иначе она откроется
+/// на экране паузы.
 class Practice extends StatelessWidget {
-  Practice({super.key, required this.params});
+  Practice({super.key, required this.params, this.resume = false});
 
   final PracticeParams params;
+  final bool resume;
 
   final _scrollController = ScrollController();
 
@@ -45,7 +53,23 @@ class Practice extends StatelessWidget {
         final data = state.questionsData;
         if (data == null) return _LoadingRun(errorMessage: state.errorMessage);
         return BlocProvider(
-          create: (context) => PracticeBloc(data, params)..add(Init()),
+          create: (context) {
+            final snapshots = getIt<PausedSimulationRepository>();
+            final snapshot = snapshots.current;
+            return PracticeBloc(
+              data,
+              snapshot == null
+                  ? params
+                  : PracticeParams(
+                      showRightAnswers: snapshot.showRightAnswers,
+                      showStats: snapshot.showStats,
+                      buttonsLikeInExam: snapshot.buttonsLikeInExam,
+                    ),
+              snapshots: snapshots,
+              snapshot: snapshot,
+              resume: resume,
+            )..add(Init());
+          },
           child: BlocConsumer<PracticeBloc, PracticeState>(
             // The scroll view is recreated together with the question's
             // content (it sits under the per-question key), so the controller
@@ -73,6 +97,12 @@ class Practice extends StatelessWidget {
                 // exam-styled run.
                 return FinalizePracticeWidget();
               }
+              // Экран паузы — обычный экран приложения (в теме пользователя,
+              // как и результат): паузы в настоящем экзамене нет.
+              if (state.paused) return const PauseScreen();
+              // Настройки берём у блока: у продолженной симуляции они из
+              // снимка, а не из адреса.
+              final params = questBloc.params;
               // With "buttons like in the exam" on, the whole run is rendered in
               // the frozen replica palette — the Builder puts every descendant
               // context (including the ones handed to the report sheet and the
@@ -96,6 +126,7 @@ class Practice extends StatelessWidget {
     PracticeBloc questBloc,
   ) {
     final quiz = Theme.of(context).quiz;
+    final params = questBloc.params;
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 80,
@@ -129,18 +160,26 @@ class Practice extends StatelessWidget {
                   // squeezed between the two chips on a phone.
                   width: context.isExpandedScreen ? 220 : 150,
                 ),
-                _HeaderChip(
-                  // The countdown is the one element the real software renders
-                  // on solid black; outside the exam replica it follows the
-                  // theme's own high-contrast surface instead.
-                  color: params.buttonsLikeInExam
-                      ? ExamPalette.timer
-                      : Theme.of(context).colorScheme.inverseSurface,
-                  onColor: params.buttonsLikeInExam
-                      ? Colors.white
-                      : Theme.of(context).colorScheme.onInverseSurface,
-                  minWidth: 50,
-                  label: formatDuration(state.timeLeft),
+                // Тап по таймеру ставит симуляцию на паузу.
+                Tooltip(
+                  message: LocaleKeys.simulation_pause_title.tr(),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(6),
+                    onTap: () => questBloc.add(PauseRequested()),
+                    child: _HeaderChip(
+                      // The countdown is the one element the real software
+                      // renders on solid black; outside the exam replica it
+                      // follows the theme's own high-contrast surface instead.
+                      color: params.buttonsLikeInExam
+                          ? ExamPalette.timer
+                          : Theme.of(context).colorScheme.inverseSurface,
+                      onColor: params.buttonsLikeInExam
+                          ? Colors.white
+                          : Theme.of(context).colorScheme.onInverseSurface,
+                      minWidth: 50,
+                      label: formatDuration(state.timeLeft),
+                    ),
+                  ),
                 ),
               ],
             ),
