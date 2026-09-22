@@ -17,6 +17,7 @@ import '../models/subscription_models.dart';
 import '../state_management/subscription_bloc.dart';
 import '../state_management/subscription_events.dart';
 import '../state_management/subscription_state.dart';
+import 'lava_manage_sheet.dart';
 import 'plan_features.dart';
 import 'tariff_formatting.dart';
 import '../../auth/presentation/auth_flow.dart';
@@ -148,7 +149,11 @@ class _TariffsScaffoldState extends State<_TariffsScaffold> {
           // Условия автопродления — там, где продлевается: на разовом пропуске
           // это чужая сноска, а месячный человек видит её в тот же миг, когда
           // выбирает.
-          final legal = _LegalFooter(showRenewalTerms: selected.autoRenewing);
+          final lavaOnOffer = state.tariffs.any((t) => t.lavaAvailable);
+          final legal = _LegalFooter(
+            showRenewalTerms: selected.autoRenewing,
+            lavaOnOffer: platform == null && lavaOnOffer,
+          );
 
           // Список во всю ширину, поля — в его padding: полоса прокрутки тогда
           // идёт по краю окна, а не посреди экрана, и колесо мыши работает над
@@ -162,7 +167,7 @@ class _TariffsScaffoldState extends State<_TariffsScaffold> {
             ),
             children: [
               if (platform == null) ...[
-                const _BuyInAppCard(),
+                _BuyInAppCard(lavaOnOffer: lavaOnOffer),
                 const SizedBox(height: 16),
               ],
               // Переключатель стоит над обеими колонками, но во всю ширину
@@ -649,6 +654,11 @@ class _PlanCard extends StatelessWidget {
     final total = totalPriceLabel(tariff, product);
     final perMonth = perMonthLabel(tariff, product);
     final saving = state.saving(tariff, platform);
+    final lava = state.subscription.lavaSubscription;
+    final blockedUntil = state.subscription.purchaseBlockedUntil;
+    // Веб продаёт только рублями через lava.top — и только тарифы, которые
+    // там заведены; без них карточка остаётся справочной.
+    final webOffer = platform == null && tariff.lavaAvailable;
 
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -717,9 +727,12 @@ class _PlanCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 16),
-          if (platform == null)
-            // Веб: кнопки покупки нет вовсе — ни к какой оплате отсюда не
-            // ведём, об этом сказано карточкой наверху.
+          if (platform == null &&
+              !webOffer &&
+              lava == null &&
+              blockedUntil == null)
+            // Веб без рублёвой оплаты: кнопки покупки нет вовсе — ни к какой
+            // оплате отсюда не ведём, об этом сказано карточкой наверху.
             const SizedBox.shrink()
           else if (!authenticated)
             _WideButton(
@@ -730,12 +743,30 @@ class _PlanCard extends StatelessWidget {
             )
           else if (state.currentTariff?.sku == tariff.sku)
             // Действующий тариф: покупать его снова нечего, здесь — срок и
-            // кнопка в стор, если стор его продлевает.
+            // кнопка в стор, если стор его продлевает (или управление
+            // подпиской lava.top — её отменяем мы сами).
             _CurrentPlanFooter(
               status: state.subscription,
               renewsAt: renewingPurchaseOf(state.purchases)?.expiresAt,
             )
-          else ...[
+          else if (blockedUntil != null)
+            // Подписка lava.top ещё действует (пусть и отменённая): ни новой
+            // подписки, ни пропуска до её конца — правило оператора, бэкенд
+            // отклонит такой счёт тем же кодом.
+            _BlockedUntilLine(until: blockedUntil)
+          else if (platform == null) ...[
+            _WideButton(
+              child: _LavaBuyButton(
+                tariff: tariff,
+                enabled: state.canBuyWithLava,
+                busy: state.purchasingSku == tariff.sku,
+              ),
+            ),
+            if (state.errorMessage != null) ...[
+              const SizedBox(height: 10),
+              _PurchaseError(message: state.errorMessage!),
+            ],
+          ] else ...[
             _WideButton(
               child: _BuyButton(
                 tariff: tariff,
@@ -917,6 +948,91 @@ class _BuyButton extends StatelessWidget {
               ],
             )
           : Text(label),
+    );
+  }
+}
+
+/// Кнопка оплаты российской картой (веб): сумма в рублях прямо на кнопке —
+/// крупная цифра карточки остаётся справочной, в динарах, а платить человек
+/// будет именно столько рублей.
+class _LavaBuyButton extends StatelessWidget {
+  const _LavaBuyButton({
+    required this.tariff,
+    required this.enabled,
+    required this.busy,
+  });
+
+  final Tariff tariff;
+  final bool enabled;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    final onPressed = enabled
+        ? () => context.read<SubscriptionBloc>().add(
+            LavaPurchaseRequested(tariff.sku),
+          )
+        : null;
+    return FilledButton(
+      onPressed: onPressed,
+      style: FilledButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        textStyle: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+      ),
+      child: busy
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 10),
+                Text(LocaleKeys.subscription_processingPayment.tr()),
+              ],
+            )
+          : Text(
+              LocaleKeys.subscription_payWithRussianCard.tr(
+                args: [rubLabel(tariff.priceRub)],
+              ),
+            ),
+    );
+  }
+}
+
+/// «Подписка действует до …, новую можно оформить после этой даты» — на месте
+/// кнопки покупки, пока действует подписка lava.top.
+class _BlockedUntilLine extends StatelessWidget {
+  const _BlockedUntilLine({required this.until});
+
+  final DateTime until;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.info_outline,
+          size: 18,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            LocaleKeys.subscription_lavaBlockedUntil.tr(
+              args: [formatDate(until)],
+            ),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1131,7 +1247,10 @@ void _showPlanComparison(BuildContext context) {
 /// Веб: покупать здесь нечего. Карточка говорит, где оформляется подписка, и
 /// ведёт в стор — не на внешнюю оплату, а за самим приложением.
 class _BuyInAppCard extends StatelessWidget {
-  const _BuyInAppCard();
+  const _BuyInAppCard({required this.lavaOnOffer});
+
+  /// Есть тарифы, которые на сайте можно оплатить рублями (lava.top).
+  final bool lavaOnOffer;
 
   @override
   Widget build(BuildContext context) {
@@ -1185,6 +1304,13 @@ class _BuyInAppCard extends StatelessWidget {
                 color: theme.colorScheme.onSurfaceVariant,
               ),
             ),
+            if (lavaOnOffer) ...[
+              const SizedBox(height: 8),
+              Text(
+                LocaleKeys.subscription_lavaNote.tr(),
+                style: theme.textTheme.bodyMedium,
+              ),
+            ],
           ],
         ),
       ),
@@ -1212,6 +1338,7 @@ class _CurrentPlanFooter extends StatelessWidget {
     final theme = Theme.of(context);
     final endsAt = status.endsAt;
     final manageUrl = status.manageUrl;
+    final lava = status.lavaSubscription;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1248,6 +1375,16 @@ class _CurrentPlanFooter extends StatelessWidget {
             ),
           ),
         ],
+        // Подписка lava.top: отменяем её мы сами — лист управления прямо
+        // здесь; отменённая явно названа отменённой, с датой конца доступа.
+        if (lava != null) ...[
+          if (lava.cancelled) ...[
+            const SizedBox(height: 8),
+            LavaCancelledLine(lava: lava),
+          ],
+          const SizedBox(height: 12),
+          const LavaManageButton(),
+        ],
       ],
     );
   }
@@ -1261,9 +1398,15 @@ class _CurrentPlanFooter extends StatelessWidget {
 /// Ссылки стоят прямо в предложении, а не кнопками под ним: это сноска, а не
 /// действие, которое кому-то предлагают совершить.
 class _LegalFooter extends StatelessWidget {
-  const _LegalFooter({required this.showRenewalTerms});
+  const _LegalFooter({
+    required this.showRenewalTerms,
+    this.lavaOnOffer = false,
+  });
 
   final bool showRenewalTerms;
+
+  /// Веб с рублёвой оплатой: платёж проводит lava.top, а не стор.
+  final bool lavaOnOffer;
 
   @override
   Widget build(BuildContext context) {
@@ -1282,7 +1425,7 @@ class _LegalFooter extends StatelessWidget {
         ],
         _LinkedParagraph(
           template:
-              '${LocaleKeys.subscription_legalStoreNote.tr()} '
+              '${lavaOnOffer ? LocaleKeys.subscription_legalLavaNote.tr() : LocaleKeys.subscription_legalStoreNote.tr()} '
               '${LocaleKeys.subscription_legalAcceptNote.tr()}',
           links: {
             'terms': (
