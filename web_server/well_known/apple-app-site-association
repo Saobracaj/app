@@ -16,6 +16,7 @@
           { "/": "*.png", "exclude": true, "comment": "favicon.png" },
           { "/": "/robots.txt", "exclude": true },
           { "/": "/sitemap.xml", "exclude": true },
+          { "/": "/vodic/*", "exclude": true, "comment": "The guides are pages to read in the browser, not screens of the app" },
           { "/": "*", "comment": "Every screen of the web version is a screen of the app" }
         ]
       }

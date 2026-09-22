@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'deep_link_path.dart';
 
@@ -33,10 +34,27 @@ class DeepLinkService {
   }
 
   /// Routes [uri] if it is one of ours.
+  ///
+  /// A guide (`/vodic/…`) is a page of the site, not a screen of the app, but
+  /// Android opens every verified link of the domain in the app anyway. It is
+  /// handed to an in-app browser tab: a plain external launch would come
+  /// straight back here, since the app is the verified handler.
   @visibleForTesting
   void handleLink(Uri uri) {
     final path = deepLinkPathFor(uri);
-    if (path == null) return;
+    if (path == null) {
+      if (isDocumentLink(uri)) {
+        unawaited(
+          launchUrl(uri, mode: LaunchMode.inAppBrowserView).catchError((
+            Object e,
+          ) {
+            debugPrint('Guide link could not be opened: $uri ($e)');
+            return false;
+          }),
+        );
+      }
+      return;
+    }
     if (_controller.hasListener) {
       _controller.add(path);
     } else {

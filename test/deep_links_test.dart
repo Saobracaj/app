@@ -135,6 +135,23 @@ void main() {
       );
     });
 
+    test('гайды — страницы для браузера, а не экраны', () {
+      final guide = Uri.parse(
+        'https://saobracaj.gleb.at/vodic/ru/kak-poluchit-prava-v-serbii',
+      );
+      expect(deepLinkPathFor(guide), isNull);
+      expect(isDocumentLink(guide), isTrue);
+      expect(isDocumentLink(Uri.parse('https://saobracaj.gleb.at/vodic/ru')), isTrue);
+      expect(
+        isDocumentLink(Uri.parse('saobracaj://saobracaj.gleb.at/vodic/ru')),
+        isTrue,
+      );
+      // Экраны и чужие адреса гайдами не считаются.
+      expect(isDocumentLink(Uri.parse('https://saobracaj.gleb.at/question/1')), isFalse);
+      expect(isDocumentLink(Uri.parse('https://example.com/vodic/ru')), isFalse);
+      expect(isDocumentLink(Uri.parse('https://saobracaj.gleb.at/')), isFalse);
+    });
+
     test('страницы подписки открываются ссылкой на любой платформе', () {
       // Подписка продаётся внутри приложения, поэтому её адреса — обычные
       // экраны и на мобильном: ссылка из письма ведёт на витрину, а не в

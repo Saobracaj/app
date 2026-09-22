@@ -21,6 +21,7 @@
 
 use serde_json::json;
 
+use crate::guides;
 use crate::meta::{self, default_description, pick, shorten, Lang, PageMeta, SITE_NAME};
 use crate::questions::{Question, Questions};
 use crate::route::{encode, Route};
@@ -240,6 +241,8 @@ fn home(lang: Lang, questions: &Questions) -> String {
         )),
     ));
 
+    out.push_str(&guides_section(lang));
+
     // The same page carries a short version of itself in the other two
     // languages. One address serves every language (the app picks it from
     // the browser), and a crawler asks for none — so without this the site
@@ -261,6 +264,7 @@ fn home(lang: Lang, questions: &Questions) -> String {
                 esc(&answer)
             ));
         }
+        out.push_str(&guides_section(other));
         out.push_str("</section>\n");
     }
     out
@@ -925,7 +929,44 @@ fn nav(lang: Lang) -> String {
             esc(&label)
         ));
     }
+    // The guides, where the language has any (`web_server/guides/<lang>/`).
+    if guides::embedded().has_language(lang) {
+        out.push_str(&format!(
+            "<li><a href=\"{}\">{}</a></li>\n",
+            esc(&guides::index_path(lang)),
+            esc(&pick(lang, "Водичи", "Гайды", "Guides"))
+        ));
+    }
     out.push_str("</ul></nav>\n");
+    out
+}
+
+/// The language's guides as a section of the home page — the crawler's way
+/// into them, and the reader's while the app loads. Empty when there are
+/// none in that language.
+fn guides_section(lang: Lang) -> String {
+    let guides = guides::embedded().in_language(lang);
+    if guides.is_empty() {
+        return String::new();
+    }
+    let mut out = format!(
+        "<h2>{}</h2>\n<ul>\n",
+        esc(&pick(
+            lang,
+            "Водичи: како до возачке дозволе",
+            "Гайды: как получить права в Сербии",
+            "Guides: getting a driving licence in Serbia",
+        ))
+    );
+    for guide in guides {
+        out.push_str(&format!(
+            "<li><a href=\"{}\">{}</a> — {}</li>\n",
+            esc(&guide.path()),
+            esc(&guide.title),
+            esc(&guide.description)
+        ));
+    }
+    out.push_str("</ul>\n");
     out
 }
 
@@ -1055,7 +1096,7 @@ fn breadcrumb_json_ld(name: &str, lang: Lang, origin: &str) -> String {
 /// listings and the source.
 pub const GITHUB_URL: &str = "https://github.com/Saobracaj";
 
-fn organization(origin: &str) -> String {
+pub fn organization(origin: &str) -> String {
     serde_json::to_string(&json!({
         "@context": "https://schema.org",
         "@type": "Organization",
