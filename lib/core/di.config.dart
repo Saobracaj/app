@@ -66,6 +66,8 @@ import '../subscription/data/store_purchase_service.dart' as _i1058;
 import '../subscription/data/subscription_repository.dart' as _i731;
 import '../subscription/state_management/subscription_bloc.dart' as _i335;
 import '../test/data/quiz_preferences_repository.dart' as _i442;
+import '../test/practice/data/paused_simulation_repository.dart' as _i974;
+import '../test/practice/state_management/paused_simulation_bloc.dart' as _i480;
 import '../test/practice/state_management/practice_page_bloc.dart' as _i790;
 import '../test/quest/comment/data/comment_repository.dart' as _i359;
 import '../test/quest/comment/editor/state_management/comment_editor_bloc.dart'
@@ -133,6 +135,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i442.QuizPreferencesRepository>(
       () => _i442.QuizPreferencesRepository(),
     );
+    gh.lazySingleton<_i974.PausedSimulationRepository>(
+      () => _i974.PausedSimulationRepository(),
+    );
     gh.lazySingleton<_i1002.QuestionAnalyticsRepository>(
       () => _i1002.QuestionAnalyticsRepository(),
     );
@@ -166,6 +171,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i25.TokenStorage>(),
         gh<_i958.NetworkStatus>(),
       ),
+    );
+    gh.factory<_i480.PausedSimulationBloc>(
+      () => _i480.PausedSimulationBloc(gh<_i974.PausedSimulationRepository>()),
     );
     gh.lazySingleton<_i966.GraphqlSubscriptionClient>(
       () => registerModule.graphqlSubscriptionClient(

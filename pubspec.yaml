@@ -55,6 +55,7 @@ dependencies:
   # Direct dependency for DateFormat in the attempts analysis; the version is
   # already pinned transitively by easy_localization.
   intl: ^0.20.2
+  clock: ^1.1.1
   scrollable_positioned_list: ^0.3.8
   collection: ^1.19.0
   rxdart: ^0.28.0
