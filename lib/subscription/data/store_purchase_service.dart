@@ -97,6 +97,13 @@ class StorePurchaseService {
     'at.gleb.saobracaj/subscriptions',
   );
 
+  /// Уйти на страницу оплаты lava.top. В вебе — в той же вкладке: оттуда
+  /// lava.top вернёт человека на страницу возврата, и она же дождётся
+  /// активации. Вынесено в сервис, чтобы тесты подменяли переход.
+  Future<void> openPaymentPage(Uri url) async {
+    await launchUrl(url, webOnlyWindowName: '_self');
+  }
+
   /// Открыть управление подпиской — там, где её можно отменить или сменить.
   ///
   /// На iOS это шторка StoreKit прямо в приложении, открытая сразу на нашей
@@ -213,6 +220,10 @@ class StorePurchaseService {
         return _appleEntitlements();
       case StorePlatform.google:
         return _googlePurchases();
+      case StorePlatform.lava:
+        // lava.top — не стор этой сборки: платформа здесь всегда стор или
+        // ничего, а покупки lava.top бэкенд знает и без нас.
+        return const [];
     }
   }
 

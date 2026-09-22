@@ -56,6 +56,17 @@ abstract class SubscriptionState with _$SubscriptionState {
     /// покупки, не для восстановленной: после «восстановить» человек и так
     /// стоит на экране подписки.
     String? activatedSku,
+
+    // --- lava.top (оплата рублями на сайте)
+    /// Страница возврата ждёт подтверждения оплаты счёта lava.top.
+    @Default(false) bool lavaAwaitingPayment,
+
+    /// Счёт lava.top, который так и не был оплачен (отказ или истёк опрос):
+    /// страница возврата предлагает попробовать снова.
+    @Default(false) bool lavaPaymentFailed,
+
+    /// Идёт отмена подписки lava.top.
+    @Default(false) bool lavaCancelling,
   }) = _SubscriptionState;
 
   const SubscriptionState._();
@@ -173,4 +184,12 @@ abstract class SubscriptionState with _$SubscriptionState {
       !busy &&
       !subscription.active &&
       !storeSubscriptionElsewhere;
+
+  /// Можно ли сейчас продать пропуск рублями (веб, lava.top): ничего не идёт
+  /// и подписки нет — правило то же, что и у стора, а действующая подписка
+  /// lava.top блокирует покупку и по [SubscriptionStatus.purchaseBlockedUntil].
+  bool get canBuyWithLava =>
+      !busy &&
+      !subscription.active &&
+      subscription.purchaseBlockedUntil == null;
 }

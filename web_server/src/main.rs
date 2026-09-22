@@ -15,6 +15,7 @@
 mod config;
 mod dates;
 mod fingerprint;
+mod guides;
 mod index_html;
 mod meta;
 mod questions;

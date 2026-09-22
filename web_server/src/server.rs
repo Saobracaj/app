@@ -6,7 +6,7 @@ use axum::body::Body;
 use axum::extract::{Request, State};
 use axum::http::{header, HeaderMap, HeaderValue, StatusCode, Uri};
 use axum::middleware::Next;
-use axum::response::{IntoResponse, Response};
+use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::get;
 use axum::Router;
 use tower_http::compression::CompressionLayer;
@@ -16,6 +16,7 @@ use tower_http::trace::TraceLayer;
 use crate::config::Config;
 use crate::dates::ContentDates;
 use crate::fingerprint::Fingerprints;
+use crate::guides::{self, GuidePath, Guides};
 use crate::index_html;
 use crate::meta::{self, Lang};
 use crate::questions::Questions;
@@ -32,6 +33,8 @@ pub struct AppState {
     pub questions: Questions,
     /// The law's text, for the article pages and the sitemap.
     pub law: Law,
+    /// The guides (`/vodic/…`), rendered once at startup.
+    pub guides: Guides,
     /// Entity tags for the bundled files, taken once at startup.
     pub fingerprints: Fingerprints,
     /// `robots.txt` and `sitemap.xml`, built once out of the bundle.
@@ -40,11 +43,17 @@ pub struct AppState {
 }
 
 impl AppState {
-    /// Reads what the server needs out of the built bundle.
+    /// Reads what the server needs out of the built bundle, with the guides
+    /// compiled into the binary.
+    pub fn load(config: Config) -> std::io::Result<Self> {
+        Self::load_with(config, guides::embedded().clone())
+    }
+
+    /// [`Self::load`] with the guides given — tests bring their own.
     ///
     /// A missing `index.html` is fatal: without it every request would 404 and
     /// the container would look healthy while serving nothing.
-    pub fn load(config: Config) -> std::io::Result<Self> {
+    pub fn load_with(config: Config, guides: Guides) -> std::io::Result<Self> {
         let index_path = config.web_root.join("index.html");
         let index_template = std::fs::read_to_string(&index_path).map_err(|error| {
             std::io::Error::new(
@@ -58,10 +67,11 @@ impl AppState {
         tracing::info!(files = fingerprints.len(), "fingerprinted the bundle");
         let robots = sitemap::robots(&config.public_origin);
         let dates = ContentDates::load(&config.web_root);
-        let sitemap = sitemap::sitemap(&config.public_origin, &questions, &law, &dates);
+        let sitemap = sitemap::sitemap(&config.public_origin, &questions, &law, &dates, &guides);
         tracing::info!(
             questions = questions.ids().len(),
             articles = law.articles().len(),
+            guides = guides.all().len(),
             "built the sitemap",
         );
         Ok(Self {
@@ -69,6 +79,7 @@ impl AppState {
             index_template,
             questions,
             law,
+            guides,
             fingerprints,
             robots,
             sitemap,
@@ -101,6 +112,11 @@ pub fn app(state: Arc<AppState>) -> Router {
         // page gets its metadata like every other route.
         .route("/", get(single_page))
         .route("/index.html", get(single_page))
+        // The guides are documents of their own, not screens of the app: no
+        // bundle is served for them (see `guides`).
+        .route(&format!("/{}", guides::ROOT), get(guide_page))
+        .route(&format!("/{}/", guides::ROOT), get(guide_page))
+        .route(&format!("/{}/{{*rest}}", guides::ROOT), get(guide_page))
         .fallback_service(files)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
@@ -173,6 +189,58 @@ async fn single_page(State(state): State<Arc<AppState>>, uri: Uri, headers: Head
             (header::VARY, "Accept-Language"),
         ],
         html,
+    )
+        .into_response()
+}
+
+/// Serves a guide, a language's list of guides, or a 404 in the same layout.
+///
+/// One spelling per address: `/vodic/ru/x/` is redirected to `/vodic/ru/x`
+/// for good, so the index never holds two copies of a page. `/vodic` alone
+/// has no language and sends the reader to the list in theirs.
+async fn guide_page(State(state): State<Arc<AppState>>, uri: Uri, headers: HeaderMap) -> Response {
+    let origin = &state.config.public_origin;
+    let path = crate::route::decode(uri.path());
+    let accept = Lang::from_accept_language(
+        headers
+            .get(header::ACCEPT_LANGUAGE)
+            .and_then(|value| value.to_str().ok()),
+    );
+
+    let Some(target) = GuidePath::parse(&path) else {
+        // `/vodic`, `/vodic/`, or a language without guides.
+        let lang = [accept, Lang::Ru, Lang::Sr, Lang::En]
+            .into_iter()
+            .find(|lang| state.guides.has_language(*lang));
+        return match lang {
+            Some(lang) if path.trim_matches('/') == guides::ROOT => (
+                [(header::VARY, "Accept-Language")],
+                Redirect::temporary(&guides::index_path(lang)),
+            )
+                .into_response(),
+            _ => html(StatusCode::NOT_FOUND, guides::not_found(accept, origin)),
+        };
+    };
+    if uri.path() != target.canonical() {
+        return Redirect::permanent(&target.canonical()).into_response();
+    }
+    match target {
+        GuidePath::Index { lang } if state.guides.has_language(lang) => {
+            html(StatusCode::OK, guides::index(lang, &state.guides, origin))
+        }
+        GuidePath::Index { lang } => html(StatusCode::NOT_FOUND, guides::not_found(lang, origin)),
+        GuidePath::Guide { lang, slug } => match state.guides.get(lang, &slug) {
+            Some(guide) => html(StatusCode::OK, guides::page(guide, &state.guides, origin)),
+            None => html(StatusCode::NOT_FOUND, guides::not_found(lang, origin)),
+        },
+    }
+}
+
+fn html(status: StatusCode, body: String) -> Response {
+    (
+        status,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        body,
     )
         .into_response()
 }
@@ -362,13 +430,26 @@ mod tests {
     }
 
     fn router(dir: &tempfile::TempDir) -> Router {
+        router_with(dir, guides())
+    }
+
+    fn router_with(dir: &tempfile::TempDir, guides: Guides) -> Router {
         let config = Config {
             web_root: dir.path().to_path_buf(),
             addr: "127.0.0.1:0".parse().unwrap(),
             public_origin: "https://saobracaj.gleb.at".to_string(),
             cross_origin_isolation: crate::config::CrossOriginIsolation::Off,
         };
-        app(Arc::new(AppState::load(config).unwrap()))
+        app(Arc::new(AppState::load_with(config, guides).unwrap()))
+    }
+
+    fn guides() -> Guides {
+        Guides::from_sources([(
+            Lang::Ru,
+            "kak-poluchit-prava".to_string(),
+            "---\ntitle: Как получить права в Сербии\ndescription: По шагам.\npublished: 2026-09-22\n---\n\n## Автошкола\n\nТекст гайда.\n"
+                .to_string(),
+        )])
     }
 
     async fn get_path(router: &Router, path: &str) -> (StatusCode, HeaderMap, String) {
@@ -604,6 +685,62 @@ mod tests {
             body,
             "google-site-verification: googlea7f87da7fe58eafd.html"
         );
+    }
+
+    #[tokio::test]
+    async fn a_guide_is_a_page_of_its_own_and_not_the_app() {
+        let dir = bundle();
+        let router = router(&dir);
+        let (status, headers, body) = get_path(&router, "/vodic/ru/kak-poluchit-prava").await;
+
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(headers[header::CONTENT_TYPE], "text/html; charset=utf-8");
+        assert_eq!(headers[header::CACHE_CONTROL], "no-cache");
+        assert!(body.contains("<title>Как получить права в Сербии — Saobraćaj</title>"));
+        assert!(body.contains("<h2 id=\"avtoshkola\">Автошкола</h2>"));
+        assert!(body.contains("Текст гайда."));
+        // No bundle: the page is complete as served.
+        assert!(!body.contains("flutter_bootstrap.js"));
+        assert!(!body.contains(seo::BLOCK_ID));
+
+        // The list of the language's guides, and the language-less root.
+        let (status, _, body) = get_path(&router, "/vodic/ru").await;
+        assert_eq!(status, StatusCode::OK);
+        assert!(body.contains("href=\"/vodic/ru/kak-poluchit-prava\""));
+        let (status, headers, _) = get_with(&router, "/vodic", &[(header::ACCEPT_LANGUAGE, "en")]).await;
+        assert_eq!(status, StatusCode::TEMPORARY_REDIRECT);
+        // No English guides yet, so the Russian list it is.
+        assert_eq!(headers[header::LOCATION], "/vodic/ru");
+    }
+
+    #[tokio::test]
+    async fn a_guide_address_has_one_spelling_and_a_missing_one_is_a_404() {
+        let dir = bundle();
+        let router = router(&dir);
+        let (status, headers, _) = get_path(&router, "/vodic/ru/kak-poluchit-prava/").await;
+        assert_eq!(status, StatusCode::PERMANENT_REDIRECT);
+        assert_eq!(headers[header::LOCATION], "/vodic/ru/kak-poluchit-prava");
+
+        for path in ["/vodic/ru/net-takogo", "/vodic/en", "/vodic/de/x", "/vodic/ru/a/b"] {
+            let (status, _, body) = get_path(&router, path).await;
+            assert_eq!(status, StatusCode::NOT_FOUND, "{path}");
+            assert!(body.contains("noindex"), "{path}");
+            assert!(!body.contains("flutter_bootstrap.js"), "{path}");
+        }
+
+        // Without any guides the root is a 404 too, not a redirect loop.
+        let (status, _, _) = get_path(&router_with(&dir, Guides::default()), "/vodic").await;
+        assert_eq!(status, StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn the_sitemap_names_the_guides() {
+        let dir = bundle();
+        let (_, _, body) = get_path(&router(&dir), "/sitemap.xml").await;
+        assert!(body.contains(
+            "<loc>https://saobracaj.gleb.at/vodic/ru/kak-poluchit-prava</loc><lastmod>2026-09-22</lastmod>"
+        ));
+        assert!(body.contains("<loc>https://saobracaj.gleb.at/vodic/ru</loc>"));
     }
 
     #[tokio::test]

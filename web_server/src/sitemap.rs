@@ -7,6 +7,8 @@
 //! because the bundle is what a release changes.
 
 use crate::dates::ContentDates;
+use crate::guides::{self, Guides};
+use crate::meta::Lang;
 use crate::questions::{Questions, FREE_CATEGORY_IDS};
 use crate::route::encode;
 use crate::zakon::Law;
@@ -66,7 +68,13 @@ pub fn robots(origin: &str) -> String {
     out
 }
 
-pub fn sitemap(origin: &str, questions: &Questions, law: &Law, dates: &ContentDates) -> String {
+pub fn sitemap(
+    origin: &str,
+    questions: &Questions,
+    law: &Law,
+    dates: &ContentDates,
+    guides: &Guides,
+) -> String {
     let page = |path: &str, lastmod: &str| Entry {
         path: path.to_string(),
         lastmod: lastmod.to_string(),
@@ -114,6 +122,19 @@ pub fn sitemap(origin: &str, questions: &Questions, law: &Law, dates: &ContentDa
         };
         page(&path, &dates.law)
     }));
+    // The guides carry their own dates (`updated` in the front matter), and a
+    // language's list moves with its newest guide.
+    for lang in [Lang::Sr, Lang::Ru, Lang::En] {
+        if let Some(latest) = guides.last_updated(lang) {
+            entries.push(page(&guides::index_path(lang), latest));
+        }
+        entries.extend(
+            guides
+                .in_language(lang)
+                .into_iter()
+                .map(|guide| page(&guide.path(), &guide.updated)),
+        );
+    }
 
     let mut out = String::with_capacity(entries.len() * 140);
     out.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -184,6 +205,16 @@ mod tests {
         dir
     }
 
+    fn guides() -> Guides {
+        let guide = |title: &str, published: &str, updated: &str| {
+            format!("---\ntitle: {title}\ndescription: d\npublished: {published}\nupdated: {updated}\n---\n\ntext\n")
+        };
+        Guides::from_sources([
+            (Lang::Ru, "kak-poluchit-prava".to_string(), guide("Как получить права", "2026-09-01", "2026-09-22")),
+            (Lang::Ru, "skolko-stoit".to_string(), guide("Сколько стоит", "2026-09-10", "2026-09-10")),
+        ])
+    }
+
     fn dates() -> ContentDates {
         ContentDates {
             questions: "2026-08-16".to_string(),
@@ -200,6 +231,7 @@ mod tests {
             &Questions::load(dir.path()),
             &Law::load(dir.path()),
             &dates(),
+            &guides(),
         );
 
         assert!(map.contains("<loc>https://saobracaj.gleb.at/</loc><lastmod>2026-09-18</lastmod>"));
@@ -219,6 +251,15 @@ mod tests {
         // Free notes are listed, paid ones are not.
         assert!(map.contains("/konspekt?category=25"));
         assert!(!map.contains("/konspekt?category=27"));
+        // A guide carries its own date, and its language's list the newest one.
+        assert!(map.contains(
+            "<loc>https://saobracaj.gleb.at/vodic/ru/kak-poluchit-prava</loc><lastmod>2026-09-22</lastmod>"
+        ));
+        assert!(map.contains(
+            "<loc>https://saobracaj.gleb.at/vodic/ru/skolko-stoit</loc><lastmod>2026-09-10</lastmod>"
+        ));
+        assert!(map.contains("<loc>https://saobracaj.gleb.at/vodic/ru</loc><lastmod>2026-09-22</lastmod>"));
+        assert!(!map.contains("/vodic/en"));
     }
 
     #[test]
@@ -229,8 +270,10 @@ mod tests {
             &Questions::load(dir.path()),
             &Law::load(dir.path()),
             &dates(),
+            &Guides::default(),
         );
         assert!(map.starts_with("<?xml"));
+        assert!(!map.contains("/vodic"));
         assert!(map.contains("<loc>https://saobracaj.gleb.at/questions</loc>"));
         assert!(map.trim_end().ends_with("</urlset>"));
     }

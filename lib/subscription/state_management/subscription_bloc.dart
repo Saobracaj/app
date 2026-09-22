@@ -53,6 +53,9 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     on<PurchasesRestoreRequested>(_onRestoreRequested);
     on<StorePurchaseReceived>(_onStorePurchase);
     on<RemindersToggled>(_onRemindersToggled);
+    on<LavaPurchaseRequested>(_onLavaPurchaseRequested);
+    on<LavaReturnRequested>(_onLavaReturnRequested);
+    on<LavaCancelRequested>(_onLavaCancelRequested);
     _storeSubscription = _store.purchases.listen(
       (event) => add(StorePurchaseReceived(event)),
     );
@@ -65,6 +68,17 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
 
   /// Стор этой сборки; `null` в вебе.
   StorePlatform? get storePlatform => _store.platform;
+
+  /// Пауза между опросами счёта lava.top на странице возврата. Тесты ставят
+  /// ноль.
+  @visibleForTesting
+  static Duration lavaPollInterval = const Duration(seconds: 2);
+
+  /// Сколько раз страница возврата переспрашивает бэкенд, прежде чем сдаться
+  /// (вебхук lava.top обычно приходит за секунды, а бэкенд и сам
+  /// переспрашивает lava.top на каждом опросе).
+  @visibleForTesting
+  static int lavaPollAttempts = 45;
 
   @override
   Future<void> close() {
@@ -416,6 +430,177 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
       if (tariff.productIdFor(platform) == productId) return tariff.sku;
     }
     return null;
+  }
+
+  // ------------------------------------------------ lava.top (веб, рубли)
+
+  /// Куда lava.top вернёт человека после оплаты: та же страница сайта, с
+  /// которого он ушёл (dev возвращается на dev). Вне браузера адреса нет —
+  /// бэкенд подставит боевой сайт.
+  static String? lavaReturnUrl() {
+    if (!kIsWeb) return null;
+    final base = Uri.base;
+    if (!base.hasScheme || !base.scheme.startsWith('http')) return null;
+    return '${base.origin}/tariffs/lava';
+  }
+
+  /// Оплата рублями: счёт на бэкенде → страница оплаты lava.top. Дальше
+  /// человек возвращается на `/tariffs/lava`, и активацию ждёт уже она.
+  Future<void> _onLavaPurchaseRequested(
+    LavaPurchaseRequested event,
+    Emitter<SubscriptionState> emit,
+  ) async {
+    if (state.busy) return;
+    emit(
+      state.copyWith(
+        purchasingSku: event.sku,
+        errorMessage: null,
+        infoMessage: null,
+      ),
+    );
+    analytics.logCheckoutStep(step: 'lava_started', sku: event.sku);
+    try {
+      final invoice = await _repository.createLavaInvoice(
+        sku: event.sku,
+        returnUrl: lavaReturnUrl() ?? '',
+      );
+      final url = invoice.paymentUrl;
+      if (url == null || url.isEmpty) {
+        throw GraphqlException(LocaleKeys.subscription_lavaFailed.tr());
+      }
+      analytics.logCheckoutStep(step: 'lava_redirected', sku: event.sku);
+      await _store.openPaymentPage(Uri.parse(url));
+      // Кнопка остаётся запертой: вкладка сейчас уйдёт на lava.top.
+    } on GraphqlException catch (e) {
+      final message = e.code == lavaSubscriptionActiveCode
+          ? LocaleKeys.subscription_lavaBlockedUntil.tr(
+              args: [_blockedUntilLabel()],
+            )
+          : describeActionError(e);
+      emit(state.copyWith(purchasingSku: null, errorMessage: message));
+      analytics.logCheckoutStep(step: 'lava_failed', sku: event.sku);
+    } catch (e) {
+      debugPrint('lava: failed to start the payment: $e');
+      emit(
+        state.copyWith(
+          purchasingSku: null,
+          errorMessage: LocaleKeys.subscription_lavaFailed.tr(),
+        ),
+      );
+      analytics.logCheckoutStep(step: 'lava_failed', sku: event.sku);
+    }
+  }
+
+  String _blockedUntilLabel() {
+    final until =
+        state.subscription.purchaseBlockedUntil ?? state.subscription.endsAt;
+    return until == null ? '' : DateFormat.yMMMd().format(until);
+  }
+
+  /// Страница возврата: опрашиваем счёт, пока он не оплачен, потом открываем
+  /// фичи и уходим на экран подписки тем же сигналом, что и покупка в сторе.
+  Future<void> _onLavaReturnRequested(
+    LavaReturnRequested event,
+    Emitter<SubscriptionState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        lavaAwaitingPayment: true,
+        lavaPaymentFailed: false,
+        errorMessage: null,
+      ),
+    );
+    LavaInvoice? invoice;
+    for (var attempt = 0; attempt < lavaPollAttempts; attempt++) {
+      if (isClosed) return;
+      try {
+        invoice = await _repository.lavaInvoice(event.invoiceId);
+      } on GraphqlException catch (e) {
+        if (e.isAuthError) {
+          // Сессии нет: страница показывает вход, после него опрос повторят.
+          emit(
+            state.copyWith(
+              lavaAwaitingPayment: false,
+              errorMessage: describeActionError(e),
+            ),
+          );
+          return;
+        }
+        debugPrint('lava: poll failed: $e');
+      } catch (e) {
+        debugPrint('lava: poll failed: $e');
+      }
+      if (invoice != null && invoice.status != LavaInvoiceStatus.pending) {
+        break;
+      }
+      await Future<void>.delayed(lavaPollInterval);
+    }
+    if (invoice?.status == LavaInvoiceStatus.paid) {
+      final sku = invoice!.sku;
+      analytics.logCheckoutStep(step: 'lava_paid', sku: sku);
+      try {
+        await _repository.refreshGrants();
+        await _loadPersonal(emit);
+      } catch (e) {
+        debugPrint('lava: failed to reload after the payment: $e');
+      }
+      emit(
+        state.copyWith(
+          lavaAwaitingPayment: false,
+          infoMessage: LocaleKeys.subscription_purchaseActivated.tr(),
+          activatedSku: sku,
+        ),
+      );
+      return;
+    }
+    analytics.logCheckoutStep(step: 'lava_failed', sku: invoice?.sku);
+    emit(
+      state.copyWith(
+        lavaAwaitingPayment: false,
+        lavaPaymentFailed: true,
+        errorMessage: invoice?.status == LavaInvoiceStatus.failed
+            ? LocaleKeys.subscription_lavaFailed.tr()
+            : LocaleKeys.subscription_lavaTimeout.tr(),
+      ),
+    );
+  }
+
+  /// Отмена подписки lava.top: доступ до конца оплаченного периода, списаний
+  /// больше нет. Новое состояние приходит с ответом.
+  Future<void> _onLavaCancelRequested(
+    LavaCancelRequested event,
+    Emitter<SubscriptionState> emit,
+  ) async {
+    if (state.lavaCancelling) return;
+    emit(state.copyWith(lavaCancelling: true, errorMessage: null));
+    try {
+      final status = await _repository.cancelLavaSubscription();
+      final purchases = await _repository.myPurchases();
+      final endsAt = status.lavaSubscription?.endsAt ?? status.endsAt;
+      emit(
+        state.copyWith(
+          lavaCancelling: false,
+          subscription: status,
+          purchases: purchases,
+          infoMessage: endsAt == null
+              ? null
+              : LocaleKeys.subscription_lavaCancelled.tr(
+                  args: [DateFormat.yMMMd().format(endsAt)],
+                ),
+        ),
+      );
+      analytics.logCheckoutStep(
+        step: 'lava_cancelled',
+        sku: status.lavaSubscription?.sku,
+      );
+    } catch (e) {
+      emit(
+        state.copyWith(
+          lavaCancelling: false,
+          errorMessage: describeActionError(e),
+        ),
+      );
+    }
   }
 
   Future<void> _onRemindersToggled(

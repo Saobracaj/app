@@ -22,6 +22,7 @@ RUN mkdir src && echo 'fn main() {}' > src/main.rs && cargo build --release --lo
 
 COPY web_server/src ./src
 COPY web_server/well_known ./well_known
+COPY web_server/guides ./guides
 # The stub above leaves a binary cargo would happily reuse; touch the real entry
 # point so the actual sources are compiled.
 RUN touch src/main.rs && cargo build --release --locked

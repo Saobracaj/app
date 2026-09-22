@@ -29,6 +29,22 @@ const _customScheme = 'saobracaj';
 /// `web_server/src/server.rs` serves from disk).
 const _fileRoots = {'.well-known', 'assets', 'canvaskit', 'icons', 'packages'};
 
+/// Directories of the site that hold pages to *read*, not screens: the guides
+/// (`web_server/src/guides.rs`) are documents the web server renders itself,
+/// and the app has no screen for them. Android hands every link of the domain
+/// to the app regardless, so these are recognised here and sent back to a
+/// browser (see [isDocumentLink]) rather than shown as «page not found».
+const _documentRoots = {'vodic'};
+
+/// Whether [uri] is one of the site's documents — a page for the browser, not
+/// a route of the app.
+bool isDocumentLink(Uri uri) {
+  final segments = _routeSegments(uri)?.where((s) => s.isNotEmpty).toList();
+  return segments != null &&
+      segments.isNotEmpty &&
+      _documentRoots.contains(segments.first);
+}
+
 /// The in-app path for [uri], or `null` when the link is not ours to handle.
 ///
 /// [isWeb] exists for tests only — in the app it is always [kIsWeb].
@@ -40,6 +56,7 @@ String? deepLinkPathFor(Uri uri, {bool isWeb = kIsWeb}) {
   if (segments == null) return null;
   if (segments.isEmpty) return '/';
   if (_isFile(segments)) return null;
+  if (_documentRoots.contains(segments.first)) return null;
 
   final path = '/${segments.map(Uri.encodeComponent).join('/')}';
   return uri.hasQuery ? '$path?${uri.query}' : path;

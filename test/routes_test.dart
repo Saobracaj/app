@@ -149,6 +149,41 @@ void main() {
     expect(_build('/question/8084'), isA<MaterialPage>());
   });
 
+  test('страницы разных адресов — разные страницы для Navigator', () {
+    // Задача 1203867458890041: без ключа Navigator обновлял страницу первого
+    // вопроса на месте, и второй диплинк показывал всё тот же вопрос. Ключ —
+    // полный адрес, поэтому то же касается любого экрана с параметром: другой
+    // вопрос, другое сообщение в обсуждении, другой чат, другой инвайт.
+    MaterialPage page(String path) => _build(path) as MaterialPage;
+    final a = page('/question/8084');
+    expect(a.canUpdate(page('/question/8085')), isFalse);
+    expect(a.canUpdate(page('/question/8084')), isTrue);
+    expect(a.canUpdate(page('/question/8084?chat=1&message=m1')), isFalse);
+    expect(page('/konspekt/question/8084').canUpdate(a), isFalse);
+    expect(page('/quest?q=8084').canUpdate(page('/quest?q=8085')), isFalse);
+    expect(page('/chat/a').canUpdate(page('/chat/b')), isFalse);
+    expect(page('/thread/m1').canUpdate(page('/thread/m2')), isFalse);
+    expect(page('/invite/AAA').canUpdate(page('/invite/BBB')), isFalse);
+    expect(page('/shared/AAA').canUpdate(page('/shared/BBB')), isFalse);
+    expect(page('/lists/x').canUpdate(page('/lists/y')), isFalse);
+    expect(
+      page('/konspekt?category=25').canUpdate(page('/konspekt?category=26')),
+      isFalse,
+    );
+    // Экран группы — TabPage; страницу для Navigator строит его pageBuilder.
+    final group = _build('/groups/g1/feed') as TabPage;
+    expect(
+      group
+          .pageBuilder(const SizedBox())
+          .canUpdate(
+            (_build('/groups/g2/feed') as TabPage).pageBuilder(
+              const SizedBox(),
+            ),
+          ),
+      isFalse,
+    );
+  });
+
   test(
     'группа: адрес без /feed редиректит в ленту, «назад» из неё — домой',
     () {
