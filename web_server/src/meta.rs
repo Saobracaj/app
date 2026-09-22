@@ -44,6 +44,16 @@ impl Lang {
         Lang::Sr
     }
 
+    /// The language of a path segment (`/vodic/ru/…`), if it is one we ship.
+    pub fn from_code(code: &str) -> Option<Self> {
+        match code {
+            "sr" => Some(Lang::Sr),
+            "ru" => Some(Lang::Ru),
+            "en" => Some(Lang::En),
+            _ => None,
+        }
+    }
+
     /// The `og:locale` value.
     pub fn locale(self) -> &'static str {
         match self {
