@@ -48,6 +48,8 @@ import 'question_lists/presentation/question_lists_error_listener.dart';
 import 'question_lists/state_management/question_lists_bloc.dart';
 import 'test/data/quiz_preferences_repository.dart';
 import 'test/practice/data/paused_simulation_repository.dart';
+import 'test/practice/data/simulation_sync_service.dart';
+import 'test/practice/domain/paused_simulation.dart';
 import 'test/practice/state_management/paused_simulation_bloc.dart';
 import 'test/practice/state_management/paused_simulation_events.dart';
 import 'question_lists/state_management/question_lists_events.dart';
@@ -118,6 +120,9 @@ void main() async {
   // Незавершённая симуляция экзамена (если есть) — чтобы главная показала
   // баннер «на паузе» первым же кадром.
   await getIt<PausedSimulationRepository>().bootstrap();
+  // …и её зеркало на других устройствах пользователя: местные изменения
+  // снимка уходят на бэкенд, чужие приходят по подписке.
+  getIt<SimulationSyncService>().start();
   // Start syncing the device's FCM push token once a session is available.
   getIt<PushTokenService>().start();
   // And listen for the notifications themselves: the ones tapped in the tray
@@ -284,6 +289,7 @@ class _MyAppState extends State<MyApp> {
   StreamSubscription<PushMessage>? _pushOpened;
   StreamSubscription<PushMessage>? _pushForeground;
   StreamSubscription<AuthState>? _signIns;
+  StreamSubscription<PausedSimulation>? _simulationOpens;
   bool _wasAuthenticated = false;
 
   @override
@@ -297,6 +303,10 @@ class _MyAppState extends State<MyApp> {
     final auth = getIt<AuthBloc>();
     _wasAuthenticated = auth.state.isAuthenticated;
     _signIns = auth.stream.listen(_onAuthChanged);
+    // Симуляция экзамена, идущая на другом устройстве, открывается и здесь.
+    _simulationOpens = getIt<SimulationSyncService>().openRequests.listen(
+      _openRunningSimulation,
+    );
     // The link the app was launched with, if any. Pushed after the first frame
     // so the router is attached to a navigator by the time it arrives.
     final pending = service.takePending();
@@ -330,6 +340,24 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _openDeepLink(String path) => _routerDelegate.push(path);
+
+  /// На другом устройстве идёт симуляция: если её экран здесь ещё не открыт,
+  /// открываем с работающим таймером (как «продолжить» из баннера). Во время
+  /// входа не открываем — экран входа сам закроется, а под ним всё сдвинется.
+  void _openRunningSimulation(PausedSimulation snapshot) {
+    if (_signingIn) return;
+    final path = _routerDelegate.currentConfiguration?.path ?? '';
+    if (path.startsWith('/questPractice')) return;
+    _routerDelegate.push(
+      '/questPractice',
+      queryParameters: {
+        'resume': 'true',
+        'showRightAnswers': '${snapshot.showRightAnswers}',
+        'showStats': '${snapshot.showStats}',
+        'buttonsLikeInExam': '${snapshot.buttonsLikeInExam}',
+      },
+    );
+  }
 
   /// The link of a tapped notification (or of the snackbar's «go» button):
   /// one of ours opens in-app, through the same route mapping as an external
@@ -402,6 +430,7 @@ class _MyAppState extends State<MyApp> {
     _pushOpened?.cancel();
     _pushForeground?.cancel();
     _signIns?.cancel();
+    _simulationOpens?.cancel();
     _routerDelegate.removeListener(_logScreenView);
     _routerDelegate.dispose();
     super.dispose();

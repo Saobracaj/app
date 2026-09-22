@@ -34,14 +34,32 @@ const Duration? _defaultIdleTimeout = kIsWeb ? Duration(minutes: 3) : null;
 /// ([PausedSimulation]) пишется в [PausedSimulationRepository] после каждого
 /// действия и при паузе, так что продолжить можно и после сворачивания, и
 /// после убийства приложения; по завершении экзамена снимок стирается.
+///
+/// Та же симуляция идёт и на других устройствах пользователя: снимки,
+/// пришедшие оттуда ([PausedSimulationChange.remote], через
+/// `SimulationSyncService`), блок применяет на лету — тот же вопрос, ответы,
+/// отметки, пауза и остаток времени ([RemoteChangeReceived]). Пока последнее
+/// изменение пришло с другого устройства, это устройство — «зеркало»: его
+/// автоматические паузы (уход в фон, бездействие) не действуют, иначе
+/// свёрнутый телефон в кармане останавливал бы экзамен на вебе.
 class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
   late QuestionsData data;
   final PracticeParams params;
 
   final PausedSimulationRepository _snapshots;
   final PausedSimulation? _snapshot;
+  final bool _snapshotIsRemote;
   final bool _resume;
   final Duration? _idleTimeout;
+
+  /// Идентификатор попытки (см. [PausedSimulation.attemptUuid]).
+  String? _attemptUuid;
+
+  /// Последнее изменение хода пришло с другого устройства, и пользователь
+  /// с тех пор здесь ничего не делал.
+  bool _remoteControlled = false;
+
+  StreamSubscription<PausedSimulationChange>? _remoteSub;
 
   /// Банк как он есть в ассетах, до перетасовки вариантов — по нему снимок
   /// кодирует порядок вариантов и ответы индексами.
@@ -76,6 +94,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     bool watchLifecycle = true,
   }) : _snapshots = snapshots,
        _snapshot = snapshot,
+       _snapshotIsRemote = snapshot != null && snapshots.currentIsRemote,
        _resume = resume,
        _idleTimeout = idleTimeout,
        _bank = {for (final q in data.questions) q.id: q},
@@ -105,7 +124,11 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     on<PauseRequested>(_onPauseRequested);
     on<ResumeRequested>(_onResumeRequested);
     on<AbandonSimulation>(_onAbandonSimulation);
+    on<RemoteChangeReceived>(_onRemoteChange);
 
+    _remoteSub = snapshots.events
+        .where((change) => change.remote)
+        .listen((change) => add(RemoteChangeReceived(change)));
     _timeSub = Stream.periodic(
       Duration(seconds: 1),
     ).listen((event) => add(TimerTick()));
@@ -116,8 +139,8 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
       // И onHide, и onPause: без известного предыдущего состояния слушатель
       // не достраивает промежуточные переходы и зовёт только конечный.
       _lifecycle = AppLifecycleListener(
-        onHide: () => add(PauseRequested()),
-        onPause: () => add(PauseRequested()),
+        onHide: () => add(PauseRequested(automatic: true)),
+        onPause: () => add(PauseRequested(automatic: true)),
       );
     }
   }
@@ -230,12 +253,15 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
   void _onInit(Init event, Emitter<PracticeState> emit) {
     final snapshot = _snapshot;
     if (snapshot != null && _usable(snapshot)) {
-      _restore(snapshot, emit);
+      _restore(snapshot, emit, remote: _snapshotIsRemote, resume: _resume);
       return;
     }
     // Снимок от другого банка вопросов (обновление приложения) продолжить
-    // нельзя — стираем и начинаем заново.
-    if (snapshot != null) _snapshots.clear();
+    // нельзя — стираем и начинаем заново. Чужой (с другого устройства) не
+    // стираем: «стёрт» ушло бы туда как «брошена»; новая симуляция просто
+    // перепишет его.
+    if (snapshot != null && !_snapshotIsRemote) _snapshots.clear();
+    _attemptUuid = genRecordId();
     final questions = data.practice[Random().nextInt(data.practice.length)];
     emit(state.copyWith(questions: questions));
     _recalculateState(state.answers, emit);
@@ -270,7 +296,22 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
 
   /// Поднимает ход симуляции из снимка: тот же вариант, те же ответы и
   /// отметки, тот же текущий вопрос и столько же оставшегося времени.
-  void _restore(PausedSimulation snapshot, Emitter<PracticeState> emit) {
+  ///
+  /// Снимок с другого устройства ([remote]), записанный на ходу
+  /// (`pausedAt == null`), там и сейчас идёт: время, прошедшее с записи,
+  /// тоже израсходовано, и открывается он на ходу независимо от [resume] —
+  /// иначе перезагрузка вкладки ставила бы на паузу экзамен на телефоне.
+  /// Чужой снимок, который здесь лишь отражают (идёт там или стоит на паузе
+  /// без «продолжить»), обратно не отправляется — он не менялся.
+  void _restore(
+    PausedSimulation snapshot,
+    Emitter<PracticeState> emit, {
+    required bool remote,
+    required bool resume,
+  }) {
+    // Варианты стоят так, как их видят там: у снимка с другого устройства
+    // порядок мог разойтись с тем, что этот блок натасовал при создании.
+    if (remote) _reorderChoices(snapshot.choiceOrder);
     final answers = <int, Set<Choice>>{
       for (final entry in snapshot.answers.entries)
         if (_bank[entry.key] case final question?)
@@ -289,19 +330,73 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
       emit,
     );
     _startedAt = snapshot.startedAt;
-    _elapsedBeforePause = Duration(seconds: snapshot.elapsedSeconds);
+    _attemptUuid = snapshot.attemptUuid ?? _attemptUuid ?? genRecordId();
     final now = clock.now();
+    final runningElsewhere = remote && snapshot.pausedAt == null;
+    _elapsedBeforePause =
+        Duration(seconds: snapshot.elapsedSeconds) +
+        (runningElsewhere ? _sinceSaved(snapshot, now) : Duration.zero);
     _lastActivity = now;
-    if (_resume) {
+    final mirror = remote && (runningElsewhere || !resume);
+    _remoteControlled = mirror;
+    if (resume || runningElsewhere) {
       _runningSince = now;
       emit(state.copyWith(paused: false, timeLeft: kExamDuration - _elapsed));
-      _persist();
+      if (!mirror) _persist();
     } else {
       // Открыли симуляцию без «продолжить» (перезагрузка вкладки, прямая
       // ссылка): она стоит на паузе, пока пользователь сам её не возобновит.
+      _runningSince = null;
       emit(state.copyWith(paused: true, timeLeft: kExamDuration - _elapsed));
-      _persist(pausedAt: snapshot.pausedAt ?? now);
+      if (!mirror) _persist(pausedAt: snapshot.pausedAt ?? now);
     }
+  }
+
+  /// Переставляет варианты вопросов по [order] (id вопроса → индексы в
+  /// исходном списке банка); вопросы, которых в [order] нет, не трогает.
+  void _reorderChoices(Map<int, List<int>> order) {
+    data = data.copyWith(
+      questions: [
+        for (final q in data.questions)
+          if (order[q.id] case final indices?)
+            q.copyWith(
+              choices: [for (final i in indices) _bank[q.id]!.choices[i]],
+            )
+          else
+            q,
+      ],
+    );
+  }
+
+  /// Сколько прошло с записи снимка на другом устройстве (по его часам —
+  /// расхождение часов устройств принимаем за секунды, не минуты).
+  Duration _sinceSaved(PausedSimulation snapshot, DateTime now) {
+    final gap = now.difference(snapshot.savedAt);
+    return gap.isNegative ? Duration.zero : gap;
+  }
+
+  /// Изменение хода с другого устройства: новый снимок применяется на лету,
+  /// стёртый — заканчивает симуляцию и здесь так же, как там.
+  Future<void> _onRemoteChange(
+    RemoteChangeReceived event,
+    Emitter<PracticeState> emit,
+  ) async {
+    if (_startedAt == null || state.finalizeTest || state.abandoned) return;
+    final snapshot = event.change.snapshot;
+    if (snapshot == null) {
+      if (event.change.outcome == SimulationOutcome.finished) {
+        // Тот же результат, что и там: ответы те же, попытка та же
+        // (attemptUuid), бэкенд не запишет её дважды.
+        await _finalize(emit);
+      } else {
+        _stop();
+        emit(state.copyWith(abandoned: true, endedRemotely: true));
+      }
+      return;
+    }
+    // Снимок другого банка вопросов (там другая версия приложения) — не наш.
+    if (!_usable(snapshot)) return;
+    _restore(snapshot, emit, remote: true, resume: false);
   }
 
   void _onMoveToQuestiont(MoveToQuestion event, Emitter<PracticeState> emit) {
@@ -316,11 +411,10 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
   Future<void> _onFinalizeTest(
     FinalizeTest event,
     Emitter<PracticeState> emit,
-  ) async {
-    _timeSub?.cancel();
-    _timeSub = null;
-    _lifecycle?.dispose();
-    _lifecycle = null;
+  ) => _finalize(emit);
+
+  Future<void> _finalize(Emitter<PracticeState> emit) async {
+    _stop();
 
     var pointsSummary = 0;
     final wrongAnswers = <int>[];
@@ -338,12 +432,11 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
       }
     }
     final elapsed = _elapsed.inSeconds;
-    _elapsedBeforePause = _elapsed;
-    _runningSince = null;
     // Assigned here rather than by the table's clientDefault so the result
     // screen knows the attempt's sync id — the Ask-AI chat about this exam is
-    // keyed by it on the backend.
-    final attemptUuid = genRecordId();
+    // keyed by it on the backend. Taken from the snapshot when there is one:
+    // every device finishing this simulation records the same attempt.
+    final attemptUuid = _attemptUuid ?? genRecordId();
 
     analytics.logSimulationFinished(
       durationSeconds: elapsed,
@@ -351,8 +444,9 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
       mistakes: wrongAnswers.length,
     );
 
-    // Экзамен окончен — продолжать больше нечего.
-    _snapshots.clear();
+    // Экзамен окончен — продолжать больше нечего (и на других устройствах:
+    // они узнают об исходе через `SimulationSyncService`).
+    _snapshots.clear(outcome: SimulationOutcome.finished);
 
     // The result screen renders from these — the same numbers that go into
     // the practice record below.
@@ -387,10 +481,22 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     statisticsSync.sync();
   }
 
+  /// Останавливает таймер и слушатель жизненного цикла: симуляция окончена.
+  /// Текущий отрезок работы засчитывается в экзаменационное время.
+  void _stop() {
+    _timeSub?.cancel();
+    _timeSub = null;
+    _lifecycle?.dispose();
+    _lifecycle = null;
+    _elapsedBeforePause = _elapsed;
+    _runningSince = null;
+  }
+
   @override
   Future<void> close() {
     _timeSub?.cancel();
     _lifecycle?.dispose();
+    _remoteSub?.cancel();
     return super.close();
   }
 
@@ -398,7 +504,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     if (_startedAt == null || state.paused || state.finalizeTest) return;
     final idle = _idleTimeout;
     if (idle != null && clock.now().difference(_lastActivity) >= idle) {
-      add(PauseRequested());
+      add(PauseRequested(automatic: true));
       return;
     }
     final timeLeft = kExamDuration - _elapsed;
@@ -440,9 +546,13 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
 
   void _onPauseRequested(PauseRequested event, Emitter<PracticeState> emit) {
     if (_startedAt == null || state.paused || state.finalizeTest) return;
+    // Зеркало чужого хода само не останавливает экзамен: пользователь
+    // сейчас на другом устройстве.
+    if (event.automatic && _remoteControlled) return;
     final now = clock.now();
     _elapsedBeforePause = _elapsed;
     _runningSince = null;
+    _remoteControlled = false;
     emit(state.copyWith(paused: true, timeLeft: kExamDuration - _elapsed));
     _persist(pausedAt: now);
   }
@@ -452,6 +562,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     final now = clock.now();
     _runningSince = now;
     _lastActivity = now;
+    _remoteControlled = false;
     emit(state.copyWith(paused: false, timeLeft: kExamDuration - _elapsed));
     _persist();
   }
@@ -462,12 +573,8 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     AbandonSimulation event,
     Emitter<PracticeState> emit,
   ) {
-    _timeSub?.cancel();
-    _timeSub = null;
-    _lifecycle?.dispose();
-    _lifecycle = null;
-    _runningSince = null;
-    _snapshots.clear();
+    _stop();
+    _snapshots.clear(outcome: SimulationOutcome.abandoned);
     emit(state.copyWith(abandoned: true));
   }
 
@@ -475,6 +582,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
   /// отсчитывается автопауза по бездействию — и обновляет снимок.
   void _touch() {
     _lastActivity = clock.now();
+    _remoteControlled = false;
     _persist();
   }
 
@@ -503,6 +611,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
           entry.key: [for (final c in entry.value) originalIndex(entry.key, c)],
       },
       markedQuestions: state.markedQuestions.toList(),
+      attemptUuid: _attemptUuid,
       showRightAnswers: params.showRightAnswers,
       showStats: params.showStats,
       buttonsLikeInExam: params.buttonsLikeInExam,
@@ -549,13 +658,28 @@ class NavigateToQuestion extends PracticeEvent {
 }
 
 /// Поставить симуляцию на паузу (тап по таймеру, уход в фон, бездействие).
-class PauseRequested extends PracticeEvent {}
+///
+/// [automatic] — пауза не по воле пользователя (уход в фон, бездействие):
+/// на устройстве, которое лишь зеркалит ход с другого, она не действует.
+class PauseRequested extends PracticeEvent {
+  PauseRequested({this.automatic = false});
+
+  final bool automatic;
+}
 
 /// Снять с паузы: таймер идёт дальше с того же места.
 class ResumeRequested extends PracticeEvent {}
 
 /// Бросить симуляцию без результата (кнопка «завершить» на экране паузы).
 class AbandonSimulation extends PracticeEvent {}
+
+/// Ход симуляции изменился на другом устройстве (см.
+/// [PausedSimulationRepository.events]).
+class RemoteChangeReceived extends PracticeEvent {
+  RemoteChangeReceived(this.change);
+
+  final PausedSimulationChange change;
+}
 
 @freezed
 sealed class PracticeState with _$PracticeState {
@@ -587,6 +711,8 @@ sealed class PracticeState with _$PracticeState {
     @Default(false) bool paused,
     // Пользователь бросил симуляцию с экрана паузы — результата не будет.
     @Default(false) bool abandoned,
+    // Симуляцию бросили на другом устройстве: экран закрывается сам.
+    @Default(false) bool endedRemotely,
     // Когда симуляция была начата (у продолженной — исходный старт).
     DateTime? startedAt,
   }) = _PracticeState;

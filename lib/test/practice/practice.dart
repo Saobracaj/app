@@ -2,8 +2,9 @@ import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/core/keyboard_hints.dart';
 import 'package:saobracaj/core/swipe_pagination.dart';
@@ -71,14 +72,28 @@ class Practice extends StatelessWidget {
             )..add(Init());
           },
           child: BlocConsumer<PracticeBloc, PracticeState>(
-            // The scroll view is recreated together with the question's
-            // content (it sits under the per-question key), so the controller
-            // may momentarily have no position to jump.
             listener: (context, state) {
+              // Симуляцию бросили на другом устройстве: здесь она тоже
+              // закончилась, без результата — уходим на страницу запуска.
+              if (state.endedRemotely) {
+                ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      LocaleKeys.simulation_sync_abandonedElsewhere.tr(),
+                    ),
+                  ),
+                );
+                Routemaster.of(context).push('/practice');
+                return;
+              }
+              // The scroll view is recreated together with the question's
+              // content (it sits under the per-question key), so the
+              // controller may momentarily have no position to jump.
               if (_scrollController.hasClients) _scrollController.jumpTo(0);
             },
             listenWhen: (previous, current) =>
-                previous.currentQuestionIndex != current.currentQuestionIndex,
+                previous.currentQuestionIndex != current.currentQuestionIndex ||
+                (!previous.endedRemotely && current.endedRemotely),
             builder: (context, state) {
               final questBloc = context.read<PracticeBloc>();
               if (state.finalizeTest) {
