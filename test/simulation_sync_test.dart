@@ -368,7 +368,11 @@ void main() {
       await snapshots.save(_remoteSnapshot());
       await Future<void>.delayed(Duration.zero);
       final (set, variables) = client.calls.single;
-      expect(set, contains('setSimulation'));
+      // Аргумент — переменная запроса, а не интерполированный Dart'ом объект
+      // (второй литерал без `r` превращал `$snapshot` в `PausedSimulation(...)`,
+      // и бэкенд отвечал ошибкой разбора).
+      expect(set, contains(r'setSimulation(snapshot: $snapshot)'));
+      expect(set, isNot(contains('PausedSimulation(')));
       final json = variables['snapshot'] as Map<String, dynamic>;
       expect(json['attemptUuid'], 'attempt-from-phone');
       expect(json['currentQuestionIndex'], 1);
@@ -376,7 +380,8 @@ void main() {
       await snapshots.clear(outcome: SimulationOutcome.finished);
       await Future<void>.delayed(Duration.zero);
       final (clear, outcome) = client.calls.last;
-      expect(clear, contains('clearSimulation'));
+      expect(clear, contains(r'clearSimulation(outcome: $outcome)'));
+      expect(clear, isNot(contains('SimulationOutcome.')));
       expect(outcome['outcome'], 'FINISHED');
     });
 
