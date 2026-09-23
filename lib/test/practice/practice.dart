@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -106,13 +108,21 @@ class Practice extends StatelessWidget {
               // Настройки берём у блока: у продолженной симуляции они из
               // снимка, а не из адреса.
               final params = questBloc.params;
+              // Ключ — начало симуляции: другая симуляция (открылась с
+              // другого устройства на месте оконченной) получает свежие
+              // страницы, а в пределах одной листалка живёт непрерывно и
+              // чужие переходы едут анимацией.
+              final run = KeyedSubtree(
+                key: ValueKey(state.startedAt),
+                child: const _PracticeRun(),
+              );
               // With "buttons like in the exam" on, the whole run is rendered in
               // the frozen replica palette — every descendant context (including
               // the ones handed to the report sheet and the confirmation dialog)
               // sits below that theme.
               return params.buttonsLikeInExam
-                  ? Theme(data: examTheme, child: const _PracticeRun())
-                  : const _PracticeRun();
+                  ? Theme(data: examTheme, child: run)
+                  : run;
             },
           ),
         );
@@ -143,12 +153,15 @@ class _PracticeRun extends StatefulWidget {
 class _PracticeRunState extends State<_PracticeRun> {
   final _contentBlocs = <int, PracticeContentBloc>{};
 
-  /// Записанный ответ, из которого блок вопроса засеян в последний раз
-  /// (см. [_syncRecorded]).
-  final _seeded = <int, Set<Choice>>{};
+  /// Подписки на блоки вопросов: выбор и раскрытие со страницы докладываются
+  /// блоку прогона (см. [_contentBloc]).
+  final _contentSubs = <int, StreamSubscription<PracticeContentState>>{};
 
   @override
   void dispose() {
+    for (final sub in _contentSubs.values) {
+      sub.cancel();
+    }
     for (final bloc in _contentBlocs.values) {
       bloc.close();
     }
@@ -161,31 +174,53 @@ class _PracticeRunState extends State<_PracticeRun> {
   Question _question(PracticeBloc bloc, int id) =>
       bloc.data.questions.firstWhere((element) => element.id == id);
 
-  /// Блок вопроса [id], один на весь прогон; заводится с записанным ранее
-  /// ответом (у продолженной симуляции — из снимка).
+  /// Что должно быть отмечено на странице вопроса [id] по мнению блока
+  /// прогона: выбор, а без него — записанный ответ.
+  Set<Choice>? _expected(PracticeState state, int id) =>
+      state.selections[id] ?? state.answers[id];
+
+  /// Блок вопроса [id], один на весь прогон; заводится с тем, что на этом
+  /// вопросе отмечено и раскрыто (у продолженной симуляции — из снимка).
+  /// Всё, что пользователь делает на странице — отмечает вариант, раскрывает
+  /// ответ, — докладывается блоку прогона: тот пишет это в снимок, и
+  /// остальные устройства видят отметку ещё до «следеће питање».
   PracticeContentBloc _contentBloc(PracticeBloc bloc, int id) {
     return _contentBlocs.putIfAbsent(id, () {
-      final recorded = bloc.state.answers[id] ?? {};
-      _seeded[id] = recorded;
-      return PracticeContentBloc(
+      final content = PracticeContentBloc(
         {..._question(bloc, id).choices},
-        recorded,
+        _expected(bloc.state, id) ?? {},
         id,
+        showCorrectAnswers: bloc.state.revealed.contains(id),
       );
+      _contentSubs[id] = content.stream.listen((state) {
+        // Прогон закрывается позже страниц, но подписка может пережить его
+        // на кадр.
+        if (bloc.isClosed) return;
+        bloc.add(SelectionChanged(id, state.selectedChoices));
+        if (state.showCorrectAnswers) bloc.add(AnswersRevealed(id));
+      });
+      return content;
     });
   }
 
-  /// Ответы, пришедшие в блок прогона мимо этого экрана — снимок с другого
-  /// устройства («зеркало» идущей там симуляции), — доводит до блоков
-  /// вопросов: иначе на странице, которую здесь уже открывали, остался бы
-  /// прежний выбор. Свой записанный ответ всегда равен выбору страницы (его
-  /// с неё и записали), так что для него это пустой ход.
-  void _syncRecorded(PracticeState state) {
+  /// Выбор и раскрытие, пришедшие в блок прогона мимо этого экрана — снимок
+  /// с другого устройства («зеркало» идущей там симуляции), — доводит до
+  /// блоков вопросов: иначе на странице, которую здесь уже открывали,
+  /// остался бы прежний выбор. То, что доложила сама страница, ей уже
+  /// известно и здесь пропускается, так что доклад и подгонка друг друга не
+  /// зацикливают.
+  void _syncPages(PracticeState state) {
     for (final entry in _contentBlocs.entries) {
-      final recorded = state.answers[entry.key];
-      if (recorded == null || setEquals(recorded, _seeded[entry.key])) continue;
-      _seeded[entry.key] = recorded;
-      entry.value.add(RestoreSelection(recorded));
+      final content = entry.value;
+      final expected = _expected(state, entry.key);
+      if (expected != null &&
+          !setEquals(expected, content.state.selectedChoices)) {
+        content.add(RestoreSelection(expected));
+      }
+      if (state.revealed.contains(entry.key) &&
+          !content.state.showCorrectAnswers) {
+        content.add(ShowCorrectAnswers());
+      }
     }
   }
 
@@ -228,8 +263,11 @@ class _PracticeRunState extends State<_PracticeRun> {
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<PracticeBloc, PracticeState>(
-      listenWhen: (previous, current) => previous.answers != current.answers,
-      listener: (context, state) => _syncRecorded(state),
+      listenWhen: (previous, current) =>
+          previous.answers != current.answers ||
+          previous.selections != current.selections ||
+          previous.revealed != current.revealed,
+      listener: (context, state) => _syncPages(state),
       builder: (context, state) {
         final questBloc = context.read<PracticeBloc>();
         final params = questBloc.params;

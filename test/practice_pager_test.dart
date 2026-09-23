@@ -15,6 +15,7 @@ import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/test/practice/data/paused_simulation_repository.dart';
+import 'package:saobracaj/test/practice/domain/paused_simulation.dart';
 import 'package:saobracaj/test/practice/practice.dart';
 import 'package:saobracaj/test/practice/state_management/practice_bloc.dart';
 import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
@@ -318,6 +319,94 @@ void main() {
             .groupValue,
         const Choice(text: 'Тачан одговор 1', isCorrect: true),
       );
+    });
+
+    testWidgets('отметка варианта на странице попадает в снимок ещё до '
+        '«следеће питање»', (tester) async {
+      await _pumpPractice(tester, _practice());
+      await tester.tap(find.text('Нетачан одговор 1'));
+      await tester.pump();
+      await tester.pump();
+      expect(_practiceBloc(tester).state.answers, isEmpty);
+      expect(_practiceBloc(tester).state.selections, {
+        1: {const Choice(text: 'Нетачан одговор 1', isCorrect: false)},
+      });
+      expect(getIt<PausedSimulationRepository>().current?.selections, {
+        1: [1],
+      });
+    });
+
+    testWidgets('снимок с другого устройства: страница едет к его вопросу '
+        'анимацией, отметка и раскрытый ответ видны на страницах', (
+      tester,
+    ) async {
+      await _pumpPractice(tester, _practice());
+      // На первом вопросе здесь уже что-то отметили (и не записали).
+      await tester.tap(find.text('Нетачан одговор 1'));
+      await tester.pump();
+      await tester.pump();
+
+      final bloc = _practiceBloc(tester);
+      await getIt<PausedSimulationRepository>().applyRemote(
+        PausedSimulation(
+          startedAt: bloc.state.startedAt!,
+          elapsedSeconds: 30,
+          savedAt: DateTime.now(),
+          questions: const [1, 2, 3],
+          currentQuestionIndex: 1,
+          choiceOrder: const {
+            1: [0, 1],
+            2: [0, 1],
+            3: [0, 1],
+          },
+          answers: const {
+            1: [0],
+          },
+          selections: const {
+            1: [0],
+            2: [1],
+          },
+          revealed: const [1],
+          showRightAnswers: true,
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      // Листалка не прыгает, а едет: на полпути видны обе страницы.
+      await tester.pump(const Duration(milliseconds: 100));
+      final page = tester
+          .widget<PageView>(find.byType(PageView))
+          .controller!
+          .page!;
+      expect(page, greaterThan(0));
+      expect(page, lessThan(1));
+      await _settle(tester);
+      expect(find.text('Питање: 2 / 3'), findsOneWidget);
+      // На втором вопросе отмечен неверный — как там.
+      expect(
+        tester
+            .widget<RadioGroup<Choice>>(find.byType(RadioGroup<Choice>))
+            .groupValue,
+        const Choice(text: 'Нетачан одговор 2', isCorrect: false),
+      );
+      // Первый вопрос: своя отметка заменена той, что там, ответ раскрыт.
+      await _swipe(tester, find.text('Питање број 2'), distance: 240);
+      expect(find.text('Питање: 1 / 3'), findsOneWidget);
+      expect(
+        tester
+            .widget<RadioGroup<Choice>>(find.byType(RadioGroup<Choice>))
+            .groupValue,
+        const Choice(text: 'Тачан одговор 1', isCorrect: true),
+      );
+      expect(
+        _optionColor(tester, 'Тачан одговор 1'),
+        isNot(Colors.transparent),
+      );
+      // Ничего из этого не ушло обратно как своё: свайп назад — записывать
+      // нечего (выбор равен записанному ответу), отметки — чужие.
+      expect(bloc.state.selections[2], {
+        const Choice(text: 'Нетачан одговор 2', isCorrect: false),
+      });
     });
 
     testWidgets('стрелка «→» после свайпа едет с той страницы, где стоим', (

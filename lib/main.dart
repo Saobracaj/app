@@ -343,7 +343,8 @@ class _MyAppState extends State<MyApp> {
 
   /// На другом устройстве идёт симуляция: если её экран здесь ещё не открыт,
   /// открываем с работающим таймером (как «продолжить» из баннера). Во время
-  /// входа не открываем — экран входа сам закроется, а под ним всё сдвинется.
+  /// входа не открываем — экран входа сам закроется, а под ним всё сдвинется;
+  /// после входа снимок доберёт [_openSimulationAfterSignIn].
   void _openRunningSimulation(PausedSimulation snapshot) {
     if (_signingIn) return;
     final path = _routerDelegate.currentConfiguration?.path ?? '';
@@ -395,8 +396,33 @@ class _MyAppState extends State<MyApp> {
 
   void _onAuthChanged(AuthState auth) {
     final signedIn = auth.isAuthenticated;
-    if (signedIn && !_wasAuthenticated) unawaited(_resumeSharedListImport());
+    if (signedIn && !_wasAuthenticated) {
+      unawaited(_resumeSharedListImport());
+      unawaited(_openSimulationAfterSignIn());
+    }
     _wasAuthenticated = signedIn;
+  }
+
+  /// Сразу после входа сверка синхронизации приносит идущую на другом
+  /// устройстве симуляцию, пока экраны входа ещё закрываются — и
+  /// [_openRunningSimulation] её пропускает. Дожидаемся их ухода и открываем
+  /// то, что лежит в хранилище, если оно чужое и идёт.
+  Future<void> _openSimulationAfterSignIn() async {
+    await _waitForSignInScreens();
+    if (!mounted) return;
+    final snapshots = getIt<PausedSimulationRepository>();
+    final snapshot = snapshots.current;
+    if (snapshot == null || !snapshots.currentIsRemote) return;
+    if (snapshot.pausedAt != null) return;
+    _openRunningSimulation(snapshot);
+  }
+
+  /// Ждёт (до ~3 с), пока экраны потока входа уйдут со стека.
+  Future<void> _waitForSignInScreens() async {
+    for (var i = 0; i < 30; i++) {
+      if (!_signingIn) break;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
   }
 
   /// Reopen `/shared/<code>` after a sign-in that a pending import was
@@ -406,10 +432,7 @@ class _MyAppState extends State<MyApp> {
   Future<void> _resumeSharedListImport() async {
     final code = await getIt<SharedListsRepository>().peekPendingImport();
     if (code == null) return;
-    for (var i = 0; i < 30; i++) {
-      if (!_signingIn) break;
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    }
+    await _waitForSignInScreens();
     if (!mounted) return;
     final path = _routerDelegate.currentConfiguration?.path ?? '';
     // Already there (signed in from on top of the preview): the screen's own

@@ -38,10 +38,14 @@ const Duration? _defaultIdleTimeout = kIsWeb ? Duration(minutes: 3) : null;
 /// Та же симуляция идёт и на других устройствах пользователя: снимки,
 /// пришедшие оттуда ([PausedSimulationChange.remote], через
 /// `SimulationSyncService`), блок применяет на лету — тот же вопрос, ответы,
-/// отметки, пауза и остаток времени ([RemoteChangeReceived]). Пока последнее
-/// изменение пришло с другого устройства, это устройство — «зеркало»: его
-/// автоматические паузы (уход в фон, бездействие) не действуют, иначе
-/// свёрнутый телефон в кармане останавливал бы экзамен на вебе.
+/// отметки на страницах ([SelectionChanged]) и раскрытые ответы
+/// ([AnswersRevealed]), пауза и остаток времени ([RemoteChangeReceived]).
+/// Пока последнее изменение пришло с другого устройства, это устройство —
+/// «зеркало»: его автоматические паузы (уход в фон, бездействие) не
+/// действуют, иначе свёрнутый телефон в кармане останавливал бы экзамен на
+/// вебе. Первое же действие пользователя здесь делает зеркалом остальные.
+/// Экран результата или брошенной симуляции тоже слушает: новая симуляция,
+/// начатая на другом устройстве, открывается на его месте.
 class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
   late QuestionsData data;
   final PracticeParams params;
@@ -73,6 +77,11 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
   /// Начало текущего отрезка работы; `null`, пока симуляция на паузе или ещё
   /// не начата.
   DateTime? _runningSince;
+
+  /// Когда поставлена на паузу; `null`, пока идёт. Уходит в снимок, чтобы
+  /// действие на паузе (например, ответ, доехавший с другого устройства) не
+  /// записало симуляцию как идущую.
+  DateTime? _pausedAt;
   DateTime _lastActivity = clock.now();
 
   StreamSubscription? _timeSub;
@@ -125,20 +134,32 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     on<ResumeRequested>(_onResumeRequested);
     on<AbandonSimulation>(_onAbandonSimulation);
     on<RemoteChangeReceived>(_onRemoteChange);
+    on<SelectionChanged>(_onSelectionChanged);
+    on<AnswersRevealed>(_onAnswersRevealed);
 
     _remoteSub = snapshots.events
         .where((change) => change.remote)
         .listen((change) => add(RemoteChangeReceived(change)));
-    _timeSub = Stream.periodic(
+    _watchLifecycle = watchLifecycle;
+    _startTicking();
+  }
+
+  bool _watchLifecycle = true;
+
+  /// Заводит секундный таймер и слушатель жизненного цикла — при старте и
+  /// когда на месте оконченной симуляции открывается новая с другого
+  /// устройства.
+  void _startTicking() {
+    _timeSub ??= Stream.periodic(
       Duration(seconds: 1),
     ).listen((event) => add(TimerTick()));
-    if (watchLifecycle) {
+    if (_watchLifecycle) {
       // Свернули приложение / ушли с вкладки — симуляция встаёт на паузу.
       // Возобновление только по кнопке: вернувшись, пользователь сперва
       // видит экран паузы.
       // И onHide, и onPause: без известного предыдущего состояния слушатель
       // не достраивает промежуточные переходы и зовёт только конечный.
-      _lifecycle = AppLifecycleListener(
+      _lifecycle ??= AppLifecycleListener(
         onHide: () => add(PauseRequested(automatic: true)),
         onPause: () => add(PauseRequested(automatic: true)),
       );
@@ -185,6 +206,12 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     final answers = {...state.answers};
     answers[event.qid] = event.answer;
     _recalculateState(answers, emit);
+    // Записанный ответ и есть выбор на странице.
+    emit(
+      state.copyWith(
+        selections: {...state.selections, event.qid: event.answer},
+      ),
+    );
     _touch();
 
     final question = data.questions.firstWhere(
@@ -269,6 +296,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     final now = clock.now();
     _startedAt = now;
     _runningSince = now;
+    _pausedAt = null;
     _lastActivity = now;
     emit(state.copyWith(startedAt: now));
     analytics.logSimulationStarted();
@@ -312,15 +340,16 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     // Варианты стоят так, как их видят там: у снимка с другого устройства
     // порядок мог разойтись с тем, что этот блок натасовал при создании.
     if (remote) _reorderChoices(snapshot.choiceOrder);
-    final answers = <int, Set<Choice>>{
-      for (final entry in snapshot.answers.entries)
-        if (_bank[entry.key] case final question?)
-          entry.key: {for (final i in entry.value) question.choices[i]},
-    };
+    final answers = _decodeChoices(snapshot.answers);
     emit(
       state.copyWith(
         questions: snapshot.questions,
         markedQuestions: snapshot.markedQuestions.toSet(),
+        // Снимок без выбора (старая версия там): выбор равен ответам.
+        selections: snapshot.selections.isEmpty
+            ? answers
+            : _decodeChoices(snapshot.selections),
+        revealed: snapshot.revealed.toSet(),
         startedAt: snapshot.startedAt,
       ),
     );
@@ -341,16 +370,26 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     _remoteControlled = mirror;
     if (resume || runningElsewhere) {
       _runningSince = now;
+      _pausedAt = null;
       emit(state.copyWith(paused: false, timeLeft: kExamDuration - _elapsed));
       if (!mirror) _persist();
     } else {
       // Открыли симуляцию без «продолжить» (перезагрузка вкладки, прямая
       // ссылка): она стоит на паузе, пока пользователь сам её не возобновит.
       _runningSince = null;
+      _pausedAt = snapshot.pausedAt ?? now;
       emit(state.copyWith(paused: true, timeLeft: kExamDuration - _elapsed));
-      if (!mirror) _persist(pausedAt: snapshot.pausedAt ?? now);
+      if (!mirror) _persist();
     }
   }
+
+  /// Индексы вариантов из снимка → варианты банка (вопросы, которых в банке
+  /// нет, пропускаются — [_usable] такие снимки и так не пускает).
+  Map<int, Set<Choice>> _decodeChoices(Map<int, List<int>> encoded) => {
+    for (final entry in encoded.entries)
+      if (_bank[entry.key] case final question?)
+        entry.key: {for (final i in entry.value) question.choices[i]},
+  };
 
   /// Переставляет варианты вопросов по [order] (id вопроса → индексы в
   /// исходном списке банка); вопросы, которых в [order] нет, не трогает.
@@ -376,13 +415,30 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
   }
 
   /// Изменение хода с другого устройства: новый снимок применяется на лету,
-  /// стёртый — заканчивает симуляцию и здесь так же, как там.
+  /// стёртый — заканчивает симуляцию и здесь так же, как там. На экране
+  /// оконченной симуляции (результат, брошена) новый идущий снимок — это
+  /// следующая симуляция, начатая там: открывается на его месте.
   Future<void> _onRemoteChange(
     RemoteChangeReceived event,
     Emitter<PracticeState> emit,
   ) async {
-    if (_startedAt == null || state.finalizeTest || state.abandoned) return;
+    if (_startedAt == null) return;
     final snapshot = event.change.snapshot;
+    if (state.finalizeTest || state.abandoned) {
+      if (snapshot == null ||
+          snapshot.startedAt == _startedAt ||
+          snapshot.pausedAt != null ||
+          !_usable(snapshot)) {
+        return;
+      }
+      _elapsedBeforePause = Duration.zero;
+      _runningSince = null;
+      _attemptUuid = null;
+      emit(const PracticeState());
+      _startTicking();
+      _restore(snapshot, emit, remote: true, resume: false);
+      return;
+    }
     if (snapshot == null) {
       if (event.change.outcome == SimulationOutcome.finished) {
         // Тот же результат, что и там: ответы те же, попытка та же
@@ -503,7 +559,11 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
   void _onTimerTick(TimerTick event, Emitter<PracticeState> emit) {
     if (_startedAt == null || state.paused || state.finalizeTest) return;
     final idle = _idleTimeout;
-    if (idle != null && clock.now().difference(_lastActivity) >= idle) {
+    // Зеркало не бездействует — действует пользователь на другом устройстве;
+    // его таймер идёт дальше (иначе он застывал бы, пока там думают).
+    if (idle != null &&
+        !_remoteControlled &&
+        clock.now().difference(_lastActivity) >= idle) {
       add(PauseRequested(automatic: true));
       return;
     }
@@ -549,22 +609,51 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     // Зеркало чужого хода само не останавливает экзамен: пользователь
     // сейчас на другом устройстве.
     if (event.automatic && _remoteControlled) return;
-    final now = clock.now();
     _elapsedBeforePause = _elapsed;
     _runningSince = null;
+    _pausedAt = clock.now();
     _remoteControlled = false;
     emit(state.copyWith(paused: true, timeLeft: kExamDuration - _elapsed));
-    _persist(pausedAt: now);
+    _persist();
   }
 
   void _onResumeRequested(ResumeRequested event, Emitter<PracticeState> emit) {
     if (_startedAt == null || !state.paused || state.finalizeTest) return;
     final now = clock.now();
     _runningSince = now;
+    _pausedAt = null;
     _lastActivity = now;
     _remoteControlled = false;
     emit(state.copyWith(paused: false, timeLeft: kExamDuration - _elapsed));
     _persist();
+  }
+
+  /// Выбор на странице вопроса изменился (тап по варианту — или доехавший
+  /// туда чужой выбор: тогда он уже равен нашему и это пустой ход).
+  void _onSelectionChanged(
+    SelectionChanged event,
+    Emitter<PracticeState> emit,
+  ) {
+    if (_startedAt == null || state.finalizeTest || state.abandoned) return;
+    // Без выбора страница показывает записанный ответ — доклад о нём тоже
+    // пустой ход (иначе зеркало приняло бы его за действие пользователя).
+    final known = state.selections[event.qid] ?? state.answers[event.qid];
+    if (setEquals(known, event.choices)) return;
+    emit(
+      state.copyWith(
+        selections: {...state.selections, event.qid: event.choices},
+      ),
+    );
+    _touch();
+  }
+
+  /// На странице показали верные ответы. Раскрытое не закрывается, поэтому
+  /// повтор — пустой ход.
+  void _onAnswersRevealed(AnswersRevealed event, Emitter<PracticeState> emit) {
+    if (_startedAt == null || state.finalizeTest || state.abandoned) return;
+    if (state.revealed.contains(event.qid)) return;
+    emit(state.copyWith(revealed: {...state.revealed, event.qid}));
+    _touch();
   }
 
   /// Пользователь бросил симуляцию с экрана паузы: результата нет, в
@@ -586,16 +675,20 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     _persist();
   }
 
-  void _persist({DateTime? pausedAt}) {
+  void _persist() {
     final startedAt = _startedAt;
     if (startedAt == null || state.finalizeTest || state.abandoned) return;
     int originalIndex(int qid, Choice choice) =>
         _bank[qid]!.choices.indexOf(choice);
+    Map<int, List<int>> encode(Map<int, Set<Choice>> choices) => {
+      for (final entry in choices.entries)
+        entry.key: [for (final c in entry.value) originalIndex(entry.key, c)],
+    };
     final snapshot = PausedSimulation(
       startedAt: startedAt,
       elapsedSeconds: _elapsed.inSeconds,
       savedAt: clock.now(),
-      pausedAt: pausedAt,
+      pausedAt: _pausedAt,
       questions: state.questions,
       currentQuestionIndex: state.currentQuestionIndex,
       choiceOrder: {
@@ -606,10 +699,9 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
               originalIndex(qid, c),
           ],
       },
-      answers: {
-        for (final entry in state.answers.entries)
-          entry.key: [for (final c in entry.value) originalIndex(entry.key, c)],
-      },
+      answers: encode(state.answers),
+      selections: encode(state.selections),
+      revealed: state.revealed.toList(),
       markedQuestions: state.markedQuestions.toList(),
       attemptUuid: _attemptUuid,
       showRightAnswers: params.showRightAnswers,
@@ -681,6 +773,21 @@ class RemoteChangeReceived extends PracticeEvent {
   final PausedSimulationChange change;
 }
 
+/// На странице вопроса [qid] отмечены [choices] (ещё не записанный ответ).
+class SelectionChanged extends PracticeEvent {
+  SelectionChanged(this.qid, this.choices);
+
+  final int qid;
+  final Set<Choice> choices;
+}
+
+/// На странице вопроса [qid] показаны верные ответы.
+class AnswersRevealed extends PracticeEvent {
+  AnswersRevealed(this.qid);
+
+  final int qid;
+}
+
 @freezed
 sealed class PracticeState with _$PracticeState {
   const factory PracticeState({
@@ -706,6 +813,11 @@ sealed class PracticeState with _$PracticeState {
     Set<Choice>? currentAnswers,
     @Default(kExamDuration) Duration timeLeft,
     @Default({}) Set<int> markedQuestions,
+    // Что отмечено на страницах вопросов (см. [SelectionChanged]); у
+    // записанного ответа выбор равен ему.
+    @Default({}) Map<int, Set<Choice>> selections,
+    // Вопросы с показанными верными ответами (см. [AnswersRevealed]).
+    @Default({}) Set<int> revealed,
     @Default(false) timeout,
     // Симуляция стоит на паузе: таймер не идёт, вместо вопроса — экран паузы.
     @Default(false) bool paused,

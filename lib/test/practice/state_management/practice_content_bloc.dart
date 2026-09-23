@@ -12,13 +12,21 @@ class PracticeContentBloc
     extends Bloc<PracticeContentEvent, PracticeContentState> {
   final int questionId;
 
+  /// [showCorrectAnswers] — верные ответы на этом вопросе уже раскрыты
+  /// (продолженная симуляция: раскрыли здесь до паузы или на другом
+  /// устройстве).
   PracticeContentBloc(
     Set<Choice> choices,
     Set<Choice> currentAnswers,
-    this.questionId,
-  ) : super(
-        PracticeContentState(choices: choices, selectedChoices: currentAnswers),
-      ) {
+    this.questionId, {
+    bool showCorrectAnswers = false,
+  }) : super(
+         PracticeContentState(
+           choices: choices,
+           selectedChoices: currentAnswers,
+           showCorrectAnswers: showCorrectAnswers,
+         ),
+       ) {
     on<AddChoice>(_onAddChoise);
     on<ShowCorrectAnswers>(_onShowCorrectAnswers);
     on<RestoreSelection>(_onRestoreSelection);
@@ -75,7 +83,7 @@ class AddChoice extends PracticeContentEvent {
 
 class ShowCorrectAnswers extends PracticeContentEvent {}
 
-/// Записанный ответ на вопрос пришёл не с этой страницы — со снимка другого
+/// Выбор на этом вопросе изменился не с этой страницы — со снимка другого
 /// устройства, отражающего идущую там симуляцию; выбор подгоняется под него.
 class RestoreSelection extends PracticeContentEvent {
   final Set<Choice> choices;
