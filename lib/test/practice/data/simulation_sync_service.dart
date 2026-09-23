@@ -252,7 +252,7 @@ class SimulationSyncService {
       if (snapshot != null) {
         await _client.run(
           r'mutation SetSimulation($snapshot: JSON!) { '
-          'setSimulation(snapshot: $snapshot) { updatedAt } }',
+          r'setSimulation(snapshot: $snapshot) { updatedAt } }',
           variables: {'snapshot': snapshot.toJson()},
           authenticated: true,
         );
@@ -262,7 +262,7 @@ class SimulationSyncService {
         await _rememberPendingOutcome(outcome);
         await _client.run(
           r'mutation ClearSimulation($outcome: SimulationOutcome!) { '
-          'clearSimulation(outcome: $outcome) }',
+          r'clearSimulation(outcome: $outcome) }',
           variables: {'outcome': outcome.name.toUpperCase()},
           authenticated: true,
         );
