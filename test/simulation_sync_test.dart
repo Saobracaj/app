@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:clock/clock.dart';
@@ -104,6 +105,17 @@ PausedSimulation _remoteSnapshot({
   attemptUuid: attemptUuid,
   showRightAnswers: true,
 );
+
+/// Токен, из которого сервис читает id аккаунта (`sub`): подпись он не
+/// проверяет, только разбирает полезную нагрузку.
+String _tokenFor(String userId) {
+  String part(Map<String, dynamic> claims) =>
+      base64Url.encode(utf8.encode(json.encode(claims))).replaceAll('=', '');
+  final exp =
+      DateTime.now().toUtc().add(const Duration(hours: 1)).millisecondsSinceEpoch ~/
+      1000;
+  return '${part({'alg': 'HS256'})}.${part({'sub': userId, 'exp': exp})}.sig';
+}
 
 Future<void> _pump(WidgetTester tester, [int frames = 3]) async {
   for (var i = 0; i < frames; i++) {
@@ -789,6 +801,39 @@ void main() {
       foreground();
       await Future<void>.delayed(Duration.zero);
       expect(subscriptions.reconnects, 1);
+    });
+
+    test('снимок принадлежит аккаунту: вход под другим его стирает, снимок '
+        'гостя достаётся вошедшему', () async {
+      // Снимок начат гостем — владельца у него нет.
+      await snapshots.save(_remoteSnapshot(savedAt: clock.now()));
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_access_token', _tokenFor('user-a'));
+
+      // Вход под A: снимок гостя достаётся A и уходит на бэкенд.
+      auth.status.add(AuthStatus.unauthenticated);
+      await Future<void>.delayed(Duration.zero);
+      auth.status.add(AuthStatus.authenticated);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(snapshots.current, isNotNull);
+      expect(prefs.getString('practice.simulation_sync.owner'), 'user-a');
+
+      // Вышли, вошли под B: экзамен аккаунта A с устройства уходит и на
+      // бэкенд B не отправляется.
+      auth.status.add(AuthStatus.unauthenticated);
+      await Future<void>.delayed(Duration.zero);
+      await prefs.setString('auth_access_token', _tokenFor('user-b'));
+      client.calls.clear();
+      auth.status.add(AuthStatus.authenticated);
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(snapshots.current, isNull);
+      expect(prefs.getString('practice.simulation_sync.owner'), 'user-b');
+      expect(
+        client.calls.where((c) => c.$1.contains('setSimulation')),
+        isEmpty,
+      );
     });
 
     test('сверка: на бэкенде пусто, а здесь чужой снимок — он стёрт', () async {

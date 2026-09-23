@@ -9,6 +9,7 @@ import '../../../auth/data/auth_repository.dart';
 import '../../../auth/data/auth_status.dart';
 import '../../../auth/data/graphql_client.dart';
 import '../../../auth/data/graphql_subscription_client.dart';
+import '../../../auth/data/jwt.dart';
 import '../../../auth/data/token_storage.dart';
 import '../domain/paused_simulation.dart';
 import 'paused_simulation_repository.dart';
@@ -35,6 +36,13 @@ import 'paused_simulation_repository.dart';
 ///
 /// События и сверка упорядочены серверным `updatedAt`: ответ на сверку,
 /// пришедший позже более свежего события, не откатывает его.
+///
+/// Снимок принадлежит аккаунту, а не устройству: рядом с ним лежит id
+/// пользователя, под которым он записан ([_ownerKey]). Вход под другим
+/// аккаунтом такой снимок стирает — иначе экзамен одного аккаунта уезжал бы во
+/// второй и появлялся на чужих устройствах (на одном браузере аккаунты меняют
+/// часто). Снимок, начатый гостем (владельца нет), наоборот, достаётся
+/// вошедшему: играли без входа, вошли — продолжаем.
 @lazySingleton
 class SimulationSyncService {
   SimulationSyncService(
@@ -48,6 +56,10 @@ class SimulationSyncService {
   /// Исход, который не удалось отправить (`clearSimulation` без связи):
   /// досылается при следующей сверке, пока на бэкенде лежит наш же снимок.
   static const _pendingOutcomeKey = 'practice.simulation_sync.pending_outcome';
+
+  /// Аккаунт, которому принадлежит лежащий на устройстве снимок (id
+  /// пользователя); значения нет — снимок начат гостем.
+  static const _ownerKey = 'practice.simulation_sync.owner';
 
   final GraphqlClient _client;
   final GraphqlSubscriptionClient _subscriptions;
@@ -130,6 +142,7 @@ class SimulationSyncService {
     // доходит до записи в хранилище, и два события подряд применяются в
     // том порядке, в каком пришли.
     await _ownDeviceId();
+    await _claimSnapshotOwnership();
     if (!_authenticated) return;
     _remoteSub?.cancel();
     _remoteSub = _subscriptions
@@ -148,6 +161,30 @@ class SimulationSyncService {
   /// Сессия кончилась: подписку закрываем, чужой снимок стираем — он
   /// принадлежит аккаунту, а не устройству (свой, начатый здесь, остаётся:
   /// его можно доиграть и гостем).
+  /// Сверяет владельца лежащего снимка с вошедшим аккаунтом: чужой снимок
+  /// стирает (молча — на бэкенд ничего не уходит, он не наш), снимок гостя
+  /// присваивает этому аккаунту.
+  Future<void> _claimSnapshotOwnership() async {
+    final user = jwtSubject(await _storage.accessToken);
+    if (user == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final owner = prefs.getString(_ownerKey);
+    if (owner == user) return;
+    // Экзамен другого аккаунта: на этом устройстве ему делать нечего.
+    if (owner != null && _snapshots.current != null) {
+      await _snapshots.applyRemote(null);
+    }
+    await prefs.setString(_ownerKey, user);
+  }
+
+  /// Запоминает, что лежащий снимок принадлежит текущему аккаунту.
+  Future<void> _rememberOwner() async {
+    final user = jwtSubject(await _storage.accessToken);
+    if (user == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_ownerKey, user);
+  }
+
   void _detach() {
     _remoteSub?.cancel();
     _remoteSub = null;
@@ -286,6 +323,7 @@ class SimulationSyncService {
   Future<void> _applyRemote(Map<String, dynamic> json) async {
     final snapshot = _parseSnapshot(json);
     if (snapshot == null) return;
+    await _rememberOwner();
     await _snapshots.applyRemote(snapshot);
     // Идёт там прямо сейчас — пусть откроется и здесь. Пауза не открывает:
     // баннер «продолжить» на главной и так есть.
@@ -345,6 +383,7 @@ class SimulationSyncService {
           variables: {'snapshot': snapshot.toJson()},
           authenticated: true,
         );
+        await _rememberOwner();
       } else {
         final outcome = change.outcome ?? SimulationOutcome.abandoned;
         // Запоминаем до отправки: если связи нет, исход дошлёт сверка.
