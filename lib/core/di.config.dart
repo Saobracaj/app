@@ -67,6 +67,7 @@ import '../subscription/data/subscription_repository.dart' as _i731;
 import '../subscription/state_management/subscription_bloc.dart' as _i335;
 import '../test/data/quiz_preferences_repository.dart' as _i442;
 import '../test/practice/data/paused_simulation_repository.dart' as _i974;
+import '../test/practice/data/simulation_sync_service.dart' as _i913;
 import '../test/practice/state_management/paused_simulation_bloc.dart' as _i480;
 import '../test/practice/state_management/practice_page_bloc.dart' as _i790;
 import '../test/quest/comment/data/comment_repository.dart' as _i359;
@@ -317,6 +318,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i875.PushTokenService>(
       () => _i875.PushTokenService(gh<_i880.AuthRepository>()),
       dispose: (i) => i.dispose(),
+    );
+    gh.lazySingleton<_i913.SimulationSyncService>(
+      () => _i913.SimulationSyncService(
+        gh<_i483.GraphqlClient>(),
+        gh<_i966.GraphqlSubscriptionClient>(),
+        gh<_i880.AuthRepository>(),
+        gh<_i974.PausedSimulationRepository>(),
+        gh<_i25.TokenStorage>(),
+      ),
     );
     gh.factoryParam<_i198.KonspektBloc, String, String?>(
       (categoryId, initialSection) => _i198.KonspektBloc(

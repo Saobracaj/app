@@ -64,6 +64,9 @@
       "startNewTitle": "Start a new simulation?",
       "startNewBody": "The paused, unfinished simulation will be lost.",
       "startNewConfirm": "Start new"
+    },
+    "sync": {
+      "abandonedElsewhere": "The simulation was ended on another device"
     }
   },
   "info": {
