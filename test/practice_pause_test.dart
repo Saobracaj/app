@@ -439,9 +439,10 @@ void main() {
       // Сразу вопрос, без экрана паузы, с тем же номером и ответом.
       expect(find.byType(PauseScreen), findsNothing);
       expect(find.text('Питање: 2 / 3'), findsOneWidget);
-      // Без «кнопок как на экзамене» назад ведёт стрелка в нижней панели.
+      // Без «кнопок как на экзамене» назад ведёт стрелка в нижней панели;
+      // листалка доезжает до страницы анимацией.
       await tester.tap(find.byIcon(Icons.arrow_back_ios_new_outlined));
-      await _pump(tester);
+      await _settle(tester);
       expect(find.text('Питање: 1 / 3'), findsOneWidget);
       final radio = tester.widget<RadioListTile<Choice>>(
         find.widgetWithText(RadioListTile<Choice>, 'Тачан одговор 1'),
