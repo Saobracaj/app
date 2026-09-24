@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.1.0+4
+version: 2.0.0+4
 
 environment:
   sdk: ^3.8.0
@@ -55,6 +55,7 @@ dependencies:
   # Direct dependency for DateFormat in the attempts analysis; the version is
   # already pinned transitively by easy_localization.
   intl: ^0.20.2
+  clock: ^1.1.1
   scrollable_positioned_list: ^0.3.8
   collection: ^1.19.0
   rxdart: ^0.28.0
@@ -90,7 +91,13 @@ dependencies:
   # Incoming links (lib/core/deep_links/): an invite opened from a chat has to
   # land inside the app, not in a browser tab. Handles both the verified
   # https://saobracaj.gleb.at/... links and the saobracaj:// scheme.
-  app_links: ^6.4.1
+  # 7.x is the first version that knows the UIScene lifecycle Flutter 3.38+
+  # runs the app under (Info.plist: FlutterSceneDelegate): a cold start from a
+  # universal link hands the URL to scene:willConnectTo:, which 6.x never
+  # looked at, so the app opened on the home screen and the link worked only
+  # on the second tap. Held back by firebase_ui_auth (^6.4.0) — see
+  # dependency_overrides.
+  app_links: ^7.2.1
   # GraphQL subscriptions (lib/auth/data/graphql_subscription_client.dart): the
   # group feed keeps itself up to date over a websocket. Was already present
   # transitively; listed here because the app now talks the protocol itself.
@@ -117,6 +124,12 @@ dependencies:
   # действующих покупок аккаунта Google Play, которым витрина проверяет, не
   # платит ли человек уже, прежде чем продать ему второй пропуск.
   in_app_purchase_android: ^0.5.3
+
+dependency_overrides:
+  # firebase_ui_auth 3.1.0 still pins app_links ^6.4.0 while only ever calling
+  # `AppLinks()` — an API 7.x keeps. Drop the override once firebase_ui_auth
+  # allows 7.x.
+  app_links: ^7.2.1
 
 dev_dependencies:
   flutter_test:

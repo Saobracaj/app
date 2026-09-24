@@ -24,6 +24,8 @@ import 'package:saobracaj/question_lists/data/question_lists_repository.dart';
 import 'package:saobracaj/question_lists/data/shared_lists_repository.dart';
 import 'package:saobracaj/test/quest/question_features/data/question_difficulty_repository.dart';
 import 'package:saobracaj/question_lists/state_management/question_lists_bloc.dart';
+import 'package:saobracaj/test/practice/data/paused_simulation_repository.dart';
+import 'package:saobracaj/test/practice/state_management/paused_simulation_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Главная без сети: сверху карточка «приложение в режиме offline» с кнопками
@@ -88,6 +90,9 @@ Widget _app(NetworkStatus network) {
                 flags,
                 network,
               ),
+            ),
+            BlocProvider(
+              create: (_) => PausedSimulationBloc(PausedSimulationRepository()),
             ),
           ],
           child: const HomeContentPage(),

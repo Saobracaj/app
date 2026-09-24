@@ -47,6 +47,11 @@ import 'question_lists/data/shared_lists_repository.dart';
 import 'question_lists/presentation/question_lists_error_listener.dart';
 import 'question_lists/state_management/question_lists_bloc.dart';
 import 'test/data/quiz_preferences_repository.dart';
+import 'test/practice/data/paused_simulation_repository.dart';
+import 'test/practice/data/simulation_sync_service.dart';
+import 'test/practice/domain/paused_simulation.dart';
+import 'test/practice/state_management/paused_simulation_bloc.dart';
+import 'test/practice/state_management/paused_simulation_events.dart';
 import 'question_lists/state_management/question_lists_events.dart';
 import 'generated/codegen_loader.g.dart';
 import 'theme/app_theme.dart';
@@ -112,6 +117,12 @@ void main() async {
   // Load the run options and the per-question tab the user picked last time, so
   // the setup screens and the question tabs render them on their first frame.
   await getIt<QuizPreferencesRepository>().bootstrap();
+  // Незавершённая симуляция экзамена (если есть) — чтобы главная показала
+  // баннер «на паузе» первым же кадром.
+  await getIt<PausedSimulationRepository>().bootstrap();
+  // …и её зеркало на других устройствах пользователя: местные изменения
+  // снимка уходят на бэкенд, чужие приходят по подписке.
+  getIt<SimulationSyncService>().start();
   // Start syncing the device's FCM push token once a session is available.
   getIt<PushTokenService>().start();
   // And listen for the notifications themselves: the ones tapped in the tray
@@ -278,6 +289,7 @@ class _MyAppState extends State<MyApp> {
   StreamSubscription<PushMessage>? _pushOpened;
   StreamSubscription<PushMessage>? _pushForeground;
   StreamSubscription<AuthState>? _signIns;
+  StreamSubscription<PausedSimulation>? _simulationOpens;
   bool _wasAuthenticated = false;
 
   @override
@@ -291,6 +303,10 @@ class _MyAppState extends State<MyApp> {
     final auth = getIt<AuthBloc>();
     _wasAuthenticated = auth.state.isAuthenticated;
     _signIns = auth.stream.listen(_onAuthChanged);
+    // Симуляция экзамена, идущая на другом устройстве, открывается и здесь.
+    _simulationOpens = getIt<SimulationSyncService>().openRequests.listen(
+      _openRunningSimulation,
+    );
     // The link the app was launched with, if any. Pushed after the first frame
     // so the router is attached to a navigator by the time it arrives.
     final pending = service.takePending();
@@ -324,6 +340,25 @@ class _MyAppState extends State<MyApp> {
   }
 
   void _openDeepLink(String path) => _routerDelegate.push(path);
+
+  /// На другом устройстве идёт симуляция: если её экран здесь ещё не открыт,
+  /// открываем с работающим таймером (как «продолжить» из баннера). Во время
+  /// входа не открываем — экран входа сам закроется, а под ним всё сдвинется;
+  /// после входа снимок доберёт [_openSimulationAfterSignIn].
+  void _openRunningSimulation(PausedSimulation snapshot) {
+    if (_signingIn) return;
+    final path = _routerDelegate.currentConfiguration?.path ?? '';
+    if (path.startsWith('/questPractice')) return;
+    _routerDelegate.push(
+      '/questPractice',
+      queryParameters: {
+        'resume': 'true',
+        'showRightAnswers': '${snapshot.showRightAnswers}',
+        'showStats': '${snapshot.showStats}',
+        'buttonsLikeInExam': '${snapshot.buttonsLikeInExam}',
+      },
+    );
+  }
 
   /// The link of a tapped notification (or of the snackbar's «go» button):
   /// one of ours opens in-app, through the same route mapping as an external
@@ -361,8 +396,33 @@ class _MyAppState extends State<MyApp> {
 
   void _onAuthChanged(AuthState auth) {
     final signedIn = auth.isAuthenticated;
-    if (signedIn && !_wasAuthenticated) unawaited(_resumeSharedListImport());
+    if (signedIn && !_wasAuthenticated) {
+      unawaited(_resumeSharedListImport());
+      unawaited(_openSimulationAfterSignIn());
+    }
     _wasAuthenticated = signedIn;
+  }
+
+  /// Сразу после входа сверка синхронизации приносит идущую на другом
+  /// устройстве симуляцию, пока экраны входа ещё закрываются — и
+  /// [_openRunningSimulation] её пропускает. Дожидаемся их ухода и открываем
+  /// то, что лежит в хранилище, если оно чужое и идёт.
+  Future<void> _openSimulationAfterSignIn() async {
+    await _waitForSignInScreens();
+    if (!mounted) return;
+    final snapshots = getIt<PausedSimulationRepository>();
+    final snapshot = snapshots.current;
+    if (snapshot == null || !snapshots.currentIsRemote) return;
+    if (snapshot.pausedAt != null) return;
+    _openRunningSimulation(snapshot);
+  }
+
+  /// Ждёт (до ~3 с), пока экраны потока входа уйдут со стека.
+  Future<void> _waitForSignInScreens() async {
+    for (var i = 0; i < 30; i++) {
+      if (!_signingIn) break;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
   }
 
   /// Reopen `/shared/<code>` after a sign-in that a pending import was
@@ -372,10 +432,7 @@ class _MyAppState extends State<MyApp> {
   Future<void> _resumeSharedListImport() async {
     final code = await getIt<SharedListsRepository>().peekPendingImport();
     if (code == null) return;
-    for (var i = 0; i < 30; i++) {
-      if (!_signingIn) break;
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    }
+    await _waitForSignInScreens();
     if (!mounted) return;
     final path = _routerDelegate.currentConfiguration?.path ?? '';
     // Already there (signed in from on top of the preview): the screen's own
@@ -396,6 +453,7 @@ class _MyAppState extends State<MyApp> {
     _pushOpened?.cancel();
     _pushForeground?.cancel();
     _signIns?.cancel();
+    _simulationOpens?.cancel();
     _routerDelegate.removeListener(_logScreenView);
     _routerDelegate.dispose();
     super.dispose();
@@ -443,6 +501,12 @@ class _MyAppState extends State<MyApp> {
         // list, and membership changes have to reach both.
         BlocProvider(
           create: (context) => getIt<GroupsBloc>()..add(const GroupsStarted()),
+        ),
+        // Снимок незавершённой симуляции: баннер «на паузе» стоит и на
+        // главной, и на странице запуска симуляции.
+        BlocProvider(
+          create: (context) =>
+              getIt<PausedSimulationBloc>()..add(PausedSimulationStarted()),
         ),
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(

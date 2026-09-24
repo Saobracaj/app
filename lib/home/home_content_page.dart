@@ -9,6 +9,7 @@ import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/groups/presentation/groups_section.dart';
 import 'package:saobracaj/home/presentation/offline_home_card.dart';
 import 'package:saobracaj/question_lists/presentation/question_lists_section.dart';
+import 'package:saobracaj/test/practice/widgets/paused_simulation_banner.dart';
 
 /// Главная страница приложения: раздел со списками вопросов (автоматические +
 /// пользовательские) и карточки групп пользователя.
@@ -54,6 +55,10 @@ class HomeContentPage extends StatelessWidget {
                     const OfflineHomeCard(),
                     const SizedBox(height: 24),
                   ],
+                  // Незавершённая симуляция экзамена — «продолжить».
+                  const PausedSimulationBanner(
+                    padding: EdgeInsets.only(bottom: 24),
+                  ),
                   const QuestionListsSection(wide: true),
                   const SizedBox(height: 38),
                   const GroupsSection(wide: true),
@@ -82,6 +87,10 @@ class HomeContentPage extends StatelessWidget {
                 padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
                 child: OfflineHomeCard(),
               ),
+            // Незавершённая симуляция экзамена — «продолжить».
+            const PausedSimulationBanner(
+              padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
+            ),
             const QuestionListsSection(),
             const SizedBox(height: 8),
             const GroupsSection(),

@@ -11,6 +11,7 @@ import '../state_management/subscription_bloc.dart';
 import 'paywall.dart';
 import '../state_management/subscription_events.dart';
 import '../state_management/subscription_state.dart';
+import 'lava_manage_sheet.dart';
 import 'tariff_formatting.dart';
 
 /// Раздел аккаунта «Подписка»: текущий тариф, срок действия, покупки и
@@ -185,6 +186,15 @@ class _CurrentPlanCard extends StatelessWidget {
                 ),
               ],
               _ManageInStore(manageUrl: manageUrl),
+            ],
+            // Подписка lava.top управляется здесь же: следующее списание,
+            // сумма и явная отмена — в листе; отменённая названа отменённой.
+            if (status.lavaSubscription != null) ...[
+              if (status.lavaSubscription!.cancelled) ...[
+                const SizedBox(height: 8),
+                LavaCancelledLine(lava: status.lavaSubscription!),
+              ],
+              const LavaManageButton(outlined: false),
             ],
           ],
         ),

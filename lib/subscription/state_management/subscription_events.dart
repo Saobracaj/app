@@ -32,3 +32,22 @@ class RemindersToggled extends SubscriptionEvent {
 
   final bool enabled;
 }
+
+/// Оплатить тариф российской картой (в рублях, через lava.top) — только веб:
+/// бэкенд создаёт счёт, и страница уходит на оплату.
+class LavaPurchaseRequested extends SubscriptionEvent {
+  LavaPurchaseRequested(this.sku);
+
+  final String sku;
+}
+
+/// Человек вернулся со страницы оплаты lava.top: ждать, пока счёт станет
+/// оплаченным (опрос бэкенда), и активировать подписку.
+class LavaReturnRequested extends SubscriptionEvent {
+  LavaReturnRequested(this.invoiceId);
+
+  final String invoiceId;
+}
+
+/// Отменить подписку lava.top (после подтверждения в листе управления).
+class LavaCancelRequested extends SubscriptionEvent {}

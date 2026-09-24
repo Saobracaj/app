@@ -4,14 +4,18 @@
 /// сравнения по значению, ради которых стоило бы тянуть freezed.
 library;
 
-/// Магазин, через который прошла оплата.
+/// Магазин, через который прошла оплата. [lava] — не магазин, а платёжный
+/// посредник lava.top, через который сайт принимает российские карты в рублях;
+/// для бэкенда это такая же «платформа»: один платёж — один период.
 enum StorePlatform {
   apple,
-  google;
+  google,
+  lava;
 
   static StorePlatform? parse(String? raw) => switch (raw?.toUpperCase()) {
     'APPLE' => StorePlatform.apple,
     'GOOGLE' => StorePlatform.google,
+    'LAVA' => StorePlatform.lava,
     _ => null,
   };
 
@@ -47,6 +51,8 @@ class Tariff {
     required this.appleProductId,
     required this.googleProductId,
     required this.autoRenewing,
+    this.priceRub = 0,
+    this.lavaAvailable = false,
   });
 
   factory Tariff.fromJson(Map<String, dynamic> json) => Tariff(
@@ -56,15 +62,26 @@ class Tariff {
     appleProductId: json['appleProductId'] as String? ?? '',
     googleProductId: json['googleProductId'] as String? ?? '',
     autoRenewing: json['autoRenewing'] as bool? ?? false,
+    priceRub: (json['priceRub'] as num?)?.toInt() ?? 0,
+    lavaAvailable: json['lavaAvailable'] as bool? ?? false,
   );
 
   /// GraphQL-выборка полей витрины.
   static const fields =
-      'sku months priceRsd appleProductId googleProductId autoRenewing';
+      'sku months priceRsd appleProductId googleProductId autoRenewing '
+      'priceRub lavaAvailable';
 
   final String sku;
   final int months;
   final int priceRsd;
+
+  /// Фиксированная цена в рублях для оплаты российской картой на сайте
+  /// (через lava.top). Курсом не пересчитывается.
+  final int priceRub;
+
+  /// Можно ли прямо сейчас оплатить этот тариф рублями: оффер на lava.top
+  /// заведён, цена задана, у бэкенда есть ключ. Только для веба.
+  final bool lavaAvailable;
 
   /// Идентификаторы товара в двух сторах — по ним приложение спрашивает у
   /// стора локальную цену и по ним же покупает.
@@ -87,6 +104,7 @@ class Tariff {
   String productIdFor(StorePlatform platform) => switch (platform) {
     StorePlatform.apple => appleProductId,
     StorePlatform.google => googleProductId,
+    StorePlatform.lava => '',
   };
 }
 
@@ -210,6 +228,8 @@ class SubscriptionStatus {
     this.platform,
     this.remindersEnabled = true,
     this.featureKeys = const [],
+    this.lavaSubscription,
+    this.purchaseBlockedUntil,
   });
 
   /// Состояние «подписки нет» — им же инициализируется экран.
@@ -217,6 +237,8 @@ class SubscriptionStatus {
 
   factory SubscriptionStatus.fromJson(Map<String, dynamic> json) {
     final endsAt = json['endsAt'] as String?;
+    final blockedUntil = json['purchaseBlockedUntil'] as String?;
+    final lava = json['lavaSubscription'] as Map<String, dynamic>?;
     return SubscriptionStatus(
       active: json['active'] as bool? ?? false,
       endsAt: endsAt == null ? null : DateTime.parse(endsAt).toLocal(),
@@ -228,13 +250,19 @@ class SubscriptionStatus {
       featureKeys: [
         for (final k in json['featureKeys'] as List? ?? const []) k as String,
       ],
+      lavaSubscription: lava == null ? null : LavaSubscription.fromJson(lava),
+      purchaseBlockedUntil: blockedUntil == null
+          ? null
+          : DateTime.parse(blockedUntil).toLocal(),
     );
   }
 
   /// GraphQL-выборка полей.
-  static const fields = '''
+  static const fields =
+      '''
     active endsAt daysLeft autoRenewing manageUrl platform
-    remindersEnabled
+    remindersEnabled purchaseBlockedUntil
+    lavaSubscription { ${LavaSubscription.fields} }
   ''';
 
   final bool active;
@@ -255,6 +283,16 @@ class SubscriptionStatus {
 
   /// Ключи фич, которые сейчас даёт подписка (админская карточка).
   final List<String> featureKeys;
+
+  /// Действующая подписка через lava.top (оплата рублями на сайте) — пока
+  /// она продлевается или, отменённая, ещё не истекла. Ею управляют прямо в
+  /// приложении: следующее списание, сумма, отмена.
+  final LavaSubscription? lavaSubscription;
+
+  /// До какой даты нельзя оформить новую подписку или пропуск: пока действует
+  /// подписка lava.top (в том числе отменённая). Бэкенд отклоняет такие
+  /// заказы тем же правилом.
+  final DateTime? purchaseBlockedUntil;
 
   /// Пора ли предложить продлить: за 14 и за 3 дня до конца — те же пороги, на
   /// которых бэкенд шлёт письма-напоминания. Автопродлеваемую подписку
@@ -302,4 +340,98 @@ class SubscriptionPeriod {
 
   /// Комментарий оператора (ручные выдачи/продления/отзывы).
   final String? note;
+}
+
+/// Подписка через lava.top глазами раздела «Подписка»: что и когда спишется,
+/// отменена ли и до какого числа действует оплаченный период.
+class LavaSubscription {
+  const LavaSubscription({
+    required this.contractId,
+    required this.sku,
+    required this.months,
+    required this.priceRub,
+    required this.cancelled,
+    required this.endsAt,
+    this.nextChargeAt,
+  });
+
+  factory LavaSubscription.fromJson(Map<String, dynamic> json) {
+    final nextChargeAt = json['nextChargeAt'] as String?;
+    return LavaSubscription(
+      contractId: json['contractId'] as String? ?? '',
+      sku: json['sku'] as String? ?? '',
+      months: (json['months'] as num?)?.toInt() ?? 1,
+      priceRub: (json['priceRub'] as num?)?.toInt() ?? 0,
+      cancelled: json['cancelled'] as bool? ?? false,
+      endsAt: DateTime.parse(json['endsAt'] as String).toLocal(),
+      nextChargeAt: nextChargeAt == null
+          ? null
+          : DateTime.parse(nextChargeAt).toLocal(),
+    );
+  }
+
+  /// GraphQL-выборка полей.
+  static const fields =
+      'contractId sku months priceRub cancelled endsAt nextChargeAt';
+
+  /// Родительский контракт lava.top — его называет отмена.
+  final String contractId;
+  final String sku;
+  final int months;
+
+  /// Сумма ежемесячного списания в рублях.
+  final int priceRub;
+
+  /// Отменена: списаний больше не будет, доступ — до [endsAt].
+  final bool cancelled;
+
+  /// До какого числа действует оплаченный доступ.
+  final DateTime endsAt;
+
+  /// Дата следующего списания; `null` после отмены.
+  final DateTime? nextChargeAt;
+}
+
+/// Состояние счёта (контракта) lava.top, созданного для покупки.
+enum LavaInvoiceStatus {
+  pending,
+  paid,
+  failed;
+
+  static LavaInvoiceStatus parse(String? raw) => switch (raw?.toUpperCase()) {
+    'PAID' => LavaInvoiceStatus.paid,
+    'FAILED' => LavaInvoiceStatus.failed,
+    _ => LavaInvoiceStatus.pending,
+  };
+}
+
+/// Счёт lava.top: куда отправить платить и оплачен ли уже.
+class LavaInvoice {
+  const LavaInvoice({
+    required this.id,
+    required this.sku,
+    required this.status,
+    this.paymentUrl,
+    this.amountRub = 0,
+  });
+
+  factory LavaInvoice.fromJson(Map<String, dynamic> json) => LavaInvoice(
+    id: json['id'] as String,
+    sku: json['sku'] as String? ?? '',
+    status: LavaInvoiceStatus.parse(json['status'] as String?),
+    paymentUrl: json['paymentUrl'] as String?,
+    amountRub: (json['amountRub'] as num?)?.toInt() ?? 0,
+  );
+
+  /// GraphQL-выборка полей.
+  static const fields = 'id sku status paymentUrl amountRub';
+
+  /// Идентификатор контракта — он же `invoiceId` в адресе возврата.
+  final String id;
+  final String sku;
+  final LavaInvoiceStatus status;
+
+  /// Страница оплаты lava.top; `null`, когда счёт уже оплачен.
+  final String? paymentUrl;
+  final int amountRub;
 }

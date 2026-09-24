@@ -12,16 +12,24 @@ class PracticeContentBloc
     extends Bloc<PracticeContentEvent, PracticeContentState> {
   final int questionId;
 
+  /// [showCorrectAnswers] — верные ответы на этом вопросе уже раскрыты
+  /// (продолженная симуляция: раскрыли здесь до паузы или на другом
+  /// устройстве).
   PracticeContentBloc(
     Set<Choice> choices,
     Set<Choice> currentAnswers,
-    this.questionId,
-  ) : super(PracticeContentState(
-          choices: choices,
-          selectedChoices: currentAnswers,
-        )) {
+    this.questionId, {
+    bool showCorrectAnswers = false,
+  }) : super(
+         PracticeContentState(
+           choices: choices,
+           selectedChoices: currentAnswers,
+           showCorrectAnswers: showCorrectAnswers,
+         ),
+       ) {
     on<AddChoice>(_onAddChoise);
     on<ShowCorrectAnswers>(_onShowCorrectAnswers);
+    on<RestoreSelection>(_onRestoreSelection);
   }
 
   /// Лишний тап (сверх количества верных вариантов) не выбирается, но и не
@@ -31,13 +39,17 @@ class PracticeContentBloc
     var correctChoices = state.choices.where((element) => element.isCorrect);
     if (correctChoices.length > 1) {
       if (state.selectedChoices.contains(event.choice)) {
-        emit(state.copyWith(
-          selectedChoices: {...state.selectedChoices}..remove(event.choice),
-        ));
+        emit(
+          state.copyWith(
+            selectedChoices: {...state.selectedChoices}..remove(event.choice),
+          ),
+        );
       } else if (correctChoices.length > state.selectedChoices.length) {
-        emit(state.copyWith(
-          selectedChoices: {...state.selectedChoices, event.choice},
-        ));
+        emit(
+          state.copyWith(
+            selectedChoices: {...state.selectedChoices, event.choice},
+          ),
+        );
       } else {
         emit(state.copyWith(limitHits: state.limitHits + 1));
       }
@@ -52,6 +64,13 @@ class PracticeContentBloc
   ) {
     emit(state.copyWith(showCorrectAnswers: true));
   }
+
+  void _onRestoreSelection(
+    RestoreSelection event,
+    Emitter<PracticeContentState> emit,
+  ) {
+    emit(state.copyWith(selectedChoices: event.choices));
+  }
 }
 
 sealed class PracticeContentEvent {}
@@ -63,6 +82,14 @@ class AddChoice extends PracticeContentEvent {
 }
 
 class ShowCorrectAnswers extends PracticeContentEvent {}
+
+/// Выбор на этом вопросе изменился не с этой страницы — со снимка другого
+/// устройства, отражающего идущую там симуляцию; выбор подгоняется под него.
+class RestoreSelection extends PracticeContentEvent {
+  final Set<Choice> choices;
+
+  RestoreSelection(this.choices);
+}
 
 @freezed
 sealed class PracticeContentState with _$PracticeContentState {

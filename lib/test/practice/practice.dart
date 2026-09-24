@@ -1,23 +1,27 @@
 import 'dart:async';
 
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/core/keyboard_hints.dart';
-import 'package:saobracaj/core/swipe_pagination.dart';
 import 'package:saobracaj/core/keyboard_pagination.dart';
+import 'package:saobracaj/core/question_pager.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/core/selection_limit_feedback.dart';
+import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/question_lists/state_management/question_lists_bloc.dart';
 import 'package:saobracaj/question_lists/state_management/question_lists_events.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
+import 'package:saobracaj/test/practice/data/paused_simulation_repository.dart';
 import 'package:saobracaj/test/practice/state_management/practice_bloc.dart';
-import 'package:flutter/foundation.dart';
-import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
 import 'package:saobracaj/test/practice/state_management/practice_content_bloc.dart';
+import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
 import 'package:saobracaj/test/practice/widgets/custom_checkbox.dart';
+import 'package:saobracaj/test/practice/widgets/pause_screen.dart';
 import 'package:saobracaj/test/practice/widgets/quest_button.dart';
 import 'package:saobracaj/test/practice/widgets/question_tries.dart';
 import 'package:saobracaj/theme/exam_theme.dart';
@@ -27,12 +31,15 @@ import 'exam_strings.dart';
 import 'finalize_practice.dart';
 import 'izvestai.dart';
 
+/// Экран идущей симуляции. Если на устройстве лежит снимок незавершённой
+/// симуляции, экран продолжает её (с её же настройками), а не начинает новую;
+/// [resume] — сразу пустить таймер (кнопка «продолжить»), иначе она откроется
+/// на экране паузы.
 class Practice extends StatelessWidget {
-  Practice({super.key, required this.params});
+  const Practice({super.key, required this.params, this.resume = false});
 
   final PracticeParams params;
-
-  final _scrollController = ScrollController();
+  final bool resume;
 
   @override
   Widget build(BuildContext context) {
@@ -45,16 +52,38 @@ class Practice extends StatelessWidget {
         final data = state.questionsData;
         if (data == null) return _LoadingRun(errorMessage: state.errorMessage);
         return BlocProvider(
-          create: (context) => PracticeBloc(data, params)..add(Init()),
+          create: (context) {
+            final snapshots = getIt<PausedSimulationRepository>();
+            final snapshot = snapshots.current;
+            return PracticeBloc(
+              data,
+              snapshot == null
+                  ? params
+                  : PracticeParams(
+                      showRightAnswers: snapshot.showRightAnswers,
+                      showStats: snapshot.showStats,
+                      buttonsLikeInExam: snapshot.buttonsLikeInExam,
+                    ),
+              snapshots: snapshots,
+              snapshot: snapshot,
+              resume: resume,
+            )..add(Init());
+          },
           child: BlocConsumer<PracticeBloc, PracticeState>(
-            // The scroll view is recreated together with the question's
-            // content (it sits under the per-question key), so the controller
-            // may momentarily have no position to jump.
-            listener: (context, state) {
-              if (_scrollController.hasClients) _scrollController.jumpTo(0);
-            },
+            // Симуляцию бросили на другом устройстве: здесь она тоже
+            // закончилась, без результата — уходим на страницу запуска.
             listenWhen: (previous, current) =>
-                previous.currentQuestionIndex != current.currentQuestionIndex,
+                !previous.endedRemotely && current.endedRemotely,
+            listener: (context, state) {
+              ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                SnackBar(
+                  content: Text(
+                    LocaleKeys.simulation_sync_abandonedElsewhere.tr(),
+                  ),
+                ),
+              );
+              Routemaster.of(context).push('/practice');
+            },
             builder: (context, state) {
               final questBloc = context.read<PracticeBloc>();
               if (state.finalizeTest) {
@@ -73,13 +102,24 @@ class Practice extends StatelessWidget {
                 // exam-styled run.
                 return FinalizePracticeWidget();
               }
-              // With "buttons like in the exam" on, the whole run is rendered in
-              // the frozen replica palette — the Builder puts every descendant
-              // context (including the ones handed to the report sheet and the
-              // confirmation dialog) below that theme.
-              final run = Builder(
-                builder: (context) => _buildRun(context, state, questBloc),
+              // Экран паузы — обычный экран приложения (в теме пользователя,
+              // как и результат): паузы в настоящем экзамене нет.
+              if (state.paused) return const PauseScreen();
+              // Настройки берём у блока: у продолженной симуляции они из
+              // снимка, а не из адреса.
+              final params = questBloc.params;
+              // Ключ — начало симуляции: другая симуляция (открылась с
+              // другого устройства на месте оконченной) получает свежие
+              // страницы, а в пределах одной листалка живёт непрерывно и
+              // чужие переходы едут анимацией.
+              final run = KeyedSubtree(
+                key: ValueKey(state.startedAt),
+                child: const _PracticeRun(),
               );
+              // With "buttons like in the exam" on, the whole run is rendered in
+              // the frozen replica palette — every descendant context (including
+              // the ones handed to the report sheet and the confirmation dialog)
+              // sits below that theme.
               return params.buttonsLikeInExam
                   ? Theme(data: examTheme, child: run)
                   : run;
@@ -89,132 +129,336 @@ class Practice extends StatelessWidget {
       },
     );
   }
+}
 
-  Widget _buildRun(
+/// Идущий прогон: шапка экзамена, листалка вопросов и кнопки.
+///
+/// Вопросы листаются настоящим [PageView] ([QuestionPager]): страница едет за
+/// пальцем, сосед виден уже во время протяжки. Источник правды о номере
+/// вопроса — [PracticeBloc]; кнопки, клавиши и отчёт двигают листалку через
+/// него, а палец докладывает ему обратно ([QuestionPager.onIndexChanged]).
+///
+/// Stateful ради того, что обязано пережить перестройку экрана: блоков
+/// содержимого — по одному на вопрос. Страницы живут рядом, и выбор соседа
+/// нельзя держать в одном общем блоке; заодно вопрос, к которому вернулись,
+/// застают таким, каким оставили (выбор на месте, раскрытый ответ раскрыт),
+/// а не сброшенным до записанного ответа.
+class _PracticeRun extends StatefulWidget {
+  const _PracticeRun();
+
+  @override
+  State<_PracticeRun> createState() => _PracticeRunState();
+}
+
+class _PracticeRunState extends State<_PracticeRun> {
+  final _contentBlocs = <int, PracticeContentBloc>{};
+
+  /// Подписки на блоки вопросов: выбор и раскрытие со страницы докладываются
+  /// блоку прогона (см. [_contentBloc]).
+  final _contentSubs = <int, StreamSubscription<PracticeContentState>>{};
+
+  @override
+  void dispose() {
+    for (final sub in _contentSubs.values) {
+      sub.cancel();
+    }
+    for (final bloc in _contentBlocs.values) {
+      bloc.close();
+    }
+    super.dispose();
+  }
+
+  /// Вопрос [id] в том виде, в каком его показывает прогон (варианты уже
+  /// перетасованы блоком, а у продолженной с другого устройства симуляции —
+  /// переставлены так, как их видят там).
+  Question _question(PracticeBloc bloc, int id) =>
+      bloc.data.questions.firstWhere((element) => element.id == id);
+
+  /// Что должно быть отмечено на странице вопроса [id] по мнению блока
+  /// прогона: выбор, а без него — записанный ответ.
+  Set<Choice>? _expected(PracticeState state, int id) =>
+      state.selections[id] ?? state.answers[id];
+
+  /// Блок вопроса [id], один на весь прогон; заводится с тем, что на этом
+  /// вопросе отмечено и раскрыто (у продолженной симуляции — из снимка).
+  /// Всё, что пользователь делает на странице — отмечает вариант, раскрывает
+  /// ответ, — докладывается блоку прогона: тот пишет это в снимок, и
+  /// остальные устройства видят отметку ещё до «следеће питање».
+  PracticeContentBloc _contentBloc(PracticeBloc bloc, int id) {
+    return _contentBlocs.putIfAbsent(id, () {
+      final content = PracticeContentBloc(
+        {..._question(bloc, id).choices},
+        _expected(bloc.state, id) ?? {},
+        id,
+        showCorrectAnswers: bloc.state.revealed.contains(id),
+      );
+      _contentSubs[id] = content.stream.listen((state) {
+        // Прогон закрывается позже страниц, но подписка может пережить его
+        // на кадр.
+        if (bloc.isClosed) return;
+        bloc.add(SelectionChanged(id, state.selectedChoices));
+        if (state.showCorrectAnswers) bloc.add(AnswersRevealed(id));
+      });
+      return content;
+    });
+  }
+
+  /// Выбор и раскрытие, пришедшие в блок прогона мимо этого экрана — снимок
+  /// с другого устройства («зеркало» идущей там симуляции), — доводит до
+  /// блоков вопросов: иначе на странице, которую здесь уже открывали,
+  /// остался бы прежний выбор. То, что доложила сама страница, ей уже
+  /// известно и здесь пропускается, так что доклад и подгонка друг друга не
+  /// зацикливают.
+  void _syncPages(PracticeState state) {
+    for (final entry in _contentBlocs.entries) {
+      final content = entry.value;
+      final expected = _expected(state, entry.key);
+      if (expected != null &&
+          !setEquals(expected, content.state.selectedChoices)) {
+        content.add(RestoreSelection(expected));
+      }
+      if (state.revealed.contains(entry.key) &&
+          !content.state.showCorrectAnswers) {
+        content.add(ShowCorrectAnswers());
+      }
+    }
+  }
+
+  /// Прогон уехал с вопроса [index] свайпом: записываем выбор ровно так же,
+  /// как это делает «следеће питање» (неполный набор — подсказка и ничего не
+  /// записываем; неверный при включённом показе — записываем и раскрываем
+  /// верные, только уже на оставленной позади странице: страницу за пальцем
+  /// не остановить).
+  void _recordOnLeave(BuildContext context, int index) {
+    final questBloc = context.read<PracticeBloc>();
+    final state = questBloc.state;
+    if (index < 0 || index >= state.questions.length) return;
+    final id = state.questions[index];
+    final bloc = _contentBlocs[id];
+    if (bloc == null) return;
+    // Тот же выбор уже записан — второй записи в истории ответов быть не
+    // должно (вопрос можно листать туда-сюда сколько угодно).
+    final recorded = state.answers[id];
+    if (recorded != null && setEquals(recorded, bloc.state.selectedChoices)) {
+      return;
+    }
+    _QuestionActions(context, _question(questBloc, id), content: bloc).submit();
+  }
+
+  /// Страница одного вопроса — со своим блоком содержимого и своей
+  /// прокруткой.
+  Widget _page(BuildContext context, PracticeBloc questBloc, int index) {
+    final state = questBloc.state;
+    final id = state.questions[index];
+    return BlocProvider.value(
+      value: _contentBloc(questBloc, id),
+      child: _QuestionContent(
+        question: _question(questBloc, id),
+        first: index == 0,
+        last: index == state.questions.length - 1,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocConsumer<PracticeBloc, PracticeState>(
+      listenWhen: (previous, current) =>
+          previous.answers != current.answers ||
+          previous.selections != current.selections ||
+          previous.revealed != current.revealed,
+      listener: (context, state) => _syncPages(state),
+      builder: (context, state) {
+        final questBloc = context.read<PracticeBloc>();
+        final params = questBloc.params;
+        final current = state.currentQuestion;
+        if (current == null) {
+          return Scaffold(appBar: _appBar(context, state, questBloc));
+        }
+        final index = state.currentQuestionIndex;
+        // Блок текущего вопроса поднят над Scaffold, чтобы клавиши и прибитая
+        // к низу панель широкого экрана видели выбор и раскрытие. Сам блок
+        // принадлежит прогону — той же страницей он выдаётся и в листалке.
+        return BlocProvider.value(
+          value: _contentBloc(questBloc, current.id),
+          child: BlocBuilder<PracticeContentBloc, PracticeContentState>(
+            builder: (context, content) {
+              final actions = _QuestionActions(context, current).examActions(
+                first: index == 0,
+                last: index == state.questions.length - 1,
+              );
+              // On a wide screen the replica follows the real software's
+              // layout: the question fills the page from the left and the
+              // buttons sit in a bar pinned to the bottom of the window —
+              // outside the pager, so they stay put while the question rides
+              // the finger. On phones the buttons stay stacked under the
+              // answers, where a thumb reaches them.
+              final wideExam =
+                  params.buttonsLikeInExam && context.isExpandedScreen;
+              final pager = QuestionPager(
+                index: index,
+                itemCount: state.questions.length,
+                onIndexChanged: (index) =>
+                    questBloc.add(NavigateToQuestion(index)),
+                onLeaving: (index) => _recordOnLeave(context, index),
+                itemBuilder: (context, index) =>
+                    _page(context, questBloc, index),
+              );
+              // Клавиатура: ← / → работают как кнопки «претходно/следеће
+              // питање» экзаменационной оболочки — сохраняют выбор и
+              // переходят (при неверном числе ответов остаёмся с подсказкой,
+              // при неверном ответе с включённым показом — раскрываем
+              // верный); пробел = «прикажи одговор», если она вообще есть.
+              // Стрелки на самой радиокнопке (фокус с Tab) остаются за
+              // RadioGroup — он стоит ниже, на странице, и перехватывает их
+              // первым.
+              return KeyboardPagination(
+                onPrevious: actions.previous,
+                onNext: actions.next,
+                onShowAnswer: content.showCorrectAnswers
+                    ? null
+                    : actions.showAnswer,
+                child: Scaffold(
+                  appBar: _appBar(context, state, questBloc),
+                  body: wideExam
+                      ? Column(
+                          children: [
+                            Expanded(child: pager),
+                            _ExamActionBar(actions: actions),
+                          ],
+                        )
+                      : pager,
+                  bottomNavigationBar: params.buttonsLikeInExam
+                      ? null
+                      : _bottomBar(context, state, questBloc, actions),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  /// Шапка экзамена: номер вопроса, отметка «обележи питање», таймер и цена
+  /// вопроса в баллах.
+  PreferredSizeWidget _appBar(
     BuildContext context,
     PracticeState state,
     PracticeBloc questBloc,
   ) {
     final quiz = Theme.of(context).quiz;
-    return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 80,
-        automaticallyImplyLeading: false,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _HeaderChip(
-                  color: quiz.info,
-                  onColor: quiz.onInfo,
-                  minWidth: 120,
-                  label: ExamStrings.questionCounter(
-                    state.currentQuestionIndex + 1,
-                    state.questions.length,
-                  ),
-                ),
-                CustomCheckbox(
-                  value: state.markedQuestions.contains(
-                    state.currentQuestionIndex,
-                  ),
-                  onChanged: (value) {
-                    questBloc.add(
-                      ToggleMarkQuestion(state.currentQuestionIndex),
-                    );
-                  },
-                  label: ExamStrings.markQuestion,
-                  // Room for the whole caption once the header is not
-                  // squeezed between the two chips on a phone.
-                  width: context.isExpandedScreen ? 220 : 150,
-                ),
-                _HeaderChip(
-                  // The countdown is the one element the real software renders
-                  // on solid black; outside the exam replica it follows the
-                  // theme's own high-contrast surface instead.
-                  color: params.buttonsLikeInExam
-                      ? ExamPalette.timer
-                      : Theme.of(context).colorScheme.inverseSurface,
-                  onColor: params.buttonsLikeInExam
-                      ? Colors.white
-                      : Theme.of(context).colorScheme.onInverseSurface,
-                  minWidth: 50,
-                  label: formatDuration(state.timeLeft),
-                ),
-              ],
-            ),
-            SizedBox(height: 4),
-            Text(
-              ExamStrings.points(state.currentQuestion?.points ?? 0),
-              style: TextStyle(
-                fontSize: 14,
+    final params = questBloc.params;
+    return AppBar(
+      toolbarHeight: 80,
+      automaticallyImplyLeading: false,
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _HeaderChip(
                 color: quiz.info,
-                fontStyle: FontStyle.italic,
+                onColor: quiz.onInfo,
+                minWidth: 120,
+                label: ExamStrings.questionCounter(
+                  state.currentQuestionIndex + 1,
+                  state.questions.length,
+                ),
               ),
+              CustomCheckbox(
+                value: state.markedQuestions.contains(
+                  state.currentQuestionIndex,
+                ),
+                onChanged: (value) {
+                  questBloc.add(ToggleMarkQuestion(state.currentQuestionIndex));
+                },
+                label: ExamStrings.markQuestion,
+                // Room for the whole caption once the header is not
+                // squeezed between the two chips on a phone.
+                width: context.isExpandedScreen ? 220 : 150,
+              ),
+              // Тап по таймеру ставит симуляцию на паузу.
+              Tooltip(
+                message: LocaleKeys.simulation_pause_title.tr(),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(6),
+                  onTap: () => questBloc.add(PauseRequested()),
+                  child: _HeaderChip(
+                    // The countdown is the one element the real software
+                    // renders on solid black; outside the exam replica it
+                    // follows the theme's own high-contrast surface instead.
+                    color: params.buttonsLikeInExam
+                        ? ExamPalette.timer
+                        : Theme.of(context).colorScheme.inverseSurface,
+                    onColor: params.buttonsLikeInExam
+                        ? Colors.white
+                        : Theme.of(context).colorScheme.onInverseSurface,
+                    minWidth: 50,
+                    label: formatDuration(state.timeLeft),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 4),
+          Text(
+            ExamStrings.points(state.currentQuestion?.points ?? 0),
+            style: TextStyle(
+              fontSize: 14,
+              color: quiz.info,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Нижняя панель обычного (не экзаменационного) вида: стрелки, подсказка
+  /// про клавиши и отчёт. Стрелки только листают — выбор записывает кнопка
+  /// «следеће питање» на странице (и свайп).
+  Widget _bottomBar(
+    BuildContext context,
+    PracticeState state,
+    PracticeBloc questBloc,
+    _ExamActions actions,
+  ) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            IconButton(
+              onPressed: state.currentQuestionIndex == 0
+                  ? null
+                  : () => questBloc.add(PrevQuestion()),
+              icon: Icon(Icons.arrow_back_ios_new_outlined),
+            ),
+            SizedBox(width: 16),
+            IconButton(
+              onPressed:
+                  state.currentQuestionIndex == state.questions.length - 1
+                  ? null
+                  : () => questBloc.add(NextQuestion()),
+              icon: Icon(Icons.arrow_forward_ios_outlined),
+            ),
+            // Между стрелками и отчётом — мелкая подсказка про
+            // клавиши (только на вебе, см. KeyboardHints).
+            Expanded(
+              child: KeyboardHints(
+                showAnswer: questBloc.params.showRightAnswers,
+                padding: EdgeInsets.zero,
+              ),
+            ),
+            IconButton(
+              onPressed: actions.report,
+              icon: Icon(Icons.format_list_numbered),
             ),
           ],
         ),
       ),
-      body: state.currentQuestion == null
-          ? SizedBox()
-          : _QuestionContent(
-              key: ValueKey(state.currentQuestion),
-              randomOptions: true,
-              question: state.currentQuestion!,
-              answers: state.currentAnswers,
-              last: state.currentQuestionIndex == state.questions.length - 1,
-              showPreviousTries: params.showStats,
-              params: params,
-              scrollController: _scrollController,
-            ),
-      bottomNavigationBar: params.buttonsLikeInExam
-          ? null
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: state.currentQuestionIndex == 0
-                          ? null
-                          : () {
-                              questBloc.add(PrevQuestion());
-                            },
-                      icon: Icon(Icons.arrow_back_ios_new_outlined),
-                    ),
-                    SizedBox(width: 16),
-                    IconButton(
-                      onPressed:
-                          state.currentQuestionIndex ==
-                              state.questions.length - 1
-                          ? null
-                          : () {
-                              questBloc.add(NextQuestion());
-                            },
-                      icon: Icon(Icons.arrow_forward_ios_outlined),
-                    ),
-                    // Между стрелками и отчётом — мелкая подсказка про
-                    // клавиши (только на вебе, см. KeyboardHints).
-                    Expanded(
-                      child: KeyboardHints(
-                        showAnswer: params.showRightAnswers,
-                        padding: EdgeInsets.zero,
-                      ),
-                    ),
-                    IconButton(
-                      onPressed: () async {
-                        final res = await _showTable(context, questBloc.state);
-                        if (res != null) {
-                          questBloc.add(NavigateToQuestion(res));
-                        }
-                      },
-                      icon: Icon(Icons.format_list_numbered),
-                    ),
-                  ],
-                ),
-              ),
-            ),
     );
   }
 }
@@ -298,25 +542,20 @@ class _HeaderChip extends StatelessWidget {
   }
 }
 
+/// Страница одного вопроса: текст, картинка, варианты и — вне широкого
+/// экзаменационного экрана — кнопки под ними. Блок содержимого приходит
+/// сверху ([BlocProvider.value]): он принадлежит прогону и переживает уход
+/// страницы с экрана.
 class _QuestionContent extends StatelessWidget {
   const _QuestionContent({
-    super.key,
-    required this.randomOptions,
     required this.question,
-    required this.answers,
+    required this.first,
     required this.last,
-    required this.showPreviousTries,
-    required this.params,
-    required this.scrollController,
   });
 
-  final bool randomOptions;
   final Question question;
-  final Set<Choice>? answers;
+  final bool first;
   final bool last;
-  final bool showPreviousTries;
-  final PracticeParams params;
-  final ScrollController scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -324,309 +563,257 @@ class _QuestionContent extends StatelessWidget {
         .where((element) => element.isCorrect)
         .length;
     final quiz = Theme.of(context).quiz;
-    final questBloc = context.read<PracticeBloc>();
-    var choices = [...question.choices];
+    final params = context.read<PracticeBloc>().params;
+    final choices = [...question.choices];
 
-    return BlocProvider(
-      key: ValueKey(question.id),
-      create: (context) =>
-          PracticeContentBloc(choices.toSet(), answers ?? {}, question.id),
-      child: BlocBuilder<PracticeBloc, PracticeState>(
-        builder: (context, practiceState) {
-          return BlocConsumer<PracticeContentBloc, PracticeContentState>(
-            // Лишний тап не выбирается — вместо молчаливого отказа даём
-            // вибрацию и подсказку с нужным количеством ответов.
-            listenWhen: (previous, current) =>
-                previous.limitHits != current.limitHits,
-            listener: (context, state) => showSelectionLimitFeedback(
-              context,
-              ExamStrings.answerLimitReached(rightAnswers),
-            ),
-            builder: (context, state) {
-              final bloc = context.read<PracticeContentBloc>();
-              final first = practiceState.currentQuestionIndex == 0;
+    return BlocConsumer<PracticeContentBloc, PracticeContentState>(
+      // Лишний тап не выбирается — вместо молчаливого отказа даём
+      // вибрацию и подсказку с нужным количеством ответов.
+      listenWhen: (previous, current) =>
+          previous.limitHits != current.limitHits,
+      listener: (context, state) => showSelectionLimitFeedback(
+        context,
+        ExamStrings.answerLimitReached(rightAnswers),
+      ),
+      builder: (context, state) {
+        final bloc = context.read<PracticeContentBloc>();
+        // The actions of the exam replica; which of them exist depends
+        // on the position in the run and on the training options.
+        final examActions = _QuestionActions(
+          context,
+          question,
+        ).examActions(first: first, last: last);
+        // На широком экране кнопки экзамена стоят в панели у низа окна,
+        // над листалкой (см. _PracticeRun) — на странице их тогда нет.
+        final wideExam = params.buttonsLikeInExam && context.isExpandedScreen;
 
-              // Клавиатура: ← / → работают как кнопки «претходно/следеће
-              // питање» экзаменационной оболочки — сохраняют выбор и
-              // переходят (при неверном числе ответов остаёмся с подсказкой,
-              // при неверном ответе с включённым показом — раскрываем
-              // верный); пробел = «прикажи одговор», если она вообще есть.
-              // Стрелки на самой радиокнопке (фокус с Tab) остаются за
-              // RadioGroup — он стоит ниже и перехватывает их первым.
-              // The actions of the exam replica; which of them exist depends
-              // on the position in the run and on the training options.
-              final examActions = _ExamActions(
-                previous: first
-                    ? null
-                    : () => _saveAndLoadNext(false, context, state, params),
-                next: last
-                    ? null
-                    : () => _saveAndLoadNext(true, context, state, params),
-                endExam: () async =>
-                    await _finalizeTest(context, state, params),
-                report: () async {
-                  final res = await _showTable(context, questBloc.state);
-                  if (res != null) {
-                    questBloc.add(NavigateToQuestion(res));
-                  }
-                },
-                showAnswer: params.showRightAnswers
-                    ? () => bloc.add(ShowCorrectAnswers())
-                    : null,
-              );
-              // On a wide screen the replica follows the real software's
-              // layout: the question fills the page from the left and the
-              // buttons sit in a bar pinned to the bottom of the window —
-              // navigation on the left, "show the answer" in the middle,
-              // the report and the end of the exam on the right. On phones
-              // the buttons stay stacked under the answers, where a thumb
-              // reaches them.
-              final wideExam =
-                  params.buttonsLikeInExam && context.isExpandedScreen;
-
-              final content = Column(
+        final content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (params.showStats) ...[
+              QuestionTries(question.id),
+              SizedBox(height: 16),
+            ],
+            // Текст вопроса и вариантов можно выделить и скопировать
+            // (долгий тап / протяжка мышью); тап по варианту по-прежнему
+            // выбирает его — SelectionArea не перехватывает обычные тапы.
+            SelectionArea(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (showPreviousTries) ...[
-                    QuestionTries(question.id),
-                    SizedBox(height: 16),
-                  ],
-                  // Текст вопроса и вариантов можно выделить и скопировать
-                  // (долгий тап / протяжка мышью); тап по варианту по-прежнему
-                  // выбирает его — SelectionArea не перехватывает обычные тапы.
-                  SelectionArea(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ListTile(title: Text(question.text.trim())),
-                        if (question.hasImage)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16.0,
-                            ),
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                minHeight: 200,
-                                maxHeight: 600,
-                                maxWidth: 600,
-                              ),
-                              child: Image.asset(
-                                'assets/img/${question.imageId}.jpeg',
-                              ),
-                            ),
-                          ),
-                        if (rightAnswers > 1)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: ShakeOnTrigger(
-                              trigger: state.limitHits,
-                              child: Text(
-                                ExamStrings.requiredAnswers(rightAnswers),
-                                style: TextStyle(
-                                  color: quiz.info,
-                                  fontStyle: FontStyle.italic,
-                                ),
-                              ),
-                            ),
-                          ),
-                        for (var c in choices)
-                          if (rightAnswers > 1)
-                            AnimatedContainer(
-                              duration: Duration(milliseconds: 200),
-                              color: !state.showCorrectAnswers
-                                  ? Colors.transparent
-                                  : (c.isCorrect
-                                        ? quiz.correctContainer
-                                        : quiz.wrongContainer),
-                              child: CheckboxListTile(
-                                title: Text(c.text),
-                                value: state.selectedChoices.contains(c),
-                                onChanged: (value) => context
-                                    .read<PracticeContentBloc>()
-                                    .add(AddChoice(c)),
-                                controlAffinity:
-                                    ListTileControlAffinity.leading,
-                              ),
-                            )
-                          else
-                            AnimatedContainer(
-                              duration: Duration(milliseconds: 200),
-                              color: !state.showCorrectAnswers
-                                  ? Colors.transparent
-                                  : (c.isCorrect
-                                        ? quiz.correctContainer
-                                        : quiz.wrongContainer),
-                              child: RadioListTile<Choice>(
-                                title: Text(c.text),
-                                value: c,
-                              ),
-                            ),
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: 16),
-                  if (params.buttonsLikeInExam && !wideExam) ...[
-                    _ExamButtonsColumn(actions: examActions),
-                    KeyboardHints(
-                      showAnswer: examActions.showAnswer != null,
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    ),
-                  ],
-                  if (!params.buttonsLikeInExam)
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.all(16),
-                      child: FilledButton(
-                        onPressed: last
-                            ? null
-                            : () => _saveAndLoadNext(
-                                true,
-                                context,
-                                state,
-                                params,
-                              ),
-                        child: Text(ExamStrings.nextQuestion),
-                      ),
-                    ),
-                  if (last && !params.buttonsLikeInExam)
+                  ListTile(title: Text(question.text.trim())),
+                  if (question.hasImage)
                     Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: FilledButton(
-                        onPressed: () async =>
-                            await _finalizeTest(context, state, params),
-                        child: Text(ExamStrings.endExam),
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: 200,
+                          maxHeight: 600,
+                          maxWidth: 600,
+                        ),
+                        child: Image.asset(
+                          'assets/img/${question.imageId}.jpeg',
+                        ),
                       ),
                     ),
-                  SizedBox(height: 16),
-                  if (!params.buttonsLikeInExam && params.showRightAnswers)
-                    TextButton(
-                      onPressed: state.showCorrectAnswers
-                          ? null
-                          : () {
-                              bloc.add(ShowCorrectAnswers());
-                            },
-                      child: Text(ExamStrings.showAnswer),
+                  if (rightAnswers > 1)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: ShakeOnTrigger(
+                        trigger: state.limitHits,
+                        child: Text(
+                          ExamStrings.requiredAnswers(rightAnswers),
+                          style: TextStyle(
+                            color: quiz.info,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
                     ),
+                  for (var c in choices)
+                    if (rightAnswers > 1)
+                      AnimatedContainer(
+                        duration: Duration(milliseconds: 200),
+                        color: !state.showCorrectAnswers
+                            ? Colors.transparent
+                            : (c.isCorrect
+                                  ? quiz.correctContainer
+                                  : quiz.wrongContainer),
+                        // Своя прозрачная Material под плиткой: ListTile
+                        // рисует подсветку и всплеск на ближайшей Material,
+                        // а окрашенная подложка между ними их бы скрыла (и
+                        // Flutter в debug-сборке об этом предупреждает).
+                        child: Material(
+                          type: MaterialType.transparency,
+                          child: CheckboxListTile(
+                            title: Text(c.text),
+                            value: state.selectedChoices.contains(c),
+                            onChanged: (value) => bloc.add(AddChoice(c)),
+                            controlAffinity: ListTileControlAffinity.leading,
+                          ),
+                        ),
+                      )
+                    else
+                      AnimatedContainer(
+                        duration: Duration(milliseconds: 200),
+                        color: !state.showCorrectAnswers
+                            ? Colors.transparent
+                            : (c.isCorrect
+                                  ? quiz.correctContainer
+                                  : quiz.wrongContainer),
+                        child: Material(
+                          type: MaterialType.transparency,
+                          child: RadioListTile<Choice>(
+                            title: Text(c.text),
+                            value: c,
+                          ),
+                        ),
+                      ),
                 ],
-              );
+              ),
+            ),
 
-              // Свайп по телу вопроса листает его так же, как «претходно /
-              // следеће питање» и стрелки; кнопки прибитой к низу панели
-              // (широкий экран) остаются вне жеста.
-              final scrollable = SwipePagination(
-                onPrevious: examActions.previous,
-                onNext: examActions.next,
-                child: SingleChildScrollView(
-                  controller: scrollController,
-                  child: content,
+            SizedBox(height: 16),
+            if (params.buttonsLikeInExam && !wideExam) ...[
+              _ExamButtonsColumn(actions: examActions),
+              KeyboardHints(
+                showAnswer: examActions.showAnswer != null,
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              ),
+            ],
+            if (!params.buttonsLikeInExam)
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(16),
+                child: FilledButton(
+                  onPressed: examActions.next,
+                  child: Text(ExamStrings.nextQuestion),
                 ),
-              );
-
-              return KeyboardPagination(
-                onPrevious: examActions.previous,
-                onNext: examActions.next,
-                onShowAnswer: state.showCorrectAnswers
+              ),
+            if (last && !params.buttonsLikeInExam)
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: FilledButton(
+                  onPressed: examActions.endExam,
+                  child: Text(ExamStrings.endExam),
+                ),
+              ),
+            SizedBox(height: 16),
+            if (!params.buttonsLikeInExam && params.showRightAnswers)
+              TextButton(
+                onPressed: state.showCorrectAnswers
                     ? null
-                    : examActions.showAnswer,
-                child: RadioGroup<Choice>(
-                  groupValue: state.selectedChoices.firstOrNull,
-                  onChanged: (value) {
-                    if (value != null) bloc.add(AddChoice(value));
-                  },
-                  child: wideExam
-                      ? Column(
-                          children: [
-                            Expanded(child: scrollable),
-                            _ExamActionBar(actions: examActions),
-                          ],
-                        )
-                      : scrollable,
-                ),
-              );
-            },
-          );
-        },
-      ),
+                    : () => bloc.add(ShowCorrectAnswers()),
+                child: Text(ExamStrings.showAnswer),
+              ),
+          ],
+        );
+
+        return RadioGroup<Choice>(
+          groupValue: state.selectedChoices.firstOrNull,
+          onChanged: (value) {
+            if (value != null) bloc.add(AddChoice(value));
+          },
+          child: SingleChildScrollView(child: content),
+        );
+      },
+    );
+  }
+}
+
+/// Действия над одним вопросом прогона — то, что делают кнопки «претходно /
+/// следеће питање», «заврши тест», «извештај» и «прикажи одговор», клавиши
+/// ← / → / пробел и свайп. Блок прогона и блок содержимого вопроса берёт из
+/// [context] (либо блок содержимого передают явно — так делает свайп, у
+/// которого под рукой контекст уже другого вопроса).
+class _QuestionActions {
+  _QuestionActions(this.context, this.question, {PracticeContentBloc? content})
+    : practice = context.read<PracticeBloc>(),
+      content = content ?? context.read<PracticeContentBloc>();
+
+  final BuildContext context;
+  final Question question;
+  final PracticeBloc practice;
+  final PracticeContentBloc content;
+
+  PracticeParams get params => practice.params;
+
+  /// Набор кнопок экзаменационной оболочки для этого вопроса: `null` — кнопки
+  /// на этом месте прогона нет (см. [_ExamActions]).
+  _ExamActions examActions({required bool first, required bool last}) {
+    return _ExamActions(
+      previous: first ? null : previous,
+      next: last ? null : next,
+      endExam: finish,
+      report: report,
+      showAnswer: params.showRightAnswers ? showAnswer : null,
     );
   }
 
-  Future<SavedAnswer> _saveAnswer(
-    BuildContext context,
-    PracticeContentState state,
-    PracticeParams params,
-  ) async {
-    final questBloc = context.read<PracticeBloc>();
-
-    if (state.selectedChoices.isNotEmpty) {
-      var correctAnswer = question.choices
-          .where((element) => element.isCorrect)
-          .toSet();
-      if (correctAnswer.length != state.selectedChoices.length) {
-        const snackBar = SnackBar(content: Text(ExamStrings.wrongAnswerCount));
-        ScaffoldMessenger.of(context).showSnackBar(snackBar);
-        return SavedAnswer.wrongNumber;
-      }
-      questBloc.add(AddAnswer(question.id, state.selectedChoices));
-      return setEquals(state.selectedChoices, correctAnswer)
-          ? SavedAnswer.correct
-          : SavedAnswer.incorrect;
-    } else {
-      // no answer, can be next
-      return SavedAnswer.empty;
+  /// Записывает выбор в прогон. Пустой выбор — не ответ (вопрос можно
+  /// пропустить), неполный набор — подсказка и ничего не записываем.
+  Future<SavedAnswer> save() async {
+    final selected = content.state.selectedChoices;
+    if (selected.isEmpty) return SavedAnswer.empty;
+    final correct = question.choices
+        .where((element) => element.isCorrect)
+        .toSet();
+    if (correct.length != selected.length) {
+      const snackBar = SnackBar(content: Text(ExamStrings.wrongAnswerCount));
+      ScaffoldMessenger.of(context).showSnackBar(snackBar);
+      return SavedAnswer.wrongNumber;
     }
+    practice.add(AddAnswer(question.id, selected));
+    return setEquals(selected, correct)
+        ? SavedAnswer.correct
+        : SavedAnswer.incorrect;
   }
 
-  Future<void> _finalizeTest(
-    BuildContext context,
-    PracticeContentState state,
-    PracticeParams params,
-  ) async {
-    final questBloc = context.read<PracticeBloc>();
-    final bloc = context.read<PracticeContentBloc>();
-    final saved = await _saveAnswer(context, state, params);
-    // if (saved == null) return;
+  /// Записывает выбор; неверный ответ при включённом показе ещё и раскрывает
+  /// верные варианты. `false` — на вопросе нужно остаться: раскрытый ответ
+  /// надо увидеть, а неполный набор — исправить.
+  Future<bool> submit() async {
+    final saved = await save();
     if (saved == SavedAnswer.incorrect &&
         params.showRightAnswers &&
-        !state.showCorrectAnswers) {
+        !content.state.showCorrectAnswers) {
+      content.add(ShowCorrectAnswers());
+      return false;
+    }
+    return saved != SavedAnswer.wrongNumber;
+  }
+
+  Future<void> previous() async {
+    if (await submit()) practice.add(PrevQuestion());
+  }
+
+  Future<void> next() async {
+    if (await submit()) practice.add(NextQuestion());
+  }
+
+  void showAnswer() => content.add(ShowCorrectAnswers());
+
+  Future<void> report() async {
+    final res = await _showTable(context, practice.state);
+    if (res != null) practice.add(NavigateToQuestion(res));
+  }
+
+  Future<void> finish() async {
+    final saved = await save();
+    if (saved == SavedAnswer.incorrect &&
+        params.showRightAnswers &&
+        !content.state.showCorrectAnswers) {
       // нужно показать правильный ответ перед завершением
-      bloc.add(ShowCorrectAnswers());
+      content.add(ShowCorrectAnswers());
       return;
     }
     if (params.buttonsLikeInExam ||
-        questBloc.state.answers.length != questBloc.state.questions.length) {
+        practice.state.answers.length != practice.state.questions.length) {
       if (!context.mounted) return;
       final res = await _showMyDialog(context);
-      if (res != true) {
-        return;
-      }
+      if (res != true) return;
     }
-    questBloc.add(FinalizeTest());
-  }
-
-  Future<void> _saveAndLoadNext(
-    bool isNext,
-    BuildContext context,
-    PracticeContentState state,
-    PracticeParams params,
-  ) async {
-    final practiceBloc = context.read<PracticeBloc>();
-    final bloc = context.read<PracticeContentBloc>();
-    final saved = await _saveAnswer(context, state, params);
-
-    if (saved == SavedAnswer.incorrect &&
-        params.showRightAnswers &&
-        !state.showCorrectAnswers) {
-      //  ответ неверный, показываем верный
-      bloc.add(ShowCorrectAnswers());
-      return;
-    }
-
-    if (saved != SavedAnswer.wrongNumber && isNext) {
-      practiceBloc.add(NextQuestion());
-    } else if (saved != SavedAnswer.wrongNumber) {
-      practiceBloc.add(PrevQuestion());
-    }
+    practice.add(FinalizeTest());
   }
 }
 

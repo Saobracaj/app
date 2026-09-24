@@ -69,6 +69,7 @@ import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
 import 'package:saobracaj/test/data/quiz_preferences_repository.dart';
 import 'package:saobracaj/test/practice/finalize_practice.dart';
 import 'package:saobracaj/test/practice/practice.dart';
+import 'package:saobracaj/test/practice/data/paused_simulation_repository.dart';
 import 'package:saobracaj/test/practice/state_management/practice_bloc.dart';
 import 'package:saobracaj/test/practice/state_management/practice_page_bloc.dart';
 import 'package:saobracaj/test/quest/comment/data/comment_repository.dart';
@@ -749,7 +750,8 @@ class _ListsBloc extends QuestionListsBloc {
 
 /// Экзамен, только что завершённый: две ошибки, вопросы с фотографиями.
 class _ResultPracticeBloc extends PracticeBloc {
-  _ResultPracticeBloc(super.data, super.params, this._ticket);
+  _ResultPracticeBloc(super.data, super.params, this._ticket)
+    : super(snapshots: PausedSimulationRepository(), watchLifecycle: false);
 
   final List<int> _ticket;
 

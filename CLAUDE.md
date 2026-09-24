@@ -123,8 +123,9 @@ to announce. The building blocks live in `lib/core/network/`:
 ## The subscription is sold in-app, through the stores
 
 `lib/subscription/` sells one thing, and it sells it through the App Store and
-Google Play — never through a web checkout, and never by linking to one from
-inside the app (both stores forbid it).
+Google Play — never by linking to an outside checkout from inside the mobile
+apps (both stores forbid it). The **web** build is the one exception: there
+the shop window sells in roubles through the intermediary lava.top (below).
 
 - **`StorePurchaseService` is the only place that touches `in_app_purchase`.**
   There is no web implementation of that plugin: `InAppPurchase.instance`
@@ -148,6 +149,22 @@ inside the app (both stores forbid it).
   hangs off `Tariff.autoRenewing` / `SubscriptionStatus.autoRenewing`: a date
   on an auto-renewing subscription is the next charge, not the end of access,
   and cancelling is only possible in the store (`manageUrl`).
+- **Web checkout in roubles (lava.top), `storePlatform == null` only.**
+  `LavaPurchaseRequested` asks the backend for a contract
+  (`createLavaInvoice`) and leaves the tab for `paymentUrl` through
+  `StorePurchaseService.openPaymentPage` (fakes capture it); lava.top brings
+  the buyer back to `/tariffs/lava?invoiceId=…`, where `LavaReturnPage` polls
+  `lavaInvoice(id)` (`SubscriptionBloc.lavaPollInterval` is zero in tests)
+  and, once paid, `refreshGrants()` → `activatedSku` → `/subscription`, like a
+  store purchase. A lava.top subscription is *not* managed in a store:
+  `SubscriptionStatus.lavaSubscription` drives `LavaManageButton` (a sheet
+  with the next charge, the amount and an explicit, confirmed cancel →
+  `cancelLavaSubscription`; access stays until `endsAt`). While
+  `purchaseBlockedUntil` is set — a lava.top subscription runs, cancelled or
+  not — the shop window shows «действует до … новую после» instead of any
+  buy button, and the backend refuses a contract with
+  `lava_subscription_active`. Tariffs are offered in roubles only when
+  `Tariff.lavaAvailable` (offer mapped + `priceRub` + backend key).
 
 ## GraphQL queries are batched — a fake server must not assume one operation per request
 

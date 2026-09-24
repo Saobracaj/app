@@ -8,6 +8,7 @@
 !web_server/Cargo.lock
 !web_server/src
 !web_server/well_known
+!web_server/guides
 
 !build/web
 

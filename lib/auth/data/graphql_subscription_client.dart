@@ -145,6 +145,41 @@ class GraphqlSubscriptionClient {
     return controller.stream;
   }
 
+  /// Tear the socket down and bring it back up right away, re-subscribing
+  /// everything (each subscriber hears [GraphqlSubscriptionInterrupted], then
+  /// [GraphqlSubscriptionResumed] and catches up as after any reconnect).
+  ///
+  /// For the app's return to the foreground: a socket that died while the app
+  /// was suspended may never say so — the OS drops the connection silently
+  /// and the client keeps waiting on a stream that will not deliver — and a
+  /// pending retry timer may still be minutes away. No subscribers, or a
+  /// session already over: nothing to do.
+  Future<void> reconnect() async {
+    if (_operations.isEmpty || _sessionOver) return;
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _attempt = 0;
+    if (_socket != null || _acked) {
+      // The `done` handler is cancelled with the stream: the reconnect is
+      // announced here, not there.
+      _acked = false;
+      final socket = _socket;
+      _socket = null;
+      await _socketMessages?.cancel();
+      _socketMessages = null;
+      for (final operation in _operations.values) {
+        operation.started = false;
+        operation.controller.add(const GraphqlSubscriptionInterrupted());
+      }
+      try {
+        await socket?.close();
+      } catch (_) {
+        // Already dead — which is the case this exists for.
+      }
+    }
+    await _ensureConnected();
+  }
+
   /// Drop the connection and fail every subscription — used when the session
   /// ends, so nothing keeps a socket open on behalf of a signed-out user.
   Future<void> reset() async {

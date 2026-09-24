@@ -233,6 +233,44 @@ void main() {
     await sub.cancel();
   });
 
+  test(
+    'reconnect() drops a socket that may be silently dead and comes back',
+    () async {
+      final (:client, :connector) = _client();
+      final messages = <GraphqlSubscriptionMessage>[];
+      final sub = client.subscribe('subscription S { x }').listen(messages.add);
+      await _settle();
+      connector.last.emit({'type': 'connection_ack'});
+      await _settle();
+      expect(client.isConnected, isTrue);
+
+      // The app comes back to the foreground: nothing said the socket died, but
+      // it may have — the client reconnects without waiting for a `done`.
+      await client.reconnect();
+      await _settle();
+      expect(connector.sockets, hasLength(2));
+      expect(client.isConnected, isFalse);
+      connector.last.emit({'type': 'connection_ack'});
+      await _settle();
+      expect(client.isConnected, isTrue);
+      expect(connector.last.frame('subscribe'), isNotNull);
+      expect(
+        messages.whereType<GraphqlSubscriptionInterrupted>(),
+        hasLength(1),
+      );
+      final resumes = messages.whereType<GraphqlSubscriptionResumed>().toList();
+      expect(resumes, hasLength(2));
+      expect(resumes.last.firstConnect, isFalse);
+
+      // Nobody listening: nothing to reconnect.
+      await sub.cancel();
+      await _settle();
+      await client.reconnect();
+      await _settle();
+      expect(connector.sockets, hasLength(2));
+    },
+  );
+
   test('an operation error ends that subscription with the server message', () async {
     final (:client, :connector) = _client();
     Object? error;
