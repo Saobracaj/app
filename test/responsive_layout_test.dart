@@ -13,8 +13,12 @@ import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
 import 'package:saobracaj/core/presentation/app_sidebar.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
+import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
+import 'package:saobracaj/groups/data/groups_repository.dart';
+import 'package:saobracaj/groups/state_management/groups_bloc.dart';
 import 'package:saobracaj/home_page.dart';
+import 'package:saobracaj/profile/data/profile_repository.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/question_lists/data/question_lists_repository.dart';
 import 'package:saobracaj/question_lists/data/shared_lists_repository.dart';
@@ -163,7 +167,8 @@ Widget _homeApp() {
       routerDelegate: delegate,
       routeInformationParser: const RoutemasterParser(),
       // Боковая колонка широкого экрана показывает аккаунт и переключатель
-      // темы, поэтому оболочке нужны оба блока.
+      // темы, а над вкладками стоит слушатель групп (приглашения) — оболочке
+      // нужны все три блока.
       builder: (context, child) => MultiBlocProvider(
         providers: [
           BlocProvider(
@@ -173,6 +178,18 @@ Widget _homeApp() {
             ),
           ),
           BlocProvider(create: (_) => ThemeBloc()),
+          BlocProvider(
+            create: (context) => GroupsBloc(
+              GroupsRepository(
+                client,
+                GraphqlSubscriptionClient(client, storage),
+              ),
+              ProfileRepository(client),
+              context.read<AuthBloc>(),
+              FeatureFlagsRepository(client, storage),
+              NetworkStatus(),
+            ),
+          ),
         ],
         child: child!,
       ),

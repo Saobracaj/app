@@ -11,7 +11,10 @@ import 'package:saobracaj/home/presentation/offline_home_card.dart';
 import 'package:saobracaj/question_lists/presentation/question_lists_section.dart';
 
 /// Главная страница приложения: раздел со списками вопросов (автоматические +
-/// пользовательские) и карточки групп пользователя.
+/// пользовательские) и карточки групп, в которых пользователь состоит.
+///
+/// Групп на главной может не быть вовсе: тот, кто ни в одну не вступил, их
+/// секции не видит — создать группу или войти по коду можно в настройках.
 ///
 /// Без сети сверху стоит карточка «приложение в режиме offline» со ссылками на
 /// вопросы и симуляцию — они работают из локальных ассетов; секции ниже
@@ -55,7 +58,8 @@ class HomeContentPage extends StatelessWidget {
                     const SizedBox(height: 24),
                   ],
                   const QuestionListsSection(wide: true),
-                  const SizedBox(height: 38),
+                  // Отступ над группами — внутри самой секции: без групп она
+                  // не занимает на главной ничего.
                   const GroupsSection(wide: true),
                 ],
               ),
@@ -83,7 +87,6 @@ class HomeContentPage extends StatelessWidget {
                 child: OfflineHomeCard(),
               ),
             const QuestionListsSection(),
-            const SizedBox(height: 8),
             const GroupsSection(),
           ],
         ),

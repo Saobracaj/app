@@ -187,6 +187,7 @@
     "profileSubtitle": "Отображаемое имя и аккаунт",
     "appearance": "Оформление",
     "appearanceSubtitle": "Цвет акцента и тема",
+    "groupsSubtitle": "Создать группу, войти по коду, ваши группы",
     "accentColor": "Цвет акцента",
     "accentDefault": "По умолчанию (динамический)",
     "themeMode": "Тема",

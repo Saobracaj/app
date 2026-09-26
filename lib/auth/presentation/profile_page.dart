@@ -11,6 +11,7 @@ import '../../feature_flags/domain/app_feature.dart';
 import '../../feature_flags/presentation/feature_flags_page.dart';
 import '../../feature_flags/state_management/feature_flags_bloc.dart';
 import '../../generated/locale_keys.g.dart';
+import '../../groups/presentation/groups_page.dart';
 import '../../notifications/presentation/notifications_page.dart';
 import '../../profile/presentation/display_name_page.dart';
 import '../../profile/state_management/display_name_bloc.dart';
@@ -137,6 +138,7 @@ class ProfilePage extends StatelessWidget {
     SettingsSection.profile => const DisplayNamePage(),
     SettingsSection.subscription => const SubscriptionPage(),
     SettingsSection.appearance => const AppearancePage(),
+    SettingsSection.groups => const GroupsPage(),
     SettingsSection.notifications => const NotificationsPage(),
     SettingsSection.supportChat => const ChatPage(),
     SettingsSection.supportThreads => const SupportChatsPage(),
@@ -205,6 +207,17 @@ class ProfilePage extends StatelessWidget {
         title: LocaleKeys.settings_appearance.tr(),
         subtitle: LocaleKeys.settings_appearanceSubtitle.tr(),
       ),
+      // Группы: свой раздел настроек — на главной остались только карточки
+      // групп, в которые пользователь уже вступил. Как и сама фича, пункт
+      // виден вошедшему и только при включённом флаге `groups`.
+      if (auth.isAuthenticated &&
+          context.watch<FeatureFlagsBloc>().state.isEnabled(AppFeature.groups))
+        _SettingsEntry(
+          section: SettingsSection.groups,
+          icon: Icons.groups_outlined,
+          title: LocaleKeys.groups_section.tr(),
+          subtitle: LocaleKeys.settings_groupsSubtitle.tr(),
+        ),
       // Notifications only make sense for a signed-in account, so the
       // entry is hidden while signed out.
       if (auth.isAuthenticated)
@@ -405,6 +418,12 @@ class _SectionPanel extends StatelessWidget {
         const SurfaceCard(
           padding: EdgeInsets.symmetric(vertical: 12),
           child: AppearanceContent(),
+        ),
+      ),
+      SettingsSection.groups => hug(
+        const SurfaceCard(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: GroupsContent(),
         ),
       ),
       SettingsSection.notifications => hug(
