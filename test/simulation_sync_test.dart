@@ -123,13 +123,26 @@ Future<void> _pump(WidgetTester tester, [int frames = 3]) async {
   }
 }
 
-/// Клиент, который записывает мутации и отвечает заранее заданным
-/// результатом на запрос `simulation`.
+/// Клиент, который записывает мутации, отвечает заранее заданным результатом
+/// на запрос `simulation` и играет роль бэкенда для записей: принимает их,
+/// присваивая ревизию на единицу больше присланной базы (или отвечает
+/// [writeResult], если тест задал свой ответ).
 class _FakeClient extends GraphqlClient {
   _FakeClient(super.storage);
 
   final List<(String, Map<String, dynamic>)> calls = [];
   Map<String, dynamic>? serverSimulation;
+
+  /// Ответ на следующую запись вместо «принята»: отклонение с чужим
+  /// состоянием.
+  Map<String, dynamic>? writeResult;
+
+  /// Записи падают (нет связи).
+  bool failWrites = false;
+
+  /// Пока не завершён, ответ на запись не приходит: так тест успевает
+  /// подсунуть эхо этой записи, обогнавшее её ответ.
+  Completer<void>? holdWrites;
 
   @override
   Future<Map<String, dynamic>> run(
@@ -141,7 +154,23 @@ class _FakeClient extends GraphqlClient {
     if (query.contains('query Simulation')) {
       return {'simulation': serverSimulation};
     }
-    return const {};
+    final field = query.contains('setSimulation')
+        ? 'setSimulation'
+        : query.contains('endSimulation')
+        ? 'endSimulation'
+        : null;
+    if (field == null) return const {};
+    if (holdWrites case final hold?) await hold.future;
+    if (failWrites) throw Exception('no connection');
+    final result =
+        writeResult ??
+        {
+          'accepted': true,
+          'snapshot': null,
+          'outcome': null,
+          'revision': (variables['baseRevision'] as int) + 1,
+        };
+    return {field: result};
   }
 }
 
@@ -514,6 +543,29 @@ void main() {
     late SimulationSyncService service;
     late String deviceId;
 
+    /// Событие подписки: изменение симуляции с ревизией [revision].
+    /// [deviceId] в событии остался для диагностики, на решение он не влияет —
+    /// и в жизни у второй вкладки того же браузера он наш.
+    GraphqlSubscriptionData event({
+      PausedSimulation? snapshot,
+      String? outcome,
+      required int revision,
+      String? device,
+    }) => GraphqlSubscriptionData({
+      'simulationChanged': {
+        'snapshot': snapshot?.toJson(),
+        'outcome': outcome,
+        'deviceId': device,
+        'revision': revision,
+      },
+    });
+
+    Future<void> settle([int turns = 3]) async {
+      for (var i = 0; i < turns; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+    }
+
     setUp(() async {
       final storage = TokenStorage();
       deviceId = await storage.deviceId();
@@ -527,124 +579,210 @@ void main() {
         snapshots,
         storage,
       );
-      service.start();
+      service.start(watchLifecycle: true);
       auth.status.add(AuthStatus.authenticated);
       await Future<void>.delayed(Duration.zero);
     });
 
     tearDown(() => service.dispose());
 
-    test('местные изменения уходят на бэкенд: снимок и исход', () async {
+    test('местные изменения уходят на бэкенд с ревизией, на которой они '
+        'построены; принятая запись эту ревизию и запоминает', () async {
       expect(subscriptions.subscriptions, 1);
       await snapshots.save(_remoteSnapshot());
-      await Future<void>.delayed(Duration.zero);
+      await settle();
       final (set, variables) = client.calls.single;
-      // Аргумент — переменная запроса, а не интерполированный Dart'ом объект
-      // (второй литерал без `r` превращал `$snapshot` в `PausedSimulation(...)`,
-      // и бэкенд отвечал ошибкой разбора).
-      expect(set, contains(r'setSimulation(snapshot: $snapshot)'));
+      // Аргументы — переменные запроса, а не интерполированные Dart'ом
+      // значения (второй литерал без `r` превращал `$snapshot` в
+      // `PausedSimulation(...)`, и бэкенд отвечал ошибкой разбора).
+      expect(
+        set,
+        contains(
+          r'setSimulation(snapshot: $snapshot, baseRevision: $baseRevision)',
+        ),
+      );
       expect(set, isNot(contains('PausedSimulation(')));
       final json = variables['snapshot'] as Map<String, dynamic>;
       expect(json['attemptUuid'], 'attempt-from-phone');
       expect(json['currentQuestionIndex'], 1);
+      // Симуляции на бэкенде ещё не было — база 0, принятая запись даёт 1.
+      expect(variables['baseRevision'], 0);
+      expect(snapshots.revision, 1);
+      expect(snapshots.dirty, isFalse);
 
       await snapshots.clear(outcome: SimulationOutcome.finished);
-      await Future<void>.delayed(Duration.zero);
-      final (clear, outcome) = client.calls.last;
-      expect(clear, contains(r'clearSimulation(outcome: $outcome)'));
-      expect(clear, isNot(contains('SimulationOutcome.')));
+      await settle();
+      final (end, outcome) = client.calls.last;
+      expect(
+        end,
+        contains(
+          r'endSimulation(outcome: $outcome, baseRevision: $baseRevision)',
+        ),
+      );
+      expect(end, isNot(contains('SimulationOutcome.')));
       expect(outcome['outcome'], 'FINISHED');
+      expect(outcome['baseRevision'], 1);
+      expect(snapshots.revision, 2);
     });
 
-    test('чужое событие кладётся в хранилище и просит открыть идущую '
-        'симуляцию; своё эхо пропускается', () async {
+    test('чужое изменение узнаётся по ревизии, а не по устройству: ход второй '
+        'вкладки того же браузера применяется', () async {
       final opens = <PausedSimulation>[];
       service.openRequests.listen(opens.add);
 
+      // Ровно тот случай, из-за которого зеркало между вкладками не работало:
+      // deviceId в событии — наш собственный, потому что вкладки делят его.
       subscriptions.events.add(
-        GraphqlSubscriptionData({
-          'simulationChanged': {
-            'snapshot': _remoteSnapshot().toJson(),
-            'outcome': null,
-            'deviceId': deviceId,
-          },
-        }),
+        event(snapshot: _remoteSnapshot(), revision: 4, device: deviceId),
       );
-      await Future<void>.delayed(Duration.zero);
-      expect(snapshots.current, isNull);
-
-      subscriptions.events.add(
-        GraphqlSubscriptionData({
-          'simulationChanged': {
-            'snapshot': _remoteSnapshot().toJson(),
-            'outcome': null,
-            'deviceId': 'phone',
-          },
-        }),
-      );
-      await Future<void>.delayed(Duration.zero);
+      await settle();
       expect(snapshots.currentIsRemote, isTrue);
+      expect(snapshots.revision, 4);
       expect(opens.single.attemptUuid, 'attempt-from-phone');
       // Чужое не отправляется обратно.
       expect(client.calls, isEmpty);
 
       // Пауза там — без открытия здесь.
       subscriptions.events.add(
-        GraphqlSubscriptionData({
-          'simulationChanged': {
-            'snapshot': _remoteSnapshot(pausedAt: DateTime(2026)).toJson(),
-            'outcome': null,
-            'deviceId': 'phone',
-          },
-        }),
+        event(
+          snapshot: _remoteSnapshot(pausedAt: DateTime(2026)),
+          revision: 5,
+          device: deviceId,
+        ),
       );
-      await Future<void>.delayed(Duration.zero);
+      await settle();
       expect(opens, hasLength(1));
       expect(snapshots.current?.pausedAt, isNotNull);
 
       subscriptions.events.add(
-        GraphqlSubscriptionData({
-          'simulationChanged': {
-            'snapshot': null,
-            'outcome': 'FINISHED',
-            'deviceId': 'phone',
-          },
-        }),
+        event(outcome: 'FINISHED', revision: 6, device: 'phone'),
       );
-      await Future<void>.delayed(Duration.zero);
+      await settle();
       expect(snapshots.current, isNull);
+      expect(snapshots.revision, 6);
     });
 
-    test('сверка после подключения: чужой снимок с бэкенда применяется, '
-        'а свой, начатый без связи, отправляется', () async {
+    test('эхо собственной записи не делает это устройство зеркалом — ни после '
+        'ответа на неё, ни раньше ответа', () async {
+      await snapshots.save(_remoteSnapshot());
+      await settle();
+      expect(snapshots.revision, 1);
+
+      // Наша же запись вернулась по подписке.
+      subscriptions.events.add(
+        event(snapshot: _remoteSnapshot(), revision: 1, device: deviceId),
+      );
+      await settle();
+      expect(snapshots.currentIsRemote, isFalse);
+
+      // Эхо, обогнавшее ответ на мутацию: ревизию записи мы ещё не знаем, но
+      // знаем, какая ей достанется.
+      client.holdWrites = Completer<void>();
+      await snapshots.save(_remoteSnapshot(currentQuestionIndex: 2));
+      await settle();
+      subscriptions.events.add(
+        event(
+          snapshot: _remoteSnapshot(currentQuestionIndex: 2),
+          revision: 2,
+          device: deviceId,
+        ),
+      );
+      await settle();
+      expect(snapshots.currentIsRemote, isFalse);
+      client.holdWrites!.complete();
+      await settle();
+      expect(snapshots.revision, 2);
+      expect(snapshots.currentIsRemote, isFalse);
+    });
+
+    test('отклонённая запись отдаёт ведение тому, кто обогнал', () async {
+      await snapshots.save(_remoteSnapshot());
+      await settle();
+      final opens = <PausedSimulation>[];
+      service.openRequests.listen(opens.add);
+
+      // Пока мы собирались, ход сделали на другом устройстве.
+      client.writeResult = {
+        'accepted': false,
+        'snapshot': _remoteSnapshot(currentQuestionIndex: 2).toJson(),
+        'outcome': null,
+        'revision': 9,
+      };
+      await snapshots.save(_remoteSnapshot(currentQuestionIndex: 0));
+      await settle();
+      expect(snapshots.currentIsRemote, isTrue);
+      expect(snapshots.current?.currentQuestionIndex, 2);
+      expect(snapshots.revision, 9);
+      expect(snapshots.dirty, isFalse);
+      expect(opens.single.currentQuestionIndex, 2);
+
+      // Повторно отправлять отклонённое не пытаемся: ведёт теперь другой.
+      client.calls.clear();
+      client.writeResult = null;
+      await settle();
+      expect(client.calls, isEmpty);
+    });
+
+    test('сверка после подключения: состояние свежее нашего применяется, '
+        'своё, начатое без связи, отправляется', () async {
       client.serverSimulation = {
         'snapshot': _remoteSnapshot().toJson(),
-        'deviceId': 'phone',
-        'updatedAt': '2026-09-22T21:15:00Z',
+        'revision': 3,
       };
       subscriptions.events.add(
         const GraphqlSubscriptionResumed(firstConnect: true),
       );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await settle();
       expect(snapshots.currentIsRemote, isTrue);
+      expect(snapshots.revision, 3);
       expect(client.calls.single.$1, contains('query Simulation'));
 
-      // Свой более свежий снимок и пусто на бэкенде — уходит наш.
+      // Свой снимок, начатый без связи, и пусто на бэкенде — уходит наш.
       client.calls.clear();
       client.serverSimulation = null;
+      client.failWrites = true;
       await snapshots.save(_remoteSnapshot(savedAt: clock.now()));
-      await Future<void>.delayed(Duration.zero);
+      await settle();
+      expect(snapshots.dirty, isTrue);
       client.calls.clear();
+      client.failWrites = false;
       subscriptions.events.add(
         const GraphqlSubscriptionResumed(firstConnect: false),
       );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await settle();
       expect(client.calls.map((c) => c.$1), [
         contains('query Simulation'),
         contains('setSimulation'),
       ]);
+    });
+
+    test('сверка: бэкенд на нашей же ревизии — применять нечего, но '
+        'неотправленное досылается', () async {
+      client.failWrites = true;
+      await snapshots.save(_remoteSnapshot());
+      await settle();
+      expect(snapshots.dirty, isTrue);
+      expect(snapshots.revision, 0);
+
+      // Ревизия бэкенда та же, что мы знаем: чужого хода не было.
+      client.failWrites = false;
+      client.serverSimulation = {
+        'snapshot': _remoteSnapshot(currentQuestionIndex: 0).toJson(),
+        'revision': 0,
+      };
+      client.calls.clear();
+      subscriptions.events.add(
+        const GraphqlSubscriptionResumed(firstConnect: false),
+      );
+      await settle();
+      // Своё не затёрто чужим, а дослано.
+      expect(snapshots.currentIsRemote, isFalse);
+      expect(snapshots.current?.currentQuestionIndex, 1);
+      expect(client.calls.map((c) => c.$1), [
+        contains('query Simulation'),
+        contains('setSimulation'),
+      ]);
+      expect(snapshots.dirty, isFalse);
     });
 
     test('надгробие на бэкенде: снимок той же попытки стёрт с тем же исходом, '
@@ -654,59 +792,56 @@ void main() {
       // Свой снимок, но экзамен закончили на другом устройстве, пока нас не
       // было: стирается, а не воскрешается на бэкенде.
       await snapshots.save(_remoteSnapshot(savedAt: clock.now()));
-      await Future<void>.delayed(Duration.zero);
+      await settle();
       client.calls.clear();
       client.serverSimulation = {
         'snapshot': _remoteSnapshot().toJson(),
         'outcome': 'FINISHED',
-        'deviceId': 'web',
-        'updatedAt': '2026-09-22T21:30:00Z',
+        'revision': 7,
       };
       subscriptions.events.add(
         const GraphqlSubscriptionResumed(firstConnect: false),
       );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await settle();
       expect(snapshots.current, isNull);
       expect(events.last.remote, isTrue);
       expect(events.last.outcome, SimulationOutcome.finished);
+      expect(snapshots.revision, 7);
       expect(client.calls.map((c) => c.$1), [contains('query Simulation')]);
 
       // Надгробие без снимка (там закончили то, что не успели отправить) —
       // тоже конец нашей копии.
-      await snapshots.applyRemote(_remoteSnapshot());
+      await snapshots.applyRemote(_remoteSnapshot(), revision: 7);
       client.calls.clear();
       client.serverSimulation = {
         'snapshot': null,
         'outcome': 'ABANDONED',
-        'deviceId': 'web',
-        'updatedAt': '2026-09-22T21:31:00Z',
+        'revision': 8,
       };
       subscriptions.events.add(
         const GraphqlSubscriptionResumed(firstConnect: false),
       );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await settle();
       expect(snapshots.current, isNull);
       expect(events.last.outcome, SimulationOutcome.abandoned);
 
       // Своя новая попытка, начатая без связи после того конца, — уходит.
+      client.failWrites = true;
       await snapshots.save(
         _remoteSnapshot(savedAt: clock.now(), attemptUuid: 'started-offline'),
       );
-      await Future<void>.delayed(Duration.zero);
+      await settle();
+      client.failWrites = false;
       client.calls.clear();
       client.serverSimulation = {
         'snapshot': _remoteSnapshot().toJson(),
         'outcome': 'FINISHED',
-        'deviceId': 'web',
-        'updatedAt': '2026-09-22T21:32:00Z',
+        'revision': 9,
       };
       subscriptions.events.add(
         const GraphqlSubscriptionResumed(firstConnect: false),
       );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await settle();
       expect(snapshots.current?.attemptUuid, 'started-offline');
       expect(client.calls.map((c) => c.$1), [
         contains('query Simulation'),
@@ -714,59 +849,45 @@ void main() {
       ]);
     });
 
-    test(
-      'ответ сверки старее уже применённого события не откатывает его',
-      () async {
-        subscriptions.events.add(
-          GraphqlSubscriptionData({
-            'simulationChanged': {
-              'snapshot': _remoteSnapshot(currentQuestionIndex: 2).toJson(),
-              'outcome': null,
-              'deviceId': 'phone',
-              'updatedAt': '2026-09-22T21:20:00Z',
-            },
-          }),
-        );
-        await Future<void>.delayed(Duration.zero);
-        expect(snapshots.current?.currentQuestionIndex, 2);
+    test('ответ сверки старее уже применённого события не откатывает его', () async {
+      subscriptions.events.add(
+        event(
+          snapshot: _remoteSnapshot(currentQuestionIndex: 2),
+          revision: 12,
+          device: 'phone',
+        ),
+      );
+      await settle();
+      expect(snapshots.current?.currentQuestionIndex, 2);
 
-        client.serverSimulation = {
-          'snapshot': _remoteSnapshot(currentQuestionIndex: 1).toJson(),
-          'deviceId': 'phone',
-          'updatedAt': '2026-09-22T21:19:00Z',
-        };
-        subscriptions.events.add(
-          const GraphqlSubscriptionResumed(firstConnect: false),
-        );
-        await Future<void>.delayed(Duration.zero);
-        await Future<void>.delayed(Duration.zero);
-        expect(snapshots.current?.currentQuestionIndex, 2);
+      client.serverSimulation = {
+        'snapshot': _remoteSnapshot(currentQuestionIndex: 1).toJson(),
+        'revision': 11,
+      };
+      subscriptions.events.add(
+        const GraphqlSubscriptionResumed(firstConnect: false),
+      );
+      await settle();
+      expect(snapshots.current?.currentQuestionIndex, 2);
 
-        // Событие старее последнего — тоже мимо; свежее — применяется.
-        subscriptions.events.add(
-          GraphqlSubscriptionData({
-            'simulationChanged': {
-              'snapshot': _remoteSnapshot(currentQuestionIndex: 0).toJson(),
-              'outcome': null,
-              'deviceId': 'phone',
-              'updatedAt': '2026-09-22T21:18:00Z',
-            },
-          }),
-        );
-        subscriptions.events.add(
-          GraphqlSubscriptionData({
-            'simulationChanged': {
-              'snapshot': _remoteSnapshot(currentQuestionIndex: 1).toJson(),
-              'outcome': null,
-              'deviceId': 'phone',
-              'updatedAt': '2026-09-22T21:21:00Z',
-            },
-          }),
-        );
-        await Future<void>.delayed(Duration.zero);
-        expect(snapshots.current?.currentQuestionIndex, 1);
-      },
-    );
+      // Событие старее последнего — тоже мимо; свежее — применяется.
+      subscriptions.events.add(
+        event(
+          snapshot: _remoteSnapshot(currentQuestionIndex: 0),
+          revision: 10,
+          device: 'phone',
+        ),
+      );
+      subscriptions.events.add(
+        event(
+          snapshot: _remoteSnapshot(currentQuestionIndex: 1),
+          revision: 13,
+          device: 'phone',
+        ),
+      );
+      await settle();
+      expect(snapshots.current?.currentQuestionIndex, 1);
+    });
 
     test('возврат приложения из фона переоткрывает сокет', () async {
       final binding = TestWidgetsFlutterBinding.instance;
@@ -814,8 +935,7 @@ void main() {
       auth.status.add(AuthStatus.unauthenticated);
       await Future<void>.delayed(Duration.zero);
       auth.status.add(AuthStatus.authenticated);
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await settle();
       expect(snapshots.current, isNotNull);
       expect(prefs.getString('practice.simulation_sync.owner'), 'user-a');
 
@@ -826,8 +946,7 @@ void main() {
       await prefs.setString('auth_access_token', _tokenFor('user-b'));
       client.calls.clear();
       auth.status.add(AuthStatus.authenticated);
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await settle();
       expect(snapshots.current, isNull);
       expect(prefs.getString('practice.simulation_sync.owner'), 'user-b');
       expect(
@@ -836,14 +955,35 @@ void main() {
       );
     });
 
+    test('бэкенд без ревизий (ещё не обновлён): чужой ход всё равно '
+        'применяется', () async {
+      subscriptions.events.add(
+        GraphqlSubscriptionData({
+          'simulationChanged': {
+            'snapshot': _remoteSnapshot().toJson(),
+            'outcome': null,
+            'deviceId': 'phone',
+          },
+        }),
+      );
+      await settle();
+      expect(snapshots.currentIsRemote, isTrue);
+
+      client.serverSimulation = {'snapshot': _remoteSnapshot().toJson()};
+      subscriptions.events.add(
+        const GraphqlSubscriptionResumed(firstConnect: false),
+      );
+      await settle();
+      expect(snapshots.currentIsRemote, isTrue);
+    });
+
     test('сверка: на бэкенде пусто, а здесь чужой снимок — он стёрт', () async {
-      await snapshots.applyRemote(_remoteSnapshot());
+      await snapshots.applyRemote(_remoteSnapshot(), revision: 2);
       client.serverSimulation = null;
       subscriptions.events.add(
         const GraphqlSubscriptionResumed(firstConnect: true),
       );
-      await Future<void>.delayed(Duration.zero);
-      await Future<void>.delayed(Duration.zero);
+      await settle();
       expect(snapshots.current, isNull);
     });
   });
