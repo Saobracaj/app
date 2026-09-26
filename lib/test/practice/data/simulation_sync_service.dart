@@ -19,23 +19,35 @@ import 'paused_simulation_repository.dart';
 ///
 /// Источник истины на устройстве — снимок в [PausedSimulationRepository].
 /// Местные изменения снимка (действия пользователя здесь) уходят на бэкенд
-/// (`setSimulation` / `clearSimulation`); изменения с других устройств
-/// приходят по подписке `simulationChanged` и кладутся в тот же репозиторий
-/// как чужие ([PausedSimulationRepository.applyRemote]) — открытый экран
-/// симуляции (`PracticeBloc`) применяет их на лету, а если экрана нет и там
-/// симуляция идёт (не на паузе), [openRequests] просит `main.dart` открыть
-/// её. Гость не синхронизируется: снимок живёт только на устройстве.
+/// (`setSimulation` / `endSimulation`); изменения с других устройств приходят
+/// по подписке `simulationChanged` и кладутся в тот же репозиторий как чужие
+/// ([PausedSimulationRepository.applyRemote]) — открытый экран симуляции
+/// (`PracticeBloc`) применяет их на лету, а если экрана нет и там симуляция
+/// идёт (не на паузе), [openRequests] просит `main.dart` открыть её. Гость не
+/// синхронизируется: снимок живёт только на устройстве.
+///
+/// **Кто пишет, решает ревизия.** У состояния на бэкенде есть номер, который
+/// растёт с каждой принятой записью. Отправляя снимок, устройство сообщает
+/// ревизию, на которой этот снимок построен ([PausedSimulationRepository
+/// .revision]): запись проходит, только пока она на бэкенде и лежит, а иначе
+/// отклоняется — значит, пока мы собирались, симуляцию повёл кто-то другой, и
+/// его состояние нам и возвращают. Пришедшее изменение применяется только
+/// когда его ревизия новее известной нам. Так устройство, на котором
+/// пользователь только что действовал, ведёт симуляцию (у него самая свежая
+/// ревизия), остальные её воспроизводят, а эхо собственной записи отбрасывается
+/// само — узнавать себя не нужно. По `deviceId` это и не получалось: две
+/// вкладки одного браузера делят один id (он лежит в shared preferences, то
+/// есть в localStorage), и вторая вкладка выбрасывала все события первой как
+/// собственное эхо.
 ///
 /// Подписка живёт, пока пользователь вошёл; сокет общий с остальными
 /// подписками приложения. После каждого (пере)подключения состояние сверяется
 /// с бэкендом ([_pull]): что пропущено, пока связи не было, восстанавливается
-/// оттуда, а что не удалось отправить отсюда — досылается. Возврат
-/// приложения из фона переоткрывает сокет сам: сокет, умерший, пока
-/// приложение спало, об этом не сообщает, и без этого телефон узнавал бы о
-/// ходе на вебе только с очередным таймером повтора (или никогда).
-///
-/// События и сверка упорядочены серверным `updatedAt`: ответ на сверку,
-/// пришедший позже более свежего события, не откатывает его.
+/// оттуда, а что не удалось отправить отсюда ([PausedSimulationRepository
+/// .dirty]) — досылается. Возврат приложения из фона переоткрывает сокет сам:
+/// сокет, умерший, пока приложение спало, об этом не сообщает, и без этого
+/// телефон узнавал бы о ходе на вебе только с очередным таймером повтора (или
+/// никогда).
 ///
 /// Снимок принадлежит аккаунту, а не устройству: рядом с ним лежит id
 /// пользователя, под которым он записан ([_ownerKey]). Вход под другим
@@ -53,7 +65,7 @@ class SimulationSyncService {
     this._storage,
   );
 
-  /// Исход, который не удалось отправить (`clearSimulation` без связи):
+  /// Исход, который не удалось отправить (`endSimulation` без связи):
   /// досылается при следующей сверке, пока на бэкенде лежит наш же снимок.
   static const _pendingOutcomeKey = 'practice.simulation_sync.pending_outcome';
 
@@ -77,11 +89,11 @@ class SimulationSyncService {
   bool _flushing = false;
   bool _authenticated = false;
   bool _started = false;
-  String? _deviceId;
 
-  /// Серверное время последнего применённого чужого изменения (событие или
-  /// сверка); что старше — уже неактуально.
-  DateTime? _lastRemoteAt;
+  /// Ревизия, которую должна получить отправляемая прямо сейчас запись (на
+  /// единицу больше той, на которой она построена). Событие с этой ревизией —
+  /// эхо нашей записи, пришедшее раньше ответа на неё.
+  int? _awaitedRevision;
 
   AppLifecycleListener? _lifecycle;
   bool _hidden = false;
@@ -138,17 +150,13 @@ class SimulationSyncService {
   /// Открыть подписку; первое `connection_ack` (и каждое переподключение)
   /// приходит как [GraphqlSubscriptionResumed] и запускает сверку.
   Future<void> _attach() async {
-    // Свой id — заранее: обработчик событий тогда без единого `await`
-    // доходит до записи в хранилище, и два события подряд применяются в
-    // том порядке, в каком пришли.
-    await _ownDeviceId();
     await _claimSnapshotOwnership();
     if (!_authenticated) return;
     _remoteSub?.cancel();
     _remoteSub = _subscriptions
         .subscribe('''
           subscription SimulationChanged {
-            simulationChanged { snapshot outcome deviceId updatedAt }
+            simulationChanged { snapshot outcome revision }
           }
         ''')
         .listen(
@@ -158,9 +166,6 @@ class SimulationSyncService {
         );
   }
 
-  /// Сессия кончилась: подписку закрываем, чужой снимок стираем — он
-  /// принадлежит аккаунту, а не устройству (свой, начатый здесь, остаётся:
-  /// его можно доиграть и гостем).
   /// Сверяет владельца лежащего снимка с вошедшим аккаунтом: чужой снимок
   /// стирает (молча — на бэкенд ничего не уходит, он не наш), снимок гостя
   /// присваивает этому аккаунту.
@@ -185,11 +190,14 @@ class SimulationSyncService {
     await prefs.setString(_ownerKey, user);
   }
 
+  /// Сессия кончилась: подписку закрываем, чужой снимок стираем — он
+  /// принадлежит аккаунту, а не устройству (свой, начатый здесь, остаётся:
+  /// его можно доиграть и гостем).
   void _detach() {
     _remoteSub?.cancel();
     _remoteSub = null;
     _outbox.clear();
-    _lastRemoteAt = null;
+    _awaitedRevision = null;
     if (_snapshots.currentIsRemote) unawaited(_snapshots.applyRemote(null));
   }
 
@@ -203,50 +211,47 @@ class SimulationSyncService {
         final raw = data['simulationChanged'];
         if (raw is! Map) return;
         final event = raw.cast<String, dynamic>();
-        if (event['deviceId'] == _deviceId) return;
-        if (!_fresh(event['updatedAt'])) return;
+        final revision = _revisionOf(event['revision']);
+        // Не новее того, что мы знаем (или эхо записи, ответ на которую ещё
+        // в пути) — мимо: ведёт симуляцию тот, чья ревизия свежее.
+        if (revision != null &&
+            (revision <= _snapshots.revision ||
+                revision == _awaitedRevision)) {
+          return;
+        }
+        final at = revision ?? _snapshots.revision;
         final snapshot = event['snapshot'];
         if (snapshot is Map) {
-          await _applyRemote(snapshot.cast<String, dynamic>());
+          await _applyRemote(snapshot.cast<String, dynamic>(), at);
         } else {
           await _snapshots.applyRemote(
             null,
             outcome: _parseOutcome(event['outcome']),
+            revision: at,
           );
         }
     }
   }
 
-  /// Изменение с серверным временем [updatedAt] новее уже применённых —
-  /// и с этого момента считается последним. Без времени (не должно быть)
-  /// считается свежим.
-  bool _fresh(Object? updatedAt) {
-    final at = updatedAt is String ? DateTime.tryParse(updatedAt) : null;
-    if (at == null) return true;
-    final last = _lastRemoteAt;
-    if (last != null && at.isBefore(last)) return false;
-    _lastRemoteAt = at;
-    return true;
-  }
-
-  /// Сверка с бэкендом после (пере)подключения: кто кого догоняет, решает
-  /// происхождение и свежесть снимков.
+  /// Сверка с бэкендом после (пере)подключения: у кого свежее состояние, тот
+  /// и ведёт симуляцию.
   ///
   ///  * на бэкенде ничего никогда не было: свой снимок отправляем (симуляцию
   ///    начали без связи), чужой стираем;
-  ///  * на бэкенде «надгробие» — симуляция там окончена (`outcome`): свой
-  ///    или чужой снимок той же попытки стираем с тем же исходом (открытый
-  ///    экран закончит её так же), свой снимок другой попытки — начатой
-  ///    здесь позже без связи — отправляем;
-  ///  * на бэкенде наш снимок: если здесь его уже нет — досылаем исход;
-  ///    если здешний свежее — досылаем его;
-  ///  * на бэкенде чужой снимок: применяем, если здешний свой не свежее его.
+  ///  * на бэкенде ревизия свежее нашей: применяем — мы отстали (и если это
+  ///    «надгробие», симуляция там окончена, заканчиваем её и здесь);
+  ///  * на бэкенде наша ревизия: досылаем то, что не успели отправить
+  ///    ([PausedSimulationRepository.dirty]).
+  ///
+  /// Исключение — своя симуляция, начатая здесь после того, как на бэкенде всё
+  /// кончилось: надгробие *другой* попытки не повод стирать начатый здесь
+  /// экзамен, его мы отправляем.
   Future<void> _pull() async {
     final Map<String, dynamic> data;
     try {
       data = await _client.run(
         'query Simulation { '
-        'simulation { snapshot outcome deviceId updatedAt } }',
+        'simulation { snapshot outcome revision } }',
         authenticated: true,
       );
     } catch (e) {
@@ -257,6 +262,7 @@ class SimulationSyncService {
     final local = _snapshots.current;
     final localIsRemote = _snapshots.currentIsRemote;
     if (raw is! Map) {
+      // Бэкенд не знает ни о какой симуляции этого пользователя.
       await _forgetPendingOutcome();
       if (local == null) return;
       if (localIsRemote) {
@@ -267,48 +273,53 @@ class SimulationSyncService {
       return;
     }
     final server = raw.cast<String, dynamic>();
+    final revision = _revisionOf(server['revision']);
     final serverSnapshot = _parseSnapshot(server['snapshot']);
     final outcome = _parseOutcome(server['outcome']);
+    if (revision != null && revision <= _snapshots.revision) {
+      // Мы и так знаем это состояние; осталось дослать своё, если было что.
+      await _flushPending(local, localIsRemote);
+      return;
+    }
+    final at = revision ?? _snapshots.revision;
     if (outcome != null) {
       // Надгробие: пока нас не было, симуляцию там закончили.
       await _forgetPendingOutcome();
-      if (local == null) return;
-      final ended =
-          serverSnapshot == null || _sameAttempt(local, serverSnapshot);
-      if (ended) {
-        if (!_fresh(server['updatedAt'])) return;
-        await _snapshots.applyRemote(null, outcome: outcome);
-      } else if (!localIsRemote) {
+      final ownAttemptGoesOn =
+          local != null &&
+          !localIsRemote &&
+          serverSnapshot != null &&
+          !_sameAttempt(local, serverSnapshot);
+      if (ownAttemptGoesOn) {
+        // Свой экзамен, начатый здесь после того конца, — продолжается.
         _enqueue(PausedSimulationChange(snapshot: local, remote: false));
-      } else {
-        await _snapshots.applyRemote(null);
+        return;
       }
+      await _snapshots.applyRemote(null, outcome: outcome, revision: at);
       return;
     }
     if (serverSnapshot == null) return;
-    if (server['deviceId'] == _deviceId) {
-      if (local == null) {
-        _enqueue(
-          PausedSimulationChange(
-            snapshot: null,
-            remote: false,
-            outcome: await _takePendingOutcome() ?? SimulationOutcome.abandoned,
-          ),
-        );
-      } else if (!localIsRemote &&
-          local.savedAt.isAfter(serverSnapshot.savedAt)) {
-        _enqueue(PausedSimulationChange(snapshot: local, remote: false));
-      }
-      return;
-    }
-    if (local != null &&
-        !localIsRemote &&
-        local.savedAt.isAfter(serverSnapshot.savedAt)) {
+    await _applyRemote(server['snapshot'] as Map<String, dynamic>, at);
+  }
+
+  /// Досылает изменение, которое не дошло до бэкенда (связи не было в момент
+  /// действия), когда на бэкенде всё ещё наша ревизия.
+  Future<void> _flushPending(
+    PausedSimulation? local,
+    bool localIsRemote,
+  ) async {
+    if (!_snapshots.dirty) return;
+    if (local != null && !localIsRemote) {
       _enqueue(PausedSimulationChange(snapshot: local, remote: false));
-      return;
+    } else if (local == null) {
+      _enqueue(
+        PausedSimulationChange(
+          snapshot: null,
+          remote: false,
+          outcome: await _takePendingOutcome() ?? SimulationOutcome.abandoned,
+        ),
+      );
     }
-    if (!_fresh(server['updatedAt'])) return;
-    await _applyRemote(server['snapshot'] as Map<String, dynamic>);
   }
 
   /// Один и тот же экзамен: по id попытки, а у снимков без него (старая
@@ -320,11 +331,11 @@ class SimulationSyncService {
     return a.startedAt == b.startedAt;
   }
 
-  Future<void> _applyRemote(Map<String, dynamic> json) async {
+  Future<void> _applyRemote(Map<String, dynamic> json, int revision) async {
     final snapshot = _parseSnapshot(json);
     if (snapshot == null) return;
     await _rememberOwner();
-    await _snapshots.applyRemote(snapshot);
+    await _snapshots.applyRemote(snapshot, revision: revision);
     // Идёт там прямо сейчас — пусть откроется и здесь. Пауза не открывает:
     // баннер «продолжить» на главной и так есть.
     if (snapshot.pausedAt == null) _openRequests.add(snapshot);
@@ -344,6 +355,15 @@ class SimulationSyncService {
   SimulationOutcome? _parseOutcome(Object? raw) => switch (raw) {
     'FINISHED' => SimulationOutcome.finished,
     'ABANDONED' => SimulationOutcome.abandoned,
+    _ => null,
+  };
+
+  /// Ревизия из ответа бэкенда, или `null`, если её там нет — бэкенд ещё не
+  /// обновлён (порядок деплоя: сперва он, потом клиент). Тогда порядок не
+  /// проверяется вовсе: лучше применить чужой ход, чем не применить никакой.
+  int? _revisionOf(Object? raw) => switch (raw) {
+    final int revision => revision,
+    final String revision => int.tryParse(revision),
     _ => null,
   };
 
@@ -375,38 +395,75 @@ class SimulationSyncService {
 
   Future<void> _push(PausedSimulationChange change) async {
     final snapshot = change.snapshot;
+    final base = _snapshots.revision;
+    _awaitedRevision = base + 1;
     try {
+      final Map<String, dynamic> data;
       if (snapshot != null) {
-        await _client.run(
-          r'mutation SetSimulation($snapshot: JSON!) { '
-          r'setSimulation(snapshot: $snapshot) { updatedAt } }',
-          variables: {'snapshot': snapshot.toJson()},
+        data = await _client.run(
+          r'mutation SetSimulation($snapshot: JSON!, $baseRevision: Int!) { '
+          r'setSimulation(snapshot: $snapshot, baseRevision: $baseRevision) '
+          r'{ accepted snapshot outcome revision } }',
+          variables: {'snapshot': snapshot.toJson(), 'baseRevision': base},
           authenticated: true,
         );
         await _rememberOwner();
+        await _onWriteResult(data['setSimulation']);
       } else {
         final outcome = change.outcome ?? SimulationOutcome.abandoned;
         // Запоминаем до отправки: если связи нет, исход дошлёт сверка.
         await _rememberPendingOutcome(outcome);
-        await _client.run(
-          r'mutation ClearSimulation($outcome: SimulationOutcome!) { '
-          r'clearSimulation(outcome: $outcome) }',
-          variables: {'outcome': outcome.name.toUpperCase()},
+        data = await _client.run(
+          r'mutation EndSimulation($outcome: SimulationOutcome!, '
+          r'$baseRevision: Int!) { '
+          r'endSimulation(outcome: $outcome, baseRevision: $baseRevision) '
+          r'{ accepted snapshot outcome revision } }',
+          variables: {
+            'outcome': outcome.name.toUpperCase(),
+            'baseRevision': base,
+          },
           authenticated: true,
         );
         await _forgetPendingOutcome();
+        await _onWriteResult(data['endSimulation']);
       }
     } on AuthExpiredException {
       _outbox.clear();
     } catch (e) {
-      // Нет связи: снимок остаётся своим в репозитории, сверка после
-      // переподключения отправит его (или исход) заново.
+      // Нет связи: изменение остаётся неотправленным, сверка после
+      // переподключения дошлёт его.
       debugPrint('simulation sync push failed: $e');
+      await _snapshots.markDirty();
+    } finally {
+      _awaitedRevision = null;
     }
   }
 
-  Future<String> _ownDeviceId() async =>
-      _deviceId ??= await _storage.deviceId();
+  /// Ответ на запись: принята — запоминаем присвоенную ревизию; отклонена —
+  /// пока мы собирались, симуляцию повёл кто-то другой, и вернули нам его
+  /// состояние: отдаём ему ведение и применяем присланное.
+  Future<void> _onWriteResult(Object? raw) async {
+    if (raw is! Map) return;
+    final result = raw.cast<String, dynamic>();
+    final revision = _revisionOf(result['revision']);
+    if (result['accepted'] == true) {
+      if (revision != null) await _snapshots.confirm(revision);
+      return;
+    }
+    _outbox.clear();
+    if (revision == null || revision <= _snapshots.revision) return;
+    final snapshot = result['snapshot'];
+    final outcome = _parseOutcome(result['outcome']);
+    if (snapshot is Map && outcome == null) {
+      await _applyRemote(snapshot.cast<String, dynamic>(), revision);
+    } else {
+      await _snapshots.applyRemote(
+        null,
+        outcome: outcome ?? SimulationOutcome.abandoned,
+        revision: revision,
+      );
+    }
+  }
 
   Future<void> _rememberPendingOutcome(SimulationOutcome outcome) async {
     final prefs = await SharedPreferences.getInstance();
