@@ -4,6 +4,7 @@ import 'package:routemaster/routemaster.dart';
 import 'core/presentation/app_sidebar.dart';
 import 'core/responsive.dart';
 import 'generated/locale_keys.g.dart';
+import 'groups/presentation/groups_flow_listener.dart';
 
 /// One destination of the home shell, rendered either as a [NavigationBar]
 /// item (phones) or a [NavigationRail] one (tablet/web).
@@ -48,9 +49,15 @@ class _HomePageState extends State<HomePage> {
         Icons.settings,
       ),
     ];
-    final body = PageStackNavigator(
-      key: ValueKey(pageState.index),
-      stack: pageState.stacks[pageState.index],
+    // Слушатель групп стоит над всеми вкладками: приглашение приходит на
+    // главную (по ссылке), а создать группу или войти по коду можно из
+    // настроек — вкладки же живут одновременно, и двух слушателей быть не
+    // должно.
+    final body = GroupsFlowListener(
+      child: PageStackNavigator(
+        key: ValueKey(pageState.index),
+        stack: pageState.stacks[pageState.index],
+      ),
     );
 
     // Веб и десктоп: вместо расширенного rail'а — боковая колонка из макета

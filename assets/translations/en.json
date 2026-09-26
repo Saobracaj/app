@@ -200,6 +200,7 @@
     "profileSubtitle": "Display name and account",
     "appearance": "Appearance",
     "appearanceSubtitle": "Accent color and theme",
+    "groupsSubtitle": "Create a group, join with a code, your groups",
     "accentColor": "Accent color",
     "accentDefault": "Default (dynamic)",
     "themeMode": "Theme",

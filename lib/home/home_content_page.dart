@@ -12,7 +12,10 @@ import 'package:saobracaj/question_lists/presentation/question_lists_section.dar
 import 'package:saobracaj/test/practice/widgets/paused_simulation_banner.dart';
 
 /// Главная страница приложения: раздел со списками вопросов (автоматические +
-/// пользовательские) и карточки групп пользователя.
+/// пользовательские) и карточки групп, в которых пользователь состоит.
+///
+/// Групп на главной может не быть вовсе: тот, кто ни в одну не вступил, их
+/// секции не видит — создать группу или войти по коду можно в настройках.
 ///
 /// Без сети сверху стоит карточка «приложение в режиме offline» со ссылками на
 /// вопросы и симуляцию — они работают из локальных ассетов; секции ниже
@@ -60,7 +63,8 @@ class HomeContentPage extends StatelessWidget {
                     padding: EdgeInsets.only(bottom: 24),
                   ),
                   const QuestionListsSection(wide: true),
-                  const SizedBox(height: 38),
+                  // Отступ над группами — внутри самой секции: без групп она
+                  // не занимает на главной ничего.
                   const GroupsSection(wide: true),
                 ],
               ),
@@ -92,7 +96,6 @@ class HomeContentPage extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
             ),
             const QuestionListsSection(),
-            const SizedBox(height: 8),
             const GroupsSection(),
           ],
         ),
