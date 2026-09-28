@@ -77,6 +77,26 @@ class QuestionAnalyticsRepository {
     );
   }
 
+  /// The exam weight of every question in the bank: the expected points it
+  /// brings to one exam (`probability × points`), keyed by question id.
+  ///
+  /// The home screen's readiness gauge sums these over the questions the user
+  /// currently knows and divides by the sum over the whole bank, so a question
+  /// that turns up on every third exam counts for more than one drawn from a
+  /// pool of two hundred. Questions absent from the asset (a content update it
+  /// predates, or category 38, which the B exam never draws) weigh nothing.
+  Future<Map<int, double>> weights() async {
+    final analytics = await _load();
+    final result = <int, double>{};
+    analytics.questions.forEach((key, raw) {
+      final id = int.tryParse(key);
+      if (id == null || raw is! Map<String, dynamic>) return;
+      final value = raw['value'];
+      if (value is num) result[id] = value.toDouble();
+    });
+    return result;
+  }
+
   /// A per-question marker/link entry as a list — it is only written for the
   /// questions that have any, so it may be absent.
   List<dynamic> _list(dynamic entries) => entries is List ? entries : const [];

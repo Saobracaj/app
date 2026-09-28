@@ -40,9 +40,10 @@
 | `login` / `sign_up` | вход / регистрация | `method` (`password`/`firebase`) |
 | `category_opened` | выбор подкатегории в списке категорий | `subcategory`, `question_count` |
 | `question_list_opened` | открытие своего списка вопросов | `question_count` |
+| `home_card_opened` | переход с карточки главной («готовность», «слабые темы», «знак дня»…) | `card` (ключ фича-флага карточки), `target` (`practice`/`simulation`/`question`/`konspekt`/`sign`/`questions`) |
 | `test_started` | начало прогона вопросов | `question_count`, `subcategory` |
 | `question_viewed` | показ вопроса (и каждое перелистывание) | `question_id` |
-| `question_answered` | ответ на вопрос — в прогоне и в экзамене | `question_id`, `correct`, `mode` (`quiz`/`exam`), `seconds_since_shown` (только `quiz`) |
+| `question_answered` | ответ на вопрос — в прогоне, в экзамене и на карточке «вопрос дня» | `question_id`, `correct`, `mode` (`quiz`/`exam`/`daily`), `seconds_since_shown` (только `quiz`) |
 | `question_tabs_viewed` | домотал до вкладок под вопросом (телефон) | `question_id` |
 | `question_tab_shown` | содержимое вкладки оказалось на экране — раз на вопрос и вкладку (см. «Чтение объяснений и конспектов») | `tab`, `question_id` |
 | `question_tab_opened` | переключение вкладки под вопросом рукой | `tab`, `question_id` |

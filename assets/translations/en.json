@@ -228,6 +228,8 @@
     "title": "Features",
     "localSection": "Available features",
     "localSectionSubtitle": "Can be turned on or off at any time",
+    "homeSection": "Home cards",
+    "homeSectionSubtitle": "What to show on the home screen",
     "accountSection": "For signed-in users",
     "accountSectionSubtitle": "Work after you sign in; you can turn them on or off already",
     "premiumSection": "Premium features",
@@ -259,7 +261,17 @@
       "auto_question_lists": "Automatic question lists",
       "custom_question_lists": "Custom question lists",
       "support_chat": "Support chat",
-      "russian_content": "Russian materials and translations"
+      "russian_content": "Russian materials and translations",
+      "home_readiness": "Home: exam readiness",
+      "home_exam_trend": "Home: simulation chart",
+      "home_activity": "Home: activity and streak",
+      "home_weak_topics": "Home: weak topics",
+      "home_category_coverage": "Home: category coverage",
+      "home_daily_question": "Home: question of the day",
+      "home_exam_countdown": "Home: exam countdown",
+      "home_daily_sign": "Home: sign of the day",
+      "home_continue_konspekt": "Home: continue the summary",
+      "home_summary": "Home: overview"
     }
   },
   "questionTabs": {
@@ -1112,5 +1124,90 @@
     "pause": "Pause animation",
     "play": "Resume animation",
     "step": "Frame {}"
+  },
+  "homeInsights": {
+    "section": "Progress",
+    "readiness": {
+      "title": "Exam readiness",
+      "hint": "The share of exam points from questions you answered correctly last time. Questions are weighted by how likely they are to appear on the exam. The pass mark is {} of 100.",
+      "empty": "Answer a few questions and your readiness estimate will appear here.",
+      "known": "You know {} of {} questions",
+      "practiceWeakest": "Work on the weakest topic"
+    },
+    "examTrend": {
+      "title": "Exam simulations",
+      "empty": "Take an exam simulation — the score chart will appear here.",
+      "passedOfRecent": "Passed {} of the last {}",
+      "last": "Latest: {} points, {} mistakes",
+      "passMark": "pass mark {}",
+      "start": "Simulation"
+    },
+    "activity": {
+      "title": "Activity",
+      "streak": {
+        "one": "{} day in a row",
+        "other": "{} days in a row"
+      },
+      "noStreak": "Streak broken — start again today",
+      "today": "Today {} of {}",
+      "goalReached": "Today's goal reached",
+      "goalTitle": "Daily goal",
+      "goalOption": {
+        "one": "{} question",
+        "other": "{} questions"
+      }
+    },
+    "weakTopics": {
+      "title": "Weak topics",
+      "empty": "Not enough data yet: answer at least {} questions of a topic for it to show up here.",
+      "accuracy": "{}% correct",
+      "practice": "Practise"
+    },
+    "coverage": {
+      "title": "Category coverage",
+      "progress": "{} of {}",
+      "accuracy": "{}% correct",
+      "untouched": "not opened yet"
+    },
+    "dailyQuestion": {
+      "title": "Question of the day",
+      "multiple": "Correct answers: {}",
+      "check": "Check",
+      "correct": "Correct!",
+      "wrong": "Wrong",
+      "open": "Open the question"
+    },
+    "countdown": {
+      "title": "Until the exam",
+      "set": "Set the exam date",
+      "days": {
+        "one": "{} day",
+        "other": "{} days"
+      },
+      "today": "The exam is today. Good luck!",
+      "passed": "The exam date has passed",
+      "forecast": "At about {} questions a day you will have covered roughly {}% of the bank by the exam",
+      "noPace": "Practise every day — a forecast appears once there is some history",
+      "change": "Change the date",
+      "clear": "Remove the date"
+    },
+    "dailySign": {
+      "title": "Sign of the day",
+      "reveal": "Show the name",
+      "open": "Open"
+    },
+    "konspekt": {
+      "title": "Continue the summary",
+      "continue": "Continue"
+    },
+    "summary": {
+      "title": "Overview",
+      "answers": "Answers in total",
+      "weekAccuracy": "Accuracy, last 7 days",
+      "simulations": "Simulations",
+      "simulationTime": "Time in simulations",
+      "hoursMinutes": "{} h {} min",
+      "minutes": "{} min"
+    }
   }
 }

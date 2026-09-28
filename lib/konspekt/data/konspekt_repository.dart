@@ -50,6 +50,31 @@ class KonspektRepository {
   Future<Set<String>> availableCategories() async =>
       (await _catalog()).keys.toSet();
 
+  static const _lastOpenedKey = 'konspekt.last_opened';
+
+  /// Remembers that the konspekt page of [categoryId] was opened — the home
+  /// screen's «продолжить конспект» card leads back to it. Called by
+  /// `KonspektBloc` once the document is on screen, not by [load]: the
+  /// konspekt tab of a question loads the same document without the user
+  /// having chosen to read it.
+  Future<void> rememberOpened(String categoryId) async {
+    try {
+      await (await _prefs).setString(_lastOpenedKey, categoryId);
+    } catch (_) {
+      // A failed write only costs the card; reading stays untouched.
+    }
+  }
+
+  /// The category whose konspekt page was opened last, or `null` when none
+  /// was on this device.
+  Future<String?> lastOpened() async {
+    try {
+      return (await _prefs).getString(_lastOpenedKey);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// The konspekt for [categoryId], or `null` if the backend has none.
   ///
   /// Throws whatever [GraphqlClient] throws when the document has to be

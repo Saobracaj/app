@@ -75,9 +75,38 @@ enum AppFeature {
   // 9. Support chat
   supportChat('support_chat', FeatureAccess.authenticated),
   // Standalone option: Russian materials & translations.
-  russianContent('russian_content', FeatureAccess.premium);
+  russianContent('russian_content', FeatureAccess.premium),
+  // 10. Home-screen cards. Every one of them is built from what the device
+  // already holds (the local answer history, the bundled question bank and
+  // its exam blueprint, the road-sign index), so they are guest-tier and
+  // **client-only**: the backend catalog does not list them and nothing has
+  // to be granted. Each card is its own flag so the operator — and the user,
+  // on the «Функции» screen — can switch them one by one.
+  homeReadiness('home_readiness', FeatureAccess.guest, homeCard: true),
+  homeExamTrend('home_exam_trend', FeatureAccess.guest, homeCard: true),
+  homeActivity('home_activity', FeatureAccess.guest, homeCard: true),
+  homeWeakTopics('home_weak_topics', FeatureAccess.guest, homeCard: true),
+  homeCategoryCoverage(
+    'home_category_coverage',
+    FeatureAccess.guest,
+    homeCard: true,
+  ),
+  homeDailyQuestion('home_daily_question', FeatureAccess.guest, homeCard: true),
+  homeExamCountdown('home_exam_countdown', FeatureAccess.guest, homeCard: true),
+  homeDailySign('home_daily_sign', FeatureAccess.guest, homeCard: true),
+  homeContinueKonspekt(
+    'home_continue_konspekt',
+    FeatureAccess.guest,
+    homeCard: true,
+  ),
+  homeSummary('home_summary', FeatureAccess.guest, homeCard: true);
 
-  const AppFeature(this.key, this.access, {this.freeInFreeCategories = true});
+  const AppFeature(
+    this.key,
+    this.access, {
+    this.freeInFreeCategories = true,
+    this.homeCard = false,
+  });
 
   /// Stable identifier shared with the backend.
   final String key;
@@ -89,6 +118,14 @@ enum AppFeature {
   /// for everybody. True for the content features (explanation, konspekt,
   /// analysis, Russian materials); false for the live AI chat.
   final bool freeInFreeCategories;
+
+  /// Whether this feature is one of the home-screen cards (listed in their own
+  /// section of the «Функции» screen, rendered by `HomeInsightsSection`).
+  final bool homeCard;
+
+  /// The home-screen cards in the order they stand on the screen.
+  static List<AppFeature> get homeCards =>
+      values.where((f) => f.homeCard).toList();
 
   /// The catalog entry with this [key], or `null` if unknown (e.g. a key the
   /// backend added that this client build doesn't know yet).

@@ -281,6 +281,21 @@ class RoadSignIndex {
     return lookupRoadSign(data, sign);
   }
 
+  /// Все знаки правилника, у которых есть официальный файл в assets/signs/ и
+  /// название, по одному на файл, в порядке кодов, — из них выбирается «знак
+  /// дня» на главной. Рисунки самого документа (ряд знаков одной картинкой)
+  /// сюда не входят: такая карточка показывала бы не один знак, а строку.
+  static Future<List<RoadSignInfo>> all() async {
+    _index ??= pravilnikDataSource.paragraphs.then(buildRoadSignIndex);
+    final data = await _index!;
+    final signs = [
+      for (final info in data.byAsset.values)
+        if (info.asset.startsWith('assets/signs/') && info.nameSr != null)
+          info,
+    ]..sort((a, b) => a.code.compareTo(b.code));
+    return signs;
+  }
+
   /// Сброс кэша для тестов: Future, рождённый в фейковой зоне одного
   /// widget-теста, в зоне следующего уже не дождаться.
   @visibleForTesting
