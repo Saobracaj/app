@@ -223,6 +223,15 @@ class SimulationSyncService {
         final snapshot = event['snapshot'];
         if (snapshot is Map) {
           await _applyRemote(snapshot.cast<String, dynamic>(), at);
+        } else if (revision != null &&
+            revision != _snapshots.revision + 1 &&
+            _snapshots.current != null &&
+            !_snapshots.currentIsRemote) {
+          // Конец, о котором мы не знаем, чей он: событие не несёт снимка,
+          // а между ним и нами есть пропущенные записи. Свою идущую
+          // симуляцию по нему не стираем — это может быть надгробие
+          // предыдущей попытки; сверка сравнит попытки.
+          await _pull();
         } else {
           await _snapshots.applyRemote(
             null,
@@ -291,7 +300,10 @@ class SimulationSyncService {
           serverSnapshot != null &&
           !_sameAttempt(local, serverSnapshot);
       if (ownAttemptGoesOn) {
-        // Свой экзамен, начатый здесь после того конца, — продолжается.
+        // Свой экзамен, начатый здесь после того конца, — продолжается и
+        // строится поверх ревизии надгробия: с прежней базой запись
+        // отклонят.
+        await _snapshots.acknowledge(at);
         _enqueue(PausedSimulationChange(snapshot: local, remote: false));
         return;
       }
@@ -454,6 +466,19 @@ class SimulationSyncService {
     if (revision == null || revision <= _snapshots.revision) return;
     final snapshot = result['snapshot'];
     final outcome = _parseOutcome(result['outcome']);
+    final local = _snapshots.current;
+    final serverSnapshot = outcome == null ? null : _parseSnapshot(snapshot);
+    if (local != null &&
+        !_snapshots.currentIsRemote &&
+        serverSnapshot != null &&
+        !_sameAttempt(local, serverSnapshot)) {
+      // Отклонили надгробием *предыдущей* попытки: о её конце мы не знали
+      // (ревизия отстала), а наша новая симуляция продолжается — строим её
+      // поверх этой ревизии и отправляем снова.
+      await _snapshots.acknowledge(revision);
+      _enqueue(PausedSimulationChange(snapshot: local, remote: false));
+      return;
+    }
     if (snapshot is Map && outcome == null) {
       await _applyRemote(snapshot.cast<String, dynamic>(), revision);
     } else {

@@ -105,6 +105,10 @@ class PausedSimulationRepository {
   /// до этого [current] отвечает `null`.
   Future<void> bootstrap() async {
     final prefs = await _store;
+    // Ревизия и dirty живут и без снимка: после чужого конца снимка нет, а
+    // база для следующей симуляции — есть (и неотправленный конец — тоже).
+    _revision = prefs.getInt(_revisionKey) ?? 0;
+    _dirty = prefs.getBool(_dirtyKey) ?? false;
     final raw = prefs.getString(_key);
     if (raw == null) return;
     try {
@@ -112,8 +116,6 @@ class PausedSimulationRepository {
         jsonDecode(raw) as Map<String, dynamic>,
       );
       _currentIsRemote = prefs.getBool(_remoteKey) ?? false;
-      _revision = prefs.getInt(_revisionKey) ?? 0;
-      _dirty = prefs.getBool(_dirtyKey) ?? false;
     } catch (e) {
       // Снимок от другой версии приложения или битый — симуляцию из него не
       // собрать, лучше молча забыть, чем падать на старте.
@@ -185,12 +187,28 @@ class PausedSimulationRepository {
     await prefs.setBool(_dirtyKey, _dirty);
   }
 
+  /// Бэкенд ушёл вперёд, но лежащий здесь снимок остаётся нашим: его нужно
+  /// строить (и отправлять) поверх [revision]. Так сверка и отклонённая запись
+  /// принимают надгробие *предыдущей* попытки, не стирая начатую здесь новую:
+  /// снимок и [dirty] не трогаются, меняется только база.
+  Future<void> acknowledge(int revision) async {
+    _revision = revision;
+    final prefs = await _store;
+    await prefs.setInt(_revisionKey, revision);
+  }
+
   Future<void> _drop({
     required bool remote,
     required SimulationOutcome? outcome,
     int revision = 0,
   }) async {
-    if (_current == null) return;
+    if (_current == null) {
+      // Стирать нечего, но ревизию чужого конца запомнить надо: иначе
+      // следующая симуляция уйдёт на бэкенд с устаревшей базой, будет
+      // отклонена, и надгробие предыдущей попытки сойдёт за её конец.
+      if (remote) await _adopt(revision);
+      return;
+    }
     _current = null;
     _currentIsRemote = false;
     if (remote) _revision = revision;
@@ -204,5 +222,14 @@ class PausedSimulationRepository {
     await prefs.remove(_remoteKey);
     await prefs.setInt(_revisionKey, _revision);
     await prefs.setBool(_dirtyKey, _dirty);
+  }
+
+  /// Состояние бэкенда принято целиком: досылать нечего.
+  Future<void> _adopt(int revision) async {
+    _revision = revision;
+    _dirty = false;
+    final prefs = await _store;
+    await prefs.setInt(_revisionKey, revision);
+    await prefs.setBool(_dirtyKey, false);
   }
 }
