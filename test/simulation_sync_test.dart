@@ -134,8 +134,14 @@ class _FakeClient extends GraphqlClient {
   Map<String, dynamic>? serverSimulation;
 
   /// Ответ на следующую запись вместо «принята»: отклонение с чужим
-  /// состоянием.
+  /// состоянием. Отдаётся один раз — повторная запись идёт обычным путём.
   Map<String, dynamic>? writeResult;
+
+  /// Играть настоящий бэкенд: запись с базой, не равной ревизии лежащей
+  /// строки ([serverSimulation]), отклоняется, и в ответ уходит эта строка;
+  /// принятая запись становится новой строкой. Без этого фейк принимал
+  /// любую базу и прятал отказы, которые настоящий бэкенд выдал бы.
+  bool strictRevisions = false;
 
   /// Записи падают (нет связи).
   bool failWrites = false;
@@ -162,15 +168,40 @@ class _FakeClient extends GraphqlClient {
     if (field == null) return const {};
     if (holdWrites case final hold?) await hold.future;
     if (failWrites) throw Exception('no connection');
-    final result =
-        writeResult ??
-        {
-          'accepted': true,
-          'snapshot': null,
-          'outcome': null,
-          'revision': (variables['baseRevision'] as int) + 1,
+    if (writeResult case final result?) {
+      writeResult = null;
+      return {field: result};
+    }
+    final base = variables['baseRevision'] as int;
+    if (strictRevisions) {
+      final stored = serverSimulation;
+      final revision = stored?['revision'] as int? ?? 0;
+      if (base != revision) {
+        return {
+          field: {
+            'accepted': false,
+            'snapshot': stored?['snapshot'],
+            'outcome': stored?['outcome'],
+            'revision': revision,
+          },
         };
-    return {field: result};
+      }
+      serverSimulation = {
+        'snapshot': field == 'setSimulation'
+            ? variables['snapshot']
+            : stored?['snapshot'],
+        'outcome': field == 'setSimulation' ? null : variables['outcome'],
+        'revision': base + 1,
+      };
+    }
+    return {
+      field: {
+        'accepted': true,
+        'snapshot': null,
+        'outcome': null,
+        'revision': base + 1,
+      },
+    };
   }
 }
 
@@ -259,6 +290,36 @@ void main() {
       expect(events.last.snapshot, isNull);
       expect(events.last.remote, isFalse);
       expect(events.last.outcome, SimulationOutcome.finished);
+    });
+
+    test('чужой конец без лежащего снимка запоминает ревизию, не рождая '
+        'события; acknowledge меняет базу, не трогая снимок', () async {
+      final events = <PausedSimulationChange>[];
+      snapshots.events.listen(events.add);
+      await snapshots.markDirty();
+
+      await snapshots.applyRemote(
+        null,
+        outcome: SimulationOutcome.finished,
+        revision: 315,
+      );
+      expect(snapshots.current, isNull);
+      expect(snapshots.revision, 315);
+      expect(snapshots.dirty, isFalse);
+      await Future<void>.delayed(Duration.zero);
+      expect(events, isEmpty);
+
+      final restarted = PausedSimulationRepository();
+      await restarted.bootstrap();
+      expect(restarted.revision, 315);
+
+      await snapshots.save(_remoteSnapshot(attemptUuid: 'own'));
+      await snapshots.acknowledge(316);
+      expect(snapshots.revision, 316);
+      expect(snapshots.dirty, isTrue);
+      expect(snapshots.currentIsRemote, isFalse);
+      expect(snapshots.current?.attemptUuid, 'own');
+      expect(events.length, 1);
     });
   });
 
@@ -847,6 +908,145 @@ void main() {
         contains('query Simulation'),
         contains('setSimulation'),
       ]);
+      // Поверх ревизии надгробия, а не прежней: иначе запись отклонят.
+      expect(client.calls.last.$2['baseRevision'], 9);
+      expect(snapshots.revision, 10);
+    });
+
+    test('новая симуляция поверх надгробия предыдущей: сверка без снимка '
+        'запоминает ревизию, и запись уходит с неё', () async {
+      client.strictRevisions = true;
+      final drops = <PausedSimulationChange>[];
+      snapshots.events
+          .where((c) => c.remote && c.snapshot == null)
+          .listen(drops.add);
+      // И старт, и конец той симуляции прошли мимо этого устройства; здесь
+      // снимка нет.
+      client.serverSimulation = {
+        'snapshot': _remoteSnapshot(attemptUuid: 'previous').toJson(),
+        'outcome': 'ABANDONED',
+        'revision': 315,
+      };
+      subscriptions.events.add(
+        const GraphqlSubscriptionResumed(firstConnect: true),
+      );
+      await settle();
+      expect(snapshots.current, isNull);
+      expect(snapshots.revision, 315);
+      client.calls.clear();
+
+      await snapshots.save(_remoteSnapshot(attemptUuid: 'started-here'));
+      await settle();
+      expect(client.calls.map((c) => c.$1), [contains('setSimulation')]);
+      expect(client.calls.single.$2['baseRevision'], 315);
+      expect(snapshots.revision, 316);
+      expect(snapshots.current?.attemptUuid, 'started-here');
+      expect(snapshots.currentIsRemote, isFalse);
+      // Надгробие предыдущей попытки не сошло за конец этой.
+      expect(drops, isEmpty);
+    });
+
+    test('запись отклонена надгробием другой попытки: своя симуляция не '
+        'стирается, а строится поверх его ревизии и уходит снова', () async {
+      client.strictRevisions = true;
+      final drops = <PausedSimulationChange>[];
+      snapshots.events
+          .where((c) => c.remote && c.snapshot == null)
+          .listen(drops.add);
+      // Ревизия здесь отстала (0), а на бэкенде уже надгробие: так бывает,
+      // когда сверка ещё не успела, а пользователь уже начал экзамен.
+      client.serverSimulation = {
+        'snapshot': _remoteSnapshot(attemptUuid: 'previous').toJson(),
+        'outcome': 'FINISHED',
+        'revision': 7,
+      };
+      await snapshots.save(_remoteSnapshot(attemptUuid: 'started-here'));
+      await settle();
+      expect(client.calls.map((c) => c.$2['baseRevision']), [0, 7]);
+      expect(snapshots.current?.attemptUuid, 'started-here');
+      expect(snapshots.currentIsRemote, isFalse);
+      expect(snapshots.revision, 8);
+      expect(snapshots.dirty, isFalse);
+      expect(drops, isEmpty);
+      expect(client.serverSimulation?['outcome'], isNull);
+
+      // Надгробие *той же* попытки — настоящий конец: стирается с исходом.
+      client.serverSimulation = {
+        'snapshot': _remoteSnapshot(attemptUuid: 'started-here').toJson(),
+        'outcome': 'FINISHED',
+        'revision': 9,
+      };
+      await snapshots.save(
+        _remoteSnapshot(attemptUuid: 'started-here', currentQuestionIndex: 2),
+      );
+      await settle();
+      expect(snapshots.current, isNull);
+      expect(drops.single.outcome, SimulationOutcome.finished);
+      expect(snapshots.revision, 9);
+    });
+
+    test('событие конца с пропуском ревизий при своей идущей симуляции — '
+        'сверка, а не стирание вслепую', () async {
+      client.strictRevisions = true;
+      final drops = <PausedSimulationChange>[];
+      snapshots.events
+          .where((c) => c.remote && c.snapshot == null)
+          .listen(drops.add);
+      await snapshots.save(_remoteSnapshot(attemptUuid: 'started-here'));
+      await settle();
+      expect(snapshots.revision, 1);
+      client.calls.clear();
+
+      // Конец на ревизии 5: между ним и нами были записи, которых мы не
+      // видели, а чей это конец, событие не говорит. На бэкенде — надгробие
+      // предыдущей попытки, пришедшее с опозданием.
+      client.serverSimulation = {
+        'snapshot': _remoteSnapshot(attemptUuid: 'previous').toJson(),
+        'outcome': 'ABANDONED',
+        'revision': 5,
+      };
+      subscriptions.events.add(event(outcome: 'ABANDONED', revision: 5));
+      await settle();
+      expect(client.calls.map((c) => c.$1), [
+        contains('query Simulation'),
+        contains('setSimulation'),
+      ]);
+      expect(client.calls.last.$2['baseRevision'], 5);
+      expect(snapshots.current?.attemptUuid, 'started-here');
+      expect(snapshots.revision, 6);
+      expect(drops, isEmpty);
+
+      // Конец ровно следующей ревизией — это конец нашей попытки (её
+      // закончило зеркало): применяется как раньше.
+      subscriptions.events.add(event(outcome: 'ABANDONED', revision: 7));
+      await settle();
+      expect(snapshots.current, isNull);
+      expect(drops.single.outcome, SimulationOutcome.abandoned);
+    });
+
+    test('экран симуляции: новая попытка поверх чужого надгробия не '
+        'закрывается как «завершённая на другом устройстве»', () async {
+      client.strictRevisions = true;
+      client.serverSimulation = {
+        'snapshot': _remoteSnapshot(attemptUuid: 'previous').toJson(),
+        'outcome': 'ABANDONED',
+        'revision': 315,
+      };
+      subscriptions.events.add(
+        const GraphqlSubscriptionResumed(firstConnect: true),
+      );
+      await settle();
+
+      final bloc = _bloc(snapshots)..add(Init());
+      await settle(6);
+      expect(bloc.state.startedAt, isNotNull);
+      expect(bloc.state.endedRemotely, isFalse);
+      expect(bloc.state.abandoned, isFalse);
+      expect(bloc.state.finalizeTest, isFalse);
+      expect(snapshots.current?.startedAt, bloc.state.startedAt);
+      expect(snapshots.currentIsRemote, isFalse);
+      expect(snapshots.revision, 316);
+      await bloc.close();
     });
 
     test('ответ сверки старее уже применённого события не откатывает его', () async {
