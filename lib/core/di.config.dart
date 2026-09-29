@@ -37,12 +37,17 @@ import '../chat/state_management/chat_bloc.dart' as _i373;
 import '../chat/state_management/chat_image_bloc.dart' as _i968;
 import '../chat/state_management/question_chat_count_bloc.dart' as _i67;
 import '../chat/state_management/support_chats_bloc.dart' as _i667;
+import '../db/answer_repository.dart' as _i847;
 import '../feature_flags/data/feature_flags_repository.dart' as _i389;
 import '../feature_flags/domain/app_feature.dart' as _i392;
 import '../groups/data/groups_repository.dart' as _i685;
 import '../groups/state_management/group_bloc.dart' as _i1064;
 import '../groups/state_management/group_feed_bloc.dart' as _i481;
 import '../groups/state_management/groups_bloc.dart' as _i1032;
+import '../home/data/home_preferences_repository.dart' as _i175;
+import '../home/state_management/daily_question_bloc.dart' as _i500;
+import '../home/state_management/daily_sign_bloc.dart' as _i352;
+import '../home/state_management/home_insights_bloc.dart' as _i63;
 import '../konspekt/data/konspekt_repository.dart' as _i491;
 import '../konspekt/state_management/konspekt_bloc.dart' as _i198;
 import '../konspekt/state_management/konspekt_catalog_bloc.dart' as _i187;
@@ -112,6 +117,7 @@ extension GetItInjectableX on _i174.GetIt {
   }) {
     final gh = _i526.GetItHelper(this, environment, environmentFilter);
     final registerModule = _$RegisterModule();
+    gh.factory<_i352.DailySignBloc>(() => _i352.DailySignBloc());
     gh.lazySingleton<_i663.LocalDataCleaner>(() => _i663.LocalDataCleaner());
     gh.lazySingleton<_i25.TokenStorage>(() => _i25.TokenStorage());
     gh.lazySingleton<_i811.AnalyticsService>(() => _i811.AnalyticsService());
@@ -120,8 +126,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i389.FeatureFlagsRepository>(
       () => registerModule.featureFlagsRepository(),
     );
+    gh.lazySingleton<_i847.AnswerRepository>(
+      () => registerModule.answerRepository(),
+    );
     gh.lazySingleton<_i228.EnvironmentRepository>(
       () => _i228.EnvironmentRepository(),
+    );
+    gh.lazySingleton<_i175.HomePreferencesRepository>(
+      () => _i175.HomePreferencesRepository(),
     );
     gh.lazySingleton<_i426.NotificationPermissions>(
       () => const _i426.NotificationPermissions(),
@@ -157,6 +169,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i335.AnalyticsEventSink>(
       () => registerModule.analyticsEventSink(gh<_i25.TokenStorage>()),
+    );
+    gh.factory<_i500.DailyQuestionBloc>(
+      () => _i500.DailyQuestionBloc(
+        gh<_i175.HomePreferencesRepository>(),
+        gh<_i847.AnswerRepository>(),
+      ),
     );
     gh.factoryParam<_i986.QuestionCuesBloc, int, dynamic>(
       (questionId, _) => _i986.QuestionCuesBloc(
@@ -212,6 +230,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i958.NetworkStatus>(),
         questionId,
         categoryId,
+      ),
+    );
+    gh.factory<_i63.HomeInsightsBloc>(
+      () => _i63.HomeInsightsBloc(
+        gh<_i847.AnswerRepository>(),
+        gh<_i1002.QuestionAnalyticsRepository>(),
+        gh<_i175.HomePreferencesRepository>(),
+        gh<_i491.KonspektRepository>(),
       ),
     );
     gh.factory<_i187.KonspektCatalogBloc>(

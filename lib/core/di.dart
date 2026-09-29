@@ -4,7 +4,8 @@ import 'package:injectable/injectable.dart';
 import '../auth/data/graphql_client.dart';
 import '../auth/data/graphql_subscription_client.dart';
 import '../auth/data/token_storage.dart';
-import '../db/dependencies.dart' show featureFlags;
+import '../db/answer_repository.dart';
+import '../db/dependencies.dart' show featureFlags, repository;
 import '../feature_flags/data/feature_flags_repository.dart';
 import '../feature_flags/domain/app_feature.dart';
 import 'analytics/analytics_event_sink.dart';
@@ -77,4 +78,11 @@ abstract class RegisterModule {
   /// on any other repository instead of reaching for the global themselves.
   @lazySingleton
   FeatureFlagsRepository featureFlagsRepository() => featureFlags;
+
+  /// The local statistics store. Like [featureFlagsRepository], the instance
+  /// is the global from `lib/db/dependencies.dart` (the quiz and the exam
+  /// write through it directly); registering it lets a Bloc take it as a
+  /// constructor dependency and a test hand in an in-memory database.
+  @lazySingleton
+  AnswerRepository answerRepository() => repository;
 }

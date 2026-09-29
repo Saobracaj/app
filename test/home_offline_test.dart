@@ -12,6 +12,7 @@ import 'package:saobracaj/core/network/network_status.dart';
 import 'package:saobracaj/core/network/state_management/network_status_bloc.dart';
 import 'package:saobracaj/core/network/state_management/network_status_events.dart';
 import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
+import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
 import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
@@ -43,7 +44,7 @@ class _FakeClient extends GraphqlClient {
   }) async => const {};
 }
 
-Widget _app(NetworkStatus network) {
+Widget _app(NetworkStatus network, FeatureFlagsRepository flags) {
   final storage = TokenStorage();
   final client = _FakeClient(storage);
   final subscriptions = GraphqlSubscriptionClient(client, storage);
@@ -51,7 +52,6 @@ Widget _app(NetworkStatus network) {
     AuthRepository(client, storage, AnalyticsService()),
     subscriptions,
   );
-  final flags = FeatureFlagsRepository(client, storage);
   return EasyLocalization(
     useOnlyLangCode: true,
     supportedLocales: const [Locale('ru')],
@@ -114,7 +114,13 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() async {
-    SharedPreferences.setMockInitialValues({});
+    // Карточки прогресса (HomeInsightsSection) здесь ни при чём — у них свои
+    // тесты и свои зависимости (локальная БД, банк вопросов); выключаем их
+    // локальными тумблерами, как это сделал бы пользователь.
+    SharedPreferences.setMockInitialValues({
+      for (final feature in AppFeature.homeCards)
+        'feature.${feature.key}.enabled': false,
+    });
     await EasyLocalization.ensureInitialized();
   });
 
@@ -122,7 +128,13 @@ void main() {
     tester,
   ) async {
     final network = NetworkStatus();
-    await tester.pumpWidget(_app(network));
+    // Тумблеры из prefs читает bootstrap() — в приложении его зовёт main().
+    final flags = FeatureFlagsRepository(
+      _FakeClient(TokenStorage()),
+      TokenStorage(),
+    );
+    await flags.bootstrap();
+    await tester.pumpWidget(_app(network, flags));
     await _settle(tester);
     expect(find.byType(OfflineHomeCard), findsNothing);
 

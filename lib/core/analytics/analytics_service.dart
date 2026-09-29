@@ -136,6 +136,12 @@ class AnalyticsService {
   });
 
   /// One of the user's own question lists was opened.
+  /// A home-screen card led somewhere: [card] is the feature key of the card
+  /// (`home_readiness`, `home_weak_topics`, …), [target] what it opened —
+  /// `practice`, `simulation`, `question`, `konspekt`, `sign`, `questions`.
+  void logHomeCardOpened({required String card, required String target}) =>
+      _track('home_card_opened', {'card': card, 'target': target});
+
   void logQuestionListOpened({int? questionCount}) =>
       _track('question_list_opened', {'question_count': ?questionCount});
 

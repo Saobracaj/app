@@ -80,6 +80,7 @@ class KonspektBloc extends Bloc<KonspektEvent, KonspektState> {
     }
     emit(state.copyWith(inProgress: false, konspekt: konspekt));
     analytics.logKonspektOpened(categoryId: categoryId, section: initialSection);
+    unawaited(_repository.rememberOpened(categoryId));
     final section = initialSection;
     if (section != null) {
       add(KonspektSectionRequested(section, onOpen: true));
