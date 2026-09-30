@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
+import '../../attribution/presentation/link_sources_page.dart';
 import '../../billing_admin/presentation/billing_admin_page.dart';
 import '../../core/di.dart';
 import '../../core/presentation/wide_layout.dart';
@@ -143,6 +144,7 @@ class ProfilePage extends StatelessWidget {
     SettingsSection.supportChat => const ChatPage(),
     SettingsSection.supportThreads => const SupportChatsPage(),
     SettingsSection.billing => const BillingAdminPage(),
+    SettingsSection.linkSources => const LinkSourcesPage(),
     SettingsSection.testPush => const TestPushPage(),
     SettingsSection.features => const FeatureFlagsPage(),
     SettingsSection.about => const AboutPage(),
@@ -259,6 +261,15 @@ class ProfilePage extends StatelessWidget {
           icon: Icons.payments_outlined,
           title: LocaleKeys.billingAdmin_title.tr(),
           subtitle: LocaleKeys.billingAdmin_settingsSubtitle.tr(),
+        ),
+      // Источники ссылок /go/<код>: откуда приходят установки, регистрации
+      // и покупки. Гейт — бэкендовое право `manage_attribution`.
+      if (permissions.contains('manage_attribution'))
+        _SettingsEntry(
+          section: SettingsSection.linkSources,
+          icon: Icons.campaign_outlined,
+          title: LocaleKeys.linkSources_title.tr(),
+          subtitle: LocaleKeys.linkSources_settingsSubtitle.tr(),
         ),
       // Инструмент администратора: тестовая отправка пуша по почте.
       // Гейт — бэкендовое право `send_test_push`, оно же проверяется
@@ -443,6 +454,10 @@ class _SectionPanel extends StatelessWidget {
       SettingsSection.billing => const SurfaceCard(
         padding: EdgeInsets.symmetric(vertical: 8),
         child: BillingAdminContent(),
+      ),
+      SettingsSection.linkSources => const SurfaceCard(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: LinkSourcesContent(),
       ),
       SettingsSection.testPush => hug(
         const SurfaceCard(

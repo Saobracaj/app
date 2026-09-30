@@ -16,6 +16,9 @@ import '../account_deletion/data/account_deletion_repository.dart' as _i854;
 import '../account_deletion/data/local_data_cleaner.dart' as _i663;
 import '../account_deletion/state_management/account_deletion_bloc.dart'
     as _i251;
+import '../attribution/data/attribution_repository.dart' as _i352;
+import '../attribution/data/attribution_service.dart' as _i54;
+import '../attribution/state_management/link_sources_bloc.dart' as _i587;
 import '../auth/data/auth_repository.dart' as _i880;
 import '../auth/data/graphql_client.dart' as _i483;
 import '../auth/data/graphql_subscription_client.dart' as _i966;
@@ -119,6 +122,7 @@ extension GetItInjectableX on _i174.GetIt {
     final registerModule = _$RegisterModule();
     gh.factory<_i352.DailySignBloc>(() => _i352.DailySignBloc());
     gh.lazySingleton<_i663.LocalDataCleaner>(() => _i663.LocalDataCleaner());
+    gh.lazySingleton<_i54.LaunchSignals>(() => _i54.LaunchSignals());
     gh.lazySingleton<_i25.TokenStorage>(() => _i25.TokenStorage());
     gh.lazySingleton<_i811.AnalyticsService>(() => _i811.AnalyticsService());
     gh.lazySingleton<_i547.DeepLinkService>(() => _i547.DeepLinkService());
@@ -203,6 +207,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i854.AccountDeletionRepository>(
       () => _i854.AccountDeletionRepository(gh<_i483.GraphqlClient>()),
     );
+    gh.lazySingleton<_i352.AttributionRepository>(
+      () => _i352.AttributionRepository(gh<_i483.GraphqlClient>()),
+    );
     gh.lazySingleton<_i512.BillingAdminRepository>(
       () => _i512.BillingAdminRepository(gh<_i483.GraphqlClient>()),
     );
@@ -231,6 +238,9 @@ extension GetItInjectableX on _i174.GetIt {
         questionId,
         categoryId,
       ),
+    );
+    gh.factory<_i587.LinkSourcesBloc>(
+      () => _i587.LinkSourcesBloc(gh<_i352.AttributionRepository>()),
     );
     gh.factory<_i63.HomeInsightsBloc>(
       () => _i63.HomeInsightsBloc(
@@ -306,6 +316,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i854.AccountDeletionRepository>(),
         gh<_i388.AuthBloc>(),
       ),
+    );
+    gh.lazySingleton<_i54.AttributionService>(
+      () => _i54.AttributionService(
+        gh<_i352.AttributionRepository>(),
+        gh<_i880.AuthRepository>(),
+        gh<_i54.LaunchSignals>(),
+      ),
+      dispose: (i) => i.dispose(),
     );
     gh.factory<_i957.DisplayNameBloc>(
       () => _i957.DisplayNameBloc(gh<_i311.ProfileRepository>()),
