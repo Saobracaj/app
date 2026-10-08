@@ -124,6 +124,10 @@ dependencies:
   # действующих покупок аккаунта Google Play, которым витрина проверяет, не
   # платит ли человек уже, прежде чем продать ему второй пропуск.
   in_app_purchase_android: ^0.5.3
+  # Google Play Install Referrer: ссылка-источник (/go/<код>) кладёт click_id
+  # в referrer стора, и первый запуск Android-сборки читает его обратно —
+  # установка привязывается к клику точно (lib/attribution).
+  play_install_referrer: ^0.5.0
 
 dependency_overrides:
   # firebase_ui_auth 3.1.0 still pins app_links ^6.4.0 while only ever calling

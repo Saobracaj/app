@@ -23,6 +23,10 @@ enum SettingsSection {
   /// Денежный стол — админка платежей и подписок для держателей
   /// `manage_billing` (перенесена из Angular-панели).
   billing('billing'),
+
+  /// Источники ссылок `/go/<код>` и их воронка — для держателей
+  /// `manage_attribution`.
+  linkSources('link-sources'),
   testPush('test-push'),
   features('features'),
   about('about');

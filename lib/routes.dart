@@ -269,6 +269,11 @@ final Map<String, PageBuilder> routeBuilders = _withPravilnik({
   '/tariffs': (_) => const MaterialPage(child: TariffsPage()),
   // Возврат со страницы оплаты lava.top (веб, оплата рублями): lava.top
   // дописывает invoiceId и status к адресу, который назвал бэкенд.
+  // Ссылка-источник. В проде её до веб-версии не доходит (nginx отдаёт
+  // /go/ бэкенду, тот отвечает редиректом), а установленное приложение
+  // перехватывает её в main.dart. Сюда попадает только то, что проскочило
+  // мимо обоих (локальный веб-сервер) — на главную.
+  '/go/:code': (_) => const Redirect('/'),
   '/tariffs/lava': (data) {
     final invoiceId = data.queryParameters['invoiceId'];
     if (invoiceId == null || invoiceId.isEmpty) {
