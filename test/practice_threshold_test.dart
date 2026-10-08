@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:easy_localization/easy_localization.dart';
@@ -9,6 +10,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/core/di.dart';
+import 'package:saobracaj/db/db.dart' show PracticeRecord;
 import 'package:saobracaj/db/dependencies.dart';
 import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
@@ -180,6 +182,36 @@ void main() {
       expect(kMinAnsweredForStatistics, inInclusiveRange(5, 21));
     });
 
+    testWidgets('kExamQuestionCount — размер каждого варианта practice.json', (
+      tester,
+    ) async {
+      final variants =
+          jsonDecode(File('assets/practice.json').readAsStringSync()) as List;
+      expect(variants, isNotEmpty);
+      expect(variants.map((v) => (v as List).length).toSet(), {
+        kExamQuestionCount,
+      });
+    });
+
+    testWidgets('запись считается прошедшей порог по числу верных ответов', (
+      tester,
+    ) async {
+      PracticeRecord record(int mistakes) => PracticeRecord(
+        points: 0,
+        time: DateTime(2026),
+        mistakes: mistakes,
+        durationSeconds: 60,
+        wrongAnswers: const [],
+        uuid: null,
+      );
+      // Верных = 41 − ошибки; отвечено не меньше, чем верных.
+      final limit = kExamQuestionCount - kMinAnsweredForStatistics;
+      expect(practiceRecordCounted(record(limit)), isTrue);
+      expect(practiceRecordCounted(record(limit + 1)), isFalse);
+      expect(practiceRecordCounted(record(0)), isTrue);
+      expect(practiceRecordCounted(record(kExamQuestionCount)), isFalse);
+    });
+
     testWidgets('меньше порога ответов: результат есть, записи в истории '
         'попыток нет', (tester) async {
       final before = await tester.runAsync(
@@ -270,14 +302,8 @@ void main() {
       await tester.pumpWidget(_resultScreen(bloc));
       await _pump(tester);
       expect(find.byKey(const Key('simulation_not_counted')), findsOneWidget);
-      expect(
-        find.textContaining('не учтён в статистике'),
-        findsOneWidget,
-      );
-      expect(
-        find.textContaining('$kMinAnsweredForStatistics'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('не учтён в статистике'), findsOneWidget);
+      expect(find.textContaining('$kMinAnsweredForStatistics'), findsOneWidget);
       await tester.runAsync(bloc.close);
     });
 
