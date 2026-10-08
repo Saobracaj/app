@@ -31,6 +31,7 @@
     "outOf": "of {}",
     "threshold": "Pass mark is {} points.",
     "sameTheme": "All mistakes are from the same topic.",
+    "notCounted": "Not counted in your statistics: fewer than {} questions answered.",
     "yourErrors": "Your mistakes",
     "reviewErrors": {
       "one": "Review {} mistake",

@@ -204,14 +204,20 @@ class AnalyticsService {
 
   /// The exam simulation ended (by hand or by the 45-minute timer);
   /// [durationSeconds] counts from its start.
+  /// [answered] — сколько вопросов варианта получили ответ; [counted] —
+  /// попал ли результат в статистику (см. `kMinAnsweredForStatistics`).
   void logSimulationFinished({
     required int durationSeconds,
     required int points,
     required int mistakes,
+    required int answered,
+    required bool counted,
   }) => _track('simulation_finished', {
     'duration_seconds': durationSeconds,
     'points': points,
     'mistakes': mistakes,
+    'answered': answered,
+    'counted': counted,
   });
 
   /// A successful sign-in; [method] is `password` or `firebase` (Google/Apple).

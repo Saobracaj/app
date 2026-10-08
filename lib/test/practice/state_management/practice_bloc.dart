@@ -21,6 +21,17 @@ part 'practice_bloc.freezed.dart';
 /// Длительность теоретического экзамена.
 const kExamDuration = Duration(minutes: 45);
 
+/// Проходной порог для статистики: сколько вопросов варианта должно получить
+/// ответ, чтобы результат симуляции был записан в `practice_records` (и ушёл
+/// в историю попыток, на главную, в синхронизацию и в ленту группы).
+///
+/// Симуляцию, которую открыли, полистали и закончили через «Завршити
+/// испит» с парой ответов, в статистику не пускаем: такой «провал» с нулём
+/// баллов портит историю и лучший результат. Четверть варианта (10 из 41)
+/// — уже осмысленная попытка; меньше — заглянули и бросили. Экран результата
+/// показывается всё равно, с пометкой, что результат не учтён.
+const kMinAnsweredForStatistics = 10;
+
 /// Через сколько бездействия (ни ответа, ни перехода между вопросами)
 /// симуляция сама встаёт на паузу. Только на вебе: на телефоне уход из
 /// приложения виден по жизненному циклу, а вкладку браузера можно просто
@@ -493,11 +504,21 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     // keyed by it on the backend. Taken from the snapshot when there is one:
     // every device finishing this simulation records the same attempt.
     final attemptUuid = _attemptUuid ?? genRecordId();
+    // Сколько вопросов варианта получили ответ (пустой выбор ответом не
+    // считается — см. `save()` на странице вопроса). Меньше порога — результат
+    // показываем, но в статистику не пишем. Устройство, доигрывающее эту же
+    // симуляцию по снимку, считает по тем же ответам и решает так же.
+    final answered = state.questions
+        .where((qid) => state.answers[qid]?.isNotEmpty ?? false)
+        .length;
+    final counted = answered >= kMinAnsweredForStatistics;
 
     analytics.logSimulationFinished(
       durationSeconds: elapsed,
       points: pointsSummary,
       mistakes: wrongAnswers.length,
+      answered: answered,
+      counted: counted,
     );
 
     // Экзамен окончен — продолжать больше нечего (и на других устройствах:
@@ -514,8 +535,14 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
         finalWrongQuestions: wrongAnswers,
         elapsedSeconds: elapsed,
         attemptUuid: attemptUuid,
+        answeredCount: answered,
+        countedInStatistics: counted,
       ),
     );
+
+    // Ниже порога записи нет: ни в истории попыток, ни на сервере (и, стало
+    // быть, ни в ленте группы), `attemptSaved` так и остаётся ложным.
+    if (!counted) return;
 
     await repository.insertPracticeRecord(
       PracticeRecordsCompanion(
@@ -808,6 +835,12 @@ sealed class PracticeState with _$PracticeState {
     @Default(<int>[]) List<int> finalWrongQuestions,
     // The finished attempt's sync uuid — the Ask-AI exam chat's scope id.
     String? attemptUuid,
+    // Сколько вопросов варианта получили ответ (считается при FinalizeTest).
+    @Default(0) int answeredCount,
+    // Результат прошёл порог [kMinAnsweredForStatistics] и записан в
+    // статистику. Ложь до завершения и у брошенной с парой ответов попытки:
+    // экран результата тогда помечает его как неучтённый.
+    @Default(false) bool countedInStatistics,
     int? elapsedSeconds,
     Question? currentQuestion,
     Set<Choice>? currentAnswers,

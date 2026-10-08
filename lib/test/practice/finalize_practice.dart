@@ -41,7 +41,11 @@ class FinalizePracticeWidget extends StatelessWidget {
             return Scaffold(
               bottomNavigationBar: _Actions(
                 wrongIds: wrongIds,
-                attemptUuid: state.attemptUuid,
+                // Чат об этой попытке читает её запись на сервере — у
+                // неучтённого результата записи нет, и входа в чат тоже.
+                attemptUuid: state.countedInStatistics
+                    ? state.attemptUuid
+                    : null,
               ),
               body: Stack(
                 children: [
@@ -67,6 +71,10 @@ class FinalizePracticeWidget extends StatelessWidget {
                           wrong: wrongIds.length,
                           elapsedSeconds: state.elapsedSeconds,
                         ),
+                        if (!state.countedInStatistics) ...[
+                          const SizedBox(height: 12),
+                          const _NotCountedNote(),
+                        ],
                         if (wrong.isNotEmpty) ...[
                           const SizedBox(height: 18),
                           _ErrorsHeader(wrong: wrong, data: data),
@@ -186,6 +194,41 @@ class _Hero extends StatelessWidget {
               color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
             textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Результат ниже порога [kMinAnsweredForStatistics]: показан, но в историю
+/// попыток и статистику не записан — говорим об этом прямо, чтобы пропажу
+/// попытки из списка не приняли за ошибку.
+class _NotCountedNote extends StatelessWidget {
+  const _NotCountedNote();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.onSurface.withValues(alpha: 0.7);
+    return Container(
+      key: const Key('simulation_not_counted'),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 18, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              LocaleKeys.simulation_notCounted.tr(
+                args: ['$kMinAnsweredForStatistics'],
+              ),
+              style: theme.textTheme.bodySmall?.copyWith(color: color),
+            ),
           ),
         ],
       ),
