@@ -1,6 +1,14 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
+/// Чем листалка перевела страницу: протяжкой пальцем ([swipe]) или
+/// горизонтальной прокруткой без жеста ([scroll]) — колесо мыши, трекпад
+/// либо оборванная на полпути программная анимация.
+enum PagerMove { swipe, scroll }
+
+/// Доклад листалки о переходе на страницу [index] способом [move].
+typedef PagerIndexChanged = void Function(int index, PagerMove move);
+
 /// Листалка вопросов — обычный [PageView]: содержимое едет за пальцем, сосед
 /// виден уже во время протяжки, а не появляется после неё.
 ///
@@ -57,8 +65,9 @@ class QuestionPager extends StatefulWidget {
   final int itemCount;
   final IndexedWidgetBuilder itemBuilder;
 
-  /// Палец перевёл прогон на другой вопрос.
-  final ValueChanged<int> onIndexChanged;
+  /// Прогон переведён на другой вопрос самой листалкой: пальцем
+  /// ([PagerMove.swipe]) или прокруткой без жеста ([PagerMove.scroll]).
+  final PagerIndexChanged onIndexChanged;
 
   /// Прогон уехал с вопроса [index] пальцем — самое время записать выбор,
   /// как это делает кнопка «Дальше». Программные переходы сюда не попадают.
@@ -145,23 +154,32 @@ class _QuestionPagerState extends State<QuestionPager> {
 
   bool _onScroll(ScrollNotification notification) {
     // Вертикальная прокрутка тела вопроса — не наше дело.
-    if (notification.depth != 0 || notification.metrics.axis != Axis.horizontal) {
+    if (notification.depth != 0 ||
+        notification.metrics.axis != Axis.horizontal) {
       return false;
     }
     if (notification is ScrollStartNotification) {
       _dragged = notification.dragDetails != null;
     } else if (notification is ScrollEndNotification) {
       final settled = _page?.round() ?? _settled;
+      final dragged = _dragged;
+      _dragged = false;
       if (settled != _settled) {
-        if (_dragged) widget.onLeaving?.call(_settled);
+        if (dragged) widget.onLeaving?.call(_settled);
         _settled = settled;
       }
-      _dragged = false;
       // Прокрутка встала не на вопросе блока — доложить факт. Так в блок
       // попадает исход перехода, о котором [onPageChanged] промолчал:
       // перелистывание не пальцем (колесо, трекпад без жеста) или программная
-      // анимация, оборванная на полпути.
-      if (settled != widget.index) widget.onIndexChanged(settled);
+      // анимация, оборванная на полпути. Палец сюда доходит редко — страницу
+      // под ним докладывает [onPageChanged], — но если дошёл, это всё же
+      // свайп, а не прокрутка.
+      if (settled != widget.index) {
+        widget.onIndexChanged(
+          settled,
+          dragged ? PagerMove.swipe : PagerMove.scroll,
+        );
+      }
     }
     return false;
   }
@@ -188,7 +206,9 @@ class _QuestionPagerState extends State<QuestionPager> {
             // перестройка отстанет от анимации на кадр. Так дальний переход
             // (клик по номеру 15 с первого вопроса в пагинации веб-версии)
             // оседал на втором вопросе.
-            if (_dragged && index != widget.index) widget.onIndexChanged(index);
+            if (_dragged && index != widget.index) {
+              widget.onIndexChanged(index, PagerMove.swipe);
+            }
           },
           itemBuilder: widget.itemBuilder,
         ),

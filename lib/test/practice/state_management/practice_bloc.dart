@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart' show AppLifecycleListener;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:saobracaj/core/analytics/analytics_service.dart';
+import 'package:saobracaj/core/analytics/question_navigation.dart';
 import 'package:saobracaj/db/answer_table.dart' show genRecordId;
 import 'package:saobracaj/db/db.dart';
 import 'package:saobracaj/db/dependencies.dart';
@@ -188,18 +189,30 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
   void _onNextQuestion(NextQuestion event, Emitter<PracticeState> emit) {
     final nextIndex = state.currentQuestionIndex + 1;
     if (nextIndex >= state.questions.length) return;
-    _navigateToIndex(nextIndex, emit);
+    _navigateToIndex(nextIndex, emit, via: event.via);
     _touch();
   }
 
   void _onPrevQuestion(PrevQuestion event, Emitter<PracticeState> emit) {
     final nextIndex = state.currentQuestionIndex - 1;
     if (nextIndex < 0) return;
-    _navigateToIndex(nextIndex, emit);
+    _navigateToIndex(nextIndex, emit, via: event.via);
     _touch();
   }
 
-  void _navigateToIndex(int index, Emitter<PracticeState> emit) {
+  /// Вопрос, который сейчас на экране, — чтобы `question_viewed` уходило по
+  /// разу на показ: снимок с другого устройства приходит на каждое действие
+  /// там, и чаще всего вопрос в нём тот же.
+  int? _shownQuestion;
+
+  /// Ставит прогон на вопрос [index]; [via] — чем его туда привели, для
+  /// `question_viewed` (не уходит, если вопрос и так на экране).
+  void _navigateToIndex(
+    int index,
+    Emitter<PracticeState> emit, {
+    required QuestionNavigation via,
+  }) {
+    final from = state.currentQuestionIndex;
     final curQuestion = data.questions.firstWhere(
       (element) => element.id == state.questions[index],
     );
@@ -210,6 +223,15 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
         currentQuestion: curQuestion,
         currentAnswers: curAnswers,
       ),
+    );
+    if (_shownQuestion == curQuestion.id) return;
+    final firstShow = _shownQuestion == null;
+    _shownQuestion = curQuestion.id;
+    analytics.logQuestionViewed(
+      questionId: curQuestion.id,
+      navigation: via,
+      direction: firstShow ? null : QuestionDirection.between(from, index),
+      mode: 'exam',
     );
   }
 
@@ -303,7 +325,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     final questions = data.practice[Random().nextInt(data.practice.length)];
     emit(state.copyWith(questions: questions));
     _recalculateState(state.answers, emit);
-    _navigateToIndex(0, emit);
+    _navigateToIndex(0, emit, via: QuestionNavigation.runStart);
     final now = clock.now();
     _startedAt = now;
     _runningSince = now;
@@ -368,6 +390,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     _navigateToIndex(
       snapshot.currentQuestionIndex.clamp(0, snapshot.questions.length - 1),
       emit,
+      via: remote ? QuestionNavigation.remote : QuestionNavigation.resume,
     );
     _startedAt = snapshot.startedAt;
     _attemptUuid = snapshot.attemptUuid ?? _attemptUuid ?? genRecordId();
@@ -468,7 +491,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
 
   void _onMoveToQuestiont(MoveToQuestion event, Emitter<PracticeState> emit) {
     final ind = state.questions.indexOf(event.qid);
-    emit(state.copyWith(currentQuestionIndex: ind));
+    _navigateToIndex(ind, emit, via: event.via);
     _touch();
   }
 
@@ -627,7 +650,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     NavigateToQuestion event,
     Emitter<PracticeState> emit,
   ) {
-    _navigateToIndex(event.index, emit);
+    _navigateToIndex(event.index, emit, via: event.via);
     _touch();
   }
 
@@ -741,18 +764,30 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
 
 sealed class PracticeEvent {}
 
-class NextQuestion extends PracticeEvent {}
+/// Шаг вперёд; [via] — чем шагнули (кнопка по умолчанию, клавиша →).
+class NextQuestion extends PracticeEvent {
+  NextQuestion([this.via = QuestionNavigation.nextButton]);
+
+  final QuestionNavigation via;
+}
 
 class Init extends PracticeEvent {}
 
-class PrevQuestion extends PracticeEvent {}
+/// Шаг назад; [via] — как у [NextQuestion].
+class PrevQuestion extends PracticeEvent {
+  PrevQuestion([this.via = QuestionNavigation.backButton]);
+
+  final QuestionNavigation via;
+}
 
 class FinalizeTest extends PracticeEvent {}
 
+/// Переход к вопросу [qid]; [via] — чем его выбрали.
 class MoveToQuestion extends PracticeEvent {
-  int qid;
+  MoveToQuestion(this.qid, {required this.via});
 
-  MoveToQuestion(this.qid);
+  final int qid;
+  final QuestionNavigation via;
 }
 
 class AddAnswer extends PracticeEvent {
@@ -770,10 +805,13 @@ class ToggleMarkQuestion extends PracticeEvent {
   ToggleMarkQuestion(this.index);
 }
 
+/// Переход к вопросу с индексом [index]; [via] — свайп, прокрутка или
+/// таблица отчёта.
 class NavigateToQuestion extends PracticeEvent {
-  final int index;
+  NavigateToQuestion(this.index, {required this.via});
 
-  NavigateToQuestion(this.index);
+  final int index;
+  final QuestionNavigation via;
 }
 
 /// Поставить симуляцию на паузу (тап по таймеру, уход в фон, бездействие).

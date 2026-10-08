@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/core/analytics/question_navigation.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/models/models.dart';
 
@@ -42,12 +43,15 @@ class QuestActions {
     bloc.add(ShowCorrectAnswers());
   }
 
-  /// Шаг назад — чистая навигация: ничего не записывается.
-  void previous() => _questBloc.add(PrevQuestion());
+  /// Шаг назад — чистая навигация: ничего не записывается. [via] — чем
+  /// шагнули, для аналитики: кнопка панели (по умолчанию) или клавиша ←.
+  void previous([QuestionNavigation via = QuestionNavigation.backButton]) =>
+      _questBloc.add(PrevQuestion(via));
 
   /// Записывает текущий выбор и, если можно, переходит к следующему вопросу.
-  void next() {
-    if (submit()) _questBloc.add(NextQuestion());
+  /// [via] — как у [previous]: кнопка (по умолчанию) или клавиша →.
+  void next([QuestionNavigation via = QuestionNavigation.nextButton]) {
+    if (submit()) _questBloc.add(NextQuestion(via));
   }
 
   /// Закрывает прогон без итогов и без подтверждения — «Закрыть» в режиме
