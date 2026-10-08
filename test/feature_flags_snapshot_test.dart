@@ -15,6 +15,27 @@ void main() {
       expect(s.isEnabled(AppFeature.askAi), isFalse); // premium
     });
 
+    test(
+      'убранная (shelved) функция выключена даже с явным тумблером «вкл»',
+      () {
+        final s = FeatureFlagsSnapshot.resolve(
+          localOverrides: {
+            for (final f in AppFeature.values)
+              if (f.shelved) f.key: true,
+          },
+          grants: const {},
+          authenticated: true,
+        );
+        expect(AppFeature.values.where((f) => f.shelved), isNotEmpty);
+        for (final f in AppFeature.values.where((f) => f.shelved)) {
+          expect(s.isEnabled(f), isFalse, reason: f.key);
+          // Тумблер при этом хранится — вернуть функцию можно одним флагом.
+          expect(s.localEnabled(f), isTrue, reason: f.key);
+        }
+        expect(s.isEnabled(AppFeature.homeSummary), isTrue);
+      },
+    );
+
     test('authenticated unlocks the authenticated tier but not premium', () {
       final s = FeatureFlagsSnapshot.resolve(
         localOverrides: const {},
