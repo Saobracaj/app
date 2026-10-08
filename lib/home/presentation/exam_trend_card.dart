@@ -140,7 +140,7 @@ class ExamTrendPainter extends CustomPainter {
     final step = n == 1 ? 0.0 : (size.width - 2 * _padSide) / (n - 1);
     double x(int i) => n == 1 ? size.width / 2 : _padSide + step * i;
 
-    // Pass mark: dashed guide with a small label at its right end.
+    // Pass mark: dashed guide with a small label at one end.
     final passY = y(passMark);
     final dash = Paint()
       ..color = guide
@@ -152,9 +152,30 @@ class ExamTrendPainter extends CustomPainter {
       text: TextSpan(text: passLabel, style: label),
       textDirection: ui.TextDirection.ltr,
     )..layout();
-    passText.paint(
-      canvas,
-      Offset(size.width - passText.width, passY - passText.height - 2),
+
+    // The last value, labelled directly.
+    final last = attempts.last;
+    final valueText = TextPainter(
+      text: TextSpan(
+        text: '${last.points}',
+        style: label.copyWith(fontWeight: FontWeight.w600),
+      ),
+      textDirection: ui.TextDirection.ltr,
+    )..layout();
+    final labels = placeLabels(
+      size: size,
+      lastDot: Offset(x(n - 1), y(last.points)),
+      passY: passY,
+      valueSize: valueText.size,
+      passSize: passText.size,
+    );
+    passText.paint(canvas, labels.pass);
+    // A patch of surface under the value, painted before the line so that
+    // only the guide is masked: the dashes would otherwise strike through the
+    // digits when the last score is near the pass mark.
+    canvas.drawRect(
+      (labels.value & valueText.size).inflate(2),
+      Paint()..color = surface,
     );
 
     // The line.
@@ -185,25 +206,32 @@ class ExamTrendPainter extends CustomPainter {
       );
     }
 
-    // The last value, labelled directly.
-    final last = attempts.last;
-    final valueText = TextPainter(
-      text: TextSpan(
-        text: '${last.points}',
-        style: label.copyWith(fontWeight: FontWeight.w600),
-      ),
-      textDirection: ui.TextDirection.ltr,
-    )..layout();
-    final lastX = x(n - 1);
-    final lastY = y(last.points);
-    final above = lastY - valueText.height - 8 >= 0;
-    valueText.paint(
-      canvas,
-      Offset(
-        (lastX - valueText.width / 2).clamp(0, size.width - valueText.width),
-        above ? lastY - valueText.height - 8 : lastY + 8,
-      ),
+    valueText.paint(canvas, labels.value);
+  }
+
+  /// Where the two labels go. The last value stays by its dot — above it, or
+  /// below when there is no room above. The pass-mark label sits at the right
+  /// end of the guide unless the value label would land on it (the last score
+  /// close to the pass mark — SAOBR-510); then it moves to the left end.
+  @visibleForTesting
+  static ({Offset value, Offset pass}) placeLabels({
+    required Size size,
+    required Offset lastDot,
+    required double passY,
+    required Size valueSize,
+    required Size passSize,
+  }) {
+    final above = lastDot.dy - valueSize.height - 8 >= 0;
+    final value = Offset(
+      (lastDot.dx - valueSize.width / 2).clamp(0, size.width - valueSize.width),
+      above ? lastDot.dy - valueSize.height - 8 : lastDot.dy + 8,
     );
+    final passTop = passY - passSize.height - 2;
+    final right = Offset(size.width - passSize.width, passTop);
+    final collides = (right & passSize).overlaps(
+      (value & valueSize).inflate(4),
+    );
+    return (value: value, pass: collides ? Offset(0, passTop) : right);
   }
 
   @override
