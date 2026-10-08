@@ -185,8 +185,13 @@ class _PagerHarnessState extends State<_PagerHarness> {
                 index: index,
                 itemCount: 3,
                 position: position,
-                onIndexChanged: (value) {
-                  widget.log.add('index:$value');
+                onIndexChanged: (value, move) {
+                  // Свайп пишется как «index», прокрутка без жеста — как
+                  // «scroll»: аналитика различает их по этому докладу.
+                  widget.log.add(switch (move) {
+                    PagerMove.swipe => 'index:$value',
+                    PagerMove.scroll => 'scroll:$value',
+                  });
                   setState(() => index = value);
                 },
                 onLeaving: (value) => widget.log.add('leave:$value'),
@@ -247,7 +252,7 @@ class _JumpHarness extends StatelessWidget {
                     child: QuestionPager(
                       index: index,
                       itemCount: 15,
-                      onIndexChanged: (value) {
+                      onIndexChanged: (value, _) {
                         log.add('index:$value');
                         // Кадр задержки — как на вебе, где тяжёлые кадры не
                         // поспевают за анимацией: доклад возвращается новым
@@ -324,7 +329,9 @@ void main() {
       tester,
     ) async {
       final controllers = <ScrollController>[];
-      await tester.pumpWidget(_PagerHarness(log: log, controllers: controllers));
+      await tester.pumpWidget(
+        _PagerHarness(log: log, controllers: controllers),
+      );
       await tester.pump();
 
       // Палец идёт вверх с заметным заносом вбок — это всё ещё прокрутка.
@@ -355,6 +362,30 @@ void main() {
         kind: PointerDeviceKind.mouse,
       );
       expect(log, isEmpty);
+    });
+
+    testWidgets('колесо (трекпад) листает — и докладывается как прокрутка, '
+        'не свайп', (tester) async {
+      await tester.pumpWidget(_PagerHarness(log: log));
+      await tester.pump();
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: tester.getCenter(find.byType(PageView)));
+      addTearDown(mouse.removePointer);
+      await tester.sendEventToBinding(
+        PointerScrollEvent(
+          position: tester.getCenter(find.byType(PageView)),
+          // Больше половины ширины страницы (800): меньше — физика
+          // PageView вернёт страницу назад.
+          scrollDelta: const Offset(500, 0),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Питање број 2'), findsOneWidget);
+      // Прокрутка без жеста — выбор не записывается (нет `leave`), а в
+      // аналитику уходит `scroll`.
+      expect(log, ['scroll:1']);
     });
 
     testWidgets('программный переход не считают за жест', (tester) async {

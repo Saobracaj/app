@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:saobracaj/core/analytics/analytics_service.dart';
+import 'package:saobracaj/core/analytics/question_navigation.dart';
 import 'package:saobracaj/db/dependencies.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/statistics/phantom_subcategory.dart';
@@ -38,7 +39,9 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
       );
       // The first question is on screen as soon as the run opens; the rest
       // are reported by the index-changing handlers below.
-      if (questions.isNotEmpty) _logQuestionViewed(questions.first);
+      if (questions.isNotEmpty) {
+        _logQuestionViewed(questions.first, QuestionNavigation.runStart);
+      }
     }
   }
 
@@ -50,24 +53,42 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
   /// already answered question.
   DateTime? _questionShownAt;
 
-  void _logQuestionViewed(int qid) {
+  /// Вопрос [qid] оказался на экране способом [via]; [direction] — куда
+  /// относительно прежнего вопроса (у первого показа его нет).
+  void _logQuestionViewed(
+    int qid,
+    QuestionNavigation via, {
+    QuestionDirection? direction,
+  }) {
     if (presentation) return;
     _questionShownAt = DateTime.now();
-    analytics.logQuestionViewed(questionId: qid);
+    analytics.logQuestionViewed(
+      questionId: qid,
+      navigation: via,
+      direction: direction,
+    );
   }
 
   void _onNextQuestion(NextQuestion event, Emitter<QuestState> emit) {
     final nextIndex = state.currentQuestionIndex + 1;
     if (nextIndex >= state.questions.length) return;
     emit(state.copyWith(currentQuestionIndex: nextIndex));
-    _logQuestionViewed(state.questions[nextIndex]);
+    _logQuestionViewed(
+      state.questions[nextIndex],
+      event.via,
+      direction: QuestionDirection.forward,
+    );
   }
 
   void _onPrevQuestion(PrevQuestion event, Emitter<QuestState> emit) {
     final nextIndex = state.currentQuestionIndex - 1;
     if (nextIndex < 0) return;
     emit(state.copyWith(currentQuestionIndex: nextIndex));
-    _logQuestionViewed(state.questions[nextIndex]);
+    _logQuestionViewed(
+      state.questions[nextIndex],
+      event.via,
+      direction: QuestionDirection.back,
+    );
   }
 
   void _onAddAnswer(AddAnswer event, Emitter<QuestState> emit) {
@@ -149,9 +170,14 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
 
   void _onMoveToQuestiont(MoveToQuestion event, Emitter<QuestState> emit) {
     final ind = state.questions.indexOf(event.qid);
-    if (ind == state.currentQuestionIndex) return;
+    final from = state.currentQuestionIndex;
+    if (ind == from) return;
     emit(state.copyWith(currentQuestionIndex: ind));
-    _logQuestionViewed(event.qid);
+    _logQuestionViewed(
+      event.qid,
+      event.via,
+      direction: QuestionDirection.between(from, ind),
+    );
   }
 
   void _onFinalizeTest(FinalizeTest event, Emitter<QuestState> emit) async {
@@ -189,18 +215,30 @@ class QuestBloc extends Bloc<QuestEvent, QuestState> {
 
 sealed class QuestEvent {}
 
-class NextQuestion extends QuestEvent {}
+/// Шаг вперёд; [via] — чем шагнули (кнопка по умолчанию, клавиша ←/→).
+class NextQuestion extends QuestEvent {
+  NextQuestion([this.via = QuestionNavigation.nextButton]);
+
+  final QuestionNavigation via;
+}
 
 class Init extends QuestEvent {}
 
-class PrevQuestion extends QuestEvent {}
+/// Шаг назад; [via] — как у [NextQuestion].
+class PrevQuestion extends QuestEvent {
+  PrevQuestion([this.via = QuestionNavigation.backButton]);
+
+  final QuestionNavigation via;
+}
 
 class FinalizeTest extends QuestEvent {}
 
+/// Переход к вопросу [qid]; [via] — свайп, прокрутка или навигатор.
 class MoveToQuestion extends QuestEvent {
-  int qid;
+  MoveToQuestion(this.qid, {required this.via});
 
-  MoveToQuestion(this.qid);
+  final int qid;
+  final QuestionNavigation via;
 }
 
 class AddAnswer extends QuestEvent {
