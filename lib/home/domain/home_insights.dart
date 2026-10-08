@@ -11,6 +11,8 @@ import '../../db/answer_repository.dart' show DayActivity;
 import '../../db/db.dart' show PracticeRecord;
 import '../../models/models.dart';
 import '../../test/practice/finalize_practice.dart' show kMinPoints;
+import '../../test/practice/state_management/practice_bloc.dart'
+    show practiceRecordCounted;
 
 /// How ready the user is for the exam.
 ///
@@ -262,15 +264,24 @@ ReadinessInsight computeReadiness({
   );
 }
 
-/// See [ExamTrendInsight]. [records] in any order; at most [limit] most recent
-/// attempts are kept, oldest first.
+/// The simulations the home screen counts: those past the statistics
+/// threshold (see [practiceRecordCounted]). A simulation that was opened,
+/// skimmed and ended with a couple of answers is no attempt — it would hang
+/// on the trend as a zero-point failure and inflate the simulation count.
+List<PracticeRecord> countedPracticeRecords(List<PracticeRecord> records) =>
+    records.where(practiceRecordCounted).toList();
+
+/// See [ExamTrendInsight]. [records] in any order, filtered through
+/// [countedPracticeRecords]; at most [limit] most recent attempts are kept,
+/// oldest first. `null` without a single counted attempt.
 ExamTrendInsight? computeExamTrend(
   List<PracticeRecord> records, {
   int limit = 15,
   int recentWindow = 5,
 }) {
-  if (records.isEmpty) return null;
-  final sorted = [...records]..sort((a, b) => a.time.compareTo(b.time));
+  final counted = countedPracticeRecords(records);
+  if (counted.isEmpty) return null;
+  final sorted = counted..sort((a, b) => a.time.compareTo(b.time));
   final attempts = [
     for (final r in sorted.skip(
       sorted.length > limit ? sorted.length - limit : 0,
@@ -424,7 +435,9 @@ ExamCountdownInsight computeCountdown({
   );
 }
 
-/// See [SummaryInsight].
+/// See [SummaryInsight]. [records] are filtered through
+/// [countedPracticeRecords], so the simulation count and time agree with the
+/// attempts on the trend card.
 SummaryInsight computeSummary({
   required List<DayActivity> days,
   required List<PracticeRecord> records,
@@ -441,14 +454,15 @@ SummaryInsight computeSummary({
       weekCorrect += d.correct;
     }
   }
+  final counted = countedPracticeRecords(records);
   var seconds = 0;
-  for (final r in records) {
+  for (final r in counted) {
     seconds += r.durationSeconds;
   }
   return SummaryInsight(
     totalAnswers: total,
     weekAccuracy: weekAnswers == 0 ? null : weekCorrect / weekAnswers,
-    simulations: records.length,
+    simulations: counted.length,
     simulationSeconds: seconds,
   );
 }

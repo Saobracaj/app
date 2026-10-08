@@ -125,6 +125,27 @@ void main() {
       expect(trend.attempts.last.passed, isTrue);
     });
 
+    test('попытки ниже порога статистики на графике не показываются', () {
+      // «Полистали и бросили»: 2 верных из 41, остальное — ошибки
+      // (неотвеченные тоже). Такая запись могла остаться с версий до порога.
+      final skimmed = _exam(4, DateTime(2026, 9, 3), mistakes: 39);
+      final trend = computeExamTrend([
+        _exam(90, DateTime(2026, 9, 1)),
+        skimmed,
+        _exam(60, DateTime(2026, 9, 2), mistakes: 31),
+      ])!;
+      expect(trend.attempts.map((a) => a.points), [90, 60]);
+      expect(trend.recentWindow, 2);
+      expect(trend.passedOfRecent, 1);
+    });
+
+    test('одни попытки ниже порога — графика нет', () {
+      expect(
+        computeExamTrend([_exam(0, DateTime(2026, 9, 1), mistakes: 41)]),
+        isNull,
+      );
+    });
+
     test('85 баллов — сдано, 84 — нет', () {
       expect(_exam(85, DateTime(2026)).points >= 85, isTrue);
       final trend = computeExamTrend([
@@ -348,6 +369,19 @@ void main() {
       expect(summary.weekAccuracy, closeTo(15 / 20, 1e-9));
       expect(summary.simulations, 2);
       expect(summary.simulationSeconds, 1200);
+    });
+
+    test('симуляции ниже порога не считаются ни штукой, ни временем', () {
+      final summary = computeSummary(
+        days: const [],
+        records: [
+          _exam(90, DateTime(2026, 9, 2)),
+          _exam(0, DateTime(2026, 9, 3), mistakes: 41),
+        ],
+        now: DateTime(2026, 9, 28, 12),
+      );
+      expect(summary.simulations, 1);
+      expect(summary.simulationSeconds, 600);
     });
 
     test('без ответов за неделю точности нет', () {
