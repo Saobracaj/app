@@ -25,7 +25,8 @@ class FeatureFlagsSnapshot {
 
   /// Resolve the whole catalog: a feature is on when its tier is satisfied
   /// (guest → always, authenticated → signed in, premium → signed in *and*
-  /// granted) **and** the local toggle for it is not turned off.
+  /// granted) **and** the local toggle for it is not turned off. A
+  /// [AppFeature.shelved] feature is always off, whatever the toggle says.
   factory FeatureFlagsSnapshot.resolve({
     required Map<String, bool> localOverrides,
     required Set<String> grants,
@@ -41,7 +42,7 @@ class FeatureFlagsSnapshot {
         FeatureAccess.premium => authenticated && grants.contains(f.key),
       };
       final localOk = localOverrides[f.key] ?? true;
-      resolved[f] = tierOk && localOk;
+      resolved[f] = !f.shelved && tierOk && localOk;
     }
     return FeatureFlagsSnapshot(
       enabled: Map.unmodifiable(resolved),

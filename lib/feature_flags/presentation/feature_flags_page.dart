@@ -50,8 +50,9 @@ class FeatureFlagsContent extends StatelessWidget {
             for (final f in _tier(FeatureAccess.guest))
               if (!f.homeCard) _FeatureTile(feature: f, snapshot: snapshot),
             const Divider(height: 0),
-            // Карточки главной — свой раздел: их десять, и в общем списке
-            // гостевых функций они бы утопили всё остальное.
+            // Карточки главной — свой раздел, чтобы в общем списке гостевых
+            // функций они не терялись. Убранные с экрана (`shelved`) сюда не
+            // попадают: `homeCards` отдаёт только живые.
             _SectionHeader(
               'featureFlags.homeSection'.tr(),
               'featureFlags.homeSectionSubtitle'.tr(),

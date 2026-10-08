@@ -14,6 +14,7 @@ import '../state_management/daily_sign_bloc.dart';
 import '../state_management/daily_sign_events.dart';
 import '../state_management/home_insights_bloc.dart';
 import '../state_management/home_insights_events.dart';
+import '../state_management/home_insights_state.dart';
 import 'activity_card.dart';
 import 'category_coverage_card.dart';
 import 'continue_konspekt_card.dart';
@@ -27,7 +28,12 @@ import 'weak_topics_card.dart';
 
 /// The progress block of the home screen: every card is its own feature flag
 /// (`AppFeature.homeCards`), so the block renders whichever are on and
-/// disappears entirely when none is.
+/// disappears entirely when none is. The simulations card has one more
+/// condition — at least one simulation taken; until then it is not shown.
+///
+/// Only the cards in [order] stand on the screen (SAOBR-506); the other cards
+/// of `lib/home/presentation/` are kept in code but marked
+/// `AppFeature.shelved` and never rendered.
 ///
 /// All figures come from the device — the local answer history, the bundled
 /// bank and blueprint, the pravilnik index — so the block is the same online
@@ -41,18 +47,12 @@ class HomeInsightsSection extends StatelessWidget {
 
   final bool wide;
 
-  /// Screen order of the cards.
+  /// Screen order of the cards: the summary first, then the activity, then
+  /// the exam simulations.
   static const order = [
-    AppFeature.homeReadiness,
-    AppFeature.homeActivity,
-    AppFeature.homeExamCountdown,
-    AppFeature.homeExamTrend,
     AppFeature.homeSummary,
-    AppFeature.homeContinueKonspekt,
-    AppFeature.homeDailySign,
-    AppFeature.homeWeakTopics,
-    AppFeature.homeDailyQuestion,
-    AppFeature.homeCategoryCoverage,
+    AppFeature.homeActivity,
+    AppFeature.homeExamTrend,
   ];
 
   /// Cards that take a whole row on the wide layout.
@@ -81,10 +81,14 @@ class HomeInsightsSection extends StatelessWidget {
               ),
             ),
         ),
-        BlocProvider(create: (_) => getIt<DailyQuestionBloc>()),
-        BlocProvider(
-          create: (_) => getIt<DailySignBloc>()..add(DailySignStarted()),
-        ),
+        // The question and the sign of the day read the bank and the
+        // pravilnik — only worth starting when their cards are on screen.
+        if (enabled.contains(AppFeature.homeDailyQuestion))
+          BlocProvider(create: (_) => getIt<DailyQuestionBloc>()),
+        if (enabled.contains(AppFeature.homeDailySign))
+          BlocProvider(
+            create: (_) => getIt<DailySignBloc>()..add(DailySignStarted()),
+          ),
       ],
       child: BlocListener<AllQuestionsBloc, AllQuestionsBlocState>(
         listenWhen: (previous, next) =>
@@ -102,7 +106,20 @@ class HomeInsightsSection extends StatelessWidget {
               context,
               context.read<AllQuestionsBloc>().state,
             );
-            return wide ? _wide(context, enabled) : _narrow(enabled);
+            return BlocBuilder<HomeInsightsBloc, HomeInsightsState>(
+              buildWhen: (previous, next) =>
+                  (previous.examTrend == null) != (next.examTrend == null),
+              builder: (context, state) {
+                final visible = [
+                  for (final feature in enabled)
+                    if (feature != AppFeature.homeExamTrend ||
+                        state.examTrend != null)
+                      feature,
+                ];
+                if (visible.isEmpty) return const SizedBox.shrink();
+                return wide ? _wide(context, visible) : _narrow(visible);
+              },
+            );
           },
         ),
       ),
@@ -115,7 +132,8 @@ class HomeInsightsSection extends StatelessWidget {
   ) {
     final data = state.questionsData;
     if (data == null) return;
-    final bloc = context.read<DailyQuestionBloc>();
+    final bloc = context.read<DailyQuestionBloc?>();
+    if (bloc == null) return;
     if (bloc.state.question != null) return;
     bloc.add(DailyQuestionStarted(data.questions));
   }

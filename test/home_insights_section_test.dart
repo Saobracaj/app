@@ -18,20 +18,13 @@ import 'package:saobracaj/generated/codegen_loader.g.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/home/data/home_preferences_repository.dart';
 import 'package:saobracaj/home/presentation/activity_card.dart';
-import 'package:saobracaj/home/presentation/category_coverage_card.dart';
-import 'package:saobracaj/home/presentation/continue_konspekt_card.dart';
-import 'package:saobracaj/home/presentation/daily_question_card.dart';
-import 'package:saobracaj/home/presentation/exam_countdown_card.dart';
 import 'package:saobracaj/home/presentation/exam_trend_card.dart';
 import 'package:saobracaj/home/presentation/home_card.dart';
 import 'package:saobracaj/home/presentation/home_insights_section.dart';
-import 'package:saobracaj/home/presentation/readiness_card.dart';
 import 'package:saobracaj/home/presentation/summary_card.dart';
-import 'package:saobracaj/home/presentation/weak_topics_card.dart';
 import 'package:saobracaj/home/state_management/daily_question_bloc.dart';
 import 'package:saobracaj/home/state_management/daily_sign_bloc.dart';
 import 'package:saobracaj/home/state_management/home_insights_bloc.dart';
-import 'package:saobracaj/home/state_management/home_insights_events.dart';
 import 'package:saobracaj/konspekt/data/konspekt_repository.dart';
 import 'package:saobracaj/models/models.dart';
 import 'package:saobracaj/questions/state_management/all_questions_bloc.dart';
@@ -40,6 +33,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 /// Карточки прогресса на главной: каждая под своим фича-флагом, все считаются
 /// из локальной БД и банка вопросов и обновляются сами после записи ответа.
+/// На экране только три (SAOBR-506): сводка, активность и симуляции экзамена —
+/// последняя появляется лишь после первой пройденной симуляции. Остальные
+/// карточки убраны (`AppFeature.shelved`) и не показываются ни при каких
+/// флагах; их расчёты покрывает home_insights_domain_test.
 
 class _FakeClient extends GraphqlClient {
   _FakeClient(super.storage);
@@ -236,7 +233,25 @@ void main() {
     await _db.close();
   });
 
-  testWidgets('без истории — карточки с приглашениями', (tester) async {
+  test('на экране живут только сводка, активность и симуляции', () {
+    expect(HomeInsightsSection.order, [
+      AppFeature.homeSummary,
+      AppFeature.homeActivity,
+      AppFeature.homeExamTrend,
+    ]);
+    expect(AppFeature.homeCards, unorderedEquals(HomeInsightsSection.order));
+    for (final feature in AppFeature.values.where((f) => f.homeCard)) {
+      expect(
+        feature.shelved,
+        !HomeInsightsSection.order.contains(feature),
+        reason: '${feature.key}: shelved не согласован с порядком на экране',
+      );
+    }
+  });
+
+  testWidgets('без истории — сводка перед активностью, симуляций нет', (
+    tester,
+  ) async {
     await _prefs();
     await _register();
     await withClock(Clock.fixed(_now), () async {
@@ -244,46 +259,28 @@ void main() {
       await _settle(tester);
     });
 
-    expect(find.byType(ReadinessCard), findsOneWidget);
-    expect(
-      find.text(LocaleKeys.homeInsights_readiness_empty.tr()),
-      findsOneWidget,
-    );
-    expect(
-      find.text(LocaleKeys.homeInsights_examTrend_empty.tr()),
-      findsOneWidget,
-    );
+    expect(find.byType(HomeCard), findsNWidgets(2));
+    expect(find.byType(SummaryCard), findsOneWidget);
+    expect(find.byType(ActivityCard), findsOneWidget);
     expect(
       find.text(LocaleKeys.homeInsights_activity_noStreak.tr()),
       findsOneWidget,
     );
-    expect(find.byKey(const ValueKey('countdown_set')), findsOneWidget);
-    expect(find.byType(SummaryCard), findsOneWidget);
     expect(
-      find.text(LocaleKeys.homeInsights_weakTopics_empty.tr(args: ['5'])),
-      findsOneWidget,
+      tester.getTopLeft(find.byType(SummaryCard)).dy,
+      lessThan(tester.getTopLeft(find.byType(ActivityCard)).dy),
+      reason: 'сводка стоит перед активностью',
     );
-    // Покрытие: обе категории, ещё не открывались.
-    expect(find.text('Основе безбедности'), findsOneWidget);
-    expect(find.text('Правила саобраћаја'), findsOneWidget);
+    // Ни одной симуляции — карточки симуляций нет вовсе, даже с приглашением.
+    expect(find.byType(ExamTrendCard), findsNothing);
     expect(
-      find.text(LocaleKeys.homeInsights_coverage_untouched.tr()),
-      findsNWidgets(2),
-    );
-    // Вопрос дня выбран из банка.
-    expect(find.byType(DailyQuestionCard), findsOneWidget);
-    expect(find.textContaining('Питање '), findsOneWidget);
-    // Конспект не открывали — карточки нет.
-    expect(find.byType(HomeCard), findsNWidgets(8));
-    expect(
-      find.text(LocaleKeys.homeInsights_konspekt_title.tr()),
+      find.text(LocaleKeys.homeInsights_examTrend_empty.tr()),
       findsNothing,
     );
   });
 
-  testWidgets('с историей — цифры, и они обновляются после ответа', (
-    tester,
-  ) async {
+  testWidgets('с историей — цифры обновляются, симуляции появляются после '
+      'первой попытки', (tester) async {
     await _prefs();
     await _register(lastKonspekt: '30');
     // Вчера и сегодня; из 91 знает 4 из 6, из 120 — 1 из 4.
@@ -297,31 +294,11 @@ void main() {
     await _answer(10, wrong: true);
     await _answer(11, wrong: true);
     await _answer(12, wrong: true);
-    await _db.insertPractice(
-      PracticeRecordsCompanion(
-        points: const Value(90),
-        time: Value(DateTime(2026, 9, 20)),
-        mistakes: const Value(2),
-        durationSeconds: const Value(1500),
-      ),
-    );
 
     await withClock(Clock.fixed(_now), () async {
       await tester.pumpWidget(_app(_featureFlags));
       await _settle(tester);
 
-      // Готовность: 5 известных из 11 выносимых (12 не в счёт) → 45 %.
-      expect(find.text('45%'), findsOneWidget);
-      expect(
-        find.text(
-          LocaleKeys.homeInsights_readiness_known.tr(args: ['5', '11']),
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.text(LocaleKeys.homeInsights_readiness_practiceWeakest.tr()),
-        findsOneWidget,
-      );
       // Серия: вчера и сегодня.
       expect(
         find.text(LocaleKeys.homeInsights_activity_streak.plural(2)),
@@ -331,33 +308,46 @@ void main() {
         find.text(LocaleKeys.homeInsights_activity_today.tr(args: ['8', '30'])),
         findsOneWidget,
       );
-      // Симуляции: одна, сдана.
+      // Сводка: 10 ответов, 5 неверных за неделю → 50 %.
+      expect(find.text('10'), findsOneWidget);
+      expect(find.text('50%'), findsOneWidget);
+      // Ответы есть, симуляций нет — карточки симуляций всё ещё нет.
+      expect(find.byType(ExamTrendCard), findsNothing);
+      expect(find.byType(HomeCard), findsNWidgets(2));
+
+      // Первая симуляция — карточка появляется сама (сигнал БД + дебаунс).
+      await _db.insertPractice(
+        PracticeRecordsCompanion(
+          points: const Value(90),
+          time: Value(DateTime(2026, 9, 20)),
+          mistakes: const Value(2),
+          durationSeconds: const Value(1500),
+        ),
+      );
+      await _settle(tester);
+      expect(find.byType(ExamTrendCard), findsOneWidget);
+      expect(find.byType(HomeCard), findsNWidgets(3));
       expect(
         find.text(
           LocaleKeys.homeInsights_examTrend_passedOfRecent.tr(args: ['1', '1']),
         ),
         findsOneWidget,
       );
-      // Слабые темы: только 91 (6 ответов) и 120 (4 — ниже порога 5).
-      expect(find.text('Основне одредбе'), findsOneWidget);
-      expect(find.text('Раскрснице'), findsNothing);
-      // Сводка: 10 ответов, 5 неверных за неделю → 50 %, 25 минут.
-      expect(find.text('10'), findsOneWidget);
-      expect(find.text('50%'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.byType(ActivityCard)).dy,
+        lessThan(tester.getTopLeft(find.byType(ExamTrendCard)).dy),
+        reason: 'симуляции стоят после активности',
+      );
+      // Сводка учла 25 минут симуляции.
       expect(
         find.text(LocaleKeys.homeInsights_summary_minutes.tr(args: ['25'])),
         findsOneWidget,
       );
-      // Конспект последней категории.
-      expect(find.byType(ContinueKonspektCard), findsOneWidget);
-      expect(find.text('Правила саобраћаја'), findsNWidgets(2));
 
-      // Новые ответы — карточки пересчитываются сами (сигнал БД + дебаунс):
-      // готовность 7 из 11 → 64 %, за неделю 7 из 12 → 58 %.
+      // Новые ответы — карточки пересчитываются сами: за неделю 7 из 12 → 58 %.
       await _answer(7, wrong: false);
       await _answer(8, wrong: false);
       await _settle(tester);
-      expect(find.text('64%'), findsOneWidget);
       expect(find.text('58%'), findsOneWidget);
       expect(
         find.text(
@@ -368,77 +358,56 @@ void main() {
     });
   });
 
-  testWidgets('вопрос дня: выбор, проверка, запись в историю', (tester) async {
-    await _prefs();
-    await _register();
+  testWidgets('убранные карточки не показываются даже с включёнными флагами', (
+    tester,
+  ) async {
+    // Тумблеры всех карточек, включая убранные, явно «включены»; конспект
+    // открывался, ответы есть — у каждой убранной карточки было бы что
+    // показать.
+    await _prefs({
+      for (final feature in AppFeature.values)
+        if (feature.homeCard && feature != AppFeature.homeDailySign)
+          'feature.${feature.key}.enabled': true,
+    });
+    await _register(lastKonspekt: '30');
+    await _answer(1, wrong: false);
     await withClock(Clock.fixed(_now), () async {
       await tester.pumpWidget(_app(_featureFlags));
       await _settle(tester);
-
-      final check = find.byKey(const ValueKey('daily_question_check'));
-      expect(tester.widget<FilledButton>(check).onPressed, isNull);
-      final choice = find.byKey(const ValueKey('daily_question_choice_1'));
-      await tester.ensureVisible(choice);
-      await tester.tap(choice);
-      await tester.pump();
-      expect(tester.widget<FilledButton>(check).onPressed, isNotNull);
-      await tester.ensureVisible(check);
-      await tester.tap(check);
-      await _settle(tester);
-
-      expect(
-        find.text(LocaleKeys.homeInsights_dailyQuestion_wrong.tr()),
-        findsOneWidget,
-      );
-      expect(
-        find.text(LocaleKeys.homeInsights_dailyQuestion_open.tr()),
-        findsOneWidget,
-      );
-      expect(check, findsNothing);
-      final last = await _answers.getLastAnswers();
-      expect(last.length, 1);
-      expect(last.values.single, isTrue, reason: 'неверный ответ записан');
-
-      // Перезапуск в тот же день — вердикт помнится.
-      await tester.pumpWidget(const SizedBox());
-      await tester.pumpWidget(_app(_featureFlags));
-      await _settle(tester);
-      expect(
-        find.text(LocaleKeys.homeInsights_dailyQuestion_wrong.tr()),
-        findsOneWidget,
-      );
     });
-  });
 
-  testWidgets('дата экзамена: отсчёт и прогноз', (tester) async {
-    await _prefs();
-    await _register();
-    for (var i = 0; i < 14; i++) {
-      await _answer(1, wrong: false, at: DateTime(2026, 9, 15 + i, 9));
+    expect(find.byType(HomeCard), findsNWidgets(2));
+    expect(
+      find.text(LocaleKeys.homeInsights_readiness_title.tr()),
+      findsNothing,
+    );
+    expect(
+      find.text(LocaleKeys.homeInsights_weakTopics_title.tr()),
+      findsNothing,
+    );
+    expect(
+      find.text(LocaleKeys.homeInsights_coverage_title.tr()),
+      findsNothing,
+    );
+    expect(
+      find.text(LocaleKeys.homeInsights_dailyQuestion_title.tr()),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('countdown_set')), findsNothing);
+    expect(
+      find.text(LocaleKeys.homeInsights_konspekt_title.tr()),
+      findsNothing,
+    );
+    // Блоки вопроса дня и знака дня не стартуют — их карточек нет.
+    expect(find.byType(BlocProvider<DailyQuestionBloc>), findsNothing);
+    expect(find.byType(BlocProvider<DailySignBloc>), findsNothing);
+    for (final feature in AppFeature.values.where((f) => f.shelved)) {
+      expect(
+        _featureFlags.snapshot.isEnabled(feature),
+        isFalse,
+        reason: '${feature.key} убрана, но считается включённой',
+      );
     }
-    await withClock(Clock.fixed(_now), () async {
-      await tester.pumpWidget(_app(_featureFlags));
-      await _settle(tester);
-      final context = tester.element(find.byType(ExamCountdownCard));
-      context.read<HomeInsightsBloc>().add(
-        HomeExamDateChanged(DateTime(2026, 10, 8)),
-      );
-      await _settle(tester);
-
-      expect(
-        find.text(LocaleKeys.homeInsights_countdown_days.plural(10)),
-        findsOneWidget,
-      );
-      // Темп 1 в день, пройден 1 из 12, за 10 дней ≈ 11 из 12 → 92 %.
-      expect(
-        find.text(
-          LocaleKeys.homeInsights_countdown_forecast.tr(args: ['1', '92']),
-        ),
-        findsOneWidget,
-      );
-      expect(find.byKey(const ValueKey('countdown_menu')), findsOneWidget);
-      expect(find.byKey(const ValueKey('countdown_set')), findsNothing);
-    });
   });
 
   testWidgets('флаги выключены — блока нет', (tester) async {
@@ -451,10 +420,9 @@ void main() {
     await _settle(tester);
 
     expect(find.byType(HomeCard), findsNothing);
+    expect(find.byType(SummaryCard), findsNothing);
     expect(find.byType(ActivityCard), findsNothing);
     expect(find.byType(ExamTrendCard), findsNothing);
-    expect(find.byType(WeakTopicsCard), findsNothing);
-    expect(find.byType(CategoryCoverageCard), findsNothing);
   });
 
   testWidgets('один флаг — одна карточка', (tester) async {
@@ -471,6 +439,22 @@ void main() {
     expect(find.byType(ActivityCard), findsOneWidget);
   });
 
+  testWidgets('только симуляции включены, попыток нет — блока нет', (
+    tester,
+  ) async {
+    await _prefs({
+      for (final feature in AppFeature.homeCards)
+        if (feature != AppFeature.homeExamTrend)
+          'feature.${feature.key}.enabled': false,
+    });
+    await _register();
+    await tester.pumpWidget(_app(_featureFlags));
+    await _settle(tester);
+
+    expect(find.byType(HomeCard), findsNothing);
+    expect(find.byType(ExamTrendCard), findsNothing);
+  });
+
   testWidgets('широкий экран — заголовок раздела и сетка', (tester) async {
     await _prefs();
     await _register();
@@ -483,7 +467,8 @@ void main() {
     });
 
     expect(find.text(LocaleKeys.homeInsights_section.tr()), findsOneWidget);
-    expect(find.byType(ReadinessCard), findsOneWidget);
-    expect(find.byType(CategoryCoverageCard), findsOneWidget);
+    expect(find.byType(SummaryCard), findsOneWidget);
+    expect(find.byType(ActivityCard), findsOneWidget);
+    expect(find.byType(ExamTrendCard), findsNothing);
   });
 }
