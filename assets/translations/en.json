@@ -31,6 +31,7 @@
     "outOf": "of {}",
     "threshold": "Pass mark is {} points.",
     "sameTheme": "All mistakes are from the same topic.",
+    "notCounted": "Not counted in your statistics: fewer than {} questions answered.",
     "yourErrors": "Your mistakes",
     "reviewErrors": {
       "one": "Review {} mistake",
@@ -200,6 +201,7 @@
     "profileSubtitle": "Display name and account",
     "appearance": "Appearance",
     "appearanceSubtitle": "Accent color and theme",
+    "groupsSubtitle": "Create a group, join with a code, your groups",
     "accentColor": "Accent color",
     "accentDefault": "Default (dynamic)",
     "themeMode": "Theme",
@@ -227,6 +229,8 @@
     "title": "Features",
     "localSection": "Available features",
     "localSectionSubtitle": "Can be turned on or off at any time",
+    "homeSection": "Home cards",
+    "homeSectionSubtitle": "What to show on the home screen",
     "accountSection": "For signed-in users",
     "accountSectionSubtitle": "Work after you sign in; you can turn them on or off already",
     "premiumSection": "Premium features",
@@ -258,7 +262,17 @@
       "auto_question_lists": "Automatic question lists",
       "custom_question_lists": "Custom question lists",
       "support_chat": "Support chat",
-      "russian_content": "Russian materials and translations"
+      "russian_content": "Russian materials and translations",
+      "home_readiness": "Home: exam readiness",
+      "home_exam_trend": "Home: simulation chart",
+      "home_activity": "Home: activity and streak",
+      "home_weak_topics": "Home: weak topics",
+      "home_category_coverage": "Home: category coverage",
+      "home_daily_question": "Home: question of the day",
+      "home_exam_countdown": "Home: exam countdown",
+      "home_daily_sign": "Home: sign of the day",
+      "home_continue_konspekt": "Home: continue the summary",
+      "home_summary": "Home: overview"
     }
   },
   "questionTabs": {
@@ -1047,6 +1061,58 @@
     "noUserPurchases": "No purchases.",
     "periodSourcePurchase": "purchase"
   },
+  "linkSources": {
+    "title": "Link sources",
+    "settingsSubtitle": "/go/ links and their funnel: clicks, installs, sign-ups, purchases",
+    "newSource": "New source",
+    "refresh": "Refresh",
+    "periodAll": "All time",
+    "period30": "30 days",
+    "period7": "7 days",
+    "showArchived": "Archive",
+    "empty": "No sources yet. Create the first one to get a link to hand out.",
+    "note": "The funnel counts the clicks made in the selected period. Android installs are tied to their click exactly (through Google Play), iPhone ones by network and time of the click — an estimate («by network»). An install that never opens the app is invisible to us — the store consoles show it under the campaign named after the source code.",
+    "createdAt": "Created {}",
+    "archivedBadge": "Archived",
+    "leadsTo": "Leads to {}",
+    "copy": "Copy",
+    "copied": "Link copied",
+    "edit": "Edit",
+    "archive": "Archive",
+    "restore": "Restore",
+    "funnelClicks": "Clicks",
+    "funnelClicksSplit": "Android {} · iPhone {} · web {}",
+    "funnelReached": "Opened the app",
+    "funnelInstalls": "new installs",
+    "funnelOpens": "already installed / web",
+    "funnelProbable": "by network: {}",
+    "funnelRegistrations": "Sign-ups",
+    "funnelBuyers": "Buyers",
+    "funnelPurchases": "purchases: {}",
+    "editorCreateTitle": "New source",
+    "editorEditTitle": "Source",
+    "fieldName": "Name",
+    "fieldNameHint": "Instagram — profile bio",
+    "fieldDescription": "Description",
+    "fieldCode": "Code in the link",
+    "fieldCodeHelper": "Latin letters, digits and dashes. Empty — we make one up. Cannot be changed later.",
+    "fieldTarget": "Target screen",
+    "fieldTargetHelper": "A path in the app, e.g. /question/7921. Empty — the home screen.",
+    "codeInvalid": "Latin letters, digits and dashes only, 2 to 40 characters",
+    "targetInvalid": "The path must start with a single / and contain no spaces",
+    "nameRequired": "Enter a name",
+    "cancel": "Cancel",
+    "create": "Create",
+    "save": "Save",
+    "close": "Close",
+    "createdTitle": "Source created",
+    "createdBody": "The link for «{}»:",
+    "saved": "Saved",
+    "archivedDone": "Source archived — its link keeps working",
+    "restoredDone": "Source restored",
+    "codeTaken": "This code is already used by another source",
+    "requestFailed": "The request failed"
+  },
   "accountDeletion": {
     "title": "Delete account",
     "intro": "The account is deleted completely and forever. Choose which content goes with it, then confirm the deletion with the code from the e-mail.",
@@ -1111,5 +1177,90 @@
     "pause": "Pause animation",
     "play": "Resume animation",
     "step": "Frame {}"
+  },
+  "homeInsights": {
+    "section": "Progress",
+    "readiness": {
+      "title": "Exam readiness",
+      "hint": "The share of exam points from questions you answered correctly last time. Questions are weighted by how likely they are to appear on the exam. The pass mark is {} of 100.",
+      "empty": "Answer a few questions and your readiness estimate will appear here.",
+      "known": "You know {} of {} questions",
+      "practiceWeakest": "Work on the weakest topic"
+    },
+    "examTrend": {
+      "title": "Exam simulations",
+      "empty": "Take an exam simulation — the score chart will appear here.",
+      "passedOfRecent": "Passed {} of the last {}",
+      "last": "Latest: {} points, {} mistakes",
+      "passMark": "pass mark {}",
+      "start": "Simulation"
+    },
+    "activity": {
+      "title": "Activity",
+      "streak": {
+        "one": "{} day in a row",
+        "other": "{} days in a row"
+      },
+      "noStreak": "Streak broken — start again today",
+      "today": "Today {} of {}",
+      "goalReached": "Today's goal reached",
+      "goalTitle": "Daily goal",
+      "goalOption": {
+        "one": "{} question",
+        "other": "{} questions"
+      }
+    },
+    "weakTopics": {
+      "title": "Weak topics",
+      "empty": "Not enough data yet: answer at least {} questions of a topic for it to show up here.",
+      "accuracy": "{}% correct",
+      "practice": "Practise"
+    },
+    "coverage": {
+      "title": "Category coverage",
+      "progress": "{} of {}",
+      "accuracy": "{}% correct",
+      "untouched": "not opened yet"
+    },
+    "dailyQuestion": {
+      "title": "Question of the day",
+      "multiple": "Correct answers: {}",
+      "check": "Check",
+      "correct": "Correct!",
+      "wrong": "Wrong",
+      "open": "Open the question"
+    },
+    "countdown": {
+      "title": "Until the exam",
+      "set": "Set the exam date",
+      "days": {
+        "one": "{} day",
+        "other": "{} days"
+      },
+      "today": "The exam is today. Good luck!",
+      "passed": "The exam date has passed",
+      "forecast": "At about {} questions a day you will have covered roughly {}% of the bank by the exam",
+      "noPace": "Practise every day — a forecast appears once there is some history",
+      "change": "Change the date",
+      "clear": "Remove the date"
+    },
+    "dailySign": {
+      "title": "Sign of the day",
+      "reveal": "Show the name",
+      "open": "Open"
+    },
+    "konspekt": {
+      "title": "Continue the summary",
+      "continue": "Continue"
+    },
+    "summary": {
+      "title": "Overview",
+      "answers": "Answers in total",
+      "weekAccuracy": "Accuracy, last 7 days",
+      "simulations": "Simulations",
+      "simulationTime": "Time in simulations",
+      "hoursMinutes": "{} h {} min",
+      "minutes": "{} min"
+    }
   }
 }

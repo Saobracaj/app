@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart' show AppLifecycleListener;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:saobracaj/core/analytics/analytics_service.dart';
+import 'package:saobracaj/core/analytics/question_navigation.dart';
 import 'package:saobracaj/db/answer_table.dart' show genRecordId;
 import 'package:saobracaj/db/db.dart';
 import 'package:saobracaj/db/dependencies.dart';
@@ -20,6 +21,34 @@ part 'practice_bloc.freezed.dart';
 
 /// Длительность теоретического экзамена.
 const kExamDuration = Duration(minutes: 45);
+
+/// Проходной порог для статистики: сколько вопросов варианта должно получить
+/// ответ, чтобы результат симуляции был записан в `practice_records` (и ушёл
+/// в историю попыток, на главную, в синхронизацию и в ленту группы).
+///
+/// Симуляцию, которую открыли, полистали и закончили через «Завршити
+/// испит» с парой ответов, в статистику не пускаем: такой «провал» с нулём
+/// баллов портит историю и лучший результат. Четверть варианта (10 из 41)
+/// — уже осмысленная попытка; меньше — заглянули и бросили. Экран результата
+/// показывается всё равно, с пометкой, что результат не учтён.
+const kMinAnsweredForStatistics = 10;
+
+/// Сколько вопросов в варианте симуляции: каждый из вариантов `practice.json`
+/// повторяет реальный экзамен — 41 вопрос (см. `tool/question_analytics.py`).
+const kExamQuestionCount = 41;
+
+/// Прошла ли записанная попытка порог [kMinAnsweredForStatistics] — по ней
+/// главная решает, показывать ли результат в карточке симуляций.
+///
+/// Число отвеченных вопросов в `practice_records` не хранится (ни локально,
+/// ни на сервере), а записи, сделанные до появления порога, могут быть и
+/// «полистали и бросили» с нулём баллов. Поэтому порог оценивается снизу:
+/// неотвеченный вопрос — тоже ошибка, значит верных ответов
+/// `kExamQuestionCount − mistakes`, и отвечено не меньше, чем верных. Попытка
+/// с ≥ 10 верными точно прошла порог; попытка, где верных меньше десяти,
+/// считается не прошедшей — даже если на деле отвечали больше и ошибались.
+bool practiceRecordCounted(PracticeRecord record) =>
+    kExamQuestionCount - record.mistakes >= kMinAnsweredForStatistics;
 
 /// Через сколько бездействия (ни ответа, ни перехода между вопросами)
 /// симуляция сама встаёт на паузу. Только на вебе: на телефоне уход из
@@ -177,18 +206,30 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
   void _onNextQuestion(NextQuestion event, Emitter<PracticeState> emit) {
     final nextIndex = state.currentQuestionIndex + 1;
     if (nextIndex >= state.questions.length) return;
-    _navigateToIndex(nextIndex, emit);
+    _navigateToIndex(nextIndex, emit, via: event.via);
     _touch();
   }
 
   void _onPrevQuestion(PrevQuestion event, Emitter<PracticeState> emit) {
     final nextIndex = state.currentQuestionIndex - 1;
     if (nextIndex < 0) return;
-    _navigateToIndex(nextIndex, emit);
+    _navigateToIndex(nextIndex, emit, via: event.via);
     _touch();
   }
 
-  void _navigateToIndex(int index, Emitter<PracticeState> emit) {
+  /// Вопрос, который сейчас на экране, — чтобы `question_viewed` уходило по
+  /// разу на показ: снимок с другого устройства приходит на каждое действие
+  /// там, и чаще всего вопрос в нём тот же.
+  int? _shownQuestion;
+
+  /// Ставит прогон на вопрос [index]; [via] — чем его туда привели, для
+  /// `question_viewed` (не уходит, если вопрос и так на экране).
+  void _navigateToIndex(
+    int index,
+    Emitter<PracticeState> emit, {
+    required QuestionNavigation via,
+  }) {
+    final from = state.currentQuestionIndex;
     final curQuestion = data.questions.firstWhere(
       (element) => element.id == state.questions[index],
     );
@@ -199,6 +240,15 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
         currentQuestion: curQuestion,
         currentAnswers: curAnswers,
       ),
+    );
+    if (_shownQuestion == curQuestion.id) return;
+    final firstShow = _shownQuestion == null;
+    _shownQuestion = curQuestion.id;
+    analytics.logQuestionViewed(
+      questionId: curQuestion.id,
+      navigation: via,
+      direction: firstShow ? null : QuestionDirection.between(from, index),
+      mode: 'exam',
     );
   }
 
@@ -292,7 +342,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     final questions = data.practice[Random().nextInt(data.practice.length)];
     emit(state.copyWith(questions: questions));
     _recalculateState(state.answers, emit);
-    _navigateToIndex(0, emit);
+    _navigateToIndex(0, emit, via: QuestionNavigation.runStart);
     final now = clock.now();
     _startedAt = now;
     _runningSince = now;
@@ -357,6 +407,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     _navigateToIndex(
       snapshot.currentQuestionIndex.clamp(0, snapshot.questions.length - 1),
       emit,
+      via: remote ? QuestionNavigation.remote : QuestionNavigation.resume,
     );
     _startedAt = snapshot.startedAt;
     _attemptUuid = snapshot.attemptUuid ?? _attemptUuid ?? genRecordId();
@@ -457,7 +508,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
 
   void _onMoveToQuestiont(MoveToQuestion event, Emitter<PracticeState> emit) {
     final ind = state.questions.indexOf(event.qid);
-    emit(state.copyWith(currentQuestionIndex: ind));
+    _navigateToIndex(ind, emit, via: event.via);
     _touch();
   }
 
@@ -493,11 +544,21 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     // keyed by it on the backend. Taken from the snapshot when there is one:
     // every device finishing this simulation records the same attempt.
     final attemptUuid = _attemptUuid ?? genRecordId();
+    // Сколько вопросов варианта получили ответ (пустой выбор ответом не
+    // считается — см. `save()` на странице вопроса). Меньше порога — результат
+    // показываем, но в статистику не пишем. Устройство, доигрывающее эту же
+    // симуляцию по снимку, считает по тем же ответам и решает так же.
+    final answered = state.questions
+        .where((qid) => state.answers[qid]?.isNotEmpty ?? false)
+        .length;
+    final counted = answered >= kMinAnsweredForStatistics;
 
     analytics.logSimulationFinished(
       durationSeconds: elapsed,
       points: pointsSummary,
       mistakes: wrongAnswers.length,
+      answered: answered,
+      counted: counted,
     );
 
     // Экзамен окончен — продолжать больше нечего (и на других устройствах:
@@ -514,8 +575,14 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
         finalWrongQuestions: wrongAnswers,
         elapsedSeconds: elapsed,
         attemptUuid: attemptUuid,
+        answeredCount: answered,
+        countedInStatistics: counted,
       ),
     );
+
+    // Ниже порога записи нет: ни в истории попыток, ни на сервере (и, стало
+    // быть, ни в ленте группы), `attemptSaved` так и остаётся ложным.
+    if (!counted) return;
 
     await repository.insertPracticeRecord(
       PracticeRecordsCompanion(
@@ -600,7 +667,7 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
     NavigateToQuestion event,
     Emitter<PracticeState> emit,
   ) {
-    _navigateToIndex(event.index, emit);
+    _navigateToIndex(event.index, emit, via: event.via);
     _touch();
   }
 
@@ -714,18 +781,30 @@ class PracticeBloc extends Bloc<PracticeEvent, PracticeState> {
 
 sealed class PracticeEvent {}
 
-class NextQuestion extends PracticeEvent {}
+/// Шаг вперёд; [via] — чем шагнули (кнопка по умолчанию, клавиша →).
+class NextQuestion extends PracticeEvent {
+  NextQuestion([this.via = QuestionNavigation.nextButton]);
+
+  final QuestionNavigation via;
+}
 
 class Init extends PracticeEvent {}
 
-class PrevQuestion extends PracticeEvent {}
+/// Шаг назад; [via] — как у [NextQuestion].
+class PrevQuestion extends PracticeEvent {
+  PrevQuestion([this.via = QuestionNavigation.backButton]);
+
+  final QuestionNavigation via;
+}
 
 class FinalizeTest extends PracticeEvent {}
 
+/// Переход к вопросу [qid]; [via] — чем его выбрали.
 class MoveToQuestion extends PracticeEvent {
-  int qid;
+  MoveToQuestion(this.qid, {required this.via});
 
-  MoveToQuestion(this.qid);
+  final int qid;
+  final QuestionNavigation via;
 }
 
 class AddAnswer extends PracticeEvent {
@@ -743,10 +822,13 @@ class ToggleMarkQuestion extends PracticeEvent {
   ToggleMarkQuestion(this.index);
 }
 
+/// Переход к вопросу с индексом [index]; [via] — свайп, прокрутка или
+/// таблица отчёта.
 class NavigateToQuestion extends PracticeEvent {
-  final int index;
+  NavigateToQuestion(this.index, {required this.via});
 
-  NavigateToQuestion(this.index);
+  final int index;
+  final QuestionNavigation via;
 }
 
 /// Поставить симуляцию на паузу (тап по таймеру, уход в фон, бездействие).
@@ -808,6 +890,12 @@ sealed class PracticeState with _$PracticeState {
     @Default(<int>[]) List<int> finalWrongQuestions,
     // The finished attempt's sync uuid — the Ask-AI exam chat's scope id.
     String? attemptUuid,
+    // Сколько вопросов варианта получили ответ (считается при FinalizeTest).
+    @Default(0) int answeredCount,
+    // Результат прошёл порог [kMinAnsweredForStatistics] и записан в
+    // статистику. Ложь до завершения и у брошенной с парой ответов попытки:
+    // экран результата тогда помечает его как неучтённый.
+    @Default(false) bool countedInStatistics,
     int? elapsedSeconds,
     Question? currentQuestion,
     Set<Choice>? currentAnswers,

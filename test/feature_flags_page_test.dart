@@ -141,4 +141,31 @@ void main() {
     expect(signedIn.isEnabled(AppFeature.groups), isFalse);
     expect(signedIn.isEnabled(AppFeature.supportChat), isTrue);
   });
+
+  testWidgets('карточки главной: строки есть только у живых, убранные '
+      '(shelved) не перечислены', (tester) async {
+    tester.view.physicalSize = const Size(800, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    final repository = await _guestRepository();
+    await tester.pumpWidget(_app(repository));
+    await tester.pumpAndSettle();
+
+    for (final feature in AppFeature.homeCards) {
+      expect(feature.shelved, isFalse);
+      expect(
+        _tile(feature),
+        findsOneWidget,
+        reason: '${feature.key} без строки',
+      );
+    }
+    for (final feature in AppFeature.values.where((f) => f.shelved)) {
+      expect(
+        _tile(feature),
+        findsNothing,
+        reason: '${feature.key} убрана, но показана',
+      );
+    }
+  });
 }

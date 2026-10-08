@@ -12,6 +12,10 @@ enum SettingsSection {
   /// сборках пункт не показывается — подписка там не упоминается вовсе.
   subscription('subscription'),
   appearance('appearance'),
+
+  /// Группы: создание, вход по коду и список своих групп. На главной группы
+  /// только показываются — управление ими живёт здесь.
+  groups('groups'),
   notifications('notifications'),
   supportChat('support'),
   supportThreads('support-threads'),
@@ -19,6 +23,10 @@ enum SettingsSection {
   /// Денежный стол — админка платежей и подписок для держателей
   /// `manage_billing` (перенесена из Angular-панели).
   billing('billing'),
+
+  /// Источники ссылок `/go/<код>` и их воронка — для держателей
+  /// `manage_attribution`.
+  linkSources('link-sources'),
   testPush('test-push'),
   features('features'),
   about('about');

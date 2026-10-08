@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/core/analytics/question_navigation.dart';
 import 'package:saobracaj/core/keyboard_hints.dart';
 import 'package:saobracaj/core/keyboard_pagination.dart';
 import 'package:saobracaj/core/responsive.dart';
@@ -309,8 +310,15 @@ class _QuestRunState extends State<_QuestRun> {
                   index: state.currentQuestionIndex,
                   itemCount: state.questions.length,
                   position: _position,
-                  onIndexChanged: (index) =>
-                      questBloc.add(MoveToQuestion(state.questions[index])),
+                  onIndexChanged: (index, move) => questBloc.add(
+                    MoveToQuestion(
+                      state.questions[index],
+                      via: switch (move) {
+                        PagerMove.swipe => QuestionNavigation.swipe,
+                        PagerMove.scroll => QuestionNavigation.scroll,
+                      },
+                    ),
+                  ),
                   onLeaving: (index) => _recordOnLeave(context, state, index),
                   itemBuilder: (context, index) => _page(context, state, index),
                 );
@@ -327,8 +335,9 @@ class _QuestRunState extends State<_QuestRun> {
                 final pagination = QuestionPagination(
                   entries: entries,
                   currentQuestionId: currentId,
-                  onQuestionSelected: (picked) =>
-                      questBloc.add(MoveToQuestion(picked)),
+                  onQuestionSelected: (picked) => questBloc.add(
+                    MoveToQuestion(picked, via: QuestionNavigation.navigator),
+                  ),
                 );
                 // Низ экрана: панель действий (на узком экране),
                 // в просторном вебе — пагинация и под ней мелкая подсказка,
@@ -342,8 +351,12 @@ class _QuestRunState extends State<_QuestRun> {
                     KeyboardHints(navigation: state.questions.length > 1),
                 ];
                 return KeyboardPagination(
-                  onPrevious: first ? null : actions.previous,
-                  onNext: last ? null : actions.next,
+                  onPrevious: first
+                      ? null
+                      : () => actions.previous(QuestionNavigation.keyboard),
+                  onNext: last
+                      ? null
+                      : () => actions.next(QuestionNavigation.keyboard),
                   onShowAnswer: actions.showAnswer,
                   child: Scaffold(
                     appBar: QuestAppBar(
@@ -367,8 +380,12 @@ class _QuestRunState extends State<_QuestRun> {
                             currentQuestionId: currentId,
                             position: _position,
                             scrollDepth: 1,
-                            onQuestionSelected: (picked) =>
-                                questBloc.add(MoveToQuestion(picked)),
+                            onQuestionSelected: (picked) => questBloc.add(
+                              MoveToQuestion(
+                                picked,
+                                via: QuestionNavigation.navigator,
+                              ),
+                            ),
                             child: body,
                           ),
                     bottomNavigationBar: bottomChildren.isEmpty

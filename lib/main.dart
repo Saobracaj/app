@@ -16,6 +16,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:saobracaj/purchase/state_management/purchase_bloc.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'attribution/data/attribution_service.dart';
 import 'auth/data/auth_repository.dart';
 import 'auth/data/firebase_init.dart';
 import 'auth/presentation/auth_flow.dart';
@@ -134,6 +135,9 @@ void main() async {
   // must not miss the link that started it (DeepLinkService holds it until the
   // router exists).
   await getIt<DeepLinkService>().start();
+  // Откуда пришла установка: отчёт о запуске (и о возвращениях из фона) —
+  // бэкенд привязывает к устройству клик по ссылке-источнику /go/<код>.
+  getIt<AttributionService>().start();
   runApp(
     EasyLocalization(
       useOnlyLangCode: true,
@@ -339,7 +343,24 @@ class _MyAppState extends State<MyApp> {
     if (path != null) analytics.logScreenView(path);
   }
 
-  void _openDeepLink(String path) => _routerDelegate.push(path);
+  void _openDeepLink(String path) {
+    final code = attributionLinkCode(path);
+    if (code != null) {
+      unawaited(_openAttributionLink(code));
+      return;
+    }
+    _routerDelegate.push(path);
+  }
+
+  /// Приложение открыто ссылкой-источником `/go/<код>` (App Link / Universal
+  /// Link): это клик, о котором браузер не узнал, — о нём сообщается бэкенду,
+  /// а тот отвечает, какой экран у ссылки. Главная — там, где приложение и
+  /// так открылось, поэтому никуда не переходим.
+  Future<void> _openAttributionLink(String code) async {
+    final target = await getIt<AttributionService>().openedByLink(code);
+    if (!mounted || target == null || target == '/') return;
+    _routerDelegate.push(target);
+  }
 
   /// На другом устройстве идёт симуляция: если её экран здесь ещё не открыт,
   /// открываем с работающим таймером (как «продолжить» из баннера). Во время
@@ -368,7 +389,7 @@ class _MyAppState extends State<MyApp> {
     if (uri == null) return;
     final path = deepLinkPathFor(uri);
     if (path != null) {
-      _routerDelegate.push(path);
+      _openDeepLink(path);
       return;
     }
     unawaited(

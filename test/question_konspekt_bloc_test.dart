@@ -25,6 +25,12 @@ class _FakeRepository implements KonspektRepository {
 
   @override
   Future<Konspekt?> load(String categoryId) async => konspekt;
+
+  @override
+  Future<void> rememberOpened(String categoryId) async {}
+
+  @override
+  Future<String?> lastOpened() async => null;
 }
 
 Konspekt _konspekt(List<KonspektSection> sections) => Konspekt(

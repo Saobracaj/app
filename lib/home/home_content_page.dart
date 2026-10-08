@@ -7,12 +7,17 @@ import 'package:saobracaj/core/presentation/wide_layout.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/groups/presentation/groups_section.dart';
+import 'package:saobracaj/home/presentation/home_insights_section.dart';
 import 'package:saobracaj/home/presentation/offline_home_card.dart';
 import 'package:saobracaj/question_lists/presentation/question_lists_section.dart';
 import 'package:saobracaj/test/practice/widgets/paused_simulation_banner.dart';
 
-/// Главная страница приложения: раздел со списками вопросов (автоматические +
-/// пользовательские) и карточки групп пользователя.
+/// Главная страница приложения: карточки прогресса ([HomeInsightsSection],
+/// каждая под своим фича-флагом), раздел со списками вопросов (автоматические
+/// + пользовательские) и карточки групп, в которых пользователь состоит.
+///
+/// Групп на главной может не быть вовсе: тот, кто ни в одну не вступил, их
+/// секции не видит — создать группу или войти по коду можно в настройках.
 ///
 /// Без сети сверху стоит карточка «приложение в режиме offline» со ссылками на
 /// вопросы и симуляцию — они работают из локальных ассетов; секции ниже
@@ -59,8 +64,11 @@ class HomeContentPage extends StatelessWidget {
                   const PausedSimulationBanner(
                     padding: EdgeInsets.only(bottom: 24),
                   ),
+                  // Карточки прогресса — каждая под своим фича-флагом.
+                  const HomeInsightsSection(wide: true),
                   const QuestionListsSection(wide: true),
-                  const SizedBox(height: 38),
+                  // Отступ над группами — внутри самой секции: без групп она
+                  // не занимает на главной ничего.
                   const GroupsSection(wide: true),
                 ],
               ),
@@ -91,8 +99,9 @@ class HomeContentPage extends StatelessWidget {
             const PausedSimulationBanner(
               padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
             ),
+            // Карточки прогресса — каждая под своим фича-флагом.
+            const HomeInsightsSection(),
             const QuestionListsSection(),
-            const SizedBox(height: 8),
             const GroupsSection(),
           ],
         ),

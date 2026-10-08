@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
+import 'package:saobracaj/core/analytics/question_navigation.dart';
 import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/core/keyboard_hints.dart';
 import 'package:saobracaj/core/keyboard_pagination.dart';
@@ -298,8 +299,15 @@ class _PracticeRunState extends State<_PracticeRun> {
               final pager = QuestionPager(
                 index: index,
                 itemCount: state.questions.length,
-                onIndexChanged: (index) =>
-                    questBloc.add(NavigateToQuestion(index)),
+                onIndexChanged: (index, move) => questBloc.add(
+                  NavigateToQuestion(
+                    index,
+                    via: switch (move) {
+                      PagerMove.swipe => QuestionNavigation.swipe,
+                      PagerMove.scroll => QuestionNavigation.scroll,
+                    },
+                  ),
+                ),
                 onLeaving: (index) => _recordOnLeave(context, index),
                 itemBuilder: (context, index) =>
                     _page(context, questBloc, index),
@@ -313,8 +321,12 @@ class _PracticeRunState extends State<_PracticeRun> {
               // RadioGroup — он стоит ниже, на странице, и перехватывает их
               // первым.
               return KeyboardPagination(
-                onPrevious: actions.previous,
-                onNext: actions.next,
+                onPrevious: actions.previous == null
+                    ? null
+                    : () => actions.previous!(QuestionNavigation.keyboard),
+                onNext: actions.next == null
+                    ? null
+                    : () => actions.next!(QuestionNavigation.keyboard),
                 onShowAnswer: content.showCorrectAnswers
                     ? null
                     : actions.showAnswer,
@@ -783,19 +795,28 @@ class _QuestionActions {
     return saved != SavedAnswer.wrongNumber;
   }
 
-  Future<void> previous() async {
-    if (await submit()) practice.add(PrevQuestion());
+  /// [via] — чем шагнули, для аналитики: кнопка «претходно питање» (по
+  /// умолчанию) или клавиша ←.
+  Future<void> previous([
+    QuestionNavigation via = QuestionNavigation.backButton,
+  ]) async {
+    if (await submit()) practice.add(PrevQuestion(via));
   }
 
-  Future<void> next() async {
-    if (await submit()) practice.add(NextQuestion());
+  /// [via] — как у [previous]: кнопка «следеће питање» или клавиша →.
+  Future<void> next([
+    QuestionNavigation via = QuestionNavigation.nextButton,
+  ]) async {
+    if (await submit()) practice.add(NextQuestion(via));
   }
 
   void showAnswer() => content.add(ShowCorrectAnswers());
 
   Future<void> report() async {
     final res = await _showTable(context, practice.state);
-    if (res != null) practice.add(NavigateToQuestion(res));
+    if (res != null) {
+      practice.add(NavigateToQuestion(res, via: QuestionNavigation.report));
+    }
   }
 
   Future<void> finish() async {
@@ -817,6 +838,9 @@ class _QuestionActions {
   }
 }
 
+/// Шаг по прогону способом [via] (см. [QuestionNavigation]).
+typedef NavigationAction = void Function([QuestionNavigation via]);
+
 /// The callbacks behind the buttons of the exam replica. A `null` callback
 /// means the button does not exist at this point of the run (no "previous"
 /// on the first question, no "next" on the last one, no "show the answer"
@@ -830,8 +854,11 @@ class _ExamActions {
     required this.showAnswer,
   });
 
-  final VoidCallback? previous;
-  final VoidCallback? next;
+  /// Шаги назад / вперёд принимают, чем шагнули (кнопка по умолчанию,
+  /// клавиша), — для `question_viewed`; кнопкам достаточно вызова без
+  /// аргумента.
+  final NavigationAction? previous;
+  final NavigationAction? next;
   final VoidCallback endExam;
   final VoidCallback report;
   final VoidCallback? showAnswer;

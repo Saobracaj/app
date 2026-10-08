@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
+import '../../attribution/presentation/link_sources_page.dart';
 import '../../billing_admin/presentation/billing_admin_page.dart';
 import '../../core/di.dart';
 import '../../core/presentation/wide_layout.dart';
@@ -11,6 +12,7 @@ import '../../feature_flags/domain/app_feature.dart';
 import '../../feature_flags/presentation/feature_flags_page.dart';
 import '../../feature_flags/state_management/feature_flags_bloc.dart';
 import '../../generated/locale_keys.g.dart';
+import '../../groups/presentation/groups_page.dart';
 import '../../notifications/presentation/notifications_page.dart';
 import '../../profile/presentation/display_name_page.dart';
 import '../../profile/state_management/display_name_bloc.dart';
@@ -137,10 +139,12 @@ class ProfilePage extends StatelessWidget {
     SettingsSection.profile => const DisplayNamePage(),
     SettingsSection.subscription => const SubscriptionPage(),
     SettingsSection.appearance => const AppearancePage(),
+    SettingsSection.groups => const GroupsPage(),
     SettingsSection.notifications => const NotificationsPage(),
     SettingsSection.supportChat => const ChatPage(),
     SettingsSection.supportThreads => const SupportChatsPage(),
     SettingsSection.billing => const BillingAdminPage(),
+    SettingsSection.linkSources => const LinkSourcesPage(),
     SettingsSection.testPush => const TestPushPage(),
     SettingsSection.features => const FeatureFlagsPage(),
     SettingsSection.about => const AboutPage(),
@@ -205,6 +209,17 @@ class ProfilePage extends StatelessWidget {
         title: LocaleKeys.settings_appearance.tr(),
         subtitle: LocaleKeys.settings_appearanceSubtitle.tr(),
       ),
+      // Группы: свой раздел настроек — на главной остались только карточки
+      // групп, в которые пользователь уже вступил. Как и сама фича, пункт
+      // виден вошедшему и только при включённом флаге `groups`.
+      if (auth.isAuthenticated &&
+          context.watch<FeatureFlagsBloc>().state.isEnabled(AppFeature.groups))
+        _SettingsEntry(
+          section: SettingsSection.groups,
+          icon: Icons.groups_outlined,
+          title: LocaleKeys.groups_section.tr(),
+          subtitle: LocaleKeys.settings_groupsSubtitle.tr(),
+        ),
       // Notifications only make sense for a signed-in account, so the
       // entry is hidden while signed out.
       if (auth.isAuthenticated)
@@ -246,6 +261,15 @@ class ProfilePage extends StatelessWidget {
           icon: Icons.payments_outlined,
           title: LocaleKeys.billingAdmin_title.tr(),
           subtitle: LocaleKeys.billingAdmin_settingsSubtitle.tr(),
+        ),
+      // Источники ссылок /go/<код>: откуда приходят установки, регистрации
+      // и покупки. Гейт — бэкендовое право `manage_attribution`.
+      if (permissions.contains('manage_attribution'))
+        _SettingsEntry(
+          section: SettingsSection.linkSources,
+          icon: Icons.campaign_outlined,
+          title: LocaleKeys.linkSources_title.tr(),
+          subtitle: LocaleKeys.linkSources_settingsSubtitle.tr(),
         ),
       // Инструмент администратора: тестовая отправка пуша по почте.
       // Гейт — бэкендовое право `send_test_push`, оно же проверяется
@@ -407,6 +431,12 @@ class _SectionPanel extends StatelessWidget {
           child: AppearanceContent(),
         ),
       ),
+      SettingsSection.groups => hug(
+        const SurfaceCard(
+          padding: EdgeInsets.symmetric(vertical: 12),
+          child: GroupsContent(),
+        ),
+      ),
       SettingsSection.notifications => hug(
         const SurfaceCard(
           padding: EdgeInsets.symmetric(vertical: 12),
@@ -424,6 +454,10 @@ class _SectionPanel extends StatelessWidget {
       SettingsSection.billing => const SurfaceCard(
         padding: EdgeInsets.symmetric(vertical: 8),
         child: BillingAdminContent(),
+      ),
+      SettingsSection.linkSources => const SurfaceCard(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: LinkSourcesContent(),
       ),
       SettingsSection.testPush => hug(
         const SurfaceCard(

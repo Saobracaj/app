@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routemaster/routemaster.dart';
 
-import '../../core/network/state_management/network_status_bloc.dart';
-import '../../core/presentation/load_failed_view.dart';
 import '../../core/presentation/wide_layout.dart';
 import '../../feature_flags/domain/app_feature.dart';
 import '../../feature_flags/presentation/feature_gate.dart';
@@ -13,13 +11,18 @@ import '../../core/presentation/relative_time.dart';
 import '../models/group.dart';
 import '../models/group_event.dart' show groupEventIsWorthShowing;
 import '../state_management/groups_bloc.dart';
-import '../state_management/groups_events.dart';
 import '../state_management/groups_state.dart';
-import 'group_dialogs.dart';
 import 'group_event_summary.dart';
 
 /// The "groups" block of the home screen: one card per group the user belongs
-/// to, plus the two entry points — create a group, or join one with a code.
+/// to — and nothing at all when there are none.
+///
+/// Группами пока почти никто не пользуется, поэтому места на главной они
+/// занимают ровно столько, сколько заслужили: ни заголовка, ни приглашения
+/// создать группу у того, кто ни в одной не состоит. Сами точки входа
+/// (создать, войти по коду) живут в разделе настроек «Группы»
+/// (`GroupsContent`), а подтверждение приглашения и открытие новой группы — в
+/// `GroupsFlowListener` над вкладками.
 ///
 /// Gated on the `groups` flag, which is an authenticated-tier feature, so the
 /// whole block is invisible to a signed-out user (and to anyone who turned the
@@ -27,8 +30,7 @@ import 'group_event_summary.dart';
 class GroupsSection extends StatelessWidget {
   const GroupsSection({super.key, this.wide = false});
 
-  /// Раскладка широкого экрана: карточки групп сеткой, а «создать группу» —
-  /// карточкой-приглашением рядом с ними (макет веб-версии).
+  /// Раскладка широкого экрана: карточки групп сеткой (макет веб-версии).
   final bool wide;
 
   @override
@@ -47,88 +49,30 @@ class _GroupsSectionBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<GroupsBloc, GroupsState>(
-      listenWhen: (prev, curr) =>
-          curr.openGroupId != null || curr.invitePreview != null,
-      listener: (context, state) {
-        final preview = state.invitePreview;
-        final token = state.previewToken;
-        if (preview != null && token != null) {
-          // The code resolved: show whose group it is and ask before joining.
-          context.read<GroupsBloc>().add(const GroupInvitePreviewHandled());
-          confirmInviteFlow(context, preview, token);
-          return;
-        }
-        // A freshly created or joined group opens straight away — on its feed,
-        // like the card; the owner reaches the invite from the feed's menu.
-        final id = state.openGroupId;
-        context.read<GroupsBloc>().add(const GroupOpenHandled());
-        if (id != null) Routemaster.of(context).push('/groups/$id/feed');
-      },
+    return BlocBuilder<GroupsBloc, GroupsState>(
+      // Состояния загрузки и ошибки на главной не показываются: раздел здесь —
+      // просто список групп, а разбираться с неудачной загрузкой есть где
+      // (настройки → «Группы»).
+      buildWhen: (prev, curr) => prev.groups != curr.groups,
       builder: (context, state) {
-        // A failed first load shows an inline retry — unless the whole app is
-        // offline, in which case the home screen's offline card already says
-        // so and the list reloads by itself once the connection is back.
-        final online = context.select<NetworkStatusBloc, bool>(
-          (bloc) => bloc.state.online,
-        );
-        final showLoadFailed = state.failed && !state.loaded && online;
-        void retry() =>
-            context.read<GroupsBloc>().add(const GroupsRefreshed());
+        if (state.groups.isEmpty) return const SizedBox.shrink();
 
+        // Отступ от секции выше живёт здесь, а не на главной: пустая секция не
+        // должна оставлять после себя дырку.
         if (wide) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SectionHeading(
-                title: LocaleKeys.groups_section.tr(),
-                // Обе точки входа стоят рядом в шапке раздела: «создать» —
-                // основное действие, «войти по коду» — рядом с ним.
-                action: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FilledButton.tonalIcon(
-                      onPressed: state.busy
-                          ? null
-                          : () => createGroupFlow(context),
-                      icon: const Icon(Icons.group_add_outlined),
-                      label: Text(LocaleKeys.groups_create.tr()),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: state.busy
-                          ? null
-                          : () => joinGroupFlow(context),
-                      child: Text(LocaleKeys.groups_join.tr()),
-                    ),
-                  ],
-                ),
+              const SizedBox(height: 38),
+              SectionHeading(title: LocaleKeys.groups_section.tr()),
+              ResponsiveGrid(
+                minItemWidth: 340,
+                spacing: 16,
+                runSpacing: 16,
+                children: [
+                  for (final group in state.groups) GroupCard(group: group),
+                ],
               ),
-              if (state.loading && !state.loaded)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
-                  child: LinearProgressIndicator(),
-                ),
-              if (showLoadFailed)
-                LoadFailedView(compact: true, onRetry: retry)
-              // Кнопка «создать» уехала в шапку раздела, поэтому пустой сетке
-              // нужна своя подсказка — иначе раздел выглядит сломанным.
-              else if (state.isEmpty)
-                Text(
-                  LocaleKeys.groups_empty.tr(),
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                )
-              else
-                ResponsiveGrid(
-                  minItemWidth: 340,
-                  spacing: 16,
-                  runSpacing: 16,
-                  children: [
-                    for (final group in state.groups) GroupCard(group: group),
-                  ],
-                ),
             ],
           );
         }
@@ -137,64 +81,20 @@ class _GroupsSectionBody extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text(
                 LocaleKeys.groups_section.tr(),
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
-            if (state.loading && !state.loaded)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: LinearProgressIndicator(),
-              ),
-            if (showLoadFailed) LoadFailedView(compact: true, onRetry: retry),
-            if (state.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  LocaleKeys.groups_empty.tr(),
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
             for (final group in state.groups)
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
                 child: GroupCard(group: group),
               ),
-            _GroupActions(busy: state.busy),
           ],
         );
       },
-    );
-  }
-}
-
-/// The create/join pair under the cards.
-class _GroupActions extends StatelessWidget {
-  const _GroupActions({required this.busy});
-
-  final bool busy;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-      child: Row(
-        children: [
-          FilledButton.tonalIcon(
-            onPressed: busy ? null : () => createGroupFlow(context),
-            icon: const Icon(Icons.group_add_outlined),
-            label: Text(LocaleKeys.groups_create.tr()),
-          ),
-          const SizedBox(width: 8),
-          TextButton.icon(
-            onPressed: busy ? null : () => joinGroupFlow(context),
-            icon: const Icon(Icons.qr_code_2_outlined),
-            label: Text(LocaleKeys.groups_join.tr()),
-          ),
-        ],
-      ),
     );
   }
 }

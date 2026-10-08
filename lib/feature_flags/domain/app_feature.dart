@@ -75,9 +75,70 @@ enum AppFeature {
   // 9. Support chat
   supportChat('support_chat', FeatureAccess.authenticated),
   // Standalone option: Russian materials & translations.
-  russianContent('russian_content', FeatureAccess.premium);
+  russianContent('russian_content', FeatureAccess.premium),
+  // 10. Home-screen cards. Every one of them is built from what the device
+  // already holds (the local answer history, the bundled question bank and
+  // its exam blueprint, the road-sign index), so they are guest-tier and
+  // **client-only**: the backend catalog does not list them and nothing has
+  // to be granted. Each card is its own flag so the operator — and the user,
+  // on the «Функции» screen — can switch them one by one.
+  //
+  // Only the summary, the activity and the exam simulations stand on the home
+  // screen (SAOBR-506); the rest are `shelved`: their code stays, but they
+  // are neither rendered nor listed on the «Функции» screen.
+  homeReadiness(
+    'home_readiness',
+    FeatureAccess.guest,
+    homeCard: true,
+    shelved: true,
+  ),
+  homeExamTrend('home_exam_trend', FeatureAccess.guest, homeCard: true),
+  homeActivity('home_activity', FeatureAccess.guest, homeCard: true),
+  homeWeakTopics(
+    'home_weak_topics',
+    FeatureAccess.guest,
+    homeCard: true,
+    shelved: true,
+  ),
+  homeCategoryCoverage(
+    'home_category_coverage',
+    FeatureAccess.guest,
+    homeCard: true,
+    shelved: true,
+  ),
+  homeDailyQuestion(
+    'home_daily_question',
+    FeatureAccess.guest,
+    homeCard: true,
+    shelved: true,
+  ),
+  homeExamCountdown(
+    'home_exam_countdown',
+    FeatureAccess.guest,
+    homeCard: true,
+    shelved: true,
+  ),
+  homeDailySign(
+    'home_daily_sign',
+    FeatureAccess.guest,
+    homeCard: true,
+    shelved: true,
+  ),
+  homeContinueKonspekt(
+    'home_continue_konspekt',
+    FeatureAccess.guest,
+    homeCard: true,
+    shelved: true,
+  ),
+  homeSummary('home_summary', FeatureAccess.guest, homeCard: true);
 
-  const AppFeature(this.key, this.access, {this.freeInFreeCategories = true});
+  const AppFeature(
+    this.key,
+    this.access, {
+    this.freeInFreeCategories = true,
+    this.homeCard = false,
+    this.shelved = false,
+  });
 
   /// Stable identifier shared with the backend.
   final String key;
@@ -89,6 +150,21 @@ enum AppFeature {
   /// for everybody. True for the content features (explanation, konspekt,
   /// analysis, Russian materials); false for the live AI chat.
   final bool freeInFreeCategories;
+
+  /// Whether this feature is one of the home-screen cards (listed in their own
+  /// section of the «Функции» screen, rendered by `HomeInsightsSection`).
+  final bool homeCard;
+
+  /// Whether the feature is taken off the product for now: it is never
+  /// resolved as enabled, is not rendered and has no row on the «Функции»
+  /// screen, but its code (and the user's stored toggle) is kept so that it
+  /// can be brought back by flipping this flag.
+  final bool shelved;
+
+  /// The home-screen cards offered to the user — the ones not [shelved] —
+  /// in catalog order (the screen order is `HomeInsightsSection.order`).
+  static List<AppFeature> get homeCards =>
+      values.where((f) => f.homeCard && !f.shelved).toList();
 
   /// The catalog entry with this [key], or `null` if unknown (e.g. a key the
   /// backend added that this client build doesn't know yet).

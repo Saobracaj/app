@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import '../di.dart';
 import 'analytics_event_sink.dart';
+import 'question_navigation.dart';
 import 'screen_name.dart';
 
 /// The app-wide [AnalyticsService], for the places that live outside the DI
@@ -44,9 +45,22 @@ class AnalyticsService {
   }
 
   /// The user is now looking at question [questionId] — fired for the first
-  /// question of a run and on every page change within it.
-  void logQuestionViewed({required int questionId}) =>
-      _track('question_viewed', {'question_id': questionId});
+  /// question of a run and on every page change within it. [navigation] is
+  /// how the question came on screen (swipe, button, keyboard, navigator, …),
+  /// [direction] where it lies relative to the previous one (absent for the
+  /// first question), [mode] `quiz` for a question run and `exam` for the
+  /// exam simulation.
+  void logQuestionViewed({
+    required int questionId,
+    required QuestionNavigation navigation,
+    QuestionDirection? direction,
+    String mode = 'quiz',
+  }) => _track('question_viewed', {
+    'question_id': questionId,
+    'navigation': navigation.key,
+    'direction': ?direction?.key,
+    'mode': mode,
+  });
 
   /// A feature tab under the question was opened by hand; [tab] is the
   /// [AppFeature] key (`public_question_comments`, `category_summaries`, …).
@@ -108,10 +122,7 @@ class AnalyticsService {
   /// section slug the page was opened at — from the question's konspekt tab or
   /// a deep link; null when the konspekt was opened from its beginning.
   void logKonspektOpened({required String categoryId, String? section}) =>
-      _track('konspekt_opened', {
-        'category': categoryId,
-        'section': ?section,
-      });
+      _track('konspekt_opened', {'category': categoryId, 'section': ?section});
 
   /// The user jumped to a konspekt section by hand — from the table of
   /// contents or an inline cross-section link (the opening jump is part of
@@ -136,6 +147,12 @@ class AnalyticsService {
   });
 
   /// One of the user's own question lists was opened.
+  /// A home-screen card led somewhere: [card] is the feature key of the card
+  /// (`home_readiness`, `home_weak_topics`, …), [target] what it opened —
+  /// `practice`, `simulation`, `question`, `konspekt`, `sign`, `questions`.
+  void logHomeCardOpened({required String card, required String target}) =>
+      _track('home_card_opened', {'card': card, 'target': target});
+
   void logQuestionListOpened({int? questionCount}) =>
       _track('question_list_opened', {'question_count': ?questionCount});
 
@@ -198,14 +215,20 @@ class AnalyticsService {
 
   /// The exam simulation ended (by hand or by the 45-minute timer);
   /// [durationSeconds] counts from its start.
+  /// [answered] — сколько вопросов варианта получили ответ; [counted] —
+  /// попал ли результат в статистику (см. `kMinAnsweredForStatistics`).
   void logSimulationFinished({
     required int durationSeconds,
     required int points,
     required int mistakes,
+    required int answered,
+    required bool counted,
   }) => _track('simulation_finished', {
     'duration_seconds': durationSeconds,
     'points': points,
     'mistakes': mistakes,
+    'answered': answered,
+    'counted': counted,
   });
 
   /// A successful sign-in; [method] is `password` or `firebase` (Google/Apple).

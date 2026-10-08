@@ -31,6 +31,7 @@
     "outOf": "од {}",
     "threshold": "Праг за пролаз је {} бодова.",
     "sameTheme": "Све грешке су из исте области.",
+    "notCounted": "Резултат није урачунат у статистику: одговорено је мање од {} питања.",
     "yourErrors": "Ваше грешке",
     "reviewErrors": {
       "one": "Прегледај {} грешку",
@@ -204,6 +205,7 @@
     "profileSubtitle": "Приказано име и налог",
     "appearance": "Изглед",
     "appearanceSubtitle": "Боја акцента и тема",
+    "groupsSubtitle": "Направите групу, приступите кодом, ваше групе",
     "accentColor": "Боја акцента",
     "accentDefault": "Подразумевано (динамичка)",
     "themeMode": "Тема",
@@ -231,6 +233,8 @@
     "title": "Функције",
     "localSection": "Доступне функције",
     "localSectionSubtitle": "Могу се укључити или искључити у сваком тренутку",
+    "homeSection": "Картице почетне",
+    "homeSectionSubtitle": "Шта приказивати на почетном екрану",
     "accountSection": "За пријављене кориснике",
     "accountSectionSubtitle": "Раде након пријаве; укључивати и искључивати можете већ сада",
     "premiumSection": "Премијум функције",
@@ -262,7 +266,17 @@
       "auto_question_lists": "Аутоматске листе питања",
       "custom_question_lists": "Прилагођене листе питања",
       "support_chat": "Чет са подршком",
-      "russian_content": "Материјали и преводи на руском"
+      "russian_content": "Материјали и преводи на руском",
+      "home_readiness": "Почетна: спремност за испит",
+      "home_exam_trend": "Почетна: график симулација",
+      "home_activity": "Почетна: активност и низ дана",
+      "home_weak_topics": "Почетна: слабе теме",
+      "home_category_coverage": "Почетна: покривеност по категоријама",
+      "home_daily_question": "Почетна: питање дана",
+      "home_exam_countdown": "Почетна: одбројавање до испита",
+      "home_daily_sign": "Почетна: знак дана",
+      "home_continue_konspekt": "Почетна: настави конспект",
+      "home_summary": "Почетна: преглед"
     }
   },
   "questionTabs": {
@@ -1068,6 +1082,58 @@
     "noUserPurchases": "Nema kupovina.",
     "periodSourcePurchase": "kupovina"
   },
+  "linkSources": {
+    "title": "Izvori linkova",
+    "settingsSubtitle": "Linkovi /go/ i levak: klikovi, instalacije, registracije, kupovine",
+    "newSource": "Novi izvor",
+    "refresh": "Osveži",
+    "periodAll": "Ukupno",
+    "period30": "30 dana",
+    "period7": "7 dana",
+    "showArchived": "Arhiva",
+    "empty": "Još nema izvora. Napravite prvi i dobićete link za deljenje.",
+    "note": "Levak se računa po klikovima u izabranom periodu. Android instalacije se vezuju za klik tačno (preko Google Play-a), iPhone po mreži i vremenu klika — to je procena („po mreži”). Instalaciju bez pokretanja aplikacije ne vidimo — nju prikazuju konzole prodavnica po kampanji sa kodom izvora.",
+    "createdAt": "Napravljen {}",
+    "archivedBadge": "U arhivi",
+    "leadsTo": "Vodi na ekran {}",
+    "copy": "Kopiraj",
+    "copied": "Link je kopiran",
+    "edit": "Izmeni",
+    "archive": "U arhivu",
+    "restore": "Vrati iz arhive",
+    "funnelClicks": "Klikovi",
+    "funnelClicksSplit": "Android {} · iPhone {} · veb {}",
+    "funnelReached": "Otvorili aplikaciju",
+    "funnelInstalls": "nove instalacije",
+    "funnelOpens": "već instalirano / veb",
+    "funnelProbable": "po mreži: {}",
+    "funnelRegistrations": "Registracije",
+    "funnelBuyers": "Kupci",
+    "funnelPurchases": "kupovina: {}",
+    "editorCreateTitle": "Novi izvor",
+    "editorEditTitle": "Izvor",
+    "fieldName": "Naziv",
+    "fieldNameHint": "Instagram — opis profila",
+    "fieldDescription": "Opis",
+    "fieldCode": "Kod u linku",
+    "fieldCodeHelper": "Latinična slova, cifre i crtica. Prazno — sami ćemo smisliti. Kasnije se ne menja.",
+    "fieldTarget": "Ciljni ekran",
+    "fieldTargetHelper": "Putanja u aplikaciji, npr. /question/7921. Prazno — početni ekran.",
+    "codeInvalid": "Samo latinična slova, cifre i crtica, od 2 do 40 znakova",
+    "targetInvalid": "Putanja mora počinjati jednom kosom crtom / i ne sme imati razmake",
+    "nameRequired": "Unesite naziv",
+    "cancel": "Otkaži",
+    "create": "Napravi",
+    "save": "Sačuvaj",
+    "close": "Zatvori",
+    "createdTitle": "Izvor je napravljen",
+    "createdBody": "Link za „{}”:",
+    "saved": "Sačuvano",
+    "archivedDone": "Izvor je u arhivi — link i dalje radi",
+    "restoredDone": "Izvor je vraćen iz arhive",
+    "codeTaken": "Ovaj kod već koristi drugi izvor",
+    "requestFailed": "Zahtev nije uspeo"
+  },
   "accountDeletion": {
     "title": "Брисање налога",
     "intro": "Налог се брише у потпуности и заувек. Изаберите који садржај иде са њим, па потврдите брисање кодом из писма.",
@@ -1132,5 +1198,96 @@
     "pause": "Паузирај анимацију",
     "play": "Настави анимацију",
     "step": "Кадар {}"
+  },
+  "homeInsights": {
+    "section": "Напредак",
+    "readiness": {
+      "title": "Спремност за испит",
+      "hint": "Удео испитних бодова по питањима на која сте последњи пут тачно одговорили. Питања су пондерисана вероватноћом да се нађу у тесту. Праг за пролаз — {} од 100.",
+      "empty": "Одговорите на неколико питања — и овде ће се појавити процена спремности.",
+      "known": "Знате {} од {} питања",
+      "practiceWeakest": "Поправи слабу тему"
+    },
+    "examTrend": {
+      "title": "Симулације испита",
+      "empty": "Прођите симулацију испита — овде ће бити график бодова.",
+      "passedOfRecent": "Положено {} од последњих {}",
+      "last": "Последња: {} бодова, грешака: {}",
+      "passMark": "праг {}",
+      "start": "Симулација"
+    },
+    "activity": {
+      "title": "Активност",
+      "streak": {
+        "one": "{} дан заредом",
+        "few": "{} дана заредом",
+        "many": "{} дана заредом",
+        "other": "{} дана заредом"
+      },
+      "noStreak": "Низ је прекинут — почните данас",
+      "today": "Данас {} од {}",
+      "goalReached": "Данашњи циљ је испуњен",
+      "goalTitle": "Дневни циљ",
+      "goalOption": {
+        "one": "{} питање",
+        "few": "{} питања",
+        "many": "{} питања",
+        "other": "{} питања"
+      }
+    },
+    "weakTopics": {
+      "title": "Слабе теме",
+      "empty": "Још нема довољно података: одговорите на бар {} питања из теме да би се појавила овде.",
+      "accuracy": "{}% тачно",
+      "practice": "Вежбај"
+    },
+    "coverage": {
+      "title": "Покривеност по категоријама",
+      "progress": "{} од {}",
+      "accuracy": "{}% тачно",
+      "untouched": "још није отварано"
+    },
+    "dailyQuestion": {
+      "title": "Питање дана",
+      "multiple": "Тачних одговора: {}",
+      "check": "Провери",
+      "correct": "Тачно!",
+      "wrong": "Нетачно",
+      "open": "Отвори питање"
+    },
+    "countdown": {
+      "title": "До испита",
+      "set": "Унесите датум испита",
+      "days": {
+        "one": "{} дан",
+        "few": "{} дана",
+        "many": "{} дана",
+        "other": "{} дана"
+      },
+      "today": "Испит је данас. Срећно!",
+      "passed": "Датум испита је прошао",
+      "forecast": "Темпом од око {} питања дневно до испита ћете прећи отприлике {}% базе",
+      "noPace": "Вежбајте сваки дан — прогноза ће се појавити кад се скупи историја",
+      "change": "Промени датум",
+      "clear": "Уклони датум"
+    },
+    "dailySign": {
+      "title": "Знак дана",
+      "reveal": "Прикажи назив",
+      "open": "Отвори"
+    },
+    "konspekt": {
+      "title": "Настави конспект",
+      "continue": "Настави"
+    },
+    "summary": {
+      "title": "Преглед",
+      "answers": "Укупно одговора",
+      "weekAccuracy": "Тачност за 7 дана",
+      "simulations": "Симулација",
+      "simulationTime": "Време у симулацијама",
+      "hoursMinutes": "{} ч {} мин",
+      "minutes": "{} мин"
+    }
   }
 }
