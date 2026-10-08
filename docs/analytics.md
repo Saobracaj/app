@@ -49,7 +49,7 @@
 | `question_tab_opened` | переключение вкладки под вопросом рукой | `tab`, `question_id` |
 | `test_finished` | завершение прогона | `question_count`, `right_answers`, `score`, `possible_score`, `subcategory`, `duration_seconds` |
 | `simulation_started` | старт симуляции экзамена | — |
-| `simulation_finished` | финиш симуляции (рукой или таймером) | `duration_seconds`, `points`, `mistakes` |
+| `simulation_finished` | финиш симуляции (рукой или таймером) | `duration_seconds`, `points`, `mistakes`, `answered` (сколько вопросов отвечено), `counted` (попал ли результат в статистику — отвечено не меньше порога, см. `kMinAnsweredForStatistics`) |
 | `definition_opened` | тап по определению в тексте вопроса | `term` |
 | `translation_toggled` | чип «РУ» на вопросе | `enabled` |
 | `translation_trial_used` | перевод открыт бесплатно на вопросе платной категории без подписки (первые три раза) | `uses_left`, `question_id` |
