@@ -382,6 +382,29 @@ abstract class Chat with _$Chat {
     messagesCount: (json['messagesCount'] as num?)?.toInt() ?? 0,
   );
 
+  /// Последнее сообщение одной строкой — для подзаголовка в списке обращений.
+  ///
+  /// [lastMessagePreview] — тело сообщения как есть, и у репорта о вопросе оно
+  /// многострочное: «Report · summary», ссылка на вопрос, пустая строка, текст
+  /// пользователя. Однострочный `Text` обрезал его по первому переводу
+  /// строки, и в списке модератора от обращения оставалась только служебная
+  /// шапка «Report · summary» (SAOBR-522). Здесь строки склеиваются через « · »,
+  /// пустые пропускаются, а строки, целиком состоящие из ссылки, опускаются —
+  /// если кроме них есть что показать.
+  String get previewLine {
+    final lines = lastMessagePreview
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    final withoutLinks = lines.where((line) => !_isBareLink(line)).toList();
+    return (withoutLinks.isEmpty ? lines : withoutLinks).join(' · ');
+  }
+
+  static final _bareLink = RegExp(r'^https?://\S+$', caseSensitive: false);
+
+  static bool _isBareLink(String line) => _bareLink.hasMatch(line);
+
   /// Как назвать разговор: у чата группы это её название, у обращения в списке
   /// модератора — имя (или почта) собеседника.
   String get title => switch ((entityName, userDisplayName)) {

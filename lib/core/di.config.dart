@@ -325,6 +325,13 @@ extension GetItInjectableX on _i174.GetIt {
       ),
       dispose: (i) => i.dispose(),
     );
+    gh.factoryParam<_i667.SupportChatsBloc, bool?, dynamic>(
+      (watchLifecycle, _) => _i667.SupportChatsBloc(
+        gh<_i299.ChatRepository>(),
+        gh<_i468.PushMessageService>(),
+        watchLifecycle: watchLifecycle,
+      ),
+    );
     gh.factory<_i957.DisplayNameBloc>(
       () => _i957.DisplayNameBloc(gh<_i311.ProfileRepository>()),
     );
@@ -343,9 +350,6 @@ extension GetItInjectableX on _i174.GetIt {
         questionId,
         categoryId,
       ),
-    );
-    gh.factory<_i667.SupportChatsBloc>(
-      () => _i667.SupportChatsBloc(gh<_i299.ChatRepository>()),
     );
     gh.factory<_i531.FirebaseLoginBloc>(
       () => _i531.FirebaseLoginBloc(gh<_i880.AuthRepository>()),
