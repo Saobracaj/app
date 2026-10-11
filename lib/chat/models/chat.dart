@@ -18,13 +18,12 @@ enum ChatAttachmentKind {
   /// list's name and its question ids, rendered as one chip.
   questionList;
 
-  static ChatAttachmentKind parse(String? raw) =>
-      switch (raw?.toUpperCase()) {
-        'IMAGE' => ChatAttachmentKind.image,
-        'QUESTION' => ChatAttachmentKind.question,
-        'QUESTION_LIST' => ChatAttachmentKind.questionList,
-        _ => ChatAttachmentKind.file,
-      };
+  static ChatAttachmentKind parse(String? raw) => switch (raw?.toUpperCase()) {
+    'IMAGE' => ChatAttachmentKind.image,
+    'QUESTION' => ChatAttachmentKind.question,
+    'QUESTION_LIST' => ChatAttachmentKind.questionList,
+    _ => ChatAttachmentKind.file,
+  };
 }
 
 /// Extensions the app treats as pictures when nothing else says so.
@@ -110,25 +109,24 @@ abstract class ChatAttachment with _$ChatAttachment {
 
   const ChatAttachment._();
 
-  static ChatAttachment parse(Map<String, dynamic> json) =>
-      ChatAttachment(
-        id: json['id'].toString(),
-        kind: ChatAttachmentKind.parse(json['kind']?.toString()),
-        fileName: json['fileName']?.toString() ?? '',
-        contentType: json['contentType']?.toString() ?? '',
-        sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
-        questionId: (json['questionId'] as num?)?.toInt(),
-        questionIds:
-            (json['questionIds'] as List?)
-                ?.map((e) => (e as num).toInt())
-                .toList() ??
-            const <int>[],
-        url: json['url']?.toString(),
-        deleted: json['deleted'] == true,
-        createdAt:
-            DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ??
-            DateTime.now(),
-      );
+  static ChatAttachment parse(Map<String, dynamic> json) => ChatAttachment(
+    id: json['id'].toString(),
+    kind: ChatAttachmentKind.parse(json['kind']?.toString()),
+    fileName: json['fileName']?.toString() ?? '',
+    contentType: json['contentType']?.toString() ?? '',
+    sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
+    questionId: (json['questionId'] as num?)?.toInt(),
+    questionIds:
+        (json['questionIds'] as List?)
+            ?.map((e) => (e as num).toInt())
+            .toList() ??
+        const <int>[],
+    url: json['url']?.toString(),
+    deleted: json['deleted'] == true,
+    createdAt:
+        DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ??
+        DateTime.now(),
+  );
 
   /// Whether to render this attachment as an inline picture.
   ///
@@ -382,6 +380,29 @@ abstract class Chat with _$Chat {
     messagesCount: (json['messagesCount'] as num?)?.toInt() ?? 0,
   );
 
+  /// Последнее сообщение одной строкой — для подзаголовка в списке обращений.
+  ///
+  /// [lastMessagePreview] — тело сообщения как есть, и у репорта о вопросе оно
+  /// многострочное: «Report · summary», ссылка на вопрос, пустая строка, текст
+  /// пользователя. Однострочный `Text` обрезал его по первому переводу
+  /// строки, и в списке модератора от обращения оставалась только служебная
+  /// шапка «Report · summary» (SAOBR-522). Здесь строки склеиваются через « · »,
+  /// пустые пропускаются, а строки, целиком состоящие из ссылки, опускаются —
+  /// если кроме них есть что показать.
+  String get previewLine {
+    final lines = lastMessagePreview
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    final withoutLinks = lines.where((line) => !_isBareLink(line)).toList();
+    return (withoutLinks.isEmpty ? lines : withoutLinks).join(' · ');
+  }
+
+  static final _bareLink = RegExp(r'^https?://\S+$', caseSensitive: false);
+
+  static bool _isBareLink(String line) => _bareLink.hasMatch(line);
+
   /// Как назвать разговор: у чата группы это её название, у обращения в списке
   /// модератора — имя (или почта) собеседника.
   String get title => switch ((entityName, userDisplayName)) {
@@ -410,12 +431,11 @@ abstract class ChatMessagePage with _$ChatMessagePage {
 
   const ChatMessagePage._();
 
-  static ChatMessagePage parse(Map<String, dynamic> json) =>
-      ChatMessagePage(
-        nodes: _nodes(json, ChatMessage.parse),
-        totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
-        hasNextPage: json['hasNextPage'] == true,
-      );
+  static ChatMessagePage parse(Map<String, dynamic> json) => ChatMessagePage(
+    nodes: _nodes(json, ChatMessage.parse),
+    totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
+    hasNextPage: json['hasNextPage'] == true,
+  );
 }
 
 /// A page of conversations for the moderator list, newest activity first.
@@ -429,12 +449,11 @@ abstract class ChatConnection with _$ChatConnection {
 
   const ChatConnection._();
 
-  static ChatConnection parse(Map<String, dynamic> json) =>
-      ChatConnection(
-        nodes: _nodes(json, Chat.parse),
-        totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
-        hasNextPage: json['hasNextPage'] == true,
-      );
+  static ChatConnection parse(Map<String, dynamic> json) => ChatConnection(
+    nodes: _nodes(json, Chat.parse),
+    totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
+    hasNextPage: json['hasNextPage'] == true,
+  );
 }
 
 List<T> _nodes<T>(
