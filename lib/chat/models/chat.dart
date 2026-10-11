@@ -18,12 +18,13 @@ enum ChatAttachmentKind {
   /// list's name and its question ids, rendered as one chip.
   questionList;
 
-  static ChatAttachmentKind parse(String? raw) => switch (raw?.toUpperCase()) {
-    'IMAGE' => ChatAttachmentKind.image,
-    'QUESTION' => ChatAttachmentKind.question,
-    'QUESTION_LIST' => ChatAttachmentKind.questionList,
-    _ => ChatAttachmentKind.file,
-  };
+  static ChatAttachmentKind parse(String? raw) =>
+      switch (raw?.toUpperCase()) {
+        'IMAGE' => ChatAttachmentKind.image,
+        'QUESTION' => ChatAttachmentKind.question,
+        'QUESTION_LIST' => ChatAttachmentKind.questionList,
+        _ => ChatAttachmentKind.file,
+      };
 }
 
 /// Extensions the app treats as pictures when nothing else says so.
@@ -109,24 +110,25 @@ abstract class ChatAttachment with _$ChatAttachment {
 
   const ChatAttachment._();
 
-  static ChatAttachment parse(Map<String, dynamic> json) => ChatAttachment(
-    id: json['id'].toString(),
-    kind: ChatAttachmentKind.parse(json['kind']?.toString()),
-    fileName: json['fileName']?.toString() ?? '',
-    contentType: json['contentType']?.toString() ?? '',
-    sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
-    questionId: (json['questionId'] as num?)?.toInt(),
-    questionIds:
-        (json['questionIds'] as List?)
-            ?.map((e) => (e as num).toInt())
-            .toList() ??
-        const <int>[],
-    url: json['url']?.toString(),
-    deleted: json['deleted'] == true,
-    createdAt:
-        DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ??
-        DateTime.now(),
-  );
+  static ChatAttachment parse(Map<String, dynamic> json) =>
+      ChatAttachment(
+        id: json['id'].toString(),
+        kind: ChatAttachmentKind.parse(json['kind']?.toString()),
+        fileName: json['fileName']?.toString() ?? '',
+        contentType: json['contentType']?.toString() ?? '',
+        sizeBytes: (json['sizeBytes'] as num?)?.toInt() ?? 0,
+        questionId: (json['questionId'] as num?)?.toInt(),
+        questionIds:
+            (json['questionIds'] as List?)
+                ?.map((e) => (e as num).toInt())
+                .toList() ??
+            const <int>[],
+        url: json['url']?.toString(),
+        deleted: json['deleted'] == true,
+        createdAt:
+            DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ??
+            DateTime.now(),
+      );
 
   /// Whether to render this attachment as an inline picture.
   ///
@@ -431,11 +433,12 @@ abstract class ChatMessagePage with _$ChatMessagePage {
 
   const ChatMessagePage._();
 
-  static ChatMessagePage parse(Map<String, dynamic> json) => ChatMessagePage(
-    nodes: _nodes(json, ChatMessage.parse),
-    totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
-    hasNextPage: json['hasNextPage'] == true,
-  );
+  static ChatMessagePage parse(Map<String, dynamic> json) =>
+      ChatMessagePage(
+        nodes: _nodes(json, ChatMessage.parse),
+        totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
+        hasNextPage: json['hasNextPage'] == true,
+      );
 }
 
 /// A page of conversations for the moderator list, newest activity first.
@@ -449,11 +452,12 @@ abstract class ChatConnection with _$ChatConnection {
 
   const ChatConnection._();
 
-  static ChatConnection parse(Map<String, dynamic> json) => ChatConnection(
-    nodes: _nodes(json, Chat.parse),
-    totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
-    hasNextPage: json['hasNextPage'] == true,
-  );
+  static ChatConnection parse(Map<String, dynamic> json) =>
+      ChatConnection(
+        nodes: _nodes(json, Chat.parse),
+        totalCount: (json['totalCount'] as num?)?.toInt() ?? 0,
+        hasNextPage: json['hasNextPage'] == true,
+      );
 }
 
 List<T> _nodes<T>(
