@@ -74,6 +74,7 @@ class AskAiThinkingBubble extends StatelessWidget {
     'search_zakon': LocaleKeys.askAi_toolSearchZakon,
     'get_user_attempts': LocaleKeys.askAi_toolGetUserAttempts,
     'get_konspekt_blocks': LocaleKeys.askAi_toolGetKonspektBlocks,
+    'update_user_settings': LocaleKeys.askAi_toolUpdateSettings,
   };
 
   @override

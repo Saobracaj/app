@@ -5,6 +5,7 @@ import 'package:saobracaj/core/di.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_chat.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/presentation/ask_ai_chat_widgets.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/presentation/ask_ai_settings_bridge.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_bloc.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_events.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_state.dart';
@@ -18,18 +19,34 @@ import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/a
 /// plain column of bubbles rather than its own list — the short conversations a
 /// question invites don't need one.
 class AskAiChatSection extends StatelessWidget {
-  const AskAiChatSection({super.key, required this.questionId});
+  const AskAiChatSection({
+    super.key,
+    required this.questionId,
+    this.categoryId,
+  });
 
   final int questionId;
+
+  /// The question's category — in a free category the Russian materials are
+  /// available to everybody, which the assistant is told when asked to
+  /// translate.
+  final String? categoryId;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => getIt<AskAiChatBloc>(
-        param1: AskAiChatScope.question,
-        param2: '$questionId',
-      ),
-      child: const _SectionView(),
+      // The settings snapshot is read at send time from the Blocs above this
+      // widget (the «РУ» chip, the theme, the feature toggles) — hence the
+      // reader is bound here, where that context is known.
+      create: (context) =>
+          getIt<AskAiChatBloc>(
+              param1: AskAiChatScope.question,
+              param2: '$questionId',
+            )
+            ..settingsReader = () => context.mounted
+                ? readAskAiClientSettings(context, categoryId: categoryId)
+                : null,
+      child: const AskAiActionsApplier(child: _SectionView()),
     );
   }
 }

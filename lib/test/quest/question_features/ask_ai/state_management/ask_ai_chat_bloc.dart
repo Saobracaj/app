@@ -6,6 +6,7 @@ import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/data/ask_ai_chat_repository.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_chat.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_client_settings.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_events.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_state.dart';
 
@@ -17,6 +18,10 @@ import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/a
 /// failed send drops the optimistic bubble and keeps the draft, so nothing
 /// typed is ever lost. The daily quota is re-read after every send — an
 /// agentic answer may cost more than one unit, and only the backend knows.
+///
+/// Every send carries the device-side settings snapshot ([settingsReader]);
+/// the settings changes the assistant asked for come back on the reply and
+/// wait in [AskAiChatState.pendingActions] for the screen to apply.
 ///
 /// While the chat is open the Bloc also holds the `askAiStream` subscription:
 /// the reply streams into the thinking bubble as it is generated, with tool
@@ -35,6 +40,7 @@ class AskAiChatBloc extends Bloc<AskAiChatEvent, AskAiChatState> {
     on<AskAiChatSendPressed>(_onSendPressed);
     on<AskAiChatErrorDismissed>(_onErrorDismissed);
     on<AskAiChatStreamed>(_onStreamed);
+    on<AskAiChatActionsHandled>(_onActionsHandled);
     add(AskAiChatOpened());
   }
 
@@ -42,6 +48,13 @@ class AskAiChatBloc extends Bloc<AskAiChatEvent, AskAiChatState> {
 
   final AskAiChatScope scope;
   final String scopeId;
+
+  /// Supplies the device-side settings snapshot sent with every message, so
+  /// the model can read the app's settings and ask to change them. Set by the
+  /// screen that owns the Bloc (the settings live in other Blocs of its
+  /// widget tree — the «РУ» chip, the theme, the feature toggles); `null`
+  /// sends no snapshot, and the server then treats the app as an older one.
+  AskAiClientSettings? Function()? settingsReader;
 
   /// Synthetic ids for the locally appended user bubbles; the server ones are
   /// numeric, so `local-N` can never collide.
@@ -81,7 +94,10 @@ class AskAiChatBloc extends Bloc<AskAiChatEvent, AskAiChatState> {
     }
   }
 
-  void _onBodyChanged(AskAiChatBodyChanged event, Emitter<AskAiChatState> emit) {
+  void _onBodyChanged(
+    AskAiChatBodyChanged event,
+    Emitter<AskAiChatState> emit,
+  ) {
     emit(state.copyWith(body: event.body));
   }
 
@@ -97,7 +113,12 @@ class AskAiChatBloc extends Bloc<AskAiChatEvent, AskAiChatState> {
       state.copyWith(sending: true, pendingUserText: text, errorMessage: null),
     );
     try {
-      final reply = await _repository.ask(scope, scopeId, text);
+      final reply = await _repository.ask(
+        scope,
+        scopeId,
+        text,
+        settings: settingsReader?.call(),
+      );
       final userBubble = AskAiChatMessage(
         id: 'local-${_localSeq++}',
         role: AskAiChatRole.user,
@@ -112,6 +133,9 @@ class AskAiChatBloc extends Bloc<AskAiChatEvent, AskAiChatState> {
           streamingTool: null,
           body: fromDraft ? '' : state.body,
           messages: [...state.messages, userBubble, reply],
+          // Handed to the screen to apply; the stored copy of the reply keeps
+          // them too, but only this field triggers anything.
+          pendingActions: reply.actions,
         ),
       );
       analytics.logAskAiQuestion(scope: scope.name, scopeId: scopeId);
@@ -159,6 +183,14 @@ class AskAiChatBloc extends Bloc<AskAiChatEvent, AskAiChatState> {
     Emitter<AskAiChatState> emit,
   ) {
     emit(state.copyWith(errorMessage: null));
+  }
+
+  void _onActionsHandled(
+    AskAiChatActionsHandled event,
+    Emitter<AskAiChatState> emit,
+  ) {
+    if (state.pendingActions.isEmpty) return;
+    emit(state.copyWith(pendingActions: const []));
   }
 
   @override
