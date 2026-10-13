@@ -710,6 +710,7 @@
     "toolSearchZakon": "AI ищет в законе…",
     "toolGetUserAttempts": "AI смотрит вашу статистику…",
     "toolGetKonspektBlocks": "AI открывает конспект…",
+    "toolUpdateSettings": "AI меняет настройки приложения…",
     "toolFallback": "AI пользуется инструментами…",
     "emptyHint": "Задайте вопрос — AI видит этот билет, конспект и закон",
     "examEmptyHint": "AI видит результат этого экзамена и все ошибки. Спросите, что разобрать",

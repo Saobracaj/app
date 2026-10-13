@@ -12,6 +12,7 @@ import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart
 import 'package:saobracaj/test/data/quiz_preferences_repository.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/data/ask_ai_chat_repository.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_chat.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_client_settings.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_bloc.dart';
 import 'package:saobracaj/test/quest/question_features/presentation/question_features_tabs.dart';
 import 'package:saobracaj/test/quest/question_features/state_management/question_features_bloc.dart';
@@ -40,7 +41,12 @@ class _StubChatRepository extends AskAiChatRepository {
   Future<AskAiQuota> quota() async => const AskAiQuota(limit: 40, used: 0, remaining: 40);
 
   @override
-  Future<AskAiChatMessage> ask(AskAiChatScope scope, String scopeId, String message) async =>
+  Future<AskAiChatMessage> ask(
+    AskAiChatScope scope,
+    String scopeId,
+    String message, {
+    AskAiClientSettings? settings,
+  }) async =>
       AskAiChatMessage(id: '1', role: AskAiChatRole.assistant, content: 'ok', createdAt: DateTime.now());
 }
 

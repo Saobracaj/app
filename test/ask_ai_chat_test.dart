@@ -11,6 +11,16 @@ import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_chat
 import 'package:saobracaj/test/quest/question_features/ask_ai/presentation/ask_ai_chat_section.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_bloc.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_events.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_client_settings.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/presentation/ask_ai_chat_widgets.dart';
+import 'package:saobracaj/test/quest/state_management/translations_bloc.dart';
+import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
+import 'package:saobracaj/feature_flags/domain/app_feature.dart';
+import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
+import 'package:saobracaj/feature_flags/state_management/feature_flags_events.dart';
+import 'package:saobracaj/theme/state_management/theme_bloc.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Управляемый транспорт чата: история и квота задаются тестом, отправка
 /// может падать сетью или ответом сервера (текст ошибки — как настоящий).
@@ -26,6 +36,12 @@ class _StubChatRepository extends AskAiChatRepository {
   AskAiQuota quotaValue = const AskAiQuota(limit: 40, used: 0, remaining: 40);
   GraphqlException? askError;
   final askedMessages = <String>[];
+
+  /// Снимки настроек, пришедшие с каждой отправкой (null — снимка не было).
+  final askedSettings = <AskAiClientSettings?>[];
+
+  /// Действия, которые сервер вернёт со следующим ответом.
+  List<AskAiClientAction> replyActions = const [];
 
   /// Живой стрим под контролем теста; сколько раз на него подписывались.
   final live = StreamController<AskAiStreamUpdate>.broadcast(sync: true);
@@ -54,7 +70,13 @@ class _StubChatRepository extends AskAiChatRepository {
   Future<AskAiQuota> quota() async => quotaValue;
 
   @override
-  Future<AskAiChatMessage> ask(AskAiChatScope scope, String scopeId, String message) async {
+  Future<AskAiChatMessage> ask(
+    AskAiChatScope scope,
+    String scopeId,
+    String message, {
+    AskAiClientSettings? settings,
+  }) async {
+    askedSettings.add(settings);
     final error = askError;
     if (error != null) throw error;
     final pending = pendingAsk;
@@ -65,6 +87,7 @@ class _StubChatRepository extends AskAiChatRepository {
       role: AskAiChatRole.assistant,
       content: 'Ответ на: $message',
       createdAt: DateTime.now(),
+      actions: replyActions,
     );
   }
 }
@@ -243,6 +266,52 @@ void main() {
       await b.close();
     });
 
+    test('снимок настроек уезжает с каждой отправкой, а действия ответа ждут применения', () async {
+      final b = bloc();
+      await pumpEventQueue();
+      // Без читателя снимка нет — сервер считает приложение старым.
+      b.add(AskAiChatSendPressed(text: 'Привет'));
+      await pumpEventQueue();
+      expect(repository.askedSettings, [null]);
+      expect(b.state.pendingActions, isEmpty);
+
+      b.settingsReader = () => const AskAiClientSettings(
+        theme: 'system',
+        russianContent: false,
+        russianContentAvailable: true,
+        translationShown: false,
+      );
+      repository.replyActions = const [
+        AskAiClientAction(key: 'russian_content', value: 'true'),
+        AskAiClientAction(key: 'translation_shown', value: 'true'),
+      ];
+      b.add(AskAiChatSendPressed(text: 'Переведи билет'));
+      await pumpEventQueue();
+
+      expect(repository.askedSettings.last?.translationShown, isFalse);
+      expect(repository.askedSettings.last?.theme, 'system');
+      // Действия висят в состоянии, пока экран их не применит…
+      expect(b.state.pendingActions.map((a) => a.key), ['russian_content', 'translation_shown']);
+      expect(b.state.messages.last.actions, hasLength(2));
+
+      // …и снимаются одним событием, чтобы ничего не применилось дважды.
+      b.add(AskAiChatActionsHandled());
+      await pumpEventQueue();
+      expect(b.state.pendingActions, isEmpty);
+      await b.close();
+    });
+
+    test('сбой отправки не оставляет действий к применению', () async {
+      final b = bloc();
+      await pumpEventQueue();
+      repository.replyActions = const [AskAiClientAction(key: 'theme', value: 'dark')];
+      repository.askError = GraphqlException('перегружен');
+      b.add(AskAiChatSendPressed(text: 'Тёмную тему'));
+      await pumpEventQueue();
+      expect(b.state.pendingActions, isEmpty);
+      await b.close();
+    });
+
     test('подсказка отправляется как готовый вопрос, не трогая черновик', () async {
       final b = bloc();
       await pumpEventQueue();
@@ -330,6 +399,97 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('askAi.thinking'), findsNothing);
+    });
+
+    testWidgets('действия ответа включают русские материалы, «РУ» и тему в блоках экрана', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final flagsRepository = FeatureFlagsRepository(
+        GraphqlClient(TokenStorage()),
+        TokenStorage(),
+        deviceLanguage: 'sr',
+      );
+      await flagsRepository.bootstrap();
+      // Устройство не русское и вопрос не отвечен → русские материалы выключены.
+      expect(flagsRepository.snapshot.localEnabled(AppFeature.russianContent), isFalse);
+
+      final translations = TranslationsBloc();
+      final theme = ThemeBloc();
+      final flags = FeatureFlagsBloc(flagsRepository)..add(FeatureFlagsStarted());
+      addTearDown(() async {
+        await translations.close();
+        await theme.close();
+        await flags.close();
+      });
+
+      repository.replyActions = const [
+        AskAiClientAction(key: 'russian_content', value: 'true'),
+        AskAiClientAction(key: 'translation_shown', value: 'true'),
+        AskAiClientAction(key: 'theme', value: 'dark'),
+        AskAiClientAction(key: 'feature.home_activity', value: 'false'),
+        // Незнакомое действие просто пропускается.
+        AskAiClientAction(key: 'font_size', value: 'huge'),
+      ];
+
+      await tester.pumpWidget(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider.value(value: translations),
+            BlocProvider.value(value: theme),
+            BlocProvider.value(value: flags),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: AskAiChatSection(questionId: 7921, categoryId: '30'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('askAi.suggestWhy'));
+      await tester.pumpAndSettle();
+
+      // С сообщением уехал снимок текущих настроек экрана.
+      final sent = repository.askedSettings.single!;
+      expect(sent.translationShown, isFalse);
+      expect(sent.russianContent, isFalse);
+      expect(sent.theme, 'system');
+      expect(sent.features.map((f) => f.key), contains('home_activity'));
+      expect(sent.features.any((f) => f.key == 'russian_content'), isFalse);
+
+      // Действия ответа применены к блокам экрана…
+      expect(translations.state.showTranslation, isTrue);
+      expect(theme.state.mode, ThemeMode.dark);
+      await tester.runAsync(() async {
+        // Переключатели пишутся в prefs в реальной зоне — дождаться.
+        await Future<void>.delayed(Duration.zero);
+      });
+      expect(flagsRepository.snapshot.localEnabled(AppFeature.russianContent), isTrue);
+      expect(flagsRepository.snapshot.localEnabled(AppFeature.homeActivity), isFalse);
+      // …и сняты с ожидания.
+      final bloc = BlocProvider.of<AskAiChatBloc>(
+        tester.element(find.byType(AskAiComposer)),
+      );
+      expect(bloc.state.pendingActions, isEmpty);
+    });
+
+    testWidgets('без блоков настроек вокруг чат всё равно отправляет и не падает на действиях', (tester) async {
+      repository.replyActions = const [
+        AskAiClientAction(key: 'translation_shown', value: 'true'),
+      ];
+      await tester.pumpWidget(wrap());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('askAi.suggestWhy'));
+      await tester.pumpAndSettle();
+
+      // Снимок есть, но без «РУ», темы и функций — их блоков в дереве нет.
+      final sent = repository.askedSettings.single!;
+      expect(sent.translationShown, isNull);
+      expect(sent.theme, isNull);
+      expect(sent.features, isEmpty);
+      expect(find.textContaining('Ответ на', findRichText: true), findsWidgets);
     });
 
     testWidgets('тап по подсказке отправляет её и рисует ответ ассистента', (tester) async {
