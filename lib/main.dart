@@ -38,6 +38,8 @@ import 'feature_flags/presentation/russian_content_prompt.dart';
 import 'feature_flags/state_management/feature_flags_bloc.dart';
 import 'feature_flags/state_management/feature_flags_events.dart';
 import 'groups/presentation/groups_error_listener.dart';
+import 'chat/state_management/support_unread_bloc.dart';
+import 'chat/state_management/support_unread_events.dart';
 import 'groups/state_management/groups_bloc.dart';
 import 'groups/state_management/groups_events.dart';
 import 'notifications/data/push_message.dart';
@@ -528,6 +530,12 @@ class _MyAppState extends State<MyApp> {
         BlocProvider(
           create: (context) =>
               getIt<PausedSimulationBloc>()..add(PausedSimulationStarted()),
+        ),
+        // Непрочитанное в чате с разработчиком: кнопка со счётчиком на месте
+        // аватара в шапке главной и пункт в боковой колонке.
+        BlocProvider(
+          create: (context) =>
+              getIt<SupportUnreadBloc>()..add(const SupportUnreadStarted()),
         ),
       ],
       child: BlocBuilder<ThemeBloc, ThemeState>(

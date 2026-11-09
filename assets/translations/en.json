@@ -587,6 +587,7 @@
   "support": {
     "title": "Chat with the developer",
     "settingsSubtitle": "Report a problem or suggest an improvement",
+    "unreadTooltip": "Unread messages",
     "threadsTitle": "Support requests",
     "threadsSubtitle": "Users' conversations with support",
     "threadTitle": "Support request",
