@@ -269,15 +269,17 @@ const _frames = <(String, Map<String, (String, String)>, Color)>[
     },
     Color(0xFFFBEFC8),
   ),
-  (
-    'discussion',
-    {
-      'sr': ('Diskusija', 'Razgovarajte o pitanju sa drugim kandidatima'),
-      'ru': ('Обсуждение', 'Обсуждайте вопросы с другими кандидатами'),
-      'en': ('Discussion', 'Talk the question over with other learners'),
-    },
-    Color(0xFFFBE3D1),
-  ),
+  // Кадр «Обсуждение» снят вместе с разделом (SAOBR-545): вкладка `shelved`
+  // и в кадр не попала бы. Запись сохранена — вернуть вместе с фичей.
+  // (
+  //   'discussion',
+  //   {
+  //     'sr': ('Diskusija', 'Razgovarajte o pitanju sa drugim kandidatima'),
+  //     'ru': ('Обсуждение', 'Обсуждайте вопросы с другими кандидатами'),
+  //     'en': ('Discussion', 'Talk the question over with other learners'),
+  //   },
+  //   Color(0xFFFBE3D1),
+  // ),
   (
     'konspekt',
     {

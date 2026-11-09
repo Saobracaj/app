@@ -126,7 +126,7 @@
     "ruTrialLast": "That was the last free showing of the translation. From now on it needs the subscription.",
     "share": "Share question",
     "linkCopied": "Link copied",
-    "wideTabsPlaceholder": "The explanation, notes and discussion will appear here once you answer the question.",
+    "wideTabsPlaceholder": "The explanation and notes will appear here once you answer the question.",
     "questionNotFound": "Question not found",
     "toHome": "Go to the home screen",
     "runSettings": "Run settings",
@@ -902,7 +902,7 @@
     "featureAskAiHint": "Live answers to “but why not B?”",
     "featureRussian": "Russian materials",
     "featureRussianHint": "Included in every subscription",
-    "featureCommunity": "Discussions, developer chat, search",
+    "featureCommunity": "Developer chat, search",
     "featureCommunityHint": "And the mistake reports you send",
     "valueAllCategories": "every category",
     "valueFreeCategories": {

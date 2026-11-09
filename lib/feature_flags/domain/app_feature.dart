@@ -52,7 +52,14 @@ enum AppFeature {
   // Гостевой тир: обсуждение вопроса читают все, в том числе без входа;
   // писать и ставить реакции гость всё равно не может — композер заменяется
   // приглашением войти, а бэкенд держит записи за RequireAuth.
-  publicQuestionComments('public_question_comments', FeatureAccess.guest),
+  //
+  // Раздел убран с продукта (SAOBR-545): обсуждениями никто не пользуется.
+  // Код вкладки, чата и счётчика сохранён — вернуть можно, сняв `shelved`.
+  publicQuestionComments(
+    'public_question_comments',
+    FeatureAccess.guest,
+    shelved: true,
+  ),
   questionAnalysis('question_analysis', FeatureAccess.premium),
   // The live AI chat is the one premium feature the free categories do *not*
   // open: it is the only function with a variable cost per message, so it has
