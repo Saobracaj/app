@@ -7,6 +7,9 @@ import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
+import 'package:saobracaj/chat/data/chat_repository.dart';
+import 'package:saobracaj/chat/state_management/support_unread_bloc.dart';
+import 'package:saobracaj/chat/state_management/support_unread_events.dart';
 import 'package:saobracaj/core/analytics/analytics_service.dart';
 import 'package:saobracaj/core/network/network_status.dart';
 import 'package:saobracaj/core/network/state_management/network_status_bloc.dart';
@@ -20,6 +23,7 @@ import 'package:saobracaj/groups/data/groups_repository.dart';
 import 'package:saobracaj/groups/state_management/groups_bloc.dart';
 import 'package:saobracaj/home/home_content_page.dart';
 import 'package:saobracaj/home/presentation/offline_home_card.dart';
+import 'package:saobracaj/notifications/data/push_message_service.dart';
 import 'package:saobracaj/profile/data/profile_repository.dart';
 import 'package:saobracaj/question_lists/data/question_lists_repository.dart';
 import 'package:saobracaj/question_lists/data/shared_lists_repository.dart';
@@ -93,6 +97,15 @@ Widget _app(NetworkStatus network, FeatureFlagsRepository flags) {
             ),
             BlocProvider(
               create: (_) => PausedSimulationBloc(PausedSimulationRepository()),
+            ),
+            // Кнопка непрочитанного на месте аватара: без сессии — пустая.
+            BlocProvider(
+              create: (_) => SupportUnreadBloc(
+                ChatRepository(client, subscriptions),
+                authBloc,
+                network,
+                PushMessageService(),
+              )..add(const SupportUnreadStarted(watchLifecycle: false)),
             ),
           ],
           child: const HomeContentPage(),

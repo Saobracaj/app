@@ -607,6 +607,7 @@
   "support": {
     "title": "Чат с разработчиком",
     "settingsSubtitle": "Написать о проблеме или предложить улучшение",
+    "unreadTooltip": "Непрочитанные сообщения",
     "threadsTitle": "Обращения",
     "threadsSubtitle": "Чаты пользователей с поддержкой",
     "threadTitle": "Обращение",

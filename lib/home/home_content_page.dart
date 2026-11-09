@@ -1,7 +1,7 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:saobracaj/auth/presentation/auth_button.dart';
+import 'package:saobracaj/chat/presentation/support_unread_button.dart';
 import 'package:saobracaj/core/network/state_management/network_status_bloc.dart';
 import 'package:saobracaj/core/presentation/wide_layout.dart';
 import 'package:saobracaj/core/responsive.dart';
@@ -15,6 +15,9 @@ import 'package:saobracaj/test/practice/widgets/paused_simulation_banner.dart';
 /// Главная страница приложения: карточки прогресса ([HomeInsightsSection],
 /// каждая под своим фича-флагом), раздел со списками вопросов (автоматические
 /// + пользовательские) и карточки групп, в которых пользователь состоит.
+///
+/// В шапке на месте аватара стоит [SupportUnreadButton]: пока в чате с
+/// разработчиком есть непрочитанное — кнопка со счётчиком, ведущая в разговор.
 ///
 /// Групп на главной может не быть вовсе: тот, кто ни в одну не вступил, их
 /// секции не видит — создать группу или войти по коду можно в настройках.
@@ -42,7 +45,7 @@ class HomeContentPage extends StatelessWidget {
             ? null
             : AppBar(
                 title: Text(LocaleKeys.home_home.tr()),
-                actions: const [AuthButton()],
+                actions: const [SupportUnreadButton()],
               ),
         backgroundColor: widePageBackground(context),
         body: ListView(
@@ -81,7 +84,7 @@ class HomeContentPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(LocaleKeys.home_home.tr()),
-        actions: const [AuthButton()],
+        actions: const [SupportUnreadButton()],
       ),
       // Карточки групп и лента списков шире читабельной колонки смотрятся
       // разъехавшимися — на широких экранах контент собран по центру.

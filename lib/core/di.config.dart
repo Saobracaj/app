@@ -40,6 +40,7 @@ import '../chat/state_management/chat_bloc.dart' as _i373;
 import '../chat/state_management/chat_image_bloc.dart' as _i968;
 import '../chat/state_management/question_chat_count_bloc.dart' as _i67;
 import '../chat/state_management/support_chats_bloc.dart' as _i667;
+import '../chat/state_management/support_unread_bloc.dart' as _i16;
 import '../db/answer_repository.dart' as _i847;
 import '../feature_flags/data/feature_flags_repository.dart' as _i389;
 import '../feature_flags/domain/app_feature.dart' as _i392;
@@ -383,6 +384,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factoryParam<_i794.AskAiChatBloc, _i997.AskAiChatScope, String>(
       (scope, scopeId) =>
           _i794.AskAiChatBloc(gh<_i154.AskAiChatRepository>(), scope, scopeId),
+    );
+    gh.factory<_i16.SupportUnreadBloc>(
+      () => _i16.SupportUnreadBloc(
+        gh<_i299.ChatRepository>(),
+        gh<_i388.AuthBloc>(),
+        gh<_i958.NetworkStatus>(),
+        gh<_i468.PushMessageService>(),
+      ),
     );
     gh.factory<_i438.EnvironmentBloc>(
       () => _i438.EnvironmentBloc(

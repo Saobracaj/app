@@ -597,6 +597,7 @@
   "support": {
     "title": "Ћаскање са програмером",
     "settingsSubtitle": "Пријавите проблем или предложите побољшање",
+    "unreadTooltip": "Непрочитане поруке",
     "threadsTitle": "Обраћања",
     "threadsSubtitle": "Ћаскања корисника са подршком",
     "threadTitle": "Обраћање",

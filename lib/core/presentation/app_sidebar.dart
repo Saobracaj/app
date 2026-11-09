@@ -5,6 +5,8 @@ import 'package:routemaster/routemaster.dart';
 
 import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../auth/state_management/auth/auth_state.dart';
+import '../../chat/state_management/support_unread_bloc.dart';
+import '../../chat/state_management/support_unread_state.dart';
 import '../../generated/locale_keys.g.dart';
 import '../../theme/state_management/theme_bloc.dart';
 import '../../theme/state_management/theme_events.dart';
@@ -56,6 +58,7 @@ class AppSidebar extends StatelessWidget {
                     onTap: () => onDestinationSelected(i),
                   ),
                 const Spacer(),
+                const _UnreadTile(),
                 const _AccountBlock(),
               ],
             ),
@@ -165,6 +168,62 @@ class _SidebarTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Непрочитанное в чате с разработчиком — пункт над блоком аккаунта со
+/// счётчиком, ведущий прямо в разговор. Пока читать нечего, пункта нет: это
+/// тот же сигнал, что на телефоне стоит на месте аватара в шапке главной.
+class _UnreadTile extends StatelessWidget {
+  const _UnreadTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return BlocBuilder<SupportUnreadBloc, SupportUnreadState>(
+      builder: (context, state) {
+        final destination = state.destination;
+        if (destination == null) return const SizedBox.shrink();
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Material(
+            color: scheme.tertiaryContainer,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: () => Routemaster.of(context).push(destination),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.forum_outlined,
+                      size: 20,
+                      color: scheme.onTertiaryContainer,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        LocaleKeys.support_unreadTooltip.tr(),
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: scheme.onTertiaryContainer,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Badge.count(count: state.total),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

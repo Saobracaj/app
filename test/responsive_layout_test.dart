@@ -10,6 +10,8 @@ import 'package:saobracaj/core/network/network_status.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/auth/data/token_storage.dart';
 import 'package:saobracaj/auth/state_management/auth/auth_bloc.dart';
+import 'package:saobracaj/chat/data/chat_repository.dart';
+import 'package:saobracaj/chat/state_management/support_unread_bloc.dart';
 import 'package:saobracaj/core/presentation/app_sidebar.dart';
 import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/feature_flags/state_management/feature_flags_bloc.dart';
@@ -20,6 +22,7 @@ import 'package:saobracaj/groups/state_management/groups_bloc.dart';
 import 'package:saobracaj/home_page.dart';
 import 'package:saobracaj/profile/data/profile_repository.dart';
 import 'package:saobracaj/models/models.dart';
+import 'package:saobracaj/notifications/data/push_message_service.dart';
 import 'package:saobracaj/question_lists/data/question_lists_repository.dart';
 import 'package:saobracaj/question_lists/data/shared_lists_repository.dart';
 import 'package:saobracaj/question_lists/state_management/question_lists_bloc.dart';
@@ -188,6 +191,18 @@ Widget _homeApp() {
               context.read<AuthBloc>(),
               FeatureFlagsRepository(client, storage),
               NetworkStatus(),
+            ),
+          ),
+          // Пункт «непрочитанное в чате» в боковой колонке — читает этот Bloc.
+          BlocProvider(
+            create: (context) => SupportUnreadBloc(
+              ChatRepository(
+                client,
+                GraphqlSubscriptionClient(client, storage),
+              ),
+              context.read<AuthBloc>(),
+              NetworkStatus(),
+              PushMessageService(),
             ),
           ),
         ],

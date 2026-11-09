@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 
 import '../../auth/data/graphql_client.dart';
@@ -25,6 +27,16 @@ class ChatRepository {
 
   final GraphqlClient _client;
   final GraphqlSubscriptionClient _subscriptions;
+
+  final StreamController<void> _readStateChanged =
+      StreamController<void>.broadcast();
+
+  /// Срабатывает, когда *этот* клиент пометил разговор прочитанным.
+  ///
+  /// Глобальной подписки «на все мои разговоры» у бэкенда нет, поэтому счётчик
+  /// непрочитанного на главной перечитывается по поводам — и открытый здесь же
+  /// чат один из них: ждать серверного события незачем.
+  Stream<void> get readStateChanged => _readStateChanged.stream;
 
   static const _attachmentFields = r'''
     id kind fileName contentType sizeBytes questionId questionIds url deleted createdAt
@@ -99,6 +111,11 @@ class ChatRepository {
 
   static const _myUnreadQuery = r'''
     query MySupportUnreadCount { mySupportUnreadCount }
+  ''';
+
+  static const _unreadSupportChatsQuery =
+      '''
+    query MySupportUnreadChats { mySupportUnreadChats { $_chatFields } }
   ''';
 
   static const _chatsQuery =
@@ -284,6 +301,23 @@ class ChatRepository {
     return (data['mySupportUnreadCount'] as num?)?.toInt() ?? 0;
   }
 
+  /// Разговоры с разработчиком, в которых у меня есть непрочитанное: свой чат
+  /// и треды его сообщений; у модератора — обращения и их треды с
+  /// непрочитанными сообщениями пользователей. Свежие первыми. Из этого
+  /// списка главная рисует кнопку со счётчиком и выбирает, что открыть.
+  Future<List<Chat>> unreadSupportChats() async {
+    final data = await _client.run(
+      _unreadSupportChatsQuery,
+      authenticated: true,
+    );
+    final raw = data['mySupportUnreadChats'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map>()
+        .map((e) => Chat.parse(e.cast<String, dynamic>()))
+        .toList();
+  }
+
   /// The moderator's list of обращения.
   Future<ChatConnection> supportChats({
     bool onlyUnread = false,
@@ -411,6 +445,7 @@ class ChatRepository {
       variables: {'chatId': chatId},
       authenticated: true,
     );
+    _readStateChanged.add(null);
     return (data['markChatRead'] as num?)?.toInt() ?? 0;
   }
 
