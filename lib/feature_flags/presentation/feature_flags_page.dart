@@ -87,8 +87,12 @@ class FeatureFlagsContent extends StatelessWidget {
     );
   }
 
+  // Убранные с продукта (`shelved`) функции строки не получают — тумблер,
+  // который ни на что не влияет, только путает.
   static List<AppFeature> _tier(FeatureAccess access) =>
-      AppFeature.values.where((f) => f.access == access).toList();
+      AppFeature.values
+          .where((f) => f.access == access && !f.shelved)
+          .toList();
 }
 
 /// One feature row: a switch bound to the local toggle — always interactive,

@@ -121,16 +121,35 @@ void main() {
     expect(flags.isEnabled(AppFeature.customQuestionLists), isTrue);
   });
 
-  test('обсуждение вопроса гость читает в любой категории', () {
-    final flags = snapshot(authenticated: false);
-    // Тир guest: вкладка видна и без входа — писать не даст сам экран
-    // (композер заменяется приглашением войти) и RequireAuth на бэкенде.
-    for (final category in ['25', '27']) {
-      expect(
-        flags.isEnabledForCategory(AppFeature.publicQuestionComments, category),
-        isTrue,
-        reason: 'обсуждение открыто гостю в категории $category',
+  test('обсуждение вопроса убрано с продукта (shelved) — выключено у всех', () {
+    // SAOBR-545: раздел «Обсуждение» снят, тир guest больше его не открывает —
+    // ни гостю, ни авторизованному, ни в бесплатной категории, ни при явно
+    // включённом локальном тумблере. Код сохранён, возврат — снятием `shelved`.
+    expect(AppFeature.publicQuestionComments.shelved, isTrue);
+    for (final authenticated in [false, true]) {
+      final flags = snapshot(
+        authenticated: authenticated,
+        locals: {AppFeature.publicQuestionComments.key: true},
       );
+      for (final category in ['25', '27']) {
+        expect(
+          flags.isEnabledForCategory(
+            AppFeature.publicQuestionComments,
+            category,
+          ),
+          isFalse,
+          reason:
+              'обсуждение показано (auth=$authenticated, категория $category)',
+        );
+        expect(
+          flags.isLockedForCategory(
+            AppFeature.publicQuestionComments,
+            category,
+          ),
+          isFalse,
+          reason: 'убранная вкладка не должна висеть «запертой»',
+        );
+      }
     }
   });
 }

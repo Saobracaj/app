@@ -130,7 +130,7 @@
     "ruTrialLast": "Ово је био последњи бесплатни приказ превода. Даље превод отвара претплата.",
     "share": "Подели питање",
     "linkCopied": "Линк је копиран",
-    "wideTabsPlaceholder": "Објашњење, конспект и дискусија појавиће се овде након одговора на питање.",
+    "wideTabsPlaceholder": "Објашњење и конспект појавиће се овде након одговора на питање.",
     "questionNotFound": "Питање није пронађено",
     "toHome": "На почетну",
     "runSettings": "Podešavanja prolaza",
@@ -922,7 +922,7 @@
     "featureAskAiHint": "Odgovori uživo na „a zašto ne B?“",
     "featureRussian": "Materijali na ruskom",
     "featureRussianHint": "Uključeni u svaku pretplatu",
-    "featureCommunity": "Diskusije, čet sa programerom, pretraga",
+    "featureCommunity": "Čet sa programerom, pretraga",
     "featureCommunityHint": "I prijave grešaka koje pošaljete",
     "valueAllCategories": "sve kategorije",
     "valueFreeCategories": {

@@ -134,7 +134,7 @@
     "ruTrialLast": "Это был последний бесплатный показ перевода. Дальше перевод открывает подписка.",
     "share": "Поделиться вопросом",
     "linkCopied": "Ссылка скопирована",
-    "wideTabsPlaceholder": "Объяснение, конспект и обсуждение появятся здесь после ответа на вопрос.",
+    "wideTabsPlaceholder": "Объяснение и конспект появятся здесь после ответа на вопрос.",
     "questionNotFound": "Вопрос не найден",
     "toHome": "На главную",
     "runSettings": "Настройки прогона",
@@ -935,7 +935,7 @@
     "featureAskAiHint": "Живые ответы на «а почему не B?»",
     "featureRussian": "Материалы на русском",
     "featureRussianHint": "Входят в любую подписку",
-    "featureCommunity": "Обсуждения, чат с разработчиком, поиск",
+    "featureCommunity": "Чат с разработчиком, поиск",
     "featureCommunityHint": "И сообщения об ошибке в вопросе",
     "valueAllCategories": "все категории",
     "valueFreeCategories": {
