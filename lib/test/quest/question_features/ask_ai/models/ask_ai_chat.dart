@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_client_settings.dart';
 
 part 'ask_ai_chat.freezed.dart';
 
@@ -27,8 +28,9 @@ enum AskAiChatRole {
   user,
   assistant;
 
-  static AskAiChatRole parse(String? raw) =>
-      raw?.toUpperCase() == 'USER' ? AskAiChatRole.user : AskAiChatRole.assistant;
+  static AskAiChatRole parse(String? raw) => raw?.toUpperCase() == 'USER'
+      ? AskAiChatRole.user
+      : AskAiChatRole.assistant;
 }
 
 /// One message of an Ask-AI conversation.
@@ -39,6 +41,11 @@ abstract class AskAiChatMessage with _$AskAiChatMessage {
     required AskAiChatRole role,
     @Default('') String content,
     required DateTime createdAt,
+
+    /// Settings changes the assistant asked for with this reply. Only the
+    /// `askAi` mutation's return carries them — history and the live stream
+    /// never do, so re-opening a chat does not flip the settings again.
+    @Default(<AskAiClientAction>[]) List<AskAiClientAction> actions,
   }) = _AskAiChatMessage;
 
   static AskAiChatMessage parse(Map<String, dynamic> json) => AskAiChatMessage(
@@ -48,6 +55,15 @@ abstract class AskAiChatMessage with _$AskAiChatMessage {
     createdAt:
         DateTime.tryParse(json['createdAt']?.toString() ?? '')?.toLocal() ??
         DateTime.now(),
+    actions: switch (json['actions']) {
+      final List raw =>
+        raw
+            .whereType<Map>()
+            .map((e) => AskAiClientAction.parse(e.cast<String, dynamic>()))
+            .whereType<AskAiClientAction>()
+            .toList(),
+      _ => const [],
+    },
   );
 }
 

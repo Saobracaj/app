@@ -29,3 +29,7 @@ class AskAiChatStreamed extends AskAiChatEvent {
   AskAiChatStreamed(this.update);
   final AskAiStreamUpdate update;
 }
+
+/// The settings changes of the last reply ([AskAiChatState.pendingActions])
+/// have been applied by the screen — drop them, so nothing applies twice.
+class AskAiChatActionsHandled extends AskAiChatEvent {}

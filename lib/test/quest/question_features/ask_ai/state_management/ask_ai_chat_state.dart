@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_chat.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_client_settings.dart';
 
 part 'ask_ai_chat_state.freezed.dart';
 
@@ -33,6 +34,12 @@ sealed class AskAiChatState with _$AskAiChatState {
     String? streamingTool,
     String? errorMessage,
     AskAiQuota? quota,
+
+    /// Settings changes the last reply asked for, waiting for the screen to
+    /// apply them (`AskAiActionsApplier`) and report back with
+    /// [AskAiChatActionsHandled]. The Bloc cannot apply them itself: the «РУ»
+    /// chip and the theme live in other Blocs of the widget tree.
+    @Default(<AskAiClientAction>[]) List<AskAiClientAction> pendingActions,
   }) = _AskAiChatState;
 
   const AskAiChatState._();

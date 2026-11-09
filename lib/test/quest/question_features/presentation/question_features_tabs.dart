@@ -427,7 +427,7 @@ class _TabContent extends StatelessWidget {
       // Вкладка — это только чат: разбор вопроса и выдержки из закона уже есть
       // на вкладках «Объяснение» и «Конспект», дублировать их здесь незачем.
       case AppFeature.askAi:
-        return AskAiChatSection(questionId: questionId);
+        return AskAiChatSection(questionId: questionId, categoryId: categoryId);
       default:
         return _ComingSoon(feature: feature);
     }

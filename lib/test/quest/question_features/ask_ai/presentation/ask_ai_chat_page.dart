@@ -6,6 +6,7 @@ import 'package:saobracaj/core/responsive.dart';
 import 'package:saobracaj/generated/locale_keys.g.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_chat.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/presentation/ask_ai_chat_widgets.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/presentation/ask_ai_settings_bridge.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_bloc.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_events.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/state_management/ask_ai_chat_state.dart';
@@ -23,10 +24,17 @@ class AskAiChatPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => getIt<AskAiChatBloc>(param1: scope, param2: scopeId),
-      child: Scaffold(
-        appBar: AppBar(title: Text(LocaleKeys.questionTabs_askAi.tr())),
-        body: ReadableWidth(child: _ChatView(scope: scope)),
+      // No ticket on this screen, so the snapshot carries no «РУ» state; the
+      // theme, the Russian materials and the feature toggles still do.
+      create: (context) =>
+          getIt<AskAiChatBloc>(param1: scope, param2: scopeId)
+            ..settingsReader = () =>
+                context.mounted ? readAskAiClientSettings(context) : null,
+      child: AskAiActionsApplier(
+        child: Scaffold(
+          appBar: AppBar(title: Text(LocaleKeys.questionTabs_askAi.tr())),
+          body: ReadableWidth(child: _ChatView(scope: scope)),
+        ),
       ),
     );
   }
@@ -52,14 +60,13 @@ class _ChatView extends StatelessWidget {
               child: state.loading
                   ? const Center(child: CircularProgressIndicator())
                   : state.historyFailed
-                      ? _HistoryFailed(
-                          onRetry: () => context
-                              .read<AskAiChatBloc>()
-                              .add(AskAiChatOpened()),
-                        )
-                      : state.isEmpty && !state.sending
-                          ? _EmptyState(scope: scope)
-                          : _Messages(state: state),
+                  ? _HistoryFailed(
+                      onRetry: () =>
+                          context.read<AskAiChatBloc>().add(AskAiChatOpened()),
+                    )
+                  : state.isEmpty && !state.sending
+                  ? _EmptyState(scope: scope)
+                  : _Messages(state: state),
             ),
             if (!state.loading && !state.historyFailed)
               SafeArea(
@@ -133,8 +140,11 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.auto_awesome_outlined,
-                size: 48, color: theme.colorScheme.outline),
+            Icon(
+              Icons.auto_awesome_outlined,
+              size: 48,
+              color: theme.colorScheme.outline,
+            ),
             const SizedBox(height: 12),
             Text(
               LocaleKeys.askAi_examEmptyHint.tr(),

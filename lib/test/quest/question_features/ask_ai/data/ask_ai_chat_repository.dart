@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
 import 'package:saobracaj/auth/data/graphql_subscription_client.dart';
 import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_chat.dart';
+import 'package:saobracaj/test/quest/question_features/ask_ai/models/ask_ai_client_settings.dart';
 
 /// The live Ask-AI chat transport: history, the daily quota, the `askAi`
 /// mutation and the `askAiStream` subscription of `saobracaj_backend`.
@@ -53,22 +54,35 @@ class AskAiChatRepository {
     );
   }
 
-  /// Sends one message and returns the assistant's whole reply.
+  /// Sends one message and returns the assistant's whole reply, with the
+  /// settings changes the assistant asked for. [settings] is the device-side
+  /// snapshot the model reads its answers about the app from; without it the
+  /// server answers as to an older app — the settings tool refuses softly.
   Future<AskAiChatMessage> ask(
     AskAiChatScope scope,
     String scopeId,
-    String message,
-  ) async {
+    String message, {
+    AskAiClientSettings? settings,
+  }) async {
     final data = await _client.run(
       '''
-        mutation AskAi(\$scope: AskAiScope!, \$scopeId: String!, \$message: String!) {
-          askAi(scope: \$scope, scopeId: \$scopeId, message: \$message) { $_messageFields }
+        mutation AskAi(
+          \$scope: AskAiScope!,
+          \$scopeId: String!,
+          \$message: String!,
+          \$settings: AskAiClientSettingsInput,
+        ) {
+          askAi(scope: \$scope, scopeId: \$scopeId, message: \$message, settings: \$settings) {
+            $_messageFields
+            actions { key value }
+          }
         }
       ''',
       variables: {
         'scope': scope.wireName,
         'scopeId': scopeId,
         'message': message,
+        if (settings != null) 'settings': settings.toGraphql(),
       },
       authenticated: true,
     );
@@ -99,10 +113,11 @@ class AskAiChatRepository {
         )
         .map<AskAiStreamUpdate?>(
           (message) => switch (message) {
-            GraphqlSubscriptionData(:final data) when data['askAiStream'] is Map
-                => AskAiStreamUpdate.parse(
-                    (data['askAiStream'] as Map).cast<String, dynamic>(),
-                  ),
+            GraphqlSubscriptionData(:final data)
+                when data['askAiStream'] is Map =>
+              AskAiStreamUpdate.parse(
+                (data['askAiStream'] as Map).cast<String, dynamic>(),
+              ),
             _ => null,
           },
         )
