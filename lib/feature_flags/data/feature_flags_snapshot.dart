@@ -122,6 +122,21 @@ class FeatureFlagsSnapshot {
     return !isEnabledForCategory(feature, categoryId);
   }
 
+  /// What the **backend** is expected to answer for premium content of
+  /// [feature] attached to a question of [categoryId]: `true` — a cut preview
+  /// (`locked`), `false` — the full text. Its rule, mirrored: a free category
+  /// is open to everybody, anywhere else the signed-in user needs the grant.
+  /// Unlike [isLockedForCategory] this ignores the user's own local toggle —
+  /// the server knows nothing about it — so an answer that contradicts this
+  /// prediction means the cached grants are stale, not that the user switched
+  /// something off. `FeatureFlagsRepository.reconcileContentLock` compares
+  /// the two.
+  bool expectsLockedContent(AppFeature feature, String? categoryId) {
+    if (feature.access != FeatureAccess.premium) return false;
+    if (isFreeCategory(categoryId)) return false;
+    return !(authenticated && grants.contains(feature.key));
+  }
+
   /// The user's local toggle for [feature] (defaults to on).
   bool localEnabled(AppFeature feature) => localOverrides[feature.key] ?? true;
 

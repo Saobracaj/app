@@ -374,6 +374,25 @@ class GraphqlClient {
     return _storage.accessToken;
   }
 
+  /// Renews the access token *now*, for a caller holding evidence that the
+  /// server did not recognise the session although the token looked fine
+  /// locally: `me` answering `null`, or `featureFlags` answering the guest
+  /// catalog to a request that carried a bearer token. The back-end treats a
+  /// rejected access token as an anonymous request rather than an error, so
+  /// such answers are the only signal there is — and a locally-checked `exp`
+  /// cannot see a clock skew or a token the server stopped trusting.
+  ///
+  /// `true` when a new token was stored (ask again); `false` when nothing was
+  /// renewed — a guest with no session to renew, or a transient failure.
+  /// Throws [AuthExpiredException] (and fires [sessionExpired]) when the
+  /// refresh token itself is rejected: then the session really is over.
+  Future<bool> refreshSession() async {
+    final refresh = await _storage.refreshToken;
+    // A guest has nothing to renew — and must not be "expired" for asking.
+    if (refresh == null || refresh.isEmpty) return false;
+    return _tryRefresh();
+  }
+
   /// Refreshes and reports whether it worked, so a failed retry can surface the
   /// server's original error. An [AuthExpiredException] is *not* swallowed —
   /// "the session is over" outranks whatever the request itself failed on.

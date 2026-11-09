@@ -7,6 +7,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../auth/state_management/auth/auth_bloc.dart';
 import '../../core/analytics/analytics_service.dart';
 import '../../core/navigation.dart';
+import '../../feature_flags/state_management/feature_flags_bloc.dart';
+import '../../feature_flags/state_management/feature_flags_events.dart';
 import '../../generated/locale_keys.g.dart';
 import 'tariffs_page.dart';
 
@@ -97,6 +99,12 @@ String lockedPreviewOf(String text) {
 ///
 /// Аналитика: `paywall_shown` уходит один раз на карточку — при первом
 /// построении, а не на каждом кадре.
+///
+/// Тогда же карточка просит перепроверить гранты у бэкенда
+/// (`FeatureGrantsRecheckRequested`): замок рисуется по кэшу грантов, и если
+/// кэш отстал — пропуск куплен, а приложение не перезапускалось, — карточка
+/// исчезнет сама, как только придёт ответ. Перепроверка дросселируется в
+/// репозитории, так что десяток запертых вопросов подряд стоит одного запроса.
 class LockedContentCard extends StatefulWidget {
   const LockedContentCard({
     super.key,
@@ -130,6 +138,9 @@ class _LockedContentCardState extends State<LockedContentCard> {
       questionId: widget.questionId,
       categoryId: widget.categoryId,
     );
+    // Optional for the same reason as the session holder below: a content
+    // screen under test may be built without the flags holder above it.
+    context.read<FeatureFlagsBloc?>()?.add(FeatureGrantsRecheckRequested());
   }
 
   @override

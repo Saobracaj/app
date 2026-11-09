@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 
 import '../../../../auth/data/graphql_client.dart';
@@ -133,7 +135,20 @@ class CommentRepository {
       variables: {'id': questionId},
       authenticated: true,
     );
-    return _parse(data['questionComment'], categoryId: categoryId);
+    final details = _parse(data['questionComment'], categoryId: categoryId);
+    if (details != null) {
+      // The server just decided whether this reader gets the full explanation
+      // or a preview; if the cached grants would have said otherwise, they are
+      // stale and get refreshed — the lock on screen follows.
+      unawaited(
+        _flags.reconcileContentLock(
+          AppFeature.questionComments,
+          categoryId,
+          locked: details.locked,
+        ),
+      );
+    }
+    return details;
   }
 
   /// Saves (replaces) the RU draft for [questionId] and returns the updated

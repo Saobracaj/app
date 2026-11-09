@@ -179,5 +179,5 @@ class SubscriptionRepository {
   /// Перечитать премиум-гранты: оплаченная покупка открывает фичи, и без
   /// этого экран подписки показывал бы новый тариф, а сам контент оставался бы
   /// закрытым до перезапуска.
-  Future<void> refreshGrants() => _flags.refreshFromBackend();
+  Future<void> refreshGrants() => _flags.refreshFromBackend(reason: 'purchase');
 }

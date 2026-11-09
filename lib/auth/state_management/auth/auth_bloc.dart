@@ -76,7 +76,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     if (state.status != AuthStatus.authenticated) return;
-    featureFlags.refreshFromBackend();
+    featureFlags.refreshFromBackend(reason: 'reconnect');
     statisticsSync.sync();
     if (state.viewer != null) return;
     try {
@@ -109,7 +109,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         // stored from other devices.
         statisticsSync.sync();
         // Refresh which premium features this account has been granted.
-        featureFlags.refreshFromBackend();
+        featureFlags.refreshFromBackend(reason: 'login');
         try {
           // A merely expired access token is refreshed inside the client, so
           // reaching this call with a live session is enough to get a viewer.

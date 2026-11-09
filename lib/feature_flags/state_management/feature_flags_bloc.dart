@@ -24,6 +24,7 @@ class FeatureFlagsBloc extends Bloc<FeatureFlagsEvent, FeatureFlagsState> {
     on<FeatureFlagsSnapshotChanged>(_onSnapshotChanged);
     on<FeatureToggled>(_onToggled);
     on<RussianTranslationTrialUsed>(_onTrialUsed);
+    on<FeatureGrantsRecheckRequested>(_onRecheckRequested);
   }
 
   final FeatureFlagsRepository _repository;
@@ -50,6 +51,13 @@ class FeatureFlagsBloc extends Bloc<FeatureFlagsEvent, FeatureFlagsState> {
     Emitter<FeatureFlagsState> emit,
   ) {
     return _repository.setLocalEnabled(event.feature, event.enabled);
+  }
+
+  Future<void> _onRecheckRequested(
+    FeatureGrantsRecheckRequested event,
+    Emitter<FeatureFlagsState> emit,
+  ) {
+    return _repository.refreshIfStale(reason: event.reason);
   }
 
   Future<void> _onTrialUsed(

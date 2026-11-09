@@ -113,7 +113,7 @@ class GroupBloc extends Bloc<GroupEditEvent, GroupState> {
       await _groups.delete(state.groupId);
       // A group can carry feature grants of its own, so losing it may change
       // what the user is entitled to.
-      await _flags.refreshFromBackend();
+      await _flags.refreshFromBackend(reason: 'group');
       if (emit.isDone) return;
       emit(state.copyWith(busy: false, closed: true));
     } catch (e) {

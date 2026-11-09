@@ -145,6 +145,22 @@ the shop window sells in roubles through the intermediary lava.top (below).
   for the web shop window; on a phone the localised `StoreProduct.price` is
   what is shown. The two are kept in step by hand — see
   `saobracaj_backend/BILLING.md`, which also lists the store console setup.
+- **The lock on paid content is drawn from a cache the backend keeps
+  correcting.** `FeatureFlagsRepository` caches the premium grants
+  (`feature_grants` in prefs) and `isLockedForCategory` is what every gate
+  reads — so a stale cache shows a paying user the paywall (SAOBR-547). The
+  rules that keep it honest: a **guest-shaped** `featureFlags` answer to a
+  request that carried a token is never taken for «no grants» (the backend
+  turns a rejected access token into an anonymous request — renew the token,
+  ask again, otherwise keep the cache; `me` answering `null` is handled the
+  same way in `AuthRepository.me()` before `AuthBloc` signs out);
+  `refreshIfStale` re-asks on resume, on every `LockedContentCard` shown
+  (`FeatureGrantsRecheckRequested`) and on reconnect; and a content answer
+  whose `locked` disagrees with `FeatureFlagsSnapshot.expectsLockedContent`
+  refreshes at once (`reconcileContentLock`, called by the konspekt and
+  explanation repositories). A new remote section that returns `locked`
+  should call it too. `feature_grants_changed` / `grants_session_rejected`
+  in PostHog show how often the cache was wrong.
 - Only the monthly tariffs auto-renew. Everything the UI says about renewal
   hangs off `Tariff.autoRenewing` / `SubscriptionStatus.autoRenewing`: a date
   on an auto-renewing subscription is the next charge, not the end of access,

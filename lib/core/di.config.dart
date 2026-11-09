@@ -213,9 +213,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i512.BillingAdminRepository>(
       () => _i512.BillingAdminRepository(gh<_i483.GraphqlClient>()),
     );
-    gh.lazySingleton<_i491.KonspektRepository>(
-      () => _i491.KonspektRepository(gh<_i483.GraphqlClient>()),
-    );
     gh.lazySingleton<_i311.ProfileRepository>(
       () => _i311.ProfileRepository(gh<_i483.GraphqlClient>()),
     );
@@ -231,27 +228,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i147.QuestionDifficultyRepository>(
       () => _i147.QuestionDifficultyRepository(gh<_i483.GraphqlClient>()),
     );
-    gh.factoryParam<_i192.QuestionKonspektBloc, int, String>(
-      (questionId, categoryId) => _i192.QuestionKonspektBloc(
-        gh<_i491.KonspektRepository>(),
-        gh<_i958.NetworkStatus>(),
-        questionId,
-        categoryId,
-      ),
-    );
     gh.factory<_i587.LinkSourcesBloc>(
       () => _i587.LinkSourcesBloc(gh<_i352.AttributionRepository>()),
     );
-    gh.factory<_i63.HomeInsightsBloc>(
-      () => _i63.HomeInsightsBloc(
-        gh<_i847.AnswerRepository>(),
-        gh<_i1002.QuestionAnalyticsRepository>(),
-        gh<_i175.HomePreferencesRepository>(),
-        gh<_i491.KonspektRepository>(),
+    gh.lazySingleton<_i491.KonspektRepository>(
+      () => _i491.KonspektRepository(
+        gh<_i483.GraphqlClient>(),
+        flags: gh<_i389.FeatureFlagsRepository>(),
       ),
-    );
-    gh.factory<_i187.KonspektCatalogBloc>(
-      () => _i187.KonspektCatalogBloc(gh<_i491.KonspektRepository>()),
     );
     gh.lazySingleton<_i731.SubscriptionRepository>(
       () => _i731.SubscriptionRepository(
@@ -380,6 +364,14 @@ extension GetItInjectableX on _i174.GetIt {
         initialSection,
       ),
     );
+    gh.factoryParam<_i192.QuestionKonspektBloc, int, String>(
+      (questionId, categoryId) => _i192.QuestionKonspektBloc(
+        gh<_i491.KonspektRepository>(),
+        gh<_i958.NetworkStatus>(),
+        questionId,
+        categoryId,
+      ),
+    );
     gh.factoryParam<_i794.AskAiChatBloc, _i997.AskAiChatScope, String>(
       (scope, scopeId) =>
           _i794.AskAiChatBloc(gh<_i154.AskAiChatRepository>(), scope, scopeId),
@@ -401,6 +393,14 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i335.SubscriptionBloc(
         gh<_i731.SubscriptionRepository>(),
         gh<_i1058.StorePurchaseService>(),
+      ),
+    );
+    gh.factory<_i63.HomeInsightsBloc>(
+      () => _i63.HomeInsightsBloc(
+        gh<_i847.AnswerRepository>(),
+        gh<_i1002.QuestionAnalyticsRepository>(),
+        gh<_i175.HomePreferencesRepository>(),
+        gh<_i491.KonspektRepository>(),
       ),
     );
     gh.factory<_i618.NotificationsBloc>(
@@ -426,6 +426,9 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i388.AuthBloc>(),
         questionId,
       ),
+    );
+    gh.factory<_i187.KonspektCatalogBloc>(
+      () => _i187.KonspektCatalogBloc(gh<_i491.KonspektRepository>()),
     );
     gh.factory<_i246.TestPushBloc>(
       () => _i246.TestPushBloc(
