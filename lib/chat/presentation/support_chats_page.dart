@@ -110,7 +110,7 @@ class _SupportChatsView extends StatelessWidget {
                               : thread.title,
                         ),
                         subtitle: Text(
-                          thread.lastMessagePreview,
+                          thread.previewLine,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -132,9 +132,17 @@ class _SupportChatsView extends StatelessWidget {
                               ),
                           ],
                         ),
-                        onTap: () => Routemaster.of(
-                          context,
-                        ).push('/support/threads/${thread.id}'),
+                        onTap: () async {
+                          // Внутри обращения сообщения становятся прочитанными —
+                          // по возвращении список перечитывается, чтобы
+                          // счётчики сошлись.
+                          await Routemaster.of(
+                            context,
+                          ).push('/support/threads/${thread.id}').result;
+                          if (context.mounted) {
+                            bloc.add(SupportChatsRefreshed());
+                          }
+                        },
                       );
                     },
                   ),
