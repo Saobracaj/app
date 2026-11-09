@@ -154,4 +154,23 @@ void main() {
     await _settle(tester);
     expect(find.byType(OfflineHomeCard), findsNothing);
   });
+
+  testWidgets('лента главной отделена от нижней панели отступом снизу', (
+    tester,
+  ) async {
+    // SAOBR-544: последний раздел прилегал вплотную к bottom bar — у ленты
+    // не было нижнего отступа. Проверяем сам отступ, а не содержимое: какие
+    // секции окажутся последними, зависит от флагов и данных пользователя.
+    final flags = FeatureFlagsRepository(
+      _FakeClient(TokenStorage()),
+      TokenStorage(),
+    );
+    await flags.bootstrap();
+    await tester.pumpWidget(_app(NetworkStatus(), flags));
+    await _settle(tester);
+
+    final list = tester.widget<ListView>(find.byType(ListView));
+    final padding = list.padding! as EdgeInsets;
+    expect(padding.bottom, greaterThanOrEqualTo(24));
+  });
 }

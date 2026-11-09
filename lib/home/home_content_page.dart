@@ -88,8 +88,11 @@ class HomeContentPage extends StatelessWidget {
       body: ReadableWidth(
         maxWidth: 840,
         child: ListView(
+          // Снизу ленты — воздух перед нижней панелью навигации: без него
+          // последняя карточка упирается прямо в bottom bar (SAOBR-544).
+          // Широкая раскладка выше получает тот же отступ из [WideContent].
+          padding: const EdgeInsets.only(top: 8, bottom: 24),
           children: [
-            const SizedBox(height: 8),
             if (!online)
               const Padding(
                 padding: EdgeInsets.fromLTRB(12, 4, 12, 8),
