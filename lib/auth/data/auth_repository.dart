@@ -147,7 +147,29 @@ class AuthRepository {
     return tokens;
   }
 
+  /// The signed-in account, or `null` when the server knows no session behind
+  /// the stored token.
+  ///
+  /// `me` is not guarded on the backend: a token the server rejects makes the
+  /// request anonymous and the answer `null` — the same `null` a deleted
+  /// account gets. `AuthBloc` signs out on it, so before believing a `null`
+  /// with a token in hand the token is renewed and the question asked once
+  /// more. Only a `null` to a *fresh* token is taken as «the account is gone»;
+  /// a renewal that fails for a transient reason throws instead, so the
+  /// session is kept for a later attempt rather than ended on a bad minute.
   Future<Viewer?> me() async {
+    var viewer = await _fetchMe();
+    if (viewer != null) return viewer;
+    final hadToken = (await _storage.accessToken)?.isNotEmpty ?? false;
+    if (!hadToken) return null;
+    if (!await _client.refreshSession()) {
+      throw GraphqlException('Session not recognised; token renewal failed');
+    }
+    viewer = await _fetchMe();
+    return viewer;
+  }
+
+  Future<Viewer?> _fetchMe() async {
     final data = await _client.run(
       'query Me { me { id email permissions } }',
       authenticated: true,

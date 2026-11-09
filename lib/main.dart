@@ -117,6 +117,13 @@ void main() async {
   // Load persisted feature toggles / cached premium grants and refresh from the
   // backend if a session exists.
   await featureFlags.bootstrap();
+  // A phone keeps the app alive for days: a pass bought meanwhile (on another
+  // device, or here with the confirmation lost to a bad connection) would stay
+  // locked until a restart. Coming back from the background re-asks the
+  // backend — throttled inside the repository, nothing for a guest.
+  AppLifecycleListener(
+    onResume: () => featureFlags.refreshIfStale(reason: 'resume'),
+  );
   // Load the run options and the per-question tab the user picked last time, so
   // the setup screens and the question tabs render them on their first frame.
   await getIt<QuizPreferencesRepository>().bootstrap();

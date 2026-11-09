@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:injectable/injectable.dart';
 import 'package:saobracaj/auth/data/graphql_client.dart';
+import 'package:saobracaj/feature_flags/data/feature_flags_repository.dart';
+import 'package:saobracaj/feature_flags/domain/app_feature.dart';
 import 'package:saobracaj/konspekt/models/konspekt.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,9 +27,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// pinning "no category has a konspekt" for as long as the app runs.
 @lazySingleton
 class KonspektRepository {
-  KonspektRepository(this._client);
+  KonspektRepository(this._client, {FeatureFlagsRepository? flags})
+    : _flags = flags;
 
   final GraphqlClient _client;
+
+  /// Told what the backend decided about the lock on every document fetched
+  /// (`reconcileContentLock`), so cached grants that disagree with the server
+  /// get refreshed on the spot. Optional: a test stub of this repository has
+  /// no flags to keep honest.
+  final FeatureFlagsRepository? _flags;
 
   static const _catalogKey = 'konspekt_catalog';
   static const _documentPrefix = 'konspekt_document.';
@@ -121,6 +130,17 @@ class KonspektRepository {
       final konspekt = Konspekt.fromJson(
         document.cast<String, dynamic>(),
       ).copyWith(locked: raw['locked'] == true);
+      // The server's verdict on the lock is the truth the cached grants are
+      // supposed to predict; a mismatch means they are stale (a pass bought
+      // since, or one that ran out) and the lock on screen is wrong until the
+      // grants are re-read.
+      unawaited(
+        _flags?.reconcileContentLock(
+          AppFeature.categorySummaries,
+          categoryId,
+          locked: konspekt.locked,
+        ),
+      );
       // A preview is what the reader gets *now*; it must not outlive the
       // entitlement check — the pass bought a minute later would keep
       // serving the cut document — so neither memory nor disk keeps it.

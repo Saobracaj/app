@@ -13,6 +13,17 @@ class FeatureFlagsSnapshotChanged extends FeatureFlagsEvent {
   final FeatureFlagsSnapshot snapshot;
 }
 
+/// A screen is showing a lock on paid content: re-check the grants with the
+/// backend (throttled — see `FeatureFlagsRepository.refreshIfStale`), so a
+/// stale cache corrects itself where the user is looking instead of at the
+/// next restart.
+class FeatureGrantsRecheckRequested extends FeatureFlagsEvent {
+  FeatureGrantsRecheckRequested({this.reason = 'locked_content'});
+
+  /// What prompted the check — for analytics.
+  final String reason;
+}
+
 /// User flipped a feature's local toggle in settings.
 class FeatureToggled extends FeatureFlagsEvent {
   FeatureToggled(this.feature, this.enabled);

@@ -294,6 +294,29 @@ class AnalyticsService {
   void logPaywallOpened({required String source, int? questionId}) =>
       _track('paywall_opened', {'source': source, 'question_id': ?questionId});
 
+  /// A refresh of the premium grants came back *different* from the cache:
+  /// [gained] / [lost] keys, and [reason] — what asked (`startup`, `login`,
+  /// `purchase`, `resume`, `locked_content`, `content_mismatch`, …). Outside
+  /// `purchase` and `login` this means a user was looking at the wrong lock
+  /// until that moment — the figure to watch after the self-correcting cache
+  /// shipped (SAOBR-547).
+  void logFeatureGrantsChanged({
+    required String reason,
+    required int gained,
+    required int lost,
+  }) => _track('feature_grants_changed', {
+    'reason': reason,
+    'gained': gained,
+    'lost': lost,
+  });
+
+  /// `featureFlags` answered the guest catalog to a request that carried a
+  /// bearer token — the server did not recognise the session. [renewed] says
+  /// whether the token could be refreshed on the spot (and the grants asked
+  /// for again); either way the cached grants were kept.
+  void logGrantsSessionRejected({required bool renewed}) =>
+      _track('grants_session_rejected', {'renewed': renewed});
+
   /// A question search was run; only the length of the query is reported —
   /// what exactly a person types is theirs.
   void logQuestionSearch({required int queryLength, required int results}) =>

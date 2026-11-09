@@ -230,7 +230,7 @@ class GroupsBloc extends Bloc<GroupsEvent, GroupsState> {
         profile = await _profiles.setDisplayName(displayNameToSet);
       }
       final openGroupId = await action();
-      await _flags.refreshFromBackend();
+      await _flags.refreshFromBackend(reason: 'group');
       if (emit.isDone) return;
       emit(
         state.copyWith(busy: false, profile: profile, openGroupId: openGroupId),
